@@ -96,7 +96,12 @@ export function cleanName(rawFilename: string): string {
     .trim();
 }
 
-export function parseFilename(rawFilename: string): ParsedFilename {
+export function parseFilename(
+  rawFilename: string,
+  /** Puratan filenames carry neither a date nor a slot by design, so flagging
+   *  their absence marks the whole tree low-confidence for no reason. */
+  tree?: 'ragiwise' | 'puratan' | 'daywise'
+): ParsedFilename {
   const flags: TrackFlag[] = [];
   const name = cleanName(rawFilename);
 
@@ -121,7 +126,21 @@ export function parseFilename(rawFilename: string): ParsedFilename {
   }
 
   // --- time slot: "(12.00pm to 1.10pm)" | "(02;00 - 22;30 hours)" -------
-  const slot = name.match(/\(([^)]+)\)/);
+  // Scan every parenthetical, not just the first, and accept one only if it
+  // actually parses to a time. A puratan title like "Asa Di Var (Part 2)"
+  // would otherwise be treated as a slot: the title was discarded and the
+  // words before the bracket became a bogus artist name.
+  let slot: RegExpMatchArray | null = null;
+  for (const m of name.matchAll(/\(([^)]+)\)/g)) {
+    const probe = m[1]
+      .replace(/\bhours?\b/i, '')
+      .trim()
+      .split(/\s*(?:to|-|–)\s*/i);
+    if (probe.length >= 2 && toSeconds(probe[0]) !== null) {
+      slot = m as unknown as RegExpMatchArray;
+      break;
+    }
+  }
   if (slot) {
     const inner = slot[1].replace(/\bhours?\b/i, '').trim();
     const parts = inner.split(/\s*(?:to|-|–)\s*/i);
@@ -134,12 +153,21 @@ export function parseFilename(rawFilename: string): ParsedFilename {
         flags.push('open-ended-slot');
       }
       // A pm-less start before a pm end is almost always pm too
-      // ("1.10 to 2.20pm"); without this, afternoon sets land at 01:10.
+      // ("1.10 to 2.20pm" means 13:10, not 01:10).
+      //
+      // The previous guard compared `start > end`, which for this shape is
+      // never true — a pm-less start (1–12h) cannot exceed an already
+      // pm-converted end (12–23h), so the correction never ran and afternoon
+      // sets were stored at 01:10. Key off the *missing meridiem* instead,
+      // and only shift when the result still precedes the end.
+      const startHadMeridiem = /(am|pm)$/i.test(parts[0].trim());
+      const endIsPm = /pm$/i.test(parts[1].trim());
       if (
         slotStartSec !== null &&
         slotEndSec !== null &&
-        slotStartSec > slotEndSec &&
-        /pm$/i.test(parts[1].trim())
+        !startHadMeridiem &&
+        endIsPm &&
+        slotStartSec + 12 * 3600 <= slotEndSec
       ) {
         slotStartSec += 12 * 3600;
       }
@@ -155,8 +183,10 @@ export function parseFilename(rawFilename: string): ParsedFilename {
   const title =
     !slot && !date ? name.replace(/\s+/g, ' ').trim() || null : null;
 
-  if (!date) flags.push('no-date');
-  if (slotStartSec === null) flags.push('no-slot');
+  if (tree !== 'puratan') {
+    if (!date) flags.push('no-date');
+    if (slotStartSec === null) flags.push('no-slot');
+  }
 
   return {
     artistInFilename,

@@ -46,10 +46,25 @@ const sha1 = (s) => createHash('sha1').update(s).digest('hex').slice(0, 16);
  * survives a path change. The URL is stored as a mutable attribute that a
  * re-crawl is free to update in place.
  */
-function stableId({ tree, artistDir, date, slotStartSec, title, rawFilename }) {
+function stableId({
+  tree,
+  artistDir,
+  date,
+  slotStartSec,
+  title,
+  rawFilename,
+  dir,
+}) {
   const parts =
     tree === 'daywise'
-      ? [tree, date ?? rawFilename, String(slotStartSec ?? '')]
+      ? // `dir` disambiguates undated files: two identically-named recordings
+        // in different month directories would otherwise share an id, and the
+        // seeder's dedup would silently drop one as a duplicate.
+        [
+          tree,
+          date ?? `${dir ?? ''}/${rawFilename}`,
+          String(slotStartSec ?? ''),
+        ]
       : tree === 'puratan'
         ? [tree, artistDir ?? '', title ?? rawFilename]
         : [
@@ -64,6 +79,16 @@ function stableId({ tree, artistDir, date, slotStartSec, title, rawFilename }) {
 
 let requestCount = 0;
 const errors = [];
+
+/** decodeURIComponent throws on a malformed %-sequence; one bad filename must
+ *  not discard an entire crawl, which writes nothing to disk until the end. */
+function safeDecode(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
 
 /** Rate-limited GET with retry. Cloudflare 429/403 is the failure to survive. */
 async function get(url, attempt = 0) {
@@ -99,8 +124,9 @@ function makeTrack({
   sizeBytes,
   modifiedAt,
   now,
+  dir,
 }) {
-  const p = parseFilename(rawFilename);
+  const p = parseFilename(rawFilename, tree);
   const flags = [...p.flags];
 
   // The directory is the artist of record, full stop. SGPC's filenames carry
@@ -127,6 +153,7 @@ function makeTrack({
       slotStartSec: p.slotStartSec,
       title: p.title,
       rawFilename,
+      dir,
     }),
     /** Changes when SGPC moves a file; never used as a key. */
     urlId: sha1(url),
@@ -165,6 +192,12 @@ async function crawlArtistTree(tree, baseUrl, now) {
     const html = await get(url);
     if (!html) continue;
     const { files } = parseListing(html, url);
+    if (!files.length) {
+      // Recorded, not ignored: an empty artist page is indistinguishable from
+      // a successful one otherwise, and `errors.length === 0` would still
+      // report the run as clean.
+      errors.push({ url, message: 'listing parsed but contained no audio' });
+    }
     for (const f of files) {
       const fileUrl = new URL(f.href, baseUrl).toString();
       tracks.push(
@@ -172,7 +205,7 @@ async function crawlArtistTree(tree, baseUrl, now) {
           tree,
           url: fileUrl,
           artistDir: artist,
-          rawFilename: decodeURIComponent(f.href.split('/').pop() ?? f.href),
+          rawFilename: safeDecode(f.href.split('/').pop() ?? f.href),
           sizeBytes: f.sizeBytes,
           modifiedAt: f.modifiedAt,
           now,
@@ -219,7 +252,8 @@ async function crawlDayTree(now) {
             tree: 'daywise',
             url: new URL(f.href, monthUrl).toString(),
             artistDir: null,
-            rawFilename: decodeURIComponent(f.href),
+            dir: `${year}/${month}`,
+            rawFilename: safeDecode(f.href),
             sizeBytes: f.sizeBytes,
             modifiedAt: f.modifiedAt,
             now,

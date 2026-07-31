@@ -89,6 +89,8 @@ for (const t of report.tracks) {
         ? 'medium'
         : 'high',
     flags: t.flags,
+    // Deliberately omitted from the upsert payload below on conflict — see
+    // the note before the loop. Kept here for the insert case only.
     first_seen_at: t.firstSeenAt,
     last_seen_at: now,
     missing_since: null,

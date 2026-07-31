@@ -4,7 +4,7 @@ const supabase = useSupabaseClient();
 // so these pages are complete at zero tagging coverage.
 const { data: artists } = await useAsyncData('artists', async () => {
   const { data } = await supabase.rpc('artist_counts');
-  return data as { artist_dir: string; tracks: number }[] | null;
+  return data as { artist_dir: string; shabads: number }[] | null;
 });
 </script>
 

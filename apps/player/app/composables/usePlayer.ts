@@ -73,8 +73,15 @@ export function usePlayer() {
   }
 
   async function next() {
-    if (queueIndex.value < 0 || queueIndex.value >= queue.value.length - 1)
+    // Nothing queued after this one: stop. Returning silently would leave the
+    // element playing straight past the segment's end into the rest of a
+    // 70-minute file — which is the *default* case, since a single shabad
+    // played from search or favorites has no follower.
+    if (queueIndex.value < 0 || queueIndex.value >= queue.value.length - 1) {
+      audio.value?.pause();
+      playing.value = false;
       return;
+    }
     queueIndex.value += 1;
     await play(queue.value[queueIndex.value]!, false);
   }
@@ -82,7 +89,13 @@ export function usePlayer() {
   async function previous() {
     // Restart the current item first, the way every music player does, and only
     // step back if the listener hits it again near the start.
-    if ((audio.value?.currentTime ?? 0) > 3) {
+    //
+    // Measured from the segment's own start, not the file's: a segment
+    // beginning at 12:00 into a set would otherwise always read as ">3s in",
+    // making the step-back branch unreachable.
+    const intoSegment =
+      (audio.value?.currentTime ?? 0) - (current.value?.startSec ?? 0);
+    if (intoSegment > 3) {
       seek(current.value?.startSec ?? 0);
       return;
     }
@@ -110,9 +123,16 @@ export function usePlayer() {
     // Before the await: `useSupabaseClient` reads runtime config, and the Nuxt
     // instance context is gone once execution resumes after an await.
     registerPlay(item.id);
-    await el.play();
-    playing.value = true;
-    setMediaSession(item);
+    try {
+      await el.play();
+      playing.value = true;
+      setMediaSession(item);
+    } catch {
+      // Clicking a second row while the first is still starting aborts the
+      // pending play(). Swallow it, but keep the flag honest rather than
+      // leaving a Pause icon over silent audio.
+      playing.value = !el.paused;
+    }
   }
 
   function toggle() {
@@ -146,7 +166,12 @@ export function usePlayer() {
       void next();
       return;
     }
-    if (!current.value.startSec) writeResume(current.value.id, el.currentTime);
+    // Only whole-file playback has a resume position. A segment always starts
+    // at its own offset, and the live stream has no meaningful position at all
+    // — writing one made a later "listen live" seek to a stale timestamp.
+    if (current.value.startSec === undefined && current.value.id !== 'live') {
+      writeResume(current.value.id, el.currentTime);
+    }
   }
 
   function onLoadedMetadata() {

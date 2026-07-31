@@ -10,12 +10,14 @@ const { data: results, status } = await useAsyncData(
   async () => {
     const term = debounced.value.trim();
     if (term.length < 2) return null;
-    const { data } = await supabase
+    const v = escapeFilterValue(term);
+    const { data, error } = await supabase
       .from('shabads')
       .select('*')
-      .or(`name.ilike.%${term}%,artist.ilike.%${term}%,raag.ilike.%${term}%`)
+      .or(`name.ilike.${v},artist.ilike.${v},raag.ilike.${v}`)
       .limit(80);
-    return data;
+    if (error) console.error('search failed', error.message);
+    return data ?? [];
   },
   { watch: [debounced] }
 );
