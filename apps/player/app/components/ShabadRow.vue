@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Play } from 'lucide-vue-next';
+import { Play, Heart } from 'lucide-vue-next';
 import { usePlayer, formatTime } from '~/composables/usePlayer';
 
 const props = defineProps<{
@@ -10,13 +10,15 @@ const props = defineProps<{
 }>();
 
 const player = usePlayer();
+const favorites = useFavorites();
 const isCurrent = computed(() => player.current.value?.id === props.shabad.id);
 
 function toPlayable(s: any) {
   return {
     id: s.id,
     title: s.name,
-    subtitle: s.artist ?? undefined,
+    subtitle: s.artist_display ?? s.artist ?? undefined,
+    artist: s.artist ?? undefined,
     url: s.url,
     startSec: Number(s.start_sec),
     endSec: Number(s.end_sec),
@@ -58,13 +60,39 @@ function play() {
         {{ shabad.name }}
       </span>
       <span class="block truncate text-xs text-neutral-500">
-        {{
-          [shabad.artist, shabad.raag, shabad.date].filter(Boolean).join(' · ')
-        }}
+        <NuxtLink
+          v-if="shabad.artist"
+          :to="`/artists/${encodeURIComponent(shabad.artist)}`"
+          class="hover:text-neutral-200 hover:underline"
+          @click.stop
+          >{{ shabad.artist_display ?? shabad.artist }}</NuxtLink
+        >
+        <template v-if="shabad.raag || shabad.date">
+          {{ ' · '
+          }}{{ [shabad.raag, shabad.date].filter(Boolean).join(' · ') }}
+        </template>
       </span>
     </span>
-    <span class="text-xs tabular-nums text-neutral-500">
-      {{ formatTime(Number(shabad.duration_sec)) }}
+    <span class="flex items-center gap-3">
+      <!-- Stop propagation: the row itself is the play button. -->
+      <button
+        class="opacity-0 transition group-hover:opacity-100"
+        :class="favorites.has(shabad.id) && '!opacity-100'"
+        :title="favorites.has(shabad.id) ? 'Remove from favorites' : 'Save'"
+        @click.stop="favorites.toggle(shabad.id)"
+      >
+        <Heart
+          class="size-3.5"
+          :class="
+            favorites.has(shabad.id)
+              ? 'fill-amber-400 text-amber-400'
+              : 'text-neutral-500 hover:text-neutral-200'
+          "
+        />
+      </button>
+      <span class="text-xs tabular-nums text-neutral-500">
+        {{ formatTime(Number(shabad.duration_sec)) }}
+      </span>
     </span>
   </button>
 </template>

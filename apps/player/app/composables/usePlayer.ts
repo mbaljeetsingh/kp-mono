@@ -16,6 +16,8 @@ export interface Playable {
   id: string;
   title: string;
   subtitle?: string;
+  /** Kept separate from `subtitle` so the player bar can link to the artist. */
+  artist?: string;
   url: string;
   /** Set for a tagged segment; omitted to play the whole file. */
   startSec?: number;
@@ -105,6 +107,9 @@ export function usePlayer() {
       const resume = readResume()[item.id];
       el.currentTime = item.startSec ?? resume ?? 0;
     }
+    // Before the await: `useSupabaseClient` reads runtime config, and the Nuxt
+    // instance context is gone once execution resumes after an await.
+    registerPlay(item.id);
     await el.play();
     playing.value = true;
     setMediaSession(item);
@@ -148,6 +153,36 @@ export function usePlayer() {
     // The crawl gives file size but never duration, so the browser is the only
     // source. Worth caching back to the DB later; for now it drives the scrubber.
     if (audio.value) duration.value = audio.value.duration;
+  }
+
+  /**
+   * Count the play, for the Popular shelf.
+   *
+   * Sent as a plain keepalive fetch rather than through the Supabase client:
+   * this is fire-and-forget, and an unawaited client promise gets aborted
+   * mid-flight (observed as ERR_ABORTED, with the count never incrementing).
+   * `keepalive` is exactly the guarantee a ping wants — the browser completes
+   * it even if the page navigates away.
+   *
+   * The endpoint is a security-definer function, so an anonymous listener can
+   * register a play without holding UPDATE on segments, which would also let
+   * them edit tags. The live stream has no segment row and is skipped.
+   */
+  function registerPlay(id: string) {
+    if (import.meta.server || id === 'live') return;
+    const { supabaseUrl, supabaseKey } = useRuntimeConfig().public;
+    void fetch(`${supabaseUrl}/rest/v1/rpc/register_play`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        apikey: supabaseKey as string,
+        Authorization: `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ segment: id }),
+    }).catch(() => {
+      // A missed play count is not worth surfacing to a listener.
+    });
   }
 
   /** Lock screen, Bluetooth and car controls — cheap, and it is most of what

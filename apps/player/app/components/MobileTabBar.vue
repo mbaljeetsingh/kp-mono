@@ -13,7 +13,7 @@ const tabs = [
 </script>
 
 <template>
-  <nav class="flex border-t border-neutral-800 bg-neutral-950 md:hidden">
+  <nav class="flex border-t border-neutral-800/80 bg-neutral-950 md:hidden">
     <NuxtLink
       v-for="tab in tabs"
       :key="tab.to"

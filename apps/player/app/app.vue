@@ -8,7 +8,7 @@ const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
 
 // One <audio> element for the whole app so playback survives navigation — a
 // shabad keeps playing while the listener browses, which is the single thing
-// that separates a music app from a page with an audio tag on it.
+// separating a music app from a page with an audio tag on it.
 onMounted(() => {
   if (audioEl.value) player.attach(audioEl.value);
 });
@@ -23,22 +23,26 @@ const nav = [
 </script>
 
 <template>
-  <div class="flex h-dvh flex-col bg-black text-neutral-200">
-    <div class="flex min-h-0 flex-1 gap-2 p-2">
-      <aside class="hidden w-60 shrink-0 flex-col gap-2 md:flex">
-        <div class="rounded-lg bg-neutral-900 p-4">
-          <NuxtLink to="/" class="flex items-center gap-2.5">
-            <img src="/brand/logo-badge.svg" alt="" class="size-8 rounded-lg" />
-            <span class="text-sm font-semibold text-neutral-100">Kirtan</span>
-          </NuxtLink>
-        </div>
-        <nav class="flex-1 rounded-lg bg-neutral-900 p-2">
+  <!-- One continuous surface. Earlier this was three floating panels with gaps
+       between them, which read as separate widgets rather than one app; the
+       regions are now separated by hairlines on a single background. -->
+  <div class="flex h-dvh flex-col bg-neutral-950 text-neutral-300">
+    <div class="flex min-h-0 flex-1">
+      <aside
+        class="hidden w-56 shrink-0 flex-col border-r border-neutral-800/80 md:flex"
+      >
+        <NuxtLink to="/" class="flex items-center gap-2.5 px-5 py-4">
+          <img src="/brand/logo-badge.svg" alt="" class="size-7 rounded-md" />
+          <span class="text-[15px] font-semibold text-neutral-100">Kirtan</span>
+        </NuxtLink>
+
+        <nav class="flex-1 px-2">
           <NuxtLink
             v-for="item in nav"
             :key="item.to"
             :to="item.to"
-            class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-neutral-400 transition hover:text-neutral-100"
-            active-class="!text-neutral-100 bg-neutral-800"
+            class="relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-400 transition hover:text-neutral-100"
+            active-class="!text-neutral-100"
           >
             <component :is="item.icon" class="size-[18px]" />
             {{ item.label }}
@@ -46,10 +50,8 @@ const nav = [
         </nav>
       </aside>
 
-      <main
-        class="min-w-0 flex-1 overflow-y-auto rounded-lg bg-gradient-to-b from-neutral-900 to-neutral-950"
-      >
-        <div class="mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6">
+      <main class="min-w-0 flex-1 overflow-y-auto">
+        <div class="mx-auto max-w-5xl px-5 py-7 pb-10 md:px-8">
           <NuxtPage />
         </div>
       </main>
@@ -65,8 +67,6 @@ const nav = [
       @ended="player.next"
     />
 
-    <!-- Always mounted, like every music app: the transport never disappears,
-         it just sits idle until something is picked. -->
     <PlayerBar />
     <MobileTabBar />
   </div>

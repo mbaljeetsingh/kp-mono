@@ -50,7 +50,7 @@ const total = computed(() => {
     >
       <aside
         v-if="showQueue"
-        class="absolute right-2 bottom-full mb-2 max-h-96 w-80 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 shadow-2xl"
+        class="absolute right-4 bottom-full mb-2 max-h-96 w-80 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 shadow-2xl"
       >
         <div class="mb-2 flex items-center justify-between">
           <p class="text-sm font-semibold text-neutral-100">Up next</p>
@@ -85,7 +85,7 @@ const total = computed(() => {
     </Transition>
 
     <footer
-      class="border-t border-neutral-800 bg-neutral-950 px-3 py-2.5 md:px-4 md:py-3"
+      class="border-t border-neutral-800/80 bg-neutral-950 px-4 py-2.5 md:py-3"
     >
       <div class="mx-auto flex max-w-7xl items-center gap-3 md:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
@@ -100,7 +100,15 @@ const total = computed(() => {
               {{ player.current.value?.title ?? 'Nothing playing' }}
             </p>
             <p class="truncate text-xs text-neutral-500">
-              {{ player.current.value?.subtitle ?? 'Pick a shabad to start' }}
+              <NuxtLink
+                v-if="player.current.value?.artist"
+                :to="`/artists/${encodeURIComponent(player.current.value.artist)}`"
+                class="hover:text-neutral-200 hover:underline"
+                >{{ player.current.value.subtitle }}</NuxtLink
+              >
+              <template v-else>{{
+                player.current.value?.subtitle ?? 'Pick a shabad to start'
+              }}</template>
             </p>
           </div>
         </div>
