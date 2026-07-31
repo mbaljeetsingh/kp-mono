@@ -27,8 +27,18 @@ export interface ParsedFilename {
 }
 
 const MONTHS: Record<string, number> = {
-  january: 1, february: 2, march: 3, april: 4, may: 5, june: 6,
-  july: 7, august: 8, september: 9, october: 10, november: 11, december: 12,
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12,
 };
 
 /** Formats that are catalogued but that no browser can play. */
@@ -44,7 +54,10 @@ function iso(y: number, m: number, d: number): string | null {
  * Both '.' and ';' appear as the minute separator across the two trees.
  */
 function toSeconds(raw: string): number | null {
-  const m = raw.trim().toLowerCase().match(/^(\d{1,2})[.:;](\d{2})\s*(am|pm)?$/);
+  const m = raw
+    .trim()
+    .toLowerCase()
+    .match(/^(\d{1,2})[.:;](\d{2})\s*(am|pm)?$/);
   if (!m) return null;
   let h = Number(m[1]);
   const min = Number(m[2]);
@@ -57,9 +70,35 @@ function toSeconds(raw: string): number | null {
   return h * 3600 + min * 60;
 }
 
+/**
+ * Some filenames on sgpc.net are percent-encoded twice, so a single decode
+ * leaves literal "%20" in the text. Decode until it stops changing, then strip
+ * the extension — which may itself be doubled (".MP3.mp3") — and the download
+ * suffixes ("[1]") that crept in when files were re-uploaded.
+ */
+export function cleanName(rawFilename: string): string {
+  let name = rawFilename;
+  for (let i = 0; i < 3; i++) {
+    let next: string;
+    try {
+      next = decodeURIComponent(name);
+    } catch {
+      break;
+    }
+    if (next === name) break;
+    name = next;
+  }
+  return name
+    .replace(/(\.(mp3|wma|m4a|aac|ogg|wav))+$/i, '')
+    .replace(/\[\d+\]$/, '')
+    .replace(/[_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function parseFilename(rawFilename: string): ParsedFilename {
   const flags: TrackFlag[] = [];
-  const name = decodeURIComponent(rawFilename).replace(/\.[a-z0-9]+$/i, '');
+  const name = cleanName(rawFilename);
 
   if (UNPLAYABLE.test(rawFilename)) flags.push('unplayable-format');
 
@@ -97,8 +136,10 @@ export function parseFilename(rawFilename: string): ParsedFilename {
       // A pm-less start before a pm end is almost always pm too
       // ("1.10 to 2.20pm"); without this, afternoon sets land at 01:10.
       if (
-        slotStartSec !== null && slotEndSec !== null &&
-        slotStartSec > slotEndSec && /pm$/i.test(parts[1].trim())
+        slotStartSec !== null &&
+        slotEndSec !== null &&
+        slotStartSec > slotEndSec &&
+        /pm$/i.test(parts[1].trim())
       ) {
         slotStartSec += 12 * 3600;
       }
@@ -111,12 +152,21 @@ export function parseFilename(rawFilename: string): ParsedFilename {
   if (slot && beforeSlot) artistInFilename = beforeSlot.replace(/\s+/g, ' ');
 
   // --- title: puratan carries the shabad's first line and nothing else ---
-  const title = !slot && !date ? name.replace(/\s+/g, ' ').trim() || null : null;
+  const title =
+    !slot && !date ? name.replace(/\s+/g, ' ').trim() || null : null;
 
   if (!date) flags.push('no-date');
   if (slotStartSec === null) flags.push('no-slot');
 
-  return { artistInFilename, date, slotStartSec, slotEndSec, slotEndIsOpen, title, flags };
+  return {
+    artistInFilename,
+    date,
+    slotStartSec,
+    slotEndSec,
+    slotEndIsOpen,
+    title,
+    flags,
+  };
 }
 
 /**
@@ -135,7 +185,10 @@ export function normaliseArtist(name: string): string {
 }
 
 /** True when the filename's artist disagrees with its directory. */
-export function artistsDisagree(dir: string, inFilename: string | null): boolean {
+export function artistsDisagree(
+  dir: string,
+  inFilename: string | null
+): boolean {
   if (!inFilename) return false;
   return normaliseArtist(dir) !== normaliseArtist(inFilename);
 }

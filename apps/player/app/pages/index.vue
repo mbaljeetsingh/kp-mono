@@ -1,66 +1,114 @@
 <script setup lang="ts">
+import { Search } from 'lucide-vue-next';
+
 const supabase = useSupabaseClient();
 const q = ref('');
-
-// Search is the product's primary action, so it queries on every keystroke
-// (debounced) rather than sitting behind a submit button.
 const debounced = refDebounced(q, 250);
 
+// Everything the player shows comes from published shabads, never raw files —
+// a 70-minute set or a 37-minute archival performance isn't listenable until
+// somebody has marked where each shabad begins and ends.
 const { data: results } = await useAsyncData(
   'search',
   async () => {
     const term = debounced.value.trim();
     if (term.length < 2) return null;
-    // Day files are indexed but never surfaced: 563MB, ~20 hours, unusable
-    // as tracks. They exist for later segmenting, not for browsing.
     const { data } = await supabase
-      .from('tracks')
+      .from('shabads')
       .select('*')
-      .neq('tree', 'daywise')
-      .is('missing_since', null)
-      .or(`artist_dir.ilike.%${term}%,title.ilike.%${term}%,raw_filename.ilike.%${term}%`)
-      .limit(50);
+      .or(`name.ilike.%${term}%,artist.ilike.%${term}%,raag.ilike.%${term}%`)
+      .limit(60);
     return data;
   },
-  { watch: [debounced] },
+  { watch: [debounced] }
 );
 
-const { data: recent } = await useAsyncData('recent', async () => {
+const recent = useInfiniteList<any>(async (from, to) => {
   const { data } = await supabase
-    .from('tracks')
+    .from('shabads')
     .select('*')
-    .eq('tree', 'ragiwise')
-    .is('missing_since', null)
-    .not('date', 'is', null)
-    .order('date', { ascending: false })
-    .limit(25);
+    .order('created_at', { ascending: false })
+    .range(from, to);
   return data;
+});
+await recent.loadMore();
+
+const { data: artists } = await useAsyncData('top-artists', async () => {
+  const { data } = await supabase.rpc('artist_counts');
+  return (data as any[]) ?? [];
 });
 </script>
 
 <template>
   <div>
-    <input
-      v-model="q"
-      type="search"
-      placeholder="Search artists, shabads, recordings…"
-      class="w-full rounded-lg bg-neutral-900 border border-neutral-800 px-4 py-3 text-sm outline-none focus:border-neutral-600"
-    >
+    <div class="relative mb-8 max-w-xl">
+      <Search
+        class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-neutral-500"
+      />
+      <input
+        v-model="q"
+        type="search"
+        placeholder="Search shabads, artists, raags"
+        class="w-full rounded-full bg-neutral-800 py-3 pr-4 pl-10 text-sm text-neutral-100 ring-neutral-600 outline-none placeholder:text-neutral-500 focus:ring-2"
+      />
+    </div>
 
-    <section v-if="results" class="mt-6">
-      <h2 class="mb-2 text-xs uppercase tracking-wide text-neutral-500">
-        {{ results.length }} result{{ results.length === 1 ? '' : 's' }}
+    <section v-if="results">
+      <h2 class="mb-3 text-lg font-semibold text-neutral-100">
+        {{ results.length }} shabad{{ results.length === 1 ? '' : 's' }}
       </h2>
-      <TrackRow v-for="t in results" :key="t.id" :track="t" />
-      <p v-if="!results.length" class="px-3 py-6 text-sm text-neutral-500">
-        Nothing found. Untagged recordings are searchable by artist and date —
-        shabad search grows as segments get tagged.
-      </p>
+      <ShabadRow
+        v-for="(s, i) in results"
+        :key="s.id"
+        :shabad="s"
+        :index="i"
+        :list="results"
+      />
+      <EmptyState
+        v-if="!results.length"
+        title="No shabads matched"
+        hint="Only tagged shabads are searchable. Coverage grows as contributors tag."
+      />
     </section>
 
-    <section v-else class="mt-8">
-      <h2 class="mb-2 text-xs uppercase tracking-wide text-neutral-500">Recent</h2>
-      <TrackRow v-for="t in recent ?? []" :key="t.id" :track="t" />
-    </section>
+    <template v-else>
+      <section v-if="artists?.length" class="mb-10">
+        <h2 class="mb-4 text-xl font-semibold text-neutral-100">Artists</h2>
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          <ArtistCard
+            v-for="a in artists.slice(0, 12)"
+            :key="a.artist_dir"
+            :name="a.artist_dir"
+            :count="a.shabads"
+          />
+        </div>
+      </section>
+
+      <section>
+        <h2 class="mb-1 text-xl font-semibold text-neutral-100">
+          Recently added
+        </h2>
+        <p class="mb-3 text-sm text-neutral-500">
+          Shabads from Sri Harmandir Sahib
+        </p>
+        <ShabadRow
+          v-for="(s, i) in recent.items.value"
+          :key="s.id"
+          :shabad="s"
+          :index="i"
+          :list="recent.items.value"
+        />
+        <EmptyState
+          v-if="!recent.items.value.length"
+          title="No shabads published yet"
+          hint="Tag a few in the admin app and publish them — they appear here immediately."
+        />
+        <InfiniteScroll
+          :loading="recent.loading.value"
+          :done="recent.done.value"
+          @more="recent.loadMore"
+        />
+      </section>
+    </template>
   </div>
 </template>

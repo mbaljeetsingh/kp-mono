@@ -1,81 +1,73 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef } from 'vue';
-import { usePlayer, formatTime } from '~/composables/usePlayer';
+import { Home, Users, Disc3, Radio, Heart } from 'lucide-vue-next';
+import { usePlayer } from '~/composables/usePlayer';
 
 const player = usePlayer();
 const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
 
-// One <audio> element for the whole app, mounted here so playback survives
-// navigation — a track keeps playing while the listener browses.
+// One <audio> element for the whole app so playback survives navigation — a
+// shabad keeps playing while the listener browses, which is the single thing
+// that separates a music app from a page with an audio tag on it.
 onMounted(() => {
   if (audioEl.value) player.attach(audioEl.value);
 });
 
-function scrub(event: Event) {
-  const pct = Number((event.target as HTMLInputElement).value);
-  const start = player.current.value?.startSec ?? 0;
-  const end = player.current.value?.endSec ?? player.duration.value;
-  player.seek(start + ((end - start) * pct) / 100);
-}
+const nav = [
+  { to: '/', label: 'Home', icon: Home },
+  { to: '/artists', label: 'Artists', icon: Users },
+  { to: '/puratan', label: 'Puratan', icon: Disc3 },
+  { to: '/live', label: 'Live', icon: Radio },
+  { to: '/favorites', label: 'Favorites', icon: Heart },
+];
 </script>
 
 <template>
-  <div class="min-h-screen bg-neutral-950 text-neutral-100">
-    <header class="border-b border-neutral-800 sticky top-0 bg-neutral-950/90 backdrop-blur z-10">
-      <nav class="mx-auto max-w-5xl flex gap-6 px-4 py-3 text-sm">
-        <NuxtLink to="/" class="font-semibold">Kirtan</NuxtLink>
-        <NuxtLink to="/artists" class="text-neutral-400 hover:text-neutral-100">Artists</NuxtLink>
-        <NuxtLink to="/puratan" class="text-neutral-400 hover:text-neutral-100">Puratan</NuxtLink>
-        <NuxtLink to="/live" class="text-neutral-400 hover:text-neutral-100">Live</NuxtLink>
-      </nav>
-    </header>
+  <div class="flex h-dvh flex-col bg-black text-neutral-200">
+    <div class="flex min-h-0 flex-1 gap-2 p-2">
+      <aside class="hidden w-60 shrink-0 flex-col gap-2 md:flex">
+        <div class="rounded-lg bg-neutral-900 p-4">
+          <NuxtLink to="/" class="flex items-center gap-2.5">
+            <img src="/brand/logo-badge.svg" alt="" class="size-8 rounded-lg" />
+            <span class="text-sm font-semibold text-neutral-100">Kirtan</span>
+          </NuxtLink>
+        </div>
+        <nav class="flex-1 rounded-lg bg-neutral-900 p-2">
+          <NuxtLink
+            v-for="item in nav"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-neutral-400 transition hover:text-neutral-100"
+            active-class="!text-neutral-100 bg-neutral-800"
+          >
+            <component :is="item.icon" class="size-[18px]" />
+            {{ item.label }}
+          </NuxtLink>
+        </nav>
+      </aside>
 
-    <!-- Bottom padding clears the player bar so the last row is never hidden. -->
-    <main class="mx-auto max-w-5xl px-4 py-6 pb-28">
-      <NuxtPage />
-    </main>
+      <main
+        class="min-w-0 flex-1 overflow-y-auto rounded-lg bg-gradient-to-b from-neutral-900 to-neutral-950"
+      >
+        <div class="mx-auto max-w-6xl px-4 py-6 pb-10 md:px-6">
+          <NuxtPage />
+        </div>
+      </main>
+    </div>
 
-    <!-- Audio streams straight from sgpc.net: it serves Range requests and is
-         Cloudflare-cached, so nothing is proxied and our bandwidth cost is nil. -->
+    <!-- Streams straight from sgpc.net: it honours Range requests and is
+         Cloudflare-cached, so nothing is proxied and bandwidth costs us nil. -->
     <audio
       ref="audioEl"
       preload="metadata"
       @timeupdate="player.onTimeUpdate"
       @loadedmetadata="player.onLoadedMetadata"
-      @ended="player.playing.value = false"
+      @ended="player.next"
     />
 
-    <div
-      v-if="player.current.value"
-      class="fixed bottom-0 inset-x-0 border-t border-neutral-800 bg-neutral-900"
-    >
-      <div class="mx-auto max-w-5xl px-4 py-3 flex items-center gap-4">
-        <button
-          class="size-10 shrink-0 rounded-full bg-neutral-100 text-neutral-900 text-lg"
-          @click="player.toggle"
-        >
-          {{ player.playing.value ? '‖' : '▶' }}
-        </button>
-
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-sm">{{ player.current.value.title }}</p>
-          <p class="truncate text-xs text-neutral-400">{{ player.current.value.subtitle }}</p>
-          <div class="mt-1 flex items-center gap-2">
-            <span class="text-[11px] tabular-nums text-neutral-500">
-              {{ formatTime(player.currentTime.value) }}
-            </span>
-            <input
-              type="range" min="0" max="100" step="0.1"
-              :value="player.progress.value"
-              class="flex-1 accent-neutral-100"
-              @input="scrub"
-            >
-            <span class="text-[11px] tabular-nums text-neutral-500">
-              {{ formatTime(player.duration.value) }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Always mounted, like every music app: the transport never disappears,
+         it just sits idle until something is picked. -->
+    <PlayerBar />
+    <MobileTabBar />
   </div>
 </template>

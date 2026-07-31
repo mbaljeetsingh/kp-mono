@@ -15,7 +15,10 @@ export function useSupabaseClient(): SupabaseClient {
   const { supabaseUrl, supabaseKey } = useRuntimeConfig().public;
   client = createClient(supabaseUrl as string, supabaseKey as string, {
     // Anonymous reads on the server must not try to touch browser storage.
-    auth: { persistSession: import.meta.client, autoRefreshToken: import.meta.client },
+    auth: {
+      persistSession: import.meta.client,
+      autoRefreshToken: import.meta.client,
+    },
   });
   return client;
 }

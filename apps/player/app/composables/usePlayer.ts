@@ -23,6 +23,10 @@ export interface Playable {
 }
 
 const current = ref<Playable | null>(null);
+/** Up next. A shabad is short, so a queue is what makes this a music player
+ *  rather than a file opener — one tap on a list plays it and lines up the rest. */
+const queue = ref<Playable[]>([]);
+const queueIndex = ref(-1);
 const playing = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
@@ -59,7 +63,37 @@ export function usePlayer() {
     audio.value = el;
   }
 
-  async function play(item: Playable) {
+  /** Play one item and queue the rest of the list it came from. */
+  async function playList(items: Playable[], startAt = 0) {
+    queue.value = items;
+    queueIndex.value = startAt;
+    await play(items[startAt]!, false);
+  }
+
+  async function next() {
+    if (queueIndex.value < 0 || queueIndex.value >= queue.value.length - 1)
+      return;
+    queueIndex.value += 1;
+    await play(queue.value[queueIndex.value]!, false);
+  }
+
+  async function previous() {
+    // Restart the current item first, the way every music player does, and only
+    // step back if the listener hits it again near the start.
+    if ((audio.value?.currentTime ?? 0) > 3) {
+      seek(current.value?.startSec ?? 0);
+      return;
+    }
+    if (queueIndex.value <= 0) return;
+    queueIndex.value -= 1;
+    await play(queue.value[queueIndex.value]!, false);
+  }
+
+  async function play(item: Playable, clearQueue = true) {
+    if (clearQueue) {
+      queue.value = [item];
+      queueIndex.value = 0;
+    }
     const el = audio.value;
     if (!el) return;
 
@@ -101,8 +135,10 @@ export function usePlayer() {
     // running on into the next shabad.
     const end = current.value.endSec;
     if (end && el.currentTime >= end) {
-      el.pause();
-      playing.value = false;
+      // A segment is a window over a longer file, so its end is not the file's
+      // end — advance the queue here rather than waiting for an `ended` event
+      // that would only fire an hour later.
+      void next();
       return;
     }
     if (!current.value.startSec) writeResume(current.value.id, el.currentTime);
@@ -135,9 +171,27 @@ export function usePlayer() {
     return ((currentTime.value - start) / (end - start)) * 100;
   });
 
+  const upNext = computed(() =>
+    queueIndex.value < 0 ? [] : queue.value.slice(queueIndex.value + 1)
+  );
+
   return {
-    current, playing, currentTime, duration, progress,
-    attach, play, toggle, seek, onTimeUpdate, onLoadedMetadata,
+    current,
+    queue,
+    upNext,
+    playList,
+    next,
+    previous,
+    playing,
+    currentTime,
+    duration,
+    progress,
+    attach,
+    play,
+    toggle,
+    seek,
+    onTimeUpdate,
+    onLoadedMetadata,
   };
 }
 

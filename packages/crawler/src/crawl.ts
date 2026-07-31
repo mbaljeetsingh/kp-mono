@@ -52,7 +52,13 @@ function stableId({ tree, artistDir, date, slotStartSec, title, rawFilename }) {
       ? [tree, date ?? rawFilename, String(slotStartSec ?? '')]
       : tree === 'puratan'
         ? [tree, artistDir ?? '', title ?? rawFilename]
-        : [tree, artistDir ?? '', date ?? '', String(slotStartSec ?? ''), rawFilename];
+        : [
+            tree,
+            artistDir ?? '',
+            date ?? '',
+            String(slotStartSec ?? ''),
+            rawFilename,
+          ];
   return sha1(parts.join('|').toLowerCase());
 }
 
@@ -68,7 +74,8 @@ async function get(url, attempt = 0) {
       headers: { 'user-agent': UA, accept: 'text/html,*/*' },
       signal: AbortSignal.timeout(45_000),
     });
-    if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status}`);
+    if (res.status === 429 || res.status >= 500)
+      throw new Error(`HTTP ${res.status}`);
     if (!res.ok) {
       errors.push({ url, message: `HTTP ${res.status}` });
       return null;
@@ -84,7 +91,15 @@ async function get(url, attempt = 0) {
   }
 }
 
-function makeTrack({ tree, url, artistDir, rawFilename, sizeBytes, modifiedAt, now }) {
+function makeTrack({
+  tree,
+  url,
+  artistDir,
+  rawFilename,
+  sizeBytes,
+  modifiedAt,
+  now,
+}) {
   const p = parseFilename(rawFilename);
   const flags = [...p.flags];
 
@@ -105,7 +120,14 @@ function makeTrack({ tree, url, artistDir, rawFilename, sizeBytes, modifiedAt, n
       : 'high';
 
   return {
-    id: stableId({ tree, artistDir, date: p.date, slotStartSec: p.slotStartSec, title: p.title, rawFilename }),
+    id: stableId({
+      tree,
+      artistDir,
+      date: p.date,
+      slotStartSec: p.slotStartSec,
+      title: p.title,
+      rawFilename,
+    }),
     /** Changes when SGPC moves a file; never used as a key. */
     urlId: sha1(url),
     tree,
@@ -172,7 +194,9 @@ async function crawlDayTree(now) {
   const rootHtml = await get(TREES.daywise);
   if (!rootHtml) return tracks;
 
-  let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) => /^\d{4}$/.test(d));
+  let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) =>
+    /^\d{4}$/.test(d)
+  );
   if (SAMPLE) years = years.slice(-2);
   console.log(`[daywise] ${years.length} years`);
 

@@ -1,1 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+@import '../../../../shared-theme/theme.css';
+
+@source "../**/*.vue";

@@ -30,7 +30,11 @@ export interface ListingEntry {
 export interface Listing {
   kind: ListingKind;
   dirs: string[];
-  files: { href: string; sizeBytes: number | null; modifiedAt: string | null }[];
+  files: {
+    href: string;
+    sizeBytes: number | null;
+    modifiedAt: string | null;
+  }[];
 }
 
 const AUDIO = /\.(mp3|wma|m4a|aac|ogg|wav)$/i;
@@ -47,12 +51,12 @@ export function parseApacheSize(raw: string): number | null {
 
 function isNoise(href: string): boolean {
   return (
-    href.startsWith('?C=') ||               // Apache column-sort links
-    href.includes('cdn-cgi') ||             // Cloudflare beacon anchor
+    href.startsWith('?C=') || // Apache column-sort links
+    href.includes('cdn-cgi') || // Cloudflare beacon anchor
     href.startsWith('javascript:') ||
     href.startsWith('#') ||
-    href.startsWith('//') ||                // CDN css/fonts
-    href.startsWith('http')                 // absolute — never a child here
+    href.startsWith('//') || // CDN css/fonts
+    href.startsWith('http') // absolute — never a child here
   );
 }
 
@@ -86,7 +90,10 @@ function parseAutoindex(html: string): Listing {
     if (isNoise(href) || href === '/' || href.startsWith('/')) continue;
 
     const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) =>
-      m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()
+      m[1]
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .trim()
     );
     const modifiedAt =
       cells.find((c) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(c)) ?? null;
@@ -112,7 +119,10 @@ function parseAutoindex(html: string): Listing {
  */
 function parseThemed(html: string): Listing {
   const dirs = new Set<string>();
-  const files = new Map<string, { href: string; sizeBytes: null; modifiedAt: null }>();
+  const files = new Map<
+    string,
+    { href: string; sizeBytes: null; modifiedAt: null }
+  >();
 
   for (const m of html.matchAll(/<a\s+[^>]*href="([^"]+)"/gi)) {
     const href = m[1];

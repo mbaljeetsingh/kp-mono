@@ -19,7 +19,8 @@ import { createClient } from '@supabase/supabase-js';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../out/crawl.json');
 const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const KEY = process.env.SUPABASE_SERVICE_KEY ??
+const KEY =
+  process.env.SUPABASE_SERVICE_KEY ??
   'sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz';
 
 const BATCH = 500;
@@ -36,7 +37,13 @@ function stableId({ tree, artistDir, date, slotStartSec, title, rawFilename }) {
       ? [tree, date ?? rawFilename, String(slotStartSec ?? '')]
       : tree === 'puratan'
         ? [tree, artistDir ?? '', title ?? rawFilename]
-        : [tree, artistDir ?? '', date ?? '', String(slotStartSec ?? ''), rawFilename];
+        : [
+            tree,
+            artistDir ?? '',
+            date ?? '',
+            String(slotStartSec ?? ''),
+            rawFilename,
+          ];
   return sha1(parts.join('|').toLowerCase());
 }
 
@@ -82,17 +89,24 @@ for (const t of report.tracks) {
   });
 }
 
-console.log(`seeding ${rows.length} tracks (${report.tracks.length - rows.length} duplicates collapsed)`);
+console.log(
+  `seeding ${rows.length} tracks (${report.tracks.length - rows.length} duplicates collapsed)`
+);
 
 for (let i = 0; i < rows.length; i += BATCH) {
   const chunk = rows.slice(i, i + BATCH);
-  const { error } = await client.from('tracks').upsert(chunk, { onConflict: 'id' });
+  const { error } = await client
+    .from('tracks')
+    .upsert(chunk, { onConflict: 'id' });
   if (error) {
     console.error(`batch at ${i} failed:`, error.message);
     process.exit(1);
   }
-  if ((i / BATCH) % 10 === 0) console.log(`  ${i + chunk.length}/${rows.length}`);
+  if ((i / BATCH) % 10 === 0)
+    console.log(`  ${i + chunk.length}/${rows.length}`);
 }
 
-const { count } = await client.from('tracks').select('*', { count: 'exact', head: true });
+const { count } = await client
+  .from('tracks')
+  .select('*', { count: 'exact', head: true });
 console.log(`done — ${count} tracks in database`);

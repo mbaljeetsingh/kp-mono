@@ -3,10 +3,21 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "crawl": "pnpm --filter @kp/crawler crawl",
-    "crawl:sample": "pnpm --filter @kp/crawler crawl -- --sample"
+    "dev": "turbo dev",
+    "dev:player": "turbo dev --filter=@kp/player",
+    "dev:admin": "turbo dev --filter=@kp/admin",
+    "build": "turbo build",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "seed": "node --experimental-strip-types packages/crawler/src/seed.ts",
+    "crawl": "node --experimental-strip-types packages/crawler/src/crawl.ts",
+    "report": "node --experimental-strip-types packages/crawler/src/report.ts",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
     "supabase": "^2.111.0",
     "turbo": "^2.10.8"
   }

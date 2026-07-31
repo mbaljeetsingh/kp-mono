@@ -3,27 +3,51 @@ const route = useRoute();
 const supabase = useSupabaseClient();
 const name = computed(() => decodeURIComponent(String(route.params.name)));
 
-const { data: tracks } = await useAsyncData(
-  () => `artist:${name.value}`,
-  async () => {
-    const { data } = await supabase
-      .from('tracks')
-      .select('*')
-      .eq('artist_dir', name.value)
-      .is('missing_since', null)
-      .order('date', { ascending: false, nullsFirst: false })
-      .limit(500);
-    return data;
-  },
-  { watch: [name] },
-);
+const list = useInfiniteList<any>(async (from, to) => {
+  const { data } = await supabase
+    .from('shabads')
+    .select('*')
+    .eq('artist', name.value)
+    .order('created_at', { ascending: false })
+    .range(from, to);
+  return data;
+});
+await list.loadMore();
 </script>
 
 <template>
   <div>
-    <NuxtLink to="/artists" class="text-xs text-neutral-500 hover:text-neutral-300">← Artists</NuxtLink>
-    <h1 class="mt-2 text-lg">{{ name }}</h1>
-    <p class="mb-4 text-xs text-neutral-500">{{ tracks?.length ?? 0 }} recordings</p>
-    <TrackRow v-for="t in tracks ?? []" :key="t.id" :track="t" />
+    <header class="mb-8 flex items-end gap-6">
+      <ArtTile
+        :name="name"
+        rounded="full"
+        class="size-36 shrink-0 text-4xl shadow-xl"
+      />
+      <div class="min-w-0 pb-2">
+        <p class="text-xs tracking-wide text-neutral-400 uppercase">Artist</p>
+        <h1 class="truncate text-4xl font-bold text-neutral-50">{{ name }}</h1>
+        <p class="mt-2 text-sm text-neutral-400">
+          {{ list.items.value.length }}{{ list.done.value ? '' : '+' }} shabads
+        </p>
+      </div>
+    </header>
+
+    <ShabadRow
+      v-for="(s, i) in list.items.value"
+      :key="s.id"
+      :shabad="s"
+      :index="i"
+      :list="list.items.value"
+    />
+    <EmptyState
+      v-if="!list.items.value.length"
+      title="No shabads tagged for this artist yet"
+      hint="Their recordings are in the archive — they appear here once segments are published."
+    />
+    <InfiniteScroll
+      :loading="list.loading.value"
+      :done="list.done.value"
+      @more="list.loadMore"
+    />
   </div>
 </template>
