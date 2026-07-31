@@ -13,16 +13,31 @@ const { data: people, refresh } = await useAsyncData(
 );
 
 const { data: canManage } = await useAsyncData('can-manage', async () => {
-  const { data } = await supabase.rpc('is_reviewer');
-  return data === true;
+  const { data } = await supabase.auth.getUser();
+  const { data: me } = await supabase
+    .from('profiles')
+    .select('trust')
+    .eq('id', data.user?.id ?? '')
+    .single();
+  return me?.trust === 'admin';
 });
 
 // One earned ladder. Task preference is separate and multi-select — it routes
 // work and grants nothing, which is why it isn't edited here.
 const LEVELS = ['contributor', 'trusted', 'reviewer', 'admin'] as const;
 
+const error = ref('');
+
+// Trust goes through set_trust(), not a table write: `authenticated` has no
+// UPDATE grant on the `trust` column, precisely so a contributor cannot PATCH
+// their own row to admin. The function additionally refuses self-changes.
 async function setTrust(person: any, trust: string) {
-  await supabase.from('profiles').update({ trust }).eq('id', person.id);
+  error.value = '';
+  const { error: e } = await supabase.rpc('set_trust', {
+    target: person.id,
+    level: trust,
+  });
+  if (e) error.value = e.message;
   await refresh();
 }
 </script>
@@ -33,6 +48,8 @@ async function setTrust(person: any, trust: string) {
     <p class="mb-5 text-sm text-muted-foreground">
       Anyone may sign up and propose. Only reviewers and admins can publish.
     </p>
+
+    <p v-if="error" class="mb-3 text-xs text-amber-400">{{ error }}</p>
 
     <div
       v-for="p in people ?? []"
