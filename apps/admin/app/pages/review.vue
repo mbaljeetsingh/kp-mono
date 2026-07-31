@@ -20,7 +20,13 @@ const { data: canPublish } = await useAsyncData('can-publish', async () => {
   return data === true;
 });
 
+const error = ref('');
 const audio = ref<HTMLAudioElement | null>(null);
+
+// Created in JS rather than bound to the template, so nothing tears it down
+// on navigation — without this a preview keeps playing after the reviewer has
+// left the page, with no UI left to stop it.
+onUnmounted(() => audio.value?.pause());
 function preview(s: any) {
   if (!audio.value) audio.value = new Audio();
   audio.value.src = s.tracks.url;

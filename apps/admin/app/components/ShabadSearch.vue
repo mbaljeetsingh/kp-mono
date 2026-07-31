@@ -26,8 +26,14 @@ const MODES = [
 ] as const;
 const mode = useLocalStorage<number>('kp:shabad-search-mode', 1);
 
+// Requests are not cancelled, so a slow earlier one can resolve after a newer
+// one. Each result is committed only if its term and mode are still current,
+// otherwise a tagger sees hits for a term they already changed.
+let generation = 0;
+
 watch([debounced, mode], async () => {
   const term = debounced.value.trim();
+  const mine = ++generation;
   if (term.length < 2) {
     results.value = [];
     return;
@@ -38,11 +44,12 @@ watch([debounced, mode], async () => {
       `https://api.banidb.com/v2/search/${encodeURIComponent(term)}?searchtype=${mode.value}`
     );
     const json = await res.json();
+    if (mine !== generation) return;
     results.value = (json.verses ?? []).slice(0, 12);
   } catch {
-    results.value = [];
+    if (mine === generation) results.value = [];
   } finally {
-    loading.value = false;
+    if (mine === generation) loading.value = false;
   }
 });
 
