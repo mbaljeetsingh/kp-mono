@@ -6,7 +6,13 @@ const props = defineProps<{ shabadId: number }>();
 const mainVerseId = defineModel<number | null>('mainVerseId', {
   default: null,
 });
-const emit = defineEmits<{ clear: []; firstLine: [string] }>();
+const emit = defineEmits<{
+  clear: [];
+  /** On load — fills the name only when it is still empty. */
+  firstLine: [string];
+  /** On a deliberate verse click — replaces the name outright. */
+  renamed: [string];
+}>();
 
 const verses = ref<any[]>([]);
 const loading = ref(false);
@@ -57,8 +63,11 @@ watch(
 
 function setMain(v: any) {
   mainVerseId.value = v.verseId;
+  // Picking a different anchor is a deliberate statement about which line this
+  // rendition is known by, so the name follows it — unlike the initial rahao
+  // guess, which must not overwrite something the tagger already typed.
   if (v.transliteration?.english) {
-    emit('firstLine', prettyShabadName(v.transliteration.english));
+    emit('renamed', prettyShabadName(v.transliteration.english));
   }
 }
 
@@ -95,6 +104,14 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
 
     <p v-if="loading" class="py-8 text-center text-xs text-muted-foreground">
       Loading…
+    </p>
+
+    <p
+      v-else
+      class="border-b border-border bg-accent/40 px-3 py-1.5 text-[11px] text-muted-foreground"
+    >
+      Click a line to set it as the main verse — the line this rendition is
+      known by.
     </p>
 
     <div v-else class="max-h-80 overflow-y-auto">

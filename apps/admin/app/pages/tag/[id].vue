@@ -48,6 +48,23 @@ const busy = ref(false);
 const message = ref('');
 const showOptions = ref(false);
 
+// The last name this page filled in automatically. If the field still holds
+// it, the tagger has not typed anything of their own and the name can follow
+// the anchor freely; if they have, their wording is left alone and offered as
+// a one-click swap instead of being overwritten.
+const autoFilled = ref('');
+const suggestedName = ref('');
+
+function applyAutoName(line: string, force: boolean) {
+  if (force || !name.value.trim() || name.value === autoFilled.value) {
+    name.value = line;
+    autoFilled.value = line;
+    suggestedName.value = '';
+  } else {
+    suggestedName.value = line;
+  }
+}
+
 // Editing an existing rendition rather than creating one. A shabad is usually
 // linked long after the boundaries were marked — somebody who knows the line
 // comes along later — so this has to be reachable without re-marking anything.
@@ -95,7 +112,7 @@ function onShabadSelect(v: { shabadId: number; firstLine: string }) {
   mainVerseId.value = null;
   // Fill the name only if the tagger hasn't written one — their wording wins,
   // since they heard it and BaniDB's transliteration may differ.
-  if (!name.value.trim()) name.value = v.firstLine;
+  applyAutoName(v.firstLine, false);
 }
 
 async function save(publish = false) {
@@ -173,7 +190,7 @@ async function remove(s: any) {
 <template>
   <div v-if="track">
     <NuxtLink to="/" class="text-xs text-muted-foreground hover:text-foreground"
-      >← Queue</NuxtLink
+      >← Recordings</NuxtLink
     >
     <h1 class="mt-2 text-base font-medium">
       {{ track.title ?? track.raw_filename }}
@@ -214,6 +231,17 @@ async function remove(s: any) {
         />
       </div>
 
+      <p v-if="suggestedName" class="mt-2 text-xs text-muted-foreground">
+        Anchor line reads
+        <span class="text-foreground">{{ suggestedName }}</span> —
+        <button
+          class="text-amber-400 hover:underline"
+          @click="applyAutoName(suggestedName, true)"
+        >
+          use as name
+        </button>
+      </p>
+
       <button
         class="mt-3 text-xs text-muted-foreground hover:text-foreground"
         @click="showOptions = !showOptions"
@@ -221,16 +249,13 @@ async function remove(s: any) {
         {{ showOptions ? '− Hide' : '+ Link a shabad' }}
       </button>
 
-      <div
-        v-if="showOptions"
-        class="mt-3 grid gap-3 border-t border-border pt-3 lg:grid-cols-2"
-      >
-        <ShabadSearch @select="onShabadSelect" />
-        <!-- The linked shabad stays on screen rather than closing after
-             selection: the anchor line is a judgement call, and being able to
-             re-read the shabad and change it is the point. -->
+      <div v-if="showOptions" class="mt-3 border-t border-border pt-3">
+        <!-- Search and result are the same slot: once a shabad is picked the
+             search box has nothing left to do, and clearing the link brings it
+             back. Showing both at once just asks "which one am I looking at". -->
+        <ShabadSearch v-if="!shabadId" @select="onShabadSelect" />
         <ShabadDisplay
-          v-if="shabadId"
+          v-else
           :key="shabadId"
           v-model:main-verse-id="mainVerseId"
           :shabad-id="shabadId"
@@ -240,17 +265,10 @@ async function remove(s: any) {
               mainVerseId = null;
             }
           "
-          @first-line="
-            (line: string) => {
-              if (!name.trim()) name = line;
-            }
-          "
+          @first-line="(line: string) => applyAutoName(line, false)"
+          @renamed="(line: string) => applyAutoName(line, false)"
         />
       </div>
-      <p v-if="shabadId" class="mt-2 text-xs text-emerald-400">
-        Linked to shabad #{{ shabadId
-        }}<span v-if="mainVerseId">, anchored on verse #{{ mainVerseId }}</span>
-      </p>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">
         <button
