@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { Check, Trash2, Play, Send } from 'lucide-vue-next';
+import { Check, Trash2, Play, Send, Scissors } from 'lucide-vue-next';
+import { fmt } from '~/composables/useTagPlayer';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
-const audio = useTemplateRef<HTMLAudioElement>('audio');
+const transport = useTemplateRef<any>('transport');
+const player = computed(() => transport.value?.player);
 
 const { data: track } = await useAsyncData(
   `track:${route.params.id}`,
@@ -36,14 +38,12 @@ const { data: canPublish } = await useAsyncData('can-publish', async () => {
 
 // A segment IS the shabad the player shows. Name is the only required field —
 // typing what you hear needs no Gurbani literacy, which is what keeps the
-// highest-volume task open to any contributor. Everything below it is additive.
+// highest-volume task open to any contributor.
 const startSec = ref<number | null>(null);
 const endSec = ref<number | null>(null);
 const name = ref('');
 const shabadId = ref<number | null>(null);
 const raag = ref('');
-const taal = ref('');
-const instrument = ref('');
 const busy = ref(false);
 const message = ref('');
 const showOptions = ref(false);
@@ -56,26 +56,21 @@ const canSave = computed(
     name.value.trim().length > 0
 );
 
+const at = () => player.value?.currentTime.value ?? 0;
 function markStart() {
-  startSec.value = audio.value?.currentTime ?? 0;
-  // The next shabad starts where this one ends, so chaining is the common case.
+  startSec.value = at();
   if (endSec.value !== null && endSec.value <= startSec.value)
     endSec.value = null;
 }
 function markEnd() {
-  endSec.value = audio.value?.currentTime ?? 0;
+  endSec.value = at();
 }
 
-function onShabadSelect(v: {
-  shabadId: number;
-  firstLine: string;
-  raag?: string;
-}) {
+function onShabadSelect(v: { shabadId: number; firstLine: string }) {
   shabadId.value = v.shabadId;
-  // Linking fills the name only if the tagger hasn't written one — their own
-  // wording wins, since they heard it and BaniDB's transliteration may differ.
+  // Fill the name only if the tagger hasn't written one — their wording wins,
+  // since they heard it and BaniDB's transliteration may differ.
   if (!name.value.trim()) name.value = v.firstLine;
-  if (v.raag && !raag.value) raag.value = v.raag;
 }
 
 async function save(publish = false) {
@@ -90,8 +85,6 @@ async function save(publish = false) {
     name: name.value.trim(),
     shabad_id: shabadId.value,
     raag: raag.value.trim() || null,
-    taal: taal.value.trim() || null,
-    instrument: instrument.value.trim() || null,
     status: publish && canPublish.value ? 'published' : 'segmented',
     source: 'manual',
     created_by: user.user?.id,
@@ -102,39 +95,30 @@ async function save(publish = false) {
     return;
   }
 
-  // Roll the start forward so the next shabad can be marked with one click.
+  // Roll the start forward: the next shabad begins where this one ended, so
+  // consecutive segments are one click each.
   startSec.value = endSec.value;
   endSec.value = null;
   name.value = '';
   shabadId.value = null;
   raag.value = '';
-  taal.value = '';
-  instrument.value = '';
   await refresh();
 }
 
 async function publishExisting(s: any) {
-  await supabase
+  message.value = '';
+  const { error } = await supabase
     .from('segments')
     .update({ status: 'published' })
     .eq('id', s.id);
+  if (error) message.value = error.message;
   await refresh();
 }
 async function remove(s: any) {
-  await supabase.from('segments').delete().eq('id', s.id);
+  message.value = '';
+  const { error } = await supabase.from('segments').delete().eq('id', s.id);
+  if (error) message.value = error.message;
   await refresh();
-}
-function preview(s: any) {
-  if (!audio.value) return;
-  audio.value.currentTime = Number(s.start_sec);
-  audio.value.play();
-}
-
-function fmt(v: number | null) {
-  if (v === null || !Number.isFinite(v)) return '—';
-  const m = Math.floor(v / 60),
-    s = Math.floor(v % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
 }
 </script>
 
@@ -150,34 +134,35 @@ function fmt(v: number | null) {
       {{ [track.artist_dir, track.date].filter(Boolean).join(' · ') }}
     </p>
 
-    <!-- Range requests make seeking into a 70-minute set instant, so scrubbing
-         to find a boundary costs nothing. -->
-    <audio
-      ref="audio"
-      :src="track.url"
-      controls
-      preload="metadata"
-      class="w-full"
-    />
+    <TagPlayer ref="transport" :src="track.url" />
 
-    <div class="mt-5 rounded-lg border border-border p-4">
+    <div class="mt-4 rounded-lg border border-border p-4">
       <div class="flex flex-wrap items-center gap-2">
         <button
           class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
           @click="markStart"
         >
-          Start · <span class="tabular-nums">{{ fmt(startSec) }}</span>
+          Start · <span class="tabular-nums">{{ fmt(startSec, true) }}</span>
         </button>
         <button
           class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
           @click="markEnd"
         >
-          End · <span class="tabular-nums">{{ fmt(endSec) }}</span>
+          End · <span class="tabular-nums">{{ fmt(endSec, true) }}</span>
+        </button>
+        <button
+          v-if="endSec !== null"
+          class="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+          title="Loop a few seconds either side of the cut to check it"
+          @click="player?.auditionBoundary(endSec)"
+        >
+          <Scissors class="inline size-3.5" /> Check cut
         </button>
         <input
           v-model="name"
           placeholder="Shabad name — type what you hear"
           class="min-w-56 flex-1 rounded-md border border-input bg-card px-3 py-1.5 text-sm outline-none focus:border-ring"
+          @keyup.enter="save(false)"
         />
       </div>
 
@@ -185,42 +170,27 @@ function fmt(v: number | null) {
         class="mt-3 text-xs text-muted-foreground hover:text-foreground"
         @click="showOptions = !showOptions"
       >
-        {{
-          showOptions
-            ? '− Fewer options'
-            : '+ Link shabad, raag, taal, instrument'
-        }}
+        {{ showOptions ? '− Fewer options' : '+ Link shabad, raag' }}
       </button>
 
       <div
         v-if="showOptions"
-        class="mt-3 space-y-3 border-t border-border pt-3"
+        class="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2"
       >
         <ShabadSearch @select="onShabadSelect" />
-        <p v-if="shabadId" class="text-xs text-emerald-400">
-          Linked to BaniDB shabad #{{ shabadId }} — lyrics, ang and author come
-          from there.
-        </p>
-        <div class="grid gap-2 sm:grid-cols-3">
-          <input
-            v-model="raag"
-            placeholder="Raag"
-            class="rounded-md border border-input bg-card px-3 py-1.5 text-sm outline-none focus:border-ring"
-          />
-          <input
-            v-model="taal"
-            placeholder="Taal"
-            class="rounded-md border border-input bg-card px-3 py-1.5 text-sm outline-none focus:border-ring"
-          />
-          <input
-            v-model="instrument"
-            placeholder="Instrument (taus, dilruba…)"
-            class="rounded-md border border-input bg-card px-3 py-1.5 text-sm outline-none focus:border-ring"
-          />
+        <div>
+          <RagaInput v-model="raag" />
+          <p class="mt-1 text-[11px] text-muted-foreground">
+            The raag as performed — a ragi may sing a shabad in a different raag
+            from the one it is written under.
+          </p>
         </div>
       </div>
+      <p v-if="shabadId" class="mt-2 text-xs text-emerald-400">
+        Linked to BaniDB shabad #{{ shabadId }}
+      </p>
 
-      <div class="mt-4 flex items-center gap-2">
+      <div class="mt-4 flex flex-wrap items-center gap-2">
         <button
           class="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-40"
           :disabled="busy || !canSave"
@@ -236,9 +206,9 @@ function fmt(v: number | null) {
         >
           <Send class="size-3.5" /> Save &amp; publish
         </button>
-        <span class="text-xs text-muted-foreground">
-          Only published segments appear in the player.
-        </span>
+        <span class="text-xs text-muted-foreground"
+          >Only published segments appear in the player.</span
+        >
       </div>
       <p v-if="message" class="mt-2 text-xs text-amber-400">{{ message }}</p>
     </div>
@@ -253,7 +223,8 @@ function fmt(v: number | null) {
     >
       <button
         class="text-muted-foreground hover:text-foreground"
-        @click="preview(s)"
+        title="Play from here"
+        @click="player?.playFrom(Number(s.start_sec))"
       >
         <Play class="size-3.5" />
       </button>
@@ -261,12 +232,7 @@ function fmt(v: number | null) {
         <span class="block truncate text-sm">{{ s.name }}</span>
         <span class="block truncate text-[11px] text-muted-foreground">
           {{
-            [
-              s.raag,
-              s.taal,
-              s.instrument,
-              s.shabad_id ? `#${s.shabad_id}` : null,
-            ]
+            [s.raag, s.shabad_id ? `#${s.shabad_id}` : null]
               .filter(Boolean)
               .join(' · ')
           }}
