@@ -1,0 +1,13 @@
+{
+  "name": "kp-mono",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "crawl": "pnpm --filter @kp/crawler crawl",
+    "crawl:sample": "pnpm --filter @kp/crawler crawl -- --sample"
+  },
+  "devDependencies": {
+    "supabase": "^2.111.0",
+    "turbo": "^2.10.8"
+  }
+}

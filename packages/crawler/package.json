@@ -1,0 +1,11 @@
+{
+  "name": "@kp/crawler",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "crawl": "node --experimental-strip-types src/crawl.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.111.0"
+  }
+}

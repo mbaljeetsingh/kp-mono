@@ -1,0 +1,5 @@
+.env
+node_modules
+.nuxt
+.output
+packages/crawler/out
