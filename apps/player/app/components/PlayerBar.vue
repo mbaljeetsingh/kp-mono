@@ -170,13 +170,14 @@ const total = computed(() => {
         </div>
 
         <div class="flex flex-1 items-center justify-end gap-3">
+          <!-- Only rendered when the segment carries a BaniDB shabad id. Most
+               will not for a long time, and a permanently dimmed control the
+               listener cannot act on is noise rather than information. -->
           <button
+            v-if="hasShabad"
             class="hidden text-neutral-400 transition hover:text-neutral-100 md:block"
-            :class="[
-              showLyrics && '!text-amber-400',
-              !hasShabad && 'opacity-40',
-            ]"
-            :title="hasShabad ? 'Read along' : 'No shabad linked yet'"
+            :class="showLyrics && '!text-amber-400'"
+            title="Read along"
             @click="((showLyrics = !showLyrics), (showQueue = false))"
           >
             <BookOpen class="size-4" />
