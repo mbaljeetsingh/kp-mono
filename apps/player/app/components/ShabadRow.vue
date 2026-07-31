@@ -67,10 +67,7 @@ function play() {
           @click.stop
           >{{ shabad.artist_display ?? shabad.artist }}</NuxtLink
         >
-        <template v-if="shabad.raag || shabad.date">
-          {{ ' · '
-          }}{{ [shabad.raag, shabad.date].filter(Boolean).join(' · ') }}
-        </template>
+        <template v-if="shabad.raag"> {{ ' · ' }}{{ shabad.raag }} </template>
       </span>
     </span>
     <span class="flex items-center gap-3">
