@@ -66,13 +66,9 @@ function markEnd() {
   endSec.value = at();
 }
 
-function onShabadSelect(v: {
-  shabadId: number;
-  mainVerseId: number | null;
-  firstLine: string;
-}) {
+function onShabadSelect(v: { shabadId: number; firstLine: string }) {
   shabadId.value = v.shabadId;
-  mainVerseId.value = v.mainVerseId;
+  mainVerseId.value = null;
   // Fill the name only if the tagger hasn't written one — their wording wins,
   // since they heard it and BaniDB's transliteration may differ.
   if (!name.value.trim()) name.value = v.firstLine;
