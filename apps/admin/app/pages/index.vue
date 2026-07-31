@@ -9,8 +9,16 @@ const debounced = refDebounced(q, 300);
 // one sitting is worth more than a longer one they abandon halfway.
 const sort = ref<'shortest' | 'untagged'>('shortest');
 
+// Without this the same finished recordings sit at the top of the list
+// forever and there is no way to tell what is left.
+const filter = ref<'todo' | 'started' | 'done' | 'all'>('todo');
+
 const list = useInfiniteList<any>(async (from, to) => {
-  let query = supabase.from('tag_queue').select('*');
+  let query = supabase.from('recordings').select('*');
+  if (filter.value === 'todo') query = query.eq('renditions', 0);
+  else if (filter.value === 'started')
+    query = query.gt('renditions', 0).eq('published', 0);
+  else if (filter.value === 'done') query = query.gt('published', 0);
   if (debounced.value.trim().length > 1) {
     query = query.ilike('artist_dir', `%${debounced.value.trim()}%`);
   }
@@ -20,9 +28,9 @@ const list = useInfiniteList<any>(async (from, to) => {
         // worse bet than a known short one.
         query
           .order('est_seconds', { ascending: true, nullsFirst: false })
-          .order('segments', { ascending: true })
+          .order('renditions', { ascending: true })
       : query
-          .order('segments', { ascending: true })
+          .order('renditions', { ascending: true })
           .order('est_seconds', { ascending: true, nullsFirst: false });
   const { data } = await query.range(from, to);
   return data;
@@ -30,7 +38,7 @@ const list = useInfiniteList<any>(async (from, to) => {
 await list.loadMore();
 
 watchDebounced(
-  [debounced, sort],
+  [debounced, sort, filter],
   () => {
     list.reset();
     list.loadMore();
@@ -45,10 +53,31 @@ function mins(sec: number | null) {
 
 <template>
   <div>
-    <h1 class="mb-1 text-xl font-semibold">Tag queue</h1>
+    <h1 class="mb-1 text-xl font-semibold">Recordings</h1>
     <p class="mb-4 text-sm text-muted-foreground">
-      Mark where each shabad starts and ends. Name is all that's required.
+      Mark where each shabad starts and ends. A name is all that's required.
     </p>
+
+    <div class="mb-3 flex flex-wrap gap-1">
+      <button
+        v-for="f in [
+          { key: 'todo', label: 'Not started' },
+          { key: 'started', label: 'In progress' },
+          { key: 'done', label: 'Has published' },
+          { key: 'all', label: 'All' },
+        ]"
+        :key="f.key"
+        class="rounded-md px-3 py-1.5 text-xs transition"
+        :class="
+          filter === f.key
+            ? 'bg-accent text-foreground'
+            : 'text-muted-foreground hover:text-foreground'
+        "
+        @click="filter = f.key as any"
+      >
+        {{ f.label }}
+      </button>
+    </div>
 
     <div class="mb-4 flex flex-wrap gap-2">
       <input
@@ -93,10 +122,15 @@ function mins(sec: number | null) {
         </span>
       </span>
       <span
-        v-if="t.segments"
-        class="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[11px] text-muted-foreground"
+        v-if="t.renditions"
+        class="shrink-0 rounded-full px-2 py-0.5 text-[11px]"
+        :class="
+          t.published === t.renditions
+            ? 'bg-emerald-500/15 text-emerald-400'
+            : 'bg-amber-500/15 text-amber-400'
+        "
       >
-        {{ t.published }}/{{ t.segments }} published
+        {{ t.published }}/{{ t.renditions }} published
       </span>
       <span
         class="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground"

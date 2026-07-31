@@ -9,16 +9,16 @@ onMounted(async () => {
 });
 
 const nav = [
-  { to: '/', label: 'Tag queue', icon: ListMusic },
-  { to: '/review', label: 'Review', icon: CheckCheck },
-  { to: '/contributors', label: 'Contributors', icon: Users },
+  { to: '/', label: 'Recordings', icon: ListMusic },
+  { to: '/pending', label: 'Pending', icon: CheckCheck },
+  { to: '/users', label: 'Users', icon: Users },
 ];
 </script>
 
 <template>
-  <div class="flex min-h-dvh bg-background text-foreground">
+  <div class="flex h-dvh overflow-hidden bg-background text-foreground">
     <aside
-      class="hidden w-56 shrink-0 flex-col border-r border-border bg-sidebar md:flex"
+      class="hidden w-56 shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar md:flex"
     >
       <div class="flex items-center gap-2.5 px-4 py-4">
         <img src="/brand/logo-badge.svg" alt="" class="size-8 rounded-lg" />
@@ -47,7 +47,7 @@ const nav = [
       </div>
     </aside>
 
-    <div class="min-w-0 flex-1">
+    <div class="min-w-0 flex-1 overflow-y-auto">
       <div class="mx-auto max-w-5xl p-6"><slot /></div>
     </div>
   </div>

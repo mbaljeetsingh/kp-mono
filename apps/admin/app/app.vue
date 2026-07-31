@@ -37,7 +37,7 @@ async function signUp() {
 </script>
 
 <template>
-  <div class="dark min-h-dvh bg-background">
+  <div class="dark h-dvh bg-background">
     <div
       v-if="!ready"
       class="grid h-dvh place-items-center bg-background text-sm text-muted-foreground"

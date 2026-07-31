@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { X, Pin } from 'lucide-vue-next';
+import { prettyShabadName } from '~/composables/useShabadName';
 
 const props = defineProps<{ shabadId: number }>();
 const mainVerseId = defineModel<number | null>('mainVerseId', {
@@ -43,7 +44,7 @@ watch(
         mainVerseId.value = findRahao(verses.value);
       const anchor = verses.value.find((v) => v.verseId === mainVerseId.value);
       if (anchor?.transliteration?.english) {
-        emit('firstLine', anchor.transliteration.english);
+        emit('firstLine', prettyShabadName(anchor.transliteration.english));
       }
     } catch {
       verses.value = [];
@@ -56,7 +57,9 @@ watch(
 
 function setMain(v: any) {
   mainVerseId.value = v.verseId;
-  if (v.transliteration?.english) emit('firstLine', v.transliteration.english);
+  if (v.transliteration?.english) {
+    emit('firstLine', prettyShabadName(v.transliteration.english));
+  }
 }
 
 const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';

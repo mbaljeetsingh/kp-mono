@@ -7,7 +7,7 @@ const supabase = useSupabaseClient();
 // until a reviewer publishes it, which is the only thing the trust ladder gates.
 const { data: pending, refresh } = await useAsyncData('pending', async () => {
   const { data } = await supabase
-    .from('segments')
+    .from('renditions')
     .select('*, tracks(artist_dir, date, url, raw_filename)')
     .neq('status', 'published')
     .order('created_at', { ascending: true })
@@ -36,13 +36,13 @@ function preview(s: any) {
 
 async function publish(s: any) {
   await supabase
-    .from('segments')
+    .from('renditions')
     .update({ status: 'published' })
     .eq('id', s.id);
   await refresh();
 }
 async function reject(s: any) {
-  await supabase.from('segments').delete().eq('id', s.id);
+  await supabase.from('renditions').delete().eq('id', s.id);
   await refresh();
 }
 function fmt(v: number) {

@@ -279,7 +279,7 @@ export function usePlayer() {
         Authorization: `Bearer ${supabaseKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ segment: id }),
+      body: JSON.stringify({ rendition: id }),
     }).catch(() => {
       // A missed play count is not worth surfacing to a listener.
     });

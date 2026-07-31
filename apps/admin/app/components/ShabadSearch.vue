@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Search, X } from 'lucide-vue-next';
 import { toGurmukhiLetters } from '~/composables/useGurmukhi';
+import { prettyShabadName } from '~/composables/useShabadName';
 
 const emit = defineEmits<{
   select: [{ shabadId: number; firstLine: string }];
@@ -67,6 +68,15 @@ watch([debounced, lang], async () => {
     if (mine === generation) loading.value = false;
   }
 });
+
+function choose(v: any) {
+  emit('select', {
+    shabadId: v.shabadId,
+    firstLine: prettyShabadName(v.transliteration?.english ?? ''),
+  });
+  q.value = '';
+  results.value = [];
+}
 
 const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
 </script>

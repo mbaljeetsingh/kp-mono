@@ -19,11 +19,11 @@ const { data: track } = await useAsyncData(
   }
 );
 
-const { data: segments, refresh } = await useAsyncData(
-  `segs:${route.params.id}`,
+const { data: renditions, refresh } = await useAsyncData(
+  `rends:${route.params.id}`,
   async () => {
     const { data } = await supabase
-      .from('segments')
+      .from('renditions')
       .select('*')
       .eq('track_id', route.params.id)
       .order('start_sec');
@@ -47,6 +47,30 @@ const mainVerseId = ref<number | null>(null);
 const busy = ref(false);
 const message = ref('');
 const showOptions = ref(false);
+
+// Editing an existing rendition rather than creating one. A shabad is usually
+// linked long after the boundaries were marked — somebody who knows the line
+// comes along later — so this has to be reachable without re-marking anything.
+const editingId = ref<string | null>(null);
+
+function edit(r: any) {
+  editingId.value = r.id;
+  startSec.value = Number(r.start_sec);
+  endSec.value = Number(r.end_sec);
+  name.value = r.name;
+  shabadId.value = r.shabad_id;
+  mainVerseId.value = r.main_verse_id;
+  showOptions.value = true;
+}
+
+function cancelEdit() {
+  editingId.value = null;
+  startSec.value = null;
+  endSec.value = null;
+  name.value = '';
+  shabadId.value = null;
+  mainVerseId.value = null;
+}
 
 const canSave = computed(
   () =>
@@ -79,7 +103,30 @@ async function save(publish = false) {
   busy.value = true;
   message.value = '';
   const { data: user } = await supabase.auth.getUser();
-  const { error } = await supabase.from('segments').insert({
+
+  if (editingId.value) {
+    const { error: updateError } = await supabase
+      .from('renditions')
+      .update({
+        start_sec: Number(startSec.value!.toFixed(2)),
+        end_sec: Number(endSec.value!.toFixed(2)),
+        name: name.value.trim(),
+        shabad_id: shabadId.value,
+        main_verse_id: mainVerseId.value,
+        ...(publish && canPublish.value ? { status: 'published' } : {}),
+      })
+      .eq('id', editingId.value);
+    busy.value = false;
+    if (updateError) {
+      message.value = updateError.message;
+      return;
+    }
+    cancelEdit();
+    await refresh();
+    return;
+  }
+
+  const { error } = await supabase.from('renditions').insert({
     track_id: route.params.id,
     start_sec: Number(startSec.value!.toFixed(2)),
     end_sec: Number(endSec.value!.toFixed(2)),
@@ -109,7 +156,7 @@ async function save(publish = false) {
 async function publishExisting(s: any) {
   message.value = '';
   const { error } = await supabase
-    .from('segments')
+    .from('renditions')
     .update({ status: 'published' })
     .eq('id', s.id);
   if (error) message.value = error.message;
@@ -117,7 +164,7 @@ async function publishExisting(s: any) {
 }
 async function remove(s: any) {
   message.value = '';
-  const { error } = await supabase.from('segments').delete().eq('id', s.id);
+  const { error } = await supabase.from('renditions').delete().eq('id', s.id);
   if (error) message.value = error.message;
   await refresh();
 }
@@ -176,9 +223,29 @@ async function remove(s: any) {
 
       <div
         v-if="showOptions"
-        class="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2"
+        class="mt-3 grid gap-3 border-t border-border pt-3 lg:grid-cols-2"
       >
         <ShabadSearch @select="onShabadSelect" />
+        <!-- The linked shabad stays on screen rather than closing after
+             selection: the anchor line is a judgement call, and being able to
+             re-read the shabad and change it is the point. -->
+        <ShabadDisplay
+          v-if="shabadId"
+          :key="shabadId"
+          v-model:main-verse-id="mainVerseId"
+          :shabad-id="shabadId"
+          @clear="
+            () => {
+              shabadId = null;
+              mainVerseId = null;
+            }
+          "
+          @first-line="
+            (line: string) => {
+              if (!name.trim()) name = line;
+            }
+          "
+        />
       </div>
       <p v-if="shabadId" class="mt-2 text-xs text-emerald-400">
         Linked to shabad #{{ shabadId
@@ -191,7 +258,7 @@ async function remove(s: any) {
           :disabled="busy || !canSave"
           @click="save(false)"
         >
-          Save segment
+          Save shabad
         </button>
         <button
           v-if="canPublish"
@@ -202,19 +269,20 @@ async function remove(s: any) {
           <Send class="size-3.5" /> Save &amp; publish
         </button>
         <span class="text-xs text-muted-foreground"
-          >Only published segments appear in the player.</span
+          >Only published shabads appear in the player.</span
         >
       </div>
       <p v-if="message" class="mt-2 text-xs text-amber-400">{{ message }}</p>
     </div>
 
     <h2 class="mt-6 mb-2 text-xs tracking-wide text-muted-foreground uppercase">
-      Segments ({{ segments?.length ?? 0 }})
+      Shabads ({{ renditions?.length ?? 0 }})
     </h2>
     <div
-      v-for="s in segments ?? []"
+      v-for="s in renditions ?? []"
       :key="s.id"
       class="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent"
+      :class="s.id === editingId && 'bg-accent ring-1 ring-primary/40'"
     >
       <button
         class="text-muted-foreground hover:text-foreground"
@@ -226,7 +294,11 @@ async function remove(s: any) {
       <span class="min-w-0 flex-1">
         <span class="block truncate text-sm">{{ s.name }}</span>
         <span class="block truncate text-[11px] text-muted-foreground">
-          {{ s.shabad_id ? `shabad #${s.shabad_id}` : '' }}
+          {{
+            s.shabad_id
+              ? `shabad #${s.shabad_id}${s.main_verse_id ? ` · verse #${s.main_verse_id}` : ''}`
+              : 'no shabad linked'
+          }}
         </span>
       </span>
       <span class="text-xs tabular-nums text-muted-foreground">
