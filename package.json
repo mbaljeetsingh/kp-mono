@@ -10,7 +10,7 @@
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "seed": "node --experimental-strip-types packages/crawler/src/seed.ts",
+    "seed": "SUPABASE_SERVICE_KEY=$(npx supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)[\"SECRET_KEY\"])') node --experimental-strip-types packages/crawler/src/seed.ts",
     "crawl": "node --experimental-strip-types packages/crawler/src/crawl.ts",
     "report": "node --experimental-strip-types packages/crawler/src/report.ts",
     "format": "prettier --write .",

@@ -19,9 +19,15 @@ import { createClient } from '@supabase/supabase-js';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../out/crawl.json');
 const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const KEY =
-  process.env.SUPABASE_SERVICE_KEY ??
-  'sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz';
+// Never defaulted: the service role bypasses RLS, so a key baked into the repo
+// is a key that outlives the machine that generated it.
+const KEY = process.env.SUPABASE_SERVICE_KEY;
+if (!KEY) {
+  console.error(
+    'SUPABASE_SERVICE_KEY is required. Get the local one from `npx supabase status`.'
+  );
+  process.exit(1);
+}
 
 const BATCH = 500;
 const sha1 = (s) => createHash('sha1').update(s).digest('hex').slice(0, 16);
