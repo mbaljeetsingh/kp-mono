@@ -90,9 +90,6 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
         <h2 class="mb-1 text-xl font-semibold text-neutral-100">
           Recently added
         </h2>
-        <p class="mb-3 text-sm text-neutral-500">
-          Shabads from Sri Harmandir Sahib
-        </p>
         <ShabadRow
           v-for="(s, i) in recent.items.value"
           :key="s.id"
