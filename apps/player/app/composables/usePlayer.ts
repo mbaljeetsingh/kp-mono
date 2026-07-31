@@ -18,10 +18,25 @@ export interface Playable {
   subtitle?: string;
   /** Kept separate from `subtitle` so the player bar can link to the artist. */
   artist?: string;
+  /** BaniDB ids, when the segment has been linked — drives read-along. */
+  shabadId?: number | null;
+  mainVerseId?: number | null;
   url: string;
   /** Set for a tagged segment; omitted to play the whole file. */
   startSec?: number;
   endSec?: number;
+}
+
+const QUEUE_KEY = 'kp:queue';
+
+function readQueue(): { items: Playable[]; index: number } {
+  if (import.meta.server) return { items: [], index: -1 };
+  try {
+    const raw = JSON.parse(localStorage.getItem(QUEUE_KEY) ?? 'null');
+    return raw?.items ? raw : { items: [], index: -1 };
+  } catch {
+    return { items: [], index: -1 };
+  }
 }
 
 const current = ref<Playable | null>(null);
@@ -63,13 +78,71 @@ function writeResume(id: string, seconds: number) {
 export function usePlayer() {
   function attach(el: HTMLAudioElement) {
     audio.value = el;
+    // Restore the queue but never auto-play: browsers block unprompted audio,
+    // and resuming sound on page load is hostile anyway.
+    const saved = readQueue();
+    if (saved.items.length && !queue.value.length) {
+      queue.value = saved.items;
+      queueIndex.value = saved.index;
+      const item = saved.items[saved.index];
+      if (item) {
+        current.value = item;
+        el.src = item.url;
+        el.currentTime = item.startSec ?? readResume()[item.id] ?? 0;
+      }
+    }
+  }
+
+  function persistQueue() {
+    if (import.meta.server) return;
+    localStorage.setItem(
+      QUEUE_KEY,
+      JSON.stringify({ items: queue.value, index: queueIndex.value })
+    );
+  }
+
+  /** Jump straight to an item already in the queue — what clicking a row in
+   *  the Up next panel should do, and previously did nothing at all. */
+  async function playFromQueue(id: string) {
+    const i = queue.value.findIndex((q) => q.id === id);
+    if (i < 0) return;
+    queueIndex.value = i;
+    await play(queue.value[i]!, false);
   }
 
   /** Play one item and queue the rest of the list it came from. */
   async function playList(items: Playable[], startAt = 0) {
     queue.value = items;
     queueIndex.value = startAt;
+    persistQueue();
     await play(items[startAt]!, false);
+  }
+
+  /**
+   * Append to the end of the queue. Nothing starts playing — this is the
+   * "I'll listen to that after this" action, which had no UI at all before.
+   */
+  function addToQueue(item: Playable) {
+    if (queue.value.some((q) => q.id === item.id)) return;
+    queue.value = [...queue.value, item];
+    // Playing nothing yet: queueing is enough to make the transport usable.
+    if (queueIndex.value < 0) queueIndex.value = 0;
+    persistQueue();
+  }
+
+  /** Insert directly after the current item rather than at the end. */
+  function playNextInQueue(item: Playable) {
+    const rest = queue.value.filter((q) => q.id !== item.id);
+    const at = Math.max(queueIndex.value, 0);
+    queue.value = [...rest.slice(0, at + 1), item, ...rest.slice(at + 1)];
+    persistQueue();
+  }
+
+  function removeFromQueue(id: string) {
+    const i = queue.value.findIndex((q) => q.id === id);
+    if (i < 0 || i <= queueIndex.value) return;
+    queue.value = queue.value.filter((q) => q.id !== id);
+    persistQueue();
   }
 
   async function next() {
@@ -83,6 +156,7 @@ export function usePlayer() {
       return;
     }
     queueIndex.value += 1;
+    persistQueue();
     await play(queue.value[queueIndex.value]!, false);
   }
 
@@ -101,6 +175,7 @@ export function usePlayer() {
     }
     if (queueIndex.value <= 0) return;
     queueIndex.value -= 1;
+    persistQueue();
     await play(queue.value[queueIndex.value]!, false);
   }
 
@@ -240,6 +315,10 @@ export function usePlayer() {
     queue,
     upNext,
     playList,
+    playFromQueue,
+    addToQueue,
+    playNextInQueue,
+    removeFromQueue,
     next,
     previous,
     playing,

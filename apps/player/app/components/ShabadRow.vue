@@ -19,6 +19,8 @@ function toPlayable(s: any) {
     title: s.name,
     subtitle: s.artist_display ?? s.artist ?? undefined,
     artist: s.artist ?? undefined,
+    shabadId: s.shabad_id ?? null,
+    mainVerseId: s.main_verse_id ?? null,
     url: s.url,
     startSec: Number(s.start_sec),
     endSec: Number(s.end_sec),
@@ -90,6 +92,7 @@ function play() {
       <span class="text-xs tabular-nums text-neutral-500">
         {{ formatTime(Number(shabad.duration_sec)) }}
       </span>
+      <ShabadMenu :shabad="shabad" />
     </span>
   </button>
 </template>

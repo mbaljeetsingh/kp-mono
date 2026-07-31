@@ -5,6 +5,7 @@ import {
   SkipBack,
   SkipForward,
   ListMusic,
+  BookOpen,
   X,
 } from 'lucide-vue-next';
 import { usePlayer, formatTime } from '~/composables/usePlayer';
@@ -12,6 +13,11 @@ import { artworkFor } from '~/composables/useArtwork';
 
 const player = usePlayer();
 const showQueue = ref(false);
+const showLyrics = ref(false);
+
+// Read-along belongs on the transport, not on a page: you are listening when
+// you want it, and it should follow whatever is playing.
+const hasShabad = computed(() => player.current.value?.shabadId != null);
 
 const art = computed(() =>
   artworkFor(
@@ -40,6 +46,8 @@ const total = computed(() => {
 
 <template>
   <div class="relative">
+    <LyricsPanel v-model:open="showLyrics" />
+
     <!-- Up next slides over the content rather than pushing it, so the queue
          can be checked without losing your place in a list. -->
     <Transition
@@ -71,6 +79,7 @@ const total = computed(() => {
           v-for="item in player.upNext.value"
           :key="item.id"
           class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5"
+          @click="player.playFromQueue(item.id)"
         >
           <span class="min-w-0 flex-1">
             <span class="block truncate text-xs text-neutral-200">{{
@@ -160,11 +169,22 @@ const total = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-1 justify-end">
+        <div class="flex flex-1 items-center justify-end gap-3">
+          <button
+            class="hidden text-neutral-400 transition hover:text-neutral-100 md:block"
+            :class="[
+              showLyrics && '!text-amber-400',
+              !hasShabad && 'opacity-40',
+            ]"
+            :title="hasShabad ? 'Read along' : 'No shabad linked yet'"
+            @click="((showLyrics = !showLyrics), (showQueue = false))"
+          >
+            <BookOpen class="size-4" />
+          </button>
           <button
             class="hidden text-neutral-400 transition hover:text-neutral-100 md:block"
             :class="showQueue && '!text-amber-400'"
-            @click="showQueue = !showQueue"
+            @click="((showQueue = !showQueue), (showLyrics = false))"
           >
             <ListMusic class="size-4" />
           </button>

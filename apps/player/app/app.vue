@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef } from 'vue';
-import { Home, Users, Disc3, Radio, Heart } from 'lucide-vue-next';
+import { Home, Users, Heart, Radio } from 'lucide-vue-next';
 import { usePlayer } from '~/composables/usePlayer';
 
 const player = usePlayer();
@@ -16,8 +16,6 @@ onMounted(() => {
 const nav = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/artists', label: 'Artists', icon: Users },
-  { to: '/puratan', label: 'Puratan', icon: Disc3 },
-  { to: '/live', label: 'Live', icon: Radio },
   { to: '/favorites', label: 'Favorites', icon: Heart },
 ];
 </script>
@@ -48,6 +46,14 @@ const nav = [
             {{ item.label }}
           </NuxtLink>
         </nav>
+        <NuxtLink
+          to="/live"
+          class="mx-2 mb-3 flex items-center gap-2.5 rounded-md border border-neutral-800 px-3 py-2 text-sm text-neutral-400 transition hover:border-neutral-700 hover:text-neutral-100"
+          active-class="!text-amber-400 border-amber-500/30"
+        >
+          <Radio class="size-[18px]" />
+          Live now
+        </NuxtLink>
       </aside>
 
       <main class="min-w-0 flex-1 overflow-y-auto">
