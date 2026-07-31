@@ -43,7 +43,7 @@ const startSec = ref<number | null>(null);
 const endSec = ref<number | null>(null);
 const name = ref('');
 const shabadId = ref<number | null>(null);
-const raag = ref('');
+const mainVerseId = ref<number | null>(null);
 const busy = ref(false);
 const message = ref('');
 const showOptions = ref(false);
@@ -66,8 +66,13 @@ function markEnd() {
   endSec.value = at();
 }
 
-function onShabadSelect(v: { shabadId: number; firstLine: string }) {
+function onShabadSelect(v: {
+  shabadId: number;
+  mainVerseId: number | null;
+  firstLine: string;
+}) {
   shabadId.value = v.shabadId;
+  mainVerseId.value = v.mainVerseId;
   // Fill the name only if the tagger hasn't written one — their wording wins,
   // since they heard it and BaniDB's transliteration may differ.
   if (!name.value.trim()) name.value = v.firstLine;
@@ -84,7 +89,7 @@ async function save(publish = false) {
     end_sec: Number(endSec.value!.toFixed(2)),
     name: name.value.trim(),
     shabad_id: shabadId.value,
-    raag: raag.value.trim() || null,
+    main_verse_id: mainVerseId.value,
     status: publish && canPublish.value ? 'published' : 'segmented',
     source: 'manual',
     created_by: user.user?.id,
@@ -101,7 +106,7 @@ async function save(publish = false) {
   endSec.value = null;
   name.value = '';
   shabadId.value = null;
-  raag.value = '';
+  mainVerseId.value = null;
   await refresh();
 }
 
@@ -170,7 +175,7 @@ async function remove(s: any) {
         class="mt-3 text-xs text-muted-foreground hover:text-foreground"
         @click="showOptions = !showOptions"
       >
-        {{ showOptions ? '− Fewer options' : '+ Link shabad, raag' }}
+        {{ showOptions ? '− Hide' : '+ Link a shabad' }}
       </button>
 
       <div
@@ -178,16 +183,10 @@ async function remove(s: any) {
         class="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2"
       >
         <ShabadSearch @select="onShabadSelect" />
-        <div>
-          <RagaInput v-model="raag" />
-          <p class="mt-1 text-[11px] text-muted-foreground">
-            The raag as performed — a ragi may sing a shabad in a different raag
-            from the one it is written under.
-          </p>
-        </div>
       </div>
       <p v-if="shabadId" class="mt-2 text-xs text-emerald-400">
-        Linked to BaniDB shabad #{{ shabadId }}
+        Linked to shabad #{{ shabadId
+        }}<span v-if="mainVerseId">, anchored on verse #{{ mainVerseId }}</span>
       </p>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">
@@ -231,11 +230,7 @@ async function remove(s: any) {
       <span class="min-w-0 flex-1">
         <span class="block truncate text-sm">{{ s.name }}</span>
         <span class="block truncate text-[11px] text-muted-foreground">
-          {{
-            [s.raag, s.shabad_id ? `#${s.shabad_id}` : null]
-              .filter(Boolean)
-              .join(' · ')
-          }}
+          {{ s.shabad_id ? `shabad #${s.shabad_id}` : '' }}
         </span>
       </span>
       <span class="text-xs tabular-nums text-muted-foreground">
