@@ -94,6 +94,7 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
             v-for="a in artists.slice(0, 12)"
             :key="a.artist_dir"
             :name="a.artist_dir"
+            :display="a.display_name"
             :photo="a.photo_path"
             :count="a.shabads"
           />
