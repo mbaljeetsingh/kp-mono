@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Search } from 'lucide-vue-next';
+import { Input } from '@/components/ui/input';
 
 const supabase = useSupabaseClient();
 const q = ref('');
@@ -27,14 +28,14 @@ const { data: results, status } = await useAsyncData(
   <div>
     <div class="relative mb-6">
       <Search
-        class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-neutral-500"
+        class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
       />
-      <input
+      <Input
         v-model="q"
         type="search"
         autofocus
         placeholder="Search shabads, artists, raags"
-        class="w-full rounded-full bg-neutral-800 py-3 pr-4 pl-10 text-sm text-neutral-100 ring-neutral-600 outline-none placeholder:text-neutral-500 focus:ring-2"
+        class="h-12 rounded-full border-0 bg-muted pr-4 pl-10 text-sm"
       />
     </div>
 

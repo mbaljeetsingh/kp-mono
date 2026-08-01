@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { Input } from '@/components/ui/input';
 import { Clock, Layers } from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
@@ -58,8 +61,8 @@ function mins(sec: number | null) {
       Mark where each shabad starts and ends. A name is all that's required.
     </p>
 
-    <div class="mb-3 flex flex-wrap gap-1">
-      <button
+    <ButtonGroup class="mb-3" aria-label="Filter recordings">
+      <Button
         v-for="f in [
           { key: 'todo', label: 'Not started' },
           { key: 'started', label: 'In progress' },
@@ -67,44 +70,36 @@ function mins(sec: number | null) {
           { key: 'all', label: 'All' },
         ]"
         :key="f.key"
-        class="rounded-md px-3 py-1.5 text-xs transition"
-        :class="
-          filter === f.key
-            ? 'bg-accent text-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        "
+        size="sm"
+        :variant="filter === f.key ? 'secondary' : 'outline'"
+        class="text-xs"
         @click="filter = f.key as any"
       >
         {{ f.label }}
-      </button>
-    </div>
+      </Button>
+    </ButtonGroup>
 
     <div class="mb-4 flex flex-wrap gap-2">
-      <input
+      <Input
         v-model="q"
         type="search"
         placeholder="Filter by artist…"
-        class="min-w-56 flex-1 rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring"
+        class="min-w-56 flex-1 bg-card"
       />
-      <div class="flex overflow-hidden rounded-md border border-input">
-        <button
+      <ButtonGroup aria-label="Sort recordings">
+        <Button
           v-for="opt in [
             { key: 'shortest', label: 'Shortest first', icon: Clock },
             { key: 'untagged', label: 'Least tagged', icon: Layers },
           ]"
           :key="opt.key"
-          class="flex items-center gap-2 px-3 py-2 text-sm transition"
-          :class="
-            sort === opt.key
-              ? 'bg-accent text-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          "
+          :variant="sort === opt.key ? 'secondary' : 'outline'"
           @click="sort = opt.key as any"
         >
           <component :is="opt.icon" class="size-3.5" />
           {{ opt.label }}
-        </button>
-      </div>
+        </Button>
+      </ButtonGroup>
     </div>
 
     <NuxtLink

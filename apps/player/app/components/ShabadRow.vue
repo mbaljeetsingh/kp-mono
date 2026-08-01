@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Play, Heart } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import { usePlayer, formatTime } from '~/composables/usePlayer';
 
 const props = defineProps<{
@@ -46,38 +47,40 @@ function play() {
   <div
     role="button"
     tabindex="0"
-    class="group grid w-full cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-neutral-500 focus-visible:outline-none"
+    class="group grid w-full cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     :class="isCurrent && 'bg-white/5'"
     @click="play"
     @keydown.enter.prevent="play"
     @keydown.space.prevent="play"
   >
-    <span class="grid place-items-center text-xs tabular-nums text-neutral-500">
+    <span
+      class="grid place-items-center text-xs tabular-nums text-muted-foreground"
+    >
       <Play
         v-if="isCurrent && player.playing.value"
-        class="size-3.5 fill-current text-amber-400"
+        class="size-3.5 fill-current text-primary"
       />
       <span v-else class="grid place-items-center">
         <span class="group-hover:hidden">{{
           index != null ? index + 1 : ''
         }}</span>
         <Play
-          class="hidden size-3.5 fill-current text-neutral-100 group-hover:block"
+          class="hidden size-3.5 fill-current text-foreground group-hover:block"
         />
       </span>
     </span>
     <span class="min-w-0">
       <span
         class="block truncate text-sm"
-        :class="isCurrent ? 'text-amber-400' : 'text-neutral-100'"
+        :class="isCurrent ? 'text-primary' : 'text-foreground'"
       >
         {{ shabad.name }}
       </span>
-      <span class="block truncate text-xs text-neutral-500">
+      <span class="block truncate text-xs text-muted-foreground">
         <NuxtLink
           v-if="shabad.artist"
           :to="`/ragis/${encodeURIComponent(shabad.artist)}`"
-          class="hover:text-neutral-200 hover:underline"
+          class="hover:text-foreground hover:underline"
           @click.stop
           >{{ shabad.artist_display ?? shabad.artist }}</NuxtLink
         >
@@ -86,8 +89,10 @@ function play() {
     </span>
     <span class="flex items-center gap-3">
       <!-- Always visible on touch, where there is no hover to reveal them. -->
-      <button
-        class="transition md:opacity-0 md:group-hover:opacity-100"
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 md:opacity-0 md:group-hover:opacity-100"
         :class="favorites.has(shabad.id) && 'md:!opacity-100'"
         :title="favorites.has(shabad.id) ? 'Remove from favorites' : 'Save'"
         @click.stop="favorites.toggle(shabad.id)"
@@ -96,12 +101,12 @@ function play() {
           class="size-3.5"
           :class="
             favorites.has(shabad.id)
-              ? 'fill-amber-400 text-amber-400'
-              : 'text-neutral-500 hover:text-neutral-200'
+              ? 'fill-primary text-primary'
+              : 'text-muted-foreground'
           "
         />
-      </button>
-      <span class="text-xs tabular-nums text-neutral-500">
+      </Button>
+      <span class="text-xs tabular-nums text-muted-foreground">
         {{ formatTime(Number(shabad.duration_sec)) }}
       </span>
       <ShabadMenu :shabad="shabad" />

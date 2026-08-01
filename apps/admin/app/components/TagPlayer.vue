@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Play, Pause, Rewind, FastForward, Repeat } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
 import { useTagPlayer, fmt, SPEEDS } from '~/composables/useTagPlayer';
 
 const props = defineProps<{ src: string }>();
@@ -63,14 +65,15 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
     />
 
     <div class="flex items-center gap-3">
-      <button
-        class="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground"
+      <Button
+        size="icon-sm"
+        class="shrink-0 rounded-full"
         title="Play/pause (space)"
         @click="player.toggle"
       >
         <Pause v-if="player.playing.value" class="size-4 fill-current" />
         <Play v-else class="size-4 translate-x-px fill-current" />
-      </button>
+      </Button>
       <span class="w-16 shrink-0 text-xs tabular-nums text-muted-foreground">
         {{ fmt(player.currentTime.value, true) }}
       </span>
@@ -91,60 +94,69 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
     </div>
 
     <div class="mt-3 flex flex-wrap items-center gap-2">
-      <button
-        class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent"
-        title="Back 30s (←←)"
-        @click="player.skip(-30)"
-      >
-        <Rewind class="inline size-3.5" /> 30
-      </button>
-      <button
-        class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent"
-        title="Back 10s (←)"
-        @click="player.skip(-10)"
-      >
-        <Rewind class="inline size-3.5" /> 10
-      </button>
+      <!-- Skips read as one control, so they group rather than float apart. -->
+      <ButtonGroup aria-label="Skip">
+        <Button
+          variant="outline"
+          size="sm"
+          class="text-xs"
+          title="Back 30s (←←)"
+          @click="player.skip(-30)"
+        >
+          <Rewind class="size-3.5" /> 30
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          class="text-xs"
+          title="Back 10s (←)"
+          @click="player.skip(-10)"
+        >
+          <Rewind class="size-3.5" /> 10
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          class="text-xs"
+          title="Forward 10s (→)"
+          @click="player.skip(10)"
+        >
+          10 <FastForward class="size-3.5" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          class="text-xs"
+          title="Forward 30s"
+          @click="player.skip(30)"
+        >
+          30 <FastForward class="size-3.5" />
+        </Button>
+      </ButtonGroup>
 
-      <button
-        class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent"
-        title="Forward 10s (→)"
-        @click="player.skip(10)"
-      >
-        10 <FastForward class="inline size-3.5" />
-      </button>
-      <button
-        class="rounded-md border border-input px-2.5 py-1.5 text-xs hover:bg-accent"
-        title="Forward 30s"
-        @click="player.skip(30)"
-      >
-        30 <FastForward class="inline size-3.5" />
-      </button>
-
-      <div class="ml-2 flex overflow-hidden rounded-md border border-input">
-        <button
+      <ButtonGroup class="ml-2" aria-label="Playback speed">
+        <Button
           v-for="s in SPEEDS"
           :key="s"
-          class="px-2 py-1.5 text-[11px] transition"
-          :class="
-            player.speed.value === s
-              ? 'bg-accent text-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          "
+          size="sm"
+          :variant="player.speed.value === s ? 'secondary' : 'outline'"
+          class="px-2 text-[11px]"
           @click="player.setSpeed(s)"
         >
           {{ s }}x
-        </button>
-      </div>
+        </Button>
+      </ButtonGroup>
 
-      <button
+      <Button
         v-if="player.loop.value"
-        class="flex items-center gap-1.5 rounded-md border border-input px-2.5 py-1.5 text-xs text-amber-400"
+        variant="outline"
+        size="sm"
+        class="text-xs text-amber-400"
         title="Stop looping"
         @click="player.stopLoop"
       >
         <Repeat class="size-3.5" /> Looping
-      </button>
+      </Button>
 
       <span class="ml-auto hidden text-[11px] text-muted-foreground lg:inline">
         space · ← → 10s · shift+← → 0.1s · ↑ ↓ speed

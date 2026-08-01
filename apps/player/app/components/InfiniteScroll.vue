@@ -16,7 +16,7 @@ useIntersectionObserver(
 
 <template>
   <div ref="sentinel" class="h-8">
-    <p v-if="loading" class="py-3 text-center text-xs text-neutral-600">
+    <p v-if="loading" class="py-3 text-center text-xs text-muted-foreground">
       Loading…
     </p>
   </div>

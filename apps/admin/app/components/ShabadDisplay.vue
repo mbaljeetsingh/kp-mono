@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { X, Pin } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import { prettyShabadName } from '~/composables/useShabadName';
 
 const props = defineProps<{ shabadId: number }>();
@@ -100,13 +101,15 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
           }}
         </p>
       </div>
-      <button
-        class="shrink-0 text-muted-foreground hover:text-foreground"
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 shrink-0 text-muted-foreground"
         title="Unlink"
         @click="emit('clear')"
       >
         <X class="size-3.5" />
-      </button>
+      </Button>
     </div>
 
     <p v-if="loading" class="py-8 text-center text-xs text-muted-foreground">

@@ -24,14 +24,18 @@ const nav = [
   <!-- One continuous surface. Earlier this was three floating panels with gaps
        between them, which read as separate widgets rather than one app; the
        regions are now separated by hairlines on a single background. -->
-  <div class="flex h-dvh flex-col bg-neutral-950 text-neutral-300">
+  <!-- `dark` is what makes the shared tokens resolve to the dark palette:
+       :root in shared-theme is the light parchment set, and admin has carried
+       this class all along. Without it every token-based component here would
+       render light. -->
+  <div class="dark flex h-dvh flex-col bg-background text-foreground">
     <div class="flex min-h-0 flex-1">
       <aside
-        class="hidden w-56 shrink-0 flex-col border-r border-neutral-800/80 md:flex"
+        class="hidden w-56 shrink-0 flex-col border-r border-border md:flex"
       >
         <NuxtLink to="/" class="flex items-center gap-2.5 px-5 py-4">
           <img src="/brand/logo-badge.svg" alt="" class="size-7 rounded-md" />
-          <span class="text-[15px] font-semibold text-neutral-100">Kirtan</span>
+          <span class="text-[15px] font-semibold text-foreground">Kirtan</span>
         </NuxtLink>
 
         <nav class="flex-1 px-2">
@@ -39,8 +43,8 @@ const nav = [
             v-for="item in nav"
             :key="item.to"
             :to="item.to"
-            class="relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-neutral-400 transition hover:text-neutral-100"
-            active-class="!text-neutral-100"
+            class="relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground"
+            active-class="!text-foreground"
           >
             <component :is="item.icon" class="size-[18px]" />
             {{ item.label }}
@@ -48,8 +52,8 @@ const nav = [
         </nav>
         <NuxtLink
           to="/live"
-          class="mx-2 mb-3 flex items-center gap-2.5 rounded-md border border-neutral-800 px-3 py-2 text-sm text-neutral-400 transition hover:border-neutral-700 hover:text-neutral-100"
-          active-class="!text-amber-400 border-amber-500/30"
+          class="mx-2 mb-3 flex items-center gap-2.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground transition hover:border-input hover:text-foreground"
+          active-class="!text-primary border-primary/30"
         >
           <Radio class="size-[18px]" />
           Live now

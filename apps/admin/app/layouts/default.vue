@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import { ListMusic, CheckCheck, Users, LogOut } from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
@@ -37,13 +38,14 @@ const nav = [
         </NuxtLink>
       </nav>
       <div class="border-t border-border p-2">
-        <button
-          class="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground"
+        <Button
+          variant="ghost"
+          class="w-full justify-start gap-3 px-3 text-sm font-normal text-muted-foreground"
           @click="supabase.auth.signOut()"
         >
           <LogOut class="size-4 shrink-0" />
           <span class="truncate">{{ email || 'Sign out' }}</span>
-        </button>
+        </Button>
       </div>
     </aside>
 

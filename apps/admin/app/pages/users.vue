@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { NativeSelect } from '@/components/ui/native-select';
 const supabase = useSupabaseClient();
 
 const { data: people, refresh } = await useAsyncData(
@@ -59,14 +60,14 @@ async function setTrust(person: any, trust: string) {
       <span class="min-w-0 flex-1 truncate text-sm">
         {{ p.display_name || p.id.slice(0, 8) }}
       </span>
-      <select
+      <NativeSelect
         v-if="canManage"
         :value="p.trust"
-        class="rounded-md border border-input bg-card px-2 py-1 text-xs outline-none"
+        class="w-auto bg-card text-xs"
         @change="setTrust(p, ($event.target as HTMLSelectElement).value)"
       >
         <option v-for="l in LEVELS" :key="l" :value="l">{{ l }}</option>
-      </select>
+      </NativeSelect>
       <span v-else class="text-xs text-muted-foreground">{{ p.trust }}</span>
     </div>
   </div>

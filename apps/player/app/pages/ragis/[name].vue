@@ -47,9 +47,11 @@ await list.loadMore();
         class="size-36 shrink-0 text-4xl shadow-xl"
       />
       <div class="min-w-0 pb-2">
-        <p class="text-xs tracking-wide text-neutral-400 uppercase">Ragi</p>
-        <h1 class="truncate text-4xl font-bold text-neutral-50">{{ title }}</h1>
-        <p class="mt-2 text-sm text-neutral-400">
+        <p class="text-xs tracking-wide text-muted-foreground uppercase">
+          Ragi
+        </p>
+        <h1 class="truncate text-4xl font-bold text-foreground">{{ title }}</h1>
+        <p class="mt-2 text-sm text-muted-foreground">
           {{ list.items.value.length }}{{ list.done.value ? '' : '+' }} shabads
         </p>
       </div>

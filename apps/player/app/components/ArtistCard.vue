@@ -14,7 +14,7 @@ const label = computed(() => props.display ?? props.name);
 <template>
   <NuxtLink
     :to="`/ragis/${encodeURIComponent(name)}`"
-    class="group rounded-lg bg-neutral-900/60 p-3 transition hover:bg-neutral-800"
+    class="group rounded-lg bg-card/60 p-3 transition hover:bg-muted"
   >
     <ArtTile
       :name="label"
@@ -22,8 +22,8 @@ const label = computed(() => props.display ?? props.name);
       rounded="full"
       class="mb-3 aspect-square w-full text-3xl"
     />
-    <p class="truncate text-sm text-neutral-100">{{ label }}</p>
-    <p class="truncate text-xs text-neutral-500">
+    <p class="truncate text-sm text-foreground">{{ label }}</p>
+    <p class="truncate text-xs text-muted-foreground">
       {{
         count != null
           ? `${count} ${count === 1 ? 'shabad' : 'shabads'}`

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+
 const supabase = useSupabaseClient();
 const session = ref<any>(null);
 const ready = ref(false);
@@ -57,32 +60,24 @@ async function signUp() {
             <p class="text-xs text-muted-foreground">Tagging workbench</p>
           </div>
         </div>
-        <input
+        <Input
           v-model="email"
           type="email"
           placeholder="Email"
-          class="mb-2 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
+          class="mb-2 bg-card"
         />
-        <input
+        <Input
           v-model="password"
           type="password"
           placeholder="Password"
+          class="mb-3 bg-card"
           @keyup.enter="signIn"
-          class="mb-3 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-ring"
         />
         <div class="flex gap-2">
-          <button
-            class="flex-1 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-            @click="signIn"
-          >
-            Sign in
-          </button>
-          <button
-            class="flex-1 rounded-md border border-input px-3 py-2 text-sm text-foreground"
-            @click="signUp"
-          >
+          <Button class="flex-1" @click="signIn">Sign in</Button>
+          <Button variant="outline" class="flex-1" @click="signUp">
             Sign up
-          </button>
+          </Button>
         </div>
         <p v-if="message" class="mt-3 text-xs text-amber-400">{{ message }}</p>
       </div>

@@ -13,13 +13,13 @@ const tabs = [
 </script>
 
 <template>
-  <nav class="flex border-t border-neutral-800/80 bg-neutral-950 md:hidden">
+  <nav class="flex border-t border-border bg-background md:hidden">
     <NuxtLink
       v-for="tab in tabs"
       :key="tab.to"
       :to="tab.to"
-      class="flex flex-1 flex-col items-center gap-1 py-2 text-[10px] text-neutral-500 transition"
-      active-class="!text-neutral-100"
+      class="flex flex-1 flex-col items-center gap-1 py-2 text-[10px] text-muted-foreground transition"
+      active-class="!text-foreground"
     >
       <component :is="tab.icon" class="size-5" />
       {{ tab.label }}

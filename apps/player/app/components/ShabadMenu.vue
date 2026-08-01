@@ -6,15 +6,18 @@ import {
   Heart,
   User,
 } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { usePlayer } from '~/composables/usePlayer';
 
 const props = defineProps<{ shabad: any }>();
 const player = usePlayer();
 const favorites = useFavorites();
-const open = ref(false);
-const menu = useTemplateRef<HTMLElement>('menu');
-
-onClickOutside(menu, () => (open.value = false));
 
 function toPlayable(s: any) {
   return {
@@ -30,65 +33,51 @@ function toPlayable(s: any) {
     endSec: Number(s.end_sec),
   };
 }
-
-function act(fn: () => void) {
-  fn();
-  open.value = false;
-}
 </script>
 
 <template>
-  <div ref="menu" class="relative">
-    <button
-      class="grid size-7 place-items-center rounded-full text-neutral-500 transition hover:bg-white/10 hover:text-neutral-100 md:opacity-0 md:group-hover:opacity-100"
-      :class="open && 'text-neutral-100 md:!opacity-100'"
-      title="More"
-      @click.stop="open = !open"
-    >
-      <MoreHorizontal class="size-4" />
-    </button>
+  <!-- Reka's dropdown brings outside-click, escape, focus return and arrow-key
+       navigation, none of which the hand-rolled panel this replaces had.
+       `as-child` keeps the trigger as the only element rendered, so the row
+       still holds exactly one interactive node here. -->
+  <DropdownMenu>
+    <DropdownMenuTrigger as-child>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 rounded-full text-muted-foreground data-[state=open]:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+        title="More"
+        @click.stop
+      >
+        <MoreHorizontal class="size-4" />
+      </Button>
+    </DropdownMenuTrigger>
 
-    <div
-      v-if="open"
-      class="absolute right-0 z-30 mt-1 w-52 overflow-hidden rounded-lg border border-neutral-800 bg-neutral-900 py-1 shadow-2xl"
-      @click.stop
-    >
-      <button
-        class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-neutral-300 hover:bg-white/5"
-        @click="act(() => player.playNextInQueue(toPlayable(props.shabad)))"
+    <DropdownMenuContent align="end" class="w-52" @click.stop>
+      <DropdownMenuItem
+        @select="player.playNextInQueue(toPlayable(props.shabad))"
       >
         <ListEnd class="size-4" /> Play next
-      </button>
-      <button
-        class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-neutral-300 hover:bg-white/5"
-        @click="act(() => player.addToQueue(toPlayable(props.shabad)))"
-      >
+      </DropdownMenuItem>
+      <DropdownMenuItem @select="player.addToQueue(toPlayable(props.shabad))">
         <ListPlus class="size-4" /> Add to queue
-      </button>
-      <button
-        class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-neutral-300 hover:bg-white/5"
-        @click="act(() => favorites.toggle(props.shabad.id))"
-      >
+      </DropdownMenuItem>
+      <DropdownMenuItem @select="favorites.toggle(props.shabad.id)">
         <Heart
           class="size-4"
-          :class="
-            favorites.has(props.shabad.id) && 'fill-amber-400 text-amber-400'
-          "
+          :class="favorites.has(props.shabad.id) && 'fill-primary text-primary'"
         />
         {{
           favorites.has(props.shabad.id)
             ? 'Remove from favorites'
             : 'Save to favorites'
         }}
-      </button>
-      <NuxtLink
-        v-if="props.shabad.artist"
-        :to="`/ragis/${encodeURIComponent(props.shabad.artist)}`"
-        class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-neutral-300 hover:bg-white/5"
-        @click="open = false"
-      >
-        <User class="size-4" /> Go to ragi
-      </NuxtLink>
-    </div>
-  </div>
+      </DropdownMenuItem>
+      <DropdownMenuItem v-if="props.shabad.artist" as-child>
+        <NuxtLink :to="`/ragis/${encodeURIComponent(props.shabad.artist)}`">
+          <User class="size-4" /> Go to ragi
+        </NuxtLink>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 </template>

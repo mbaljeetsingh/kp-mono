@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Search } from 'lucide-vue-next';
+import { Input } from '@/components/ui/input';
 
 const supabase = useSupabaseClient();
 const q = ref('');
@@ -45,18 +46,18 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
   <div>
     <div class="relative mb-8 max-w-xl">
       <Search
-        class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-neutral-500"
+        class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
       />
-      <input
+      <Input
         v-model="q"
         type="search"
         placeholder="Search shabads, artists, raags"
-        class="w-full rounded-full bg-neutral-800 py-3 pr-4 pl-10 text-sm text-neutral-100 ring-neutral-600 outline-none placeholder:text-neutral-500 focus:ring-2"
+        class="h-12 rounded-full border-0 bg-muted pr-4 pl-10 text-sm"
       />
     </div>
 
     <section v-if="results">
-      <h2 class="mb-3 text-lg font-semibold text-neutral-100">
+      <h2 class="mb-3 text-lg font-semibold text-foreground">
         {{ results.length }} shabad{{ results.length === 1 ? '' : 's' }}
       </h2>
       <ShabadRow
@@ -79,11 +80,11 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
              grid always ends on a full row and the cut never looks accidental.
              That is also why it needs saying out loud that there are more. -->
         <div class="mb-4 flex items-baseline justify-between gap-4">
-          <h2 class="text-xl font-semibold text-neutral-100">Ragis</h2>
+          <h2 class="text-xl font-semibold text-foreground">Ragis</h2>
           <NuxtLink
             v-if="artists.length > 12"
             to="/ragis"
-            class="shrink-0 text-xs text-neutral-400 transition hover:text-neutral-100"
+            class="shrink-0 text-xs text-muted-foreground transition hover:text-foreground"
           >
             View all {{ artists.length }}
           </NuxtLink>
@@ -100,7 +101,7 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
       </section>
 
       <section>
-        <h2 class="mb-1 text-xl font-semibold text-neutral-100">
+        <h2 class="mb-1 text-xl font-semibold text-foreground">
           Recently added
         </h2>
         <ShabadRow

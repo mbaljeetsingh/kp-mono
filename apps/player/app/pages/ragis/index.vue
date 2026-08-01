@@ -16,8 +16,8 @@ const { data: artists } = await useAsyncData('artists', async () => {
 
 <template>
   <div>
-    <h1 class="mb-1 text-2xl font-semibold text-neutral-100">Ragis</h1>
-    <p class="mb-6 text-sm text-neutral-500">
+    <h1 class="mb-1 text-2xl font-semibold text-foreground">Ragis</h1>
+    <p class="mb-6 text-sm text-muted-foreground">
       {{ artists?.length ?? 0 }} ragis
     </p>
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">

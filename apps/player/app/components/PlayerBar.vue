@@ -8,6 +8,7 @@ import {
   BookOpen,
   X,
 } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
 import { usePlayer, formatTime } from '~/composables/usePlayer';
 import { artworkFor } from '~/composables/useArtwork';
 
@@ -58,27 +59,30 @@ const total = computed(() => {
     >
       <aside
         v-if="showQueue"
-        class="absolute right-4 bottom-full mb-2 max-h-96 w-80 overflow-y-auto rounded-lg border border-neutral-800 bg-neutral-900 p-3 shadow-2xl"
+        class="absolute right-4 bottom-full mb-2 max-h-96 w-80 overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-2xl"
       >
         <div class="mb-2 flex items-center justify-between">
-          <p class="text-sm font-semibold text-neutral-100">Up next</p>
-          <button
-            class="text-neutral-500 hover:text-neutral-200"
+          <p class="text-sm font-semibold text-foreground">Up next</p>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="size-7 text-muted-foreground"
             @click="showQueue = false"
           >
             <X class="size-4" />
-          </button>
+          </Button>
         </div>
         <p
           v-if="!player.upNext.value.length"
-          class="py-6 text-center text-xs text-neutral-600"
+          class="py-6 text-center text-xs text-muted-foreground"
         >
           Nothing queued.
         </p>
-        <button
+        <Button
           v-for="item in player.upNext.value"
           :key="item.id"
-          class="group flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left hover:bg-white/5"
+          variant="ghost"
+          class="group h-auto w-full justify-start gap-2.5 px-2 py-1.5 font-normal"
           @click="player.playFromQueue(item.id)"
         >
           <!-- Same affordance as a row in a list: the tile is what you click,
@@ -92,24 +96,22 @@ const total = computed(() => {
             <span
               class="absolute inset-0 grid place-items-center rounded-md bg-black/55 opacity-0 transition group-hover:opacity-100"
             >
-              <Play class="size-3.5 fill-current text-neutral-100" />
+              <Play class="size-3.5 fill-current text-foreground" />
             </span>
           </span>
           <span class="min-w-0 flex-1">
-            <span class="block truncate text-xs text-neutral-200">{{
+            <span class="block truncate text-xs text-foreground">{{
               item.title
             }}</span>
-            <span class="block truncate text-[11px] text-neutral-500">{{
+            <span class="block truncate text-[11px] text-muted-foreground">{{
               item.subtitle
             }}</span>
           </span>
-        </button>
+        </Button>
       </aside>
     </Transition>
 
-    <footer
-      class="border-t border-neutral-800/80 bg-neutral-950 px-4 py-2.5 md:py-3"
-    >
+    <footer class="border-t border-border bg-background px-4 py-2.5 md:py-3">
       <div class="mx-auto flex max-w-7xl items-center gap-3 md:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <ArtTile
@@ -126,14 +128,14 @@ const total = computed(() => {
             ♪
           </div>
           <div class="min-w-0">
-            <p class="truncate text-sm text-neutral-100">
+            <p class="truncate text-sm text-foreground">
               {{ player.current.value?.title ?? 'Nothing playing' }}
             </p>
-            <p class="truncate text-xs text-neutral-500">
+            <p class="truncate text-xs text-muted-foreground">
               <NuxtLink
                 v-if="player.current.value?.artist"
                 :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
-                class="hover:text-neutral-200 hover:underline"
+                class="hover:text-foreground hover:underline"
                 >{{ player.current.value.subtitle }}</NuxtLink
               >
               <template v-else>{{
@@ -145,32 +147,37 @@ const total = computed(() => {
 
         <div class="flex flex-[2] flex-col items-center gap-1.5">
           <div class="flex items-center gap-4">
-            <button
-              class="text-neutral-400 transition hover:text-neutral-100 disabled:opacity-30"
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="text-muted-foreground"
               :disabled="!player.current.value"
               @click="player.previous"
             >
               <SkipBack class="size-4 fill-current" />
-            </button>
-            <button
-              class="grid size-9 place-items-center rounded-full bg-neutral-100 text-neutral-900 transition hover:scale-105 disabled:opacity-30"
+            </Button>
+            <Button
+              size="icon"
+              class="size-9 rounded-full transition hover:scale-105"
               :disabled="!player.current.value"
               @click="player.toggle"
             >
               <Pause v-if="player.playing.value" class="size-4 fill-current" />
               <Play v-else class="size-4 translate-x-px fill-current" />
-            </button>
-            <button
-              class="text-neutral-400 transition hover:text-neutral-100 disabled:opacity-30"
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="text-muted-foreground"
               :disabled="!player.upNext.value.length"
               @click="player.next"
             >
               <SkipForward class="size-4 fill-current" />
-            </button>
+            </Button>
           </div>
           <div class="hidden w-full items-center gap-2 md:flex">
             <span
-              class="w-10 text-right text-[11px] tabular-nums text-neutral-500"
+              class="w-10 text-right text-[11px] tabular-nums text-muted-foreground"
             >
               {{ formatTime(elapsed) }}
             </span>
@@ -181,10 +188,10 @@ const total = computed(() => {
               step="0.1"
               :value="player.progress.value"
               :disabled="!player.current.value"
-              class="h-1 flex-1 accent-neutral-100"
+              class="h-1 flex-1 accent-primary"
               @input="scrub"
             />
-            <span class="w-10 text-[11px] tabular-nums text-neutral-500">
+            <span class="w-10 text-[11px] tabular-nums text-muted-foreground">
               {{ formatTime(total) }}
             </span>
           </div>
@@ -194,29 +201,34 @@ const total = computed(() => {
           <!-- Only rendered when the segment carries a BaniDB shabad id. Most
                will not for a long time, and a permanently dimmed control the
                listener cannot act on is noise rather than information. -->
-          <button
+          <Button
             v-if="hasShabad"
-            class="text-neutral-400 transition hover:text-neutral-100"
-            :class="showLyrics && '!text-amber-400'"
+            variant="ghost"
+            size="icon-sm"
+            class="text-muted-foreground"
+            :class="showLyrics && '!text-primary'"
             title="Read along"
             @click="((showLyrics = !showLyrics), (showQueue = false))"
           >
             <BookOpen class="size-4" />
-          </button>
-          <button
-            class="hidden text-neutral-400 transition hover:text-neutral-100 md:block"
-            :class="showQueue && '!text-amber-400'"
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            class="hidden text-muted-foreground md:inline-flex"
+            :class="showQueue && '!text-primary'"
+            title="Queue"
             @click="((showQueue = !showQueue), (showLyrics = false))"
           >
             <ListMusic class="size-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
       <!-- Mobile keeps a hairline progress bar instead of the full scrubber. -->
-      <div class="mt-2 h-0.5 w-full rounded bg-neutral-800 md:hidden">
+      <div class="mt-2 h-0.5 w-full rounded bg-muted md:hidden">
         <div
-          class="h-full rounded bg-neutral-300"
+          class="h-full rounded bg-primary"
           :style="{ width: `${player.progress.value}%` }"
         />
       </div>

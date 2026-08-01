@@ -1,5 +1,9 @@
 <script setup lang="ts">
 import { Check, Trash2, Play, Send, Scissors } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { fmt } from '~/composables/useTagPlayer';
 
 const route = useRoute();
@@ -233,14 +237,16 @@ async function remove(s: any) {
           :max="duration"
           @mark="markEnd"
         />
-        <button
+        <Button
           v-if="endSec !== null"
-          class="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent"
+          variant="outline"
+          size="sm"
+          class="text-xs text-muted-foreground"
           title="Loop a few seconds either side of the cut to check it"
           @click="player?.auditionBoundary(endSec)"
         >
-          <Scissors class="inline size-3.5" /> Check cut
-        </button>
+          <Scissors class="size-3.5" /> Check cut
+        </Button>
       </div>
 
       <!-- Identifying the shabad is the main act, not an option behind a
@@ -270,46 +276,45 @@ async function remove(s: any) {
            to find it in BaniDB can type a name and stop there, which is what
            keeps the highest-volume task open to any contributor. -->
       <div class="mt-4">
-        <label class="mb-1 block text-[11px] text-muted-foreground">
+        <Label for="shabad-name" class="mb-1 text-[11px] text-muted-foreground">
           Name
           <span v-if="shabadId" class="text-muted-foreground/70">
             — from the main verse, edit if you'd write it differently
           </span>
-        </label>
-        <input
+        </Label>
+        <Input
+          id="shabad-name"
           v-model="name"
           placeholder="Type what you hear, or pick a shabad above"
-          class="w-full rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring"
+          class="bg-card"
           @keyup.enter="save(false)"
         />
         <p v-if="suggestedName" class="mt-1.5 text-xs text-muted-foreground">
           Anchor line reads
           <span class="text-foreground">{{ suggestedName }}</span> —
-          <button
-            class="text-amber-400 hover:underline"
+          <Button
+            variant="link"
+            class="h-auto p-0 text-xs text-amber-400"
             @click="applyAutoName(suggestedName, true)"
           >
             use as name
-          </button>
+          </Button>
         </p>
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          class="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-40"
-          :disabled="busy || !canSave"
-          @click="save(false)"
-        >
+        <Button size="sm" :disabled="busy || !canSave" @click="save(false)">
           Save shabad
-        </button>
-        <button
+        </Button>
+        <Button
           v-if="canPublish"
-          class="flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm disabled:opacity-40"
+          variant="outline"
+          size="sm"
           :disabled="busy || !canSave"
           @click="save(true)"
         >
           <Send class="size-3.5" /> Save &amp; publish
-        </button>
+        </Button>
         <span class="text-xs text-muted-foreground"
           >Only published shabads appear in the player.</span
         >
@@ -326,13 +331,15 @@ async function remove(s: any) {
       class="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-accent"
       :class="s.id === editingId && 'bg-accent ring-1 ring-primary/40'"
     >
-      <button
-        class="text-muted-foreground hover:text-foreground"
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 text-muted-foreground"
         title="Play from here"
         @click="player?.playFrom(Number(s.start_sec))"
       >
         <Play class="size-3.5" />
-      </button>
+      </Button>
       <span class="min-w-0 flex-1">
         <span class="block truncate text-sm">{{ s.name }}</span>
         <span class="block truncate text-[11px] text-muted-foreground">
@@ -346,31 +353,34 @@ async function remove(s: any) {
       <span class="text-xs tabular-nums text-muted-foreground">
         {{ fmt(Number(s.start_sec)) }}–{{ fmt(Number(s.end_sec)) }}
       </span>
-      <span
-        class="rounded-full px-2 py-0.5 text-[11px]"
+      <Badge
+        :variant="s.status === 'published' ? 'default' : 'secondary'"
+        class="rounded-full text-[11px]"
         :class="
-          s.status === 'published'
-            ? 'bg-emerald-500/15 text-emerald-400'
-            : 'bg-accent text-muted-foreground'
+          s.status === 'published' && 'bg-emerald-500/15 text-emerald-400'
         "
-        >{{ s.status }}</span
+        >{{ s.status }}</Badge
       >
       <template v-if="canPublish">
-        <button
+        <Button
           v-if="s.status !== 'published'"
-          class="text-emerald-400 hover:text-emerald-300"
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 text-emerald-400"
           title="Publish"
           @click="publishExisting(s)"
         >
           <Check class="size-4" />
-        </button>
-        <button
-          class="text-muted-foreground hover:text-red-400"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 text-muted-foreground hover:text-destructive"
           title="Delete"
           @click="remove(s)"
         >
           <Trash2 class="size-3.5" />
-        </button>
+        </Button>
       </template>
     </div>
   </div>

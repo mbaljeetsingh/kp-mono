@@ -18,7 +18,7 @@ const { data: shabads } = await useAsyncData(
 
 <template>
   <div>
-    <h1 class="mb-6 text-2xl font-semibold text-neutral-100">Favorites</h1>
+    <h1 class="mb-6 text-2xl font-semibold text-foreground">Favorites</h1>
     <ShabadRow
       v-for="(s, i) in shabads ?? []"
       :key="s.id"

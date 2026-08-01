@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { Search, X } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { Input } from '@/components/ui/input';
 import { toGurmukhiLetters } from '~/composables/useGurmukhi';
 import { prettyShabadName } from '~/composables/useShabadName';
 
@@ -90,39 +93,38 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
 
 <template>
   <div>
-    <div class="mb-2 flex items-center gap-1">
-      <button
+    <ButtonGroup class="mb-2" aria-label="Search language">
+      <Button
         v-for="l in LANGS"
         :key="l.key"
-        class="rounded px-2 py-1 text-[11px] transition"
-        :class="
-          lang === l.key
-            ? 'bg-accent text-foreground'
-            : 'text-muted-foreground hover:text-foreground'
-        "
+        size="sm"
+        :variant="lang === l.key ? 'secondary' : 'outline'"
+        class="px-2 text-[11px]"
         @click="lang = l.key"
       >
         {{ l.label }}
-      </button>
-    </div>
+      </Button>
+    </ButtonGroup>
 
     <div class="relative">
       <Search
-        class="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground"
+        class="pointer-events-none absolute top-1/2 left-3 z-10 size-3.5 -translate-y-1/2 text-muted-foreground"
       />
-      <input
-        :value="q"
+      <Input
+        :model-value="q"
         placeholder="Search a shabad"
-        class="w-full rounded-md border border-input bg-card py-2 pr-8 pl-9 text-[15px] outline-none focus:border-ring"
+        class="bg-card py-2 pr-8 pl-9 text-[15px]"
         @input="onInput"
       />
-      <button
+      <Button
         v-if="q"
-        class="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        variant="ghost"
+        size="icon-sm"
+        class="absolute top-1/2 right-1 size-7 -translate-y-1/2 text-muted-foreground"
         @click="((q = ''), (results = []))"
       >
         <X class="size-3.5" />
-      </button>
+      </Button>
     </div>
 
     <p v-if="loading" class="mt-2 text-xs text-muted-foreground">Searching…</p>

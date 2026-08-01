@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Button } from '@/components/ui/button';
 import { Check, Trash2, Play } from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
@@ -73,12 +74,14 @@ function fmt(v: number) {
       :key="s.id"
       class="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-accent"
     >
-      <button
-        class="text-muted-foreground hover:text-foreground"
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 text-muted-foreground"
         @click="preview(s)"
       >
         <Play class="size-3.5" />
-      </button>
+      </Button>
       <span class="min-w-0 flex-1">
         <span class="block truncate text-sm">{{ s.name }}</span>
         <span class="block truncate text-[11px] text-muted-foreground">
@@ -93,20 +96,24 @@ function fmt(v: number) {
         {{ fmt(Number(s.start_sec)) }}–{{ fmt(Number(s.end_sec)) }}
       </span>
       <template v-if="canPublish">
-        <button
-          class="text-emerald-400 hover:text-emerald-300"
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 text-emerald-400"
           title="Publish"
           @click="publish(s)"
         >
           <Check class="size-4" />
-        </button>
-        <button
-          class="text-muted-foreground hover:text-red-400"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 text-muted-foreground hover:text-destructive"
           title="Reject"
           @click="reject(s)"
         >
           <Trash2 class="size-3.5" />
-        </button>
+        </Button>
       </template>
     </div>
 
