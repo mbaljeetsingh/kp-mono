@@ -75,7 +75,19 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
 
     <template v-else>
       <section v-if="artists?.length" class="mb-10">
-        <h2 class="mb-4 text-xl font-semibold text-neutral-100">Ragis</h2>
+        <!-- 12 divides evenly into every breakpoint's column count, so the
+             grid always ends on a full row and the cut never looks accidental.
+             That is also why it needs saying out loud that there are more. -->
+        <div class="mb-4 flex items-baseline justify-between gap-4">
+          <h2 class="text-xl font-semibold text-neutral-100">Ragis</h2>
+          <NuxtLink
+            v-if="artists.length > 12"
+            to="/ragis"
+            class="shrink-0 text-xs text-neutral-400 transition hover:text-neutral-100"
+          >
+            View all {{ artists.length }}
+          </NuxtLink>
+        </div>
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <ArtistCard
             v-for="a in artists.slice(0, 12)"
