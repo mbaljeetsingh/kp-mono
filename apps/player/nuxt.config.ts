@@ -3,6 +3,10 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineNuxtConfig({
   compatibilityDate: '2026-07-31',
   devtools: { enabled: true },
+  // shadcn-vue components live in one place for both apps, as np-mono does —
+  // `shadcn-vue add` writes to layers/ui/components/ui and neither app keeps
+  // its own copy.
+  extends: ['../../layers/ui'],
   css: ['~/assets/main.css'],
   modules: ['@vueuse/nuxt'],
   vite: { plugins: [tailwindcss()] },

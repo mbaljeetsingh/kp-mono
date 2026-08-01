@@ -1,3 +1,8 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  - 'layers/*'
+# layers/ui declares shadcn-nuxt, but Nuxt resolves modules from the app that
+# extends the layer — without hoisting the app cannot see it. Same setting
+# np-mono uses for the same reason.
+shamefullyHoist: true

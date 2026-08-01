@@ -1,3 +1,6 @@
+/* Keyframes used by shadcn-vue components (accordion, dialog, dropdown). */
+@import "tw-animate-css";
+
 /*
  * Shared theme tokens for all np-mono apps (apps/app, apps/admin, apps/web).
  * Default shadcn-vue "New York" theme (zinc base). Each app's index.css

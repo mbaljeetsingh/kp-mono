@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./layers/ui/*"]
+    }
+  },
+  "include": ["layers/ui/**/*.ts", "layers/ui/**/*.vue"]
+}

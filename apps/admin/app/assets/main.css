@@ -2,3 +2,4 @@
 @import '../../../../shared-theme/theme.css';
 
 @source "../**/*.vue";
+@source "../../../../layers/ui/components/**/*.vue";

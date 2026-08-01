@@ -8,8 +8,11 @@
     "preview": "nuxt preview"
   },
   "dependencies": {
+    "@kp/layer-ui": "workspace:*",
     "@kp/shared": "workspace:*",
+    "@lucide/vue": "^1.28.0",
     "@supabase/supabase-js": "^2.111.0",
+    "@vueuse/core": "^13.9.0",
     "@vueuse/nuxt": "^13.9.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -23,8 +26,9 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "portless": "^0.15.5",
+    "shadcn-nuxt": "^2.8.1",
     "tailwindcss": "^4.1.18",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.3",
     "vue-tsc": "^3.3.9"
   }
 }
