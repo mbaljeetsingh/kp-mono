@@ -78,9 +78,14 @@ const total = computed(() => {
         <button
           v-for="item in player.upNext.value"
           :key="item.id"
-          class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left hover:bg-white/5"
+          class="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left hover:bg-white/5"
           @click="player.playFromQueue(item.id)"
         >
+          <ArtTile
+            :name="item.artist ?? item.title"
+            :photo="item.artistPhoto"
+            class="size-8 shrink-0 text-[9px]"
+          />
           <span class="min-w-0 flex-1">
             <span class="block truncate text-xs text-neutral-200">{{
               item.title
@@ -98,11 +103,18 @@ const total = computed(() => {
     >
       <div class="mx-auto flex max-w-7xl items-center gap-3 md:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
+          <ArtTile
+            v-if="player.current.value"
+            :name="player.current.value.artist ?? player.current.value.title"
+            :photo="player.current.value.artistPhoto"
+            class="size-11 shrink-0 text-[11px] md:size-12"
+          />
           <div
+            v-else
             class="grid size-11 shrink-0 place-items-center rounded text-[11px] font-semibold text-white/80 md:size-12"
             :style="art.style"
           >
-            {{ player.current.value ? art.initials : '♪' }}
+            ♪
           </div>
           <div class="min-w-0">
             <p class="truncate text-sm text-neutral-100">
@@ -111,7 +123,7 @@ const total = computed(() => {
             <p class="truncate text-xs text-neutral-500">
               <NuxtLink
                 v-if="player.current.value?.artist"
-                :to="`/artists/${encodeURIComponent(player.current.value.artist)}`"
+                :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
                 class="hover:text-neutral-200 hover:underline"
                 >{{ player.current.value.subtitle }}</NuxtLink
               >

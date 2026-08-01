@@ -223,36 +223,13 @@ async function remove(s: any) {
         >
           <Scissors class="inline size-3.5" /> Check cut
         </button>
-        <input
-          v-model="name"
-          placeholder="Shabad name — type what you hear"
-          class="min-w-56 flex-1 rounded-md border border-input bg-card px-3 py-1.5 text-sm outline-none focus:border-ring"
-          @keyup.enter="save(false)"
-        />
       </div>
 
-      <p v-if="suggestedName" class="mt-2 text-xs text-muted-foreground">
-        Anchor line reads
-        <span class="text-foreground">{{ suggestedName }}</span> —
-        <button
-          class="text-amber-400 hover:underline"
-          @click="applyAutoName(suggestedName, true)"
-        >
-          use as name
-        </button>
-      </p>
-
-      <button
-        class="mt-3 text-xs text-muted-foreground hover:text-foreground"
-        @click="showOptions = !showOptions"
-      >
-        {{ showOptions ? '− Hide' : '+ Link a shabad' }}
-      </button>
-
-      <div v-if="showOptions" class="mt-3 border-t border-border pt-3">
-        <!-- Search and result are the same slot: once a shabad is picked the
-             search box has nothing left to do, and clearing the link brings it
-             back. Showing both at once just asks "which one am I looking at". -->
+      <!-- Identifying the shabad is the main act, not an option behind a
+           toggle: it is what produces the name, the ang, the author and the
+           read-along, and it is the same order the notation editor uses —
+           find the shabad first, everything else follows from it. -->
+      <div class="mt-4 border-t border-border pt-4">
         <ShabadSearch v-if="!shabadId" @select="onShabadSelect" />
         <ShabadDisplay
           v-else
@@ -268,6 +245,35 @@ async function remove(s: any) {
           @first-line="(line: string) => applyAutoName(line, false)"
           @renamed="(line: string) => applyAutoName(line, false)"
         />
+      </div>
+
+      <!-- Derived from the anchor line once a shabad is linked, but still
+           free text: someone who recognises a shabad by ear without being able
+           to find it in BaniDB can type a name and stop there, which is what
+           keeps the highest-volume task open to any contributor. -->
+      <div class="mt-4">
+        <label class="mb-1 block text-[11px] text-muted-foreground">
+          Name
+          <span v-if="shabadId" class="text-muted-foreground/70">
+            — from the main verse, edit if you'd write it differently
+          </span>
+        </label>
+        <input
+          v-model="name"
+          placeholder="Type what you hear, or pick a shabad above"
+          class="w-full rounded-md border border-input bg-card px-3 py-2 text-sm outline-none focus:border-ring"
+          @keyup.enter="save(false)"
+        />
+        <p v-if="suggestedName" class="mt-1.5 text-xs text-muted-foreground">
+          Anchor line reads
+          <span class="text-foreground">{{ suggestedName }}</span> —
+          <button
+            class="text-amber-400 hover:underline"
+            @click="applyAutoName(suggestedName, true)"
+          >
+            use as name
+          </button>
+        </p>
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">

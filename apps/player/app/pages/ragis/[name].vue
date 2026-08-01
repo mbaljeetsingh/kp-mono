@@ -1,7 +1,28 @@
 <script setup lang="ts">
 const route = useRoute();
 const supabase = useSupabaseClient();
+// The directory name, not the display name: it is the join key every shabad
+// carries, so the URL keeps working when someone corrects the spelling.
 const name = computed(() => decodeURIComponent(String(route.params.name)));
+
+const { data: artist } = await useAsyncData(
+  () => `artist-${name.value}`,
+  async () => {
+    const { data } = await supabase
+      .from('artists')
+      .select('name, display_name, photo_path')
+      .eq('name', name.value)
+      .maybeSingle();
+    return data as {
+      name: string;
+      display_name: string | null;
+      photo_path: string | null;
+    } | null;
+  },
+  { watch: [name] }
+);
+
+const title = computed(() => artist.value?.display_name ?? name.value);
 
 const list = useInfiniteList<any>(async (from, to) => {
   const { data } = await supabase
@@ -19,13 +40,14 @@ await list.loadMore();
   <div>
     <header class="mb-8 flex items-end gap-6">
       <ArtTile
-        :name="name"
+        :name="title"
+        :photo="artist?.photo_path"
         rounded="full"
         class="size-36 shrink-0 text-4xl shadow-xl"
       />
       <div class="min-w-0 pb-2">
-        <p class="text-xs tracking-wide text-neutral-400 uppercase">Artist</p>
-        <h1 class="truncate text-4xl font-bold text-neutral-50">{{ name }}</h1>
+        <p class="text-xs tracking-wide text-neutral-400 uppercase">Ragi</p>
+        <h1 class="truncate text-4xl font-bold text-neutral-50">{{ title }}</h1>
         <p class="mt-2 text-sm text-neutral-400">
           {{ list.items.value.length }}{{ list.done.value ? '' : '+' }} shabads
         </p>

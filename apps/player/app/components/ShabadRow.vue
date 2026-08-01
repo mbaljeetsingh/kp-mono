@@ -19,6 +19,7 @@ function toPlayable(s: any) {
     title: s.name,
     subtitle: s.artist_display ?? s.artist ?? undefined,
     artist: s.artist ?? undefined,
+    artistPhoto: s.artist_photo ?? null,
     shabadId: s.shabad_id ?? null,
     mainVerseId: s.main_verse_id ?? null,
     url: s.url,
@@ -64,7 +65,7 @@ function play() {
       <span class="block truncate text-xs text-neutral-500">
         <NuxtLink
           v-if="shabad.artist"
-          :to="`/artists/${encodeURIComponent(shabad.artist)}`"
+          :to="`/ragis/${encodeURIComponent(shabad.artist)}`"
           class="hover:text-neutral-200 hover:underline"
           @click.stop
           >{{ shabad.artist_display ?? shabad.artist }}</NuxtLink

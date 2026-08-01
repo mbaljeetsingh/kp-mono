@@ -18,6 +18,8 @@ export interface Playable {
   subtitle?: string;
   /** Kept separate from `subtitle` so the player bar can link to the artist. */
   artist?: string;
+  /** Storage filename for the artist's photo, when SGPC published one. */
+  artistPhoto?: string | null;
   /** BaniDB ids, when the segment has been linked — drives read-along. */
   shabadId?: number | null;
   mainVerseId?: number | null;

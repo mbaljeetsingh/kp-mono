@@ -22,6 +22,7 @@ function toPlayable(s: any) {
     title: s.name,
     subtitle: s.artist_display ?? s.artist ?? undefined,
     artist: s.artist ?? undefined,
+    artistPhoto: s.artist_photo ?? null,
     shabadId: s.shabad_id ?? null,
     mainVerseId: s.main_verse_id ?? null,
     url: s.url,
@@ -82,11 +83,11 @@ function act(fn: () => void) {
       </button>
       <NuxtLink
         v-if="props.shabad.artist"
-        :to="`/artists/${encodeURIComponent(props.shabad.artist)}`"
+        :to="`/ragis/${encodeURIComponent(props.shabad.artist)}`"
         class="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-neutral-300 hover:bg-white/5"
         @click="open = false"
       >
-        <User class="size-4" /> Go to artist
+        <User class="size-4" /> Go to ragi
       </NuxtLink>
     </div>
   </div>

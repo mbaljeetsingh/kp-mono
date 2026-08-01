@@ -113,6 +113,11 @@ function mins(sec: number | null) {
       :to="`/tag/${t.id}`"
       class="flex items-center gap-3 rounded-md px-3 py-2.5 transition hover:bg-accent"
     >
+      <ArtTile
+        :name="t.artist_dir ?? t.raw_filename"
+        :photo="t.artist_photo"
+        class="size-9"
+      />
       <span class="min-w-0 flex-1">
         <span class="block truncate text-sm">{{
           t.title ?? t.raw_filename

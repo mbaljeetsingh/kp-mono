@@ -6,7 +6,7 @@ import { Home, Search, Users, Radio, Heart } from 'lucide-vue-next';
 const tabs = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/search', label: 'Search', icon: Search },
-  { to: '/artists', label: 'Artists', icon: Users },
+  { to: '/ragis', label: 'Ragis', icon: Users },
   { to: '/live', label: 'Live', icon: Radio },
   { to: '/favorites', label: 'Saved', icon: Heart },
 ];

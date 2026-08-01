@@ -106,52 +106,48 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
       Loading…
     </p>
 
-    <p
-      v-else
-      class="border-b border-border bg-accent/40 px-3 py-1.5 text-[11px] text-muted-foreground"
-    >
-      Click a line to set it as the main verse — the line this rendition is
-      known by.
-    </p>
-
-    <div v-else class="max-h-80 overflow-y-auto">
-      <!-- Any line can be the anchor; clicking swaps it, so a wrong guess is
-           one click to fix rather than a re-link. -->
-      <button
-        v-for="v in verses"
-        :key="v.verseId"
-        class="flex w-full items-start gap-2 border-b border-border/60 px-3 py-2 text-left last:border-0 hover:bg-accent"
-        :class="v.verseId === mainVerseId && 'bg-amber-500/10'"
-        :title="v.verseId === mainVerseId ? 'Main verse' : 'Set as main verse'"
-        @click="setMain(v)"
+    <template v-else>
+      <p
+        class="border-b border-border bg-accent/40 px-3 py-1.5 text-[11px] text-muted-foreground"
       >
-        <Pin
-          class="mt-1 size-3 shrink-0"
-          :class="
-            v.verseId === mainVerseId ? 'text-amber-400' : 'text-transparent'
-          "
-        />
-        <span class="min-w-0">
-          <span
-            class="block text-[15px] leading-relaxed"
-            :class="
-              v.verseId === mainVerseId ? 'text-amber-300' : 'text-foreground'
-            "
-          >
-            {{ gurmukhi(v) }}
-          </span>
-          <span class="block text-[11px] text-muted-foreground">{{
-            v.transliteration?.english
-          }}</span>
-        </span>
-      </button>
-    </div>
+        Click a line to set it as the main verse — the line this rendition is
+        known by.
+      </p>
 
-    <p
-      class="border-t border-border px-3 py-2 text-[11px] text-muted-foreground"
-    >
-      Click any line to make it the main verse — the one this rendition is known
-      by.
-    </p>
+      <div class="max-h-80 overflow-y-auto">
+        <!-- Any line can be the anchor; clicking swaps it, so a wrong guess is
+           one click to fix rather than a re-link. -->
+        <button
+          v-for="v in verses"
+          :key="v.verseId"
+          class="flex w-full items-start gap-2 border-b border-border/60 px-3 py-2 text-left last:border-0 hover:bg-accent"
+          :class="v.verseId === mainVerseId && 'bg-amber-500/10'"
+          :title="
+            v.verseId === mainVerseId ? 'Main verse' : 'Set as main verse'
+          "
+          @click="setMain(v)"
+        >
+          <Pin
+            class="mt-1 size-3 shrink-0"
+            :class="
+              v.verseId === mainVerseId ? 'text-amber-400' : 'text-transparent'
+            "
+          />
+          <span class="min-w-0">
+            <span
+              class="block text-[15px] leading-relaxed"
+              :class="
+                v.verseId === mainVerseId ? 'text-amber-300' : 'text-foreground'
+              "
+            >
+              {{ gurmukhi(v) }}
+            </span>
+            <span class="block text-[11px] text-muted-foreground">{{
+              v.transliteration?.english
+            }}</span>
+          </span>
+        </button>
+      </div>
+    </template>
   </div>
 </template>

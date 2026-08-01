@@ -75,12 +75,13 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
 
     <template v-else>
       <section v-if="artists?.length" class="mb-10">
-        <h2 class="mb-4 text-xl font-semibold text-neutral-100">Artists</h2>
+        <h2 class="mb-4 text-xl font-semibold text-neutral-100">Ragis</h2>
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <ArtistCard
             v-for="a in artists.slice(0, 12)"
             :key="a.artist_dir"
             :name="a.artist_dir"
+            :photo="a.photo_path"
             :count="a.shabads"
           />
         </div>

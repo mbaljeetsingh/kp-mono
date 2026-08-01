@@ -15,7 +15,7 @@ onMounted(() => {
 
 const nav = [
   { to: '/', label: 'Home', icon: Home },
-  { to: '/artists', label: 'Artists', icon: Users },
+  { to: '/ragis', label: 'Ragis', icon: Users },
   { to: '/favorites', label: 'Favorites', icon: Heart },
 ];
 </script>
