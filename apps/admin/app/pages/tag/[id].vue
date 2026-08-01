@@ -95,6 +95,14 @@ const canSave = computed(
     name.value.trim().length > 0
 );
 
+// Nudging one end must never push it past the other; a tenth is the finest
+// step either control offers, so it is also the smallest legal gap.
+const MIN_LENGTH = 0.1;
+const duration = computed<number | null>(() => {
+  const d = player.value?.duration.value;
+  return Number.isFinite(d) && d > 0 ? d : null;
+});
+
 const at = () => player.value?.currentTime.value ?? 0;
 function markStart() {
   startSec.value = at();
@@ -208,18 +216,23 @@ async function remove(s: any) {
 
     <div class="mt-4 rounded-lg border border-border p-4">
       <div class="flex flex-wrap items-center gap-2">
-        <button
-          class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
-          @click="markStart"
-        >
-          Start · <span class="tabular-nums">{{ fmt(startSec, true) }}</span>
-        </button>
-        <button
-          class="rounded-md border border-input px-3 py-1.5 text-sm hover:bg-accent"
-          @click="markEnd"
-        >
-          End · <span class="tabular-nums">{{ fmt(endSec, true) }}</span>
-        </button>
+        <!-- A boundary is rarely right the first time. Both ends can be walked
+             in 0.1s and 1s steps rather than re-marked from the playhead, and
+             each is clamped so the pair cannot cross. -->
+        <BoundaryControl
+          v-model="startSec"
+          label="Start"
+          :min="0"
+          :max="endSec !== null ? endSec - MIN_LENGTH : duration"
+          @mark="markStart"
+        />
+        <BoundaryControl
+          v-model="endSec"
+          label="End"
+          :min="startSec !== null ? startSec + MIN_LENGTH : 0"
+          :max="duration"
+          @mark="markEnd"
+        />
         <button
           v-if="endSec !== null"
           class="rounded-md border border-input px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent"

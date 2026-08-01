@@ -78,14 +78,23 @@ const total = computed(() => {
         <button
           v-for="item in player.upNext.value"
           :key="item.id"
-          class="flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left hover:bg-white/5"
+          class="group flex w-full items-center gap-2.5 rounded px-2 py-1.5 text-left hover:bg-white/5"
           @click="player.playFromQueue(item.id)"
         >
-          <ArtTile
-            :name="item.artist ?? item.title"
-            :photo="item.artistPhoto"
-            class="size-8 shrink-0 text-[9px]"
-          />
+          <!-- Same affordance as a row in a list: the tile is what you click,
+               so on hover it says so. -->
+          <span class="relative size-8 shrink-0">
+            <ArtTile
+              :name="item.artist ?? item.title"
+              :photo="item.artistPhoto"
+              class="size-8 text-[9px]"
+            />
+            <span
+              class="absolute inset-0 grid place-items-center rounded-md bg-black/55 opacity-0 transition group-hover:opacity-100"
+            >
+              <Play class="size-3.5 fill-current text-neutral-100" />
+            </span>
+          </span>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-xs text-neutral-200">{{
               item.title
