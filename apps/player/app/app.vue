@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { onMounted, useTemplateRef } from 'vue';
-import { Home, Users, Heart, Radio } from 'lucide-vue-next';
+import { Home, Users, Heart, ListMusic, Radio } from 'lucide-vue-next';
 import { usePlayer } from '~/composables/usePlayer';
 
 const player = usePlayer();
+const auth = useAuth();
+const favorites = useFavorites();
+const playlists = usePlaylists();
 const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
 
 // One <audio> element for the whole app so playback survives navigation — a
@@ -11,12 +14,22 @@ const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
 // separating a music app from a page with an audio tag on it.
 onMounted(() => {
   if (audioEl.value) player.attach(audioEl.value);
+
+  // Auth is client-only: the Supabase client persists no session on the server,
+  // so SSR renders every page signed-out and this is what personalises it after
+  // hydration. Never in setup — that runs on the server too.
+  void auth.init();
+  // Both watch the session for the rest of the app's life, so they are started
+  // once, here, rather than by whichever row component happened to render first.
+  favorites.sync();
+  playlists.sync();
 });
 
 const nav = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/ragis', label: 'Ragis', icon: Users },
   { to: '/favorites', label: 'Favorites', icon: Heart },
+  { to: '/playlists', label: 'Playlists', icon: ListMusic },
 ];
 </script>
 
@@ -24,11 +37,10 @@ const nav = [
   <!-- One continuous surface. Earlier this was three floating panels with gaps
        between them, which read as separate widgets rather than one app; the
        regions are now separated by hairlines on a single background. -->
-  <!-- `dark` is what makes the shared tokens resolve to the dark palette:
-       :root in shared-theme is the light parchment set, and admin has carried
-       this class all along. Without it every token-based component here would
-       render light. -->
-  <div class="dark flex h-dvh flex-col bg-background text-foreground">
+  <!-- The `dark` class that makes the shared tokens resolve to the dark palette
+       (:root in shared-theme is the light parchment set) lives on <html>, set in
+       nuxt.config — overlays portal to document.body and would miss it here. -->
+  <div class="flex h-dvh flex-col bg-background text-foreground">
     <div class="flex min-h-0 flex-1">
       <aside
         class="hidden w-56 shrink-0 flex-col border-r border-border md:flex"
@@ -58,6 +70,8 @@ const nav = [
           <Radio class="size-[18px]" />
           Live now
         </NuxtLink>
+
+        <div class="border-t border-border p-2"><AccountButton /></div>
       </aside>
 
       <main class="min-w-0 flex-1 overflow-y-auto">
@@ -79,5 +93,11 @@ const nav = [
 
     <PlayerBar />
     <MobileTabBar />
+
+    <!-- One instance of each for the whole app: both are opened from row menus
+         and empty states, and a dialog per row would mean one mounted dialog
+         per visible shabad. -->
+    <AuthDialog />
+    <NewPlaylistDialog />
   </div>
 </template>

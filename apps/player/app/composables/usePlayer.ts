@@ -336,6 +336,26 @@ export function usePlayer() {
   };
 }
 
+/**
+ * A row from the `shabads` view — or from anything built on it, like
+ * `playlist_shabads` — as something this player can play. Lives here because
+ * rows, row menus, playlists and favorites all need the identical mapping.
+ */
+export function toPlayable(s: any): Playable {
+  return {
+    id: s.id,
+    title: s.name,
+    subtitle: s.artist_display ?? s.artist ?? undefined,
+    artist: s.artist ?? undefined,
+    artistPhoto: s.artist_photo ?? null,
+    shabadId: s.shabad_id ?? null,
+    mainVerseId: s.main_verse_id ?? null,
+    url: s.url,
+    startSec: Number(s.start_sec),
+    endSec: Number(s.end_sec),
+  };
+}
+
 export function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds)) return '0:00';
   const h = Math.floor(seconds / 3600);

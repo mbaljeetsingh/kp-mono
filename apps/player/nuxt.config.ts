@@ -32,5 +32,9 @@ export default defineNuxtConfig({
     process.env.NODE_ENV !== 'production'
       ? { '/banidb-api/**': { proxy: 'https://api.banidb.com/v2/**' } }
       : {},
-  app: { head: { title: 'Kirtan' } },
+  // `dark` belongs on <html>, not on a wrapper div: Reka portals every overlay
+  // — dialogs, dropdown menus, their submenus — to document.body, outside any
+  // app-level wrapper. With the class on a div those overlays resolved the
+  // light `:root` palette from shared-theme and came up cream-on-dark.
+  app: { head: { title: 'Kirtan', htmlAttrs: { class: 'dark' } } },
 });

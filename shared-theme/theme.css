@@ -141,6 +141,20 @@
 }
 
 /*
+ * Body carries the text colour, not just the app shell.
+ *
+ * Reka portals every overlay — dialogs, dropdowns, sheets — to document.body,
+ * outside whatever wrapper an app puts `text-foreground` on. Components that
+ * name their own colour (DialogTitle, DialogDescription, DropdownMenuContent)
+ * survive that; ones that inherit do not. `DialogContent` sets `bg-background`
+ * with no text colour, so a portalled form's `<Label>`s came out in the
+ * browser default — near-black on a dark card, i.e. invisible.
+ */
+body {
+  color: var(--foreground);
+}
+
+/*
  * Dark-mode atmospheric glow — subtle warm radial from top center, fixed so
  * it doesn't scroll-swim. Hardcoded rgba because CSS custom props don't
  * resolve inside rgba() reliably across browsers.

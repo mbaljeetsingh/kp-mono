@@ -8,7 +8,7 @@ See [docs/BRD.md](docs/BRD.md), [docs/PRD.md](docs/PRD.md), and
 ## Layout
 
 ```
-apps/player/       public listening app — no login required
+apps/player/       public listening app — account optional (favorites, playlists)
 apps/admin/        tagging workbench — auth required (SPA)
 packages/crawler/  crawls sgpc.net → JSON → Postgres. Runs on cron, not in an app.
 packages/shared/   shared types
@@ -38,3 +38,9 @@ number of requests and adds a class of bugs where changes are silently missed.
   archive once already; URL-keyed ids would orphan every tag on the next move.
 - **No Web Audio** — the MP3s send no CORS headers, so waveforms and visualizers
   are unavailable without proxying. Playback and scrubbing are unaffected.
+- **Listening never requires an account.** Signing in (email + password, same
+  `auth.users` as admin) only moves favorites off one device and unlocks
+  playlists. Guests keep favorites in localStorage, and that list migrates into
+  the account on first sign-in. Player auth is client-side only — the Supabase
+  client persists no session on the server, so SSR renders every page
+  signed-out and personalises after hydration.

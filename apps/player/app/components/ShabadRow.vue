@@ -1,33 +1,25 @@
 <script setup lang="ts">
 import { Play, Heart } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { usePlayer, formatTime } from '~/composables/usePlayer';
+import { usePlayer, formatTime, toPlayable } from '~/composables/usePlayer';
 
 const props = defineProps<{
   shabad: any;
   index?: number;
   /** The full list this row belongs to, so playing one queues the rest. */
   list?: any[];
+  /** Set while reading a playlist: the row menu then offers to remove the
+   *  shabad from *this* playlist instead of only adding it to others. */
+  playlistId?: string;
 }>();
+
+/** Fired once the shabad has left the playlist, so the page can drop the row
+ *  without re-reading the whole list. */
+const emit = defineEmits<{ removed: [] }>();
 
 const player = usePlayer();
 const favorites = useFavorites();
 const isCurrent = computed(() => player.current.value?.id === props.shabad.id);
-
-function toPlayable(s: any) {
-  return {
-    id: s.id,
-    title: s.name,
-    subtitle: s.artist_display ?? s.artist ?? undefined,
-    artist: s.artist ?? undefined,
-    artistPhoto: s.artist_photo ?? null,
-    shabadId: s.shabad_id ?? null,
-    mainVerseId: s.main_verse_id ?? null,
-    url: s.url,
-    startSec: Number(s.start_sec),
-    endSec: Number(s.end_sec),
-  };
-}
 
 function play() {
   const list = props.list ?? [props.shabad];
@@ -109,7 +101,11 @@ function play() {
       <span class="text-xs tabular-nums text-muted-foreground">
         {{ formatTime(Number(shabad.duration_sec)) }}
       </span>
-      <ShabadMenu :shabad="shabad" />
+      <ShabadMenu
+        :shabad="shabad"
+        :playlist-id="playlistId"
+        @removed="emit('removed')"
+      />
     </span>
   </div>
 </template>
