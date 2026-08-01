@@ -14,6 +14,9 @@ const emit = defineEmits<{
   renamed: [string];
 }>();
 
+// Same-origin proxy in dev — see nuxt.config routeRules.
+const base = useRuntimeConfig().public.banidbApiBaseUrl;
+
 const verses = ref<any[]>([]);
 const loading = ref(false);
 const info = ref<any>(null);
@@ -41,13 +44,17 @@ watch(
     if (!id) return;
     loading.value = true;
     try {
-      const res = await fetch(`https://api.banidb.com/v2/shabads/${id}`);
+      const res = await fetch(`${base}/shabads/${id}`);
       const json = await res.json();
       verses.value = json.verses ?? [];
       info.value = json.shabadInfo ?? null;
       // Suggest, don't impose — the tagger can click any line to change it.
-      if (mainVerseId.value == null)
-        mainVerseId.value = findRahao(verses.value);
+      // An anchor that is not among these verses cannot be highlighted or
+      // named from, so it is treated as unset rather than shown as nothing.
+      const anchored = verses.value.some(
+        (v) => v.verseId === mainVerseId.value
+      );
+      if (!anchored) mainVerseId.value = findRahao(verses.value);
       const anchor = verses.value.find((v) => v.verseId === mainVerseId.value);
       if (anchor?.transliteration?.english) {
         emit('firstLine', prettyShabadName(anchor.transliteration.english));

@@ -4,7 +4,7 @@ import { toGurmukhiLetters } from '~/composables/useGurmukhi';
 import { prettyShabadName } from '~/composables/useShabadName';
 
 const emit = defineEmits<{
-  select: [{ shabadId: number; firstLine: string }];
+  select: [{ shabadId: number; verseId: number | null; firstLine: string }];
 }>();
 
 // searchtype 0 is BaniDB's first-letter search and accepts both Gurmukhi and
@@ -15,6 +15,9 @@ const LANGS = [
   { key: 0, label: 'Punjabi' },
   { key: 7, label: 'English' },
 ] as const;
+
+// Same-origin proxy in dev — see nuxt.config routeRules.
+const base = useRuntimeConfig().public.banidbApiBaseUrl;
 
 const lang = useLocalStorage<number>('kp:shabad-lang', 0);
 const q = ref('');
@@ -57,7 +60,7 @@ watch([debounced, lang], async () => {
   loading.value = true;
   try {
     const res = await fetch(
-      `https://api.banidb.com/v2/search/${encodeURIComponent(term)}?searchtype=${lang.value}`
+      `${base}/search/${encodeURIComponent(term)}?searchtype=${lang.value}`
     );
     const json = await res.json();
     if (mine !== generation) return;
@@ -70,8 +73,12 @@ watch([debounced, lang], async () => {
 });
 
 function choose(v: any) {
+  // The line the tagger searched for and clicked is a stronger signal than any
+  // heuristic — they were looking for that line. It becomes the anchor, and
+  // any other line is one click away in the display below.
   emit('select', {
     shabadId: v.shabadId,
+    verseId: typeof v.verseId === 'number' ? v.verseId : null,
     firstLine: prettyShabadName(v.transliteration?.english ?? ''),
   });
   q.value = '';
@@ -97,7 +104,6 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
       >
         {{ l.label }}
       </button>
-      <span v-if="echo" class="ml-auto text-sm text-amber-400">{{ echo }}</span>
     </div>
 
     <div class="relative">

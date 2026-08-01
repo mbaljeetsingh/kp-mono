@@ -187,7 +187,7 @@ const total = computed(() => {
                listener cannot act on is noise rather than information. -->
           <button
             v-if="hasShabad"
-            class="hidden text-neutral-400 transition hover:text-neutral-100 md:block"
+            class="text-neutral-400 transition hover:text-neutral-100"
             :class="showLyrics && '!text-amber-400'"
             title="Read along"
             @click="((showLyrics = !showLyrics), (showQueue = false))"

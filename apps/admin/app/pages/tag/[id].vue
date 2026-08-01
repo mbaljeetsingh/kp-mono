@@ -46,7 +46,6 @@ const shabadId = ref<number | null>(null);
 const mainVerseId = ref<number | null>(null);
 const busy = ref(false);
 const message = ref('');
-const showOptions = ref(false);
 
 // The last name this page filled in automatically. If the field still holds
 // it, the tagger has not typed anything of their own and the name can follow
@@ -77,7 +76,6 @@ function edit(r: any) {
   name.value = r.name;
   shabadId.value = r.shabad_id;
   mainVerseId.value = r.main_verse_id;
-  showOptions.value = true;
 }
 
 function cancelEdit() {
@@ -107,9 +105,16 @@ function markEnd() {
   endSec.value = at();
 }
 
-function onShabadSelect(v: { shabadId: number; firstLine: string }) {
+function onShabadSelect(v: {
+  shabadId: number;
+  verseId: number | null;
+  firstLine: string;
+}) {
   shabadId.value = v.shabadId;
-  mainVerseId.value = null;
+  // Anchor on the line they searched for. Leaving this null would hand the
+  // pick to the rahao heuristic, which is the right guess only when there is
+  // nothing better — and a line the tagger just clicked is better.
+  mainVerseId.value = v.verseId;
   // Fill the name only if the tagger hasn't written one — their wording wins,
   // since they heard it and BaniDB's transliteration may differ.
   applyAutoName(v.firstLine, false);
