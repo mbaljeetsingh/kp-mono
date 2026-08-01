@@ -24,7 +24,8 @@ const { data: artist } = await useAsyncData(
 
 const title = computed(() => artist.value?.display_name ?? name.value);
 
-const list = useInfiniteList<any>(async (from, to) => {
+// Keyed on the ragi so two ragi pages cannot share one payload entry.
+const list = useInfiniteList<any>(`ragi:${name.value}`, async (from, to) => {
   const { data } = await supabase
     .from('shabads')
     .select('*')

@@ -25,7 +25,7 @@ const { data: results } = await useAsyncData(
   { watch: [debounced] }
 );
 
-const recent = useInfiniteList<any>(async (from, to) => {
+const recent = useInfiniteList<any>('recent', async (from, to) => {
   const { data } = await supabase
     .from('shabads')
     .select('*')

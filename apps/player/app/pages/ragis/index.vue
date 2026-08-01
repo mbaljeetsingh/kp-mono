@@ -1,9 +1,8 @@
 <script setup lang="ts">
 const supabase = useSupabaseClient();
 
-// artist_directory() lists everyone SGPC publishes, with a shabad count that
-// may be zero — the page would otherwise be near-empty until tagging catches
-// up, which hides the scale of the archive rather than showing it.
+// artist_directory() returns only ragis with at least one published shabad —
+// a card that leads to an empty page is worse than no card.
 const { data: artists } = await useAsyncData('artists', async () => {
   const { data } = await supabase.rpc('artist_directory');
   return (data ?? []) as {

@@ -36,24 +36,35 @@ function play() {
 </script>
 
 <template>
-  <button
-    class="group grid w-full grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-white/5"
+  <!-- Deliberately not a <button>, though the whole row is clickable: it
+       contains the favourite and menu buttons, and a button may not nest a
+       button. The HTML parser silently closes the outer one and reparents the
+       inner buttons as siblings, so the DOM the browser builds is not the DOM
+       the server described — Vue then hydrates a nested vdom against a flat
+       DOM, the node cursor slips, and a later row renders wearing another
+       element's attributes instead of its own. -->
+  <div
+    role="button"
+    tabindex="0"
+    class="group grid w-full cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-neutral-500 focus-visible:outline-none"
     :class="isCurrent && 'bg-white/5'"
     @click="play"
+    @keydown.enter.prevent="play"
+    @keydown.space.prevent="play"
   >
     <span class="grid place-items-center text-xs tabular-nums text-neutral-500">
       <Play
         v-if="isCurrent && player.playing.value"
         class="size-3.5 fill-current text-amber-400"
       />
-      <template v-else>
+      <span v-else class="grid place-items-center">
         <span class="group-hover:hidden">{{
           index != null ? index + 1 : ''
         }}</span>
         <Play
           class="hidden size-3.5 fill-current text-neutral-100 group-hover:block"
         />
-      </template>
+      </span>
     </span>
     <span class="min-w-0">
       <span
@@ -74,10 +85,10 @@ function play() {
       </span>
     </span>
     <span class="flex items-center gap-3">
-      <!-- Stop propagation: the row itself is the play button. -->
+      <!-- Always visible on touch, where there is no hover to reveal them. -->
       <button
-        class="opacity-0 transition group-hover:opacity-100"
-        :class="favorites.has(shabad.id) && '!opacity-100'"
+        class="transition md:opacity-0 md:group-hover:opacity-100"
+        :class="favorites.has(shabad.id) && 'md:!opacity-100'"
         :title="favorites.has(shabad.id) ? 'Remove from favorites' : 'Save'"
         @click.stop="favorites.toggle(shabad.id)"
       >
@@ -95,5 +106,5 @@ function play() {
       </span>
       <ShabadMenu :shabad="shabad" />
     </span>
-  </button>
+  </div>
 </template>

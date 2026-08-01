@@ -40,8 +40,8 @@ function act(fn: () => void) {
 <template>
   <div ref="menu" class="relative">
     <button
-      class="grid size-7 place-items-center rounded-full text-neutral-500 opacity-0 transition group-hover:opacity-100 hover:bg-white/10 hover:text-neutral-100"
-      :class="open && '!opacity-100 text-neutral-100'"
+      class="grid size-7 place-items-center rounded-full text-neutral-500 transition hover:bg-white/10 hover:text-neutral-100 md:opacity-0 md:group-hover:opacity-100"
+      :class="open && 'text-neutral-100 md:!opacity-100'"
       title="More"
       @click.stop="open = !open"
     >
