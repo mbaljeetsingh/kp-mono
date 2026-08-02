@@ -10,12 +10,12 @@
  *
  *   node --experimental-strip-types src/crawl.ts [--sample]
  */
-import { createHash } from 'node:crypto';
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, rename, access } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseListing } from './listings.ts';
 import { parseFilename, artistsDisagree } from './parse-filename.ts';
+import { stableId, sha1 } from './track-id.ts';
 
 const ROOT = 'https://sgpc.net';
 const TREES = {
@@ -32,50 +32,6 @@ const UA =
   'kirtan-player-crawler/0.1 (archive indexer; contact: baljeet@underlings.com)';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const sha1 = (s) => createHash('sha1').update(s).digest('hex').slice(0, 16);
-
-/**
- * Track identity must NOT be derived from the URL.
- *
- * Segments are the asset here — hours of human tagging — and they point at a
- * track. SGPC has already reorganised this archive once (the entire previous
- * site 404'd). If a file moves or is renamed, a URL-keyed id changes and every
- * segment attached to it orphans silently.
- *
- * So identity is the content's natural key — who, when, which slot — which
- * survives a path change. The URL is stored as a mutable attribute that a
- * re-crawl is free to update in place.
- */
-function stableId({
-  tree,
-  artistDir,
-  date,
-  slotStartSec,
-  title,
-  rawFilename,
-  dir,
-}) {
-  const parts =
-    tree === 'daywise'
-      ? // `dir` disambiguates undated files: two identically-named recordings
-        // in different month directories would otherwise share an id, and the
-        // seeder's dedup would silently drop one as a duplicate.
-        [
-          tree,
-          date ?? `${dir ?? ''}/${rawFilename}`,
-          String(slotStartSec ?? ''),
-        ]
-      : tree === 'puratan'
-        ? [tree, artistDir ?? '', title ?? rawFilename]
-        : [
-            tree,
-            artistDir ?? '',
-            date ?? '',
-            String(slotStartSec ?? ''),
-            rawFilename,
-          ];
-  return sha1(parts.join('|').toLowerCase());
-}
 
 let requestCount = 0;
 const errors = [];
@@ -159,6 +115,11 @@ function makeTrack({
     urlId: sha1(url),
     tree,
     url,
+    // Serialised because the seeder recomputes ids from this file and needs the
+    // same inputs the id was built from. Omitting it was the whole bug: the
+    // seeder fell back to `date ?? rawFilename` and undated daywise files in
+    // different months collided.
+    dir: dir ?? null,
     artistDir: artistDir ?? null,
     artistInFilename: p.artistInFilename,
     date: p.date,
@@ -280,14 +241,44 @@ async function main() {
     startedAt,
     finishedAt: new Date().toISOString(),
     requestCount,
+    // Recorded in the file, not just implied by its name. A sample crawl is a
+    // *successful* crawl, so nothing downstream can tell one apart by looking
+    // at whether it parsed — the seeder refuses to load a file carrying this.
+    sample: SAMPLE,
     tracks,
     errors,
   };
-  await writeFile(join(OUT_DIR, 'crawl.json'), JSON.stringify(report, null, 2));
+
+  // A sample never writes over the real crawl. A quick parser sanity-check
+  // silently replaced a full 49,057-track crawl with 1,025 sample rows once
+  // already, and the seeder then replaced the catalogue with 2% of it.
+  const target = join(OUT_DIR, SAMPLE ? 'crawl.sample.json' : 'crawl.json');
+
+  // Full runs keep the last good crawl one move from recoverable. Rotation
+  // happens after the crawl succeeds, so a run that dies mid-flight leaves
+  // both files untouched rather than shifting a good crawl into the backup
+  // slot and writing nothing in its place.
+  if (!SAMPLE) {
+    const previous = join(OUT_DIR, 'crawl.previous.json');
+    try {
+      await access(target);
+      await rename(target, previous);
+      console.log(`→ previous crawl kept at ${previous}`);
+    } catch {
+      // First run, nothing to rotate.
+    }
+  }
+
+  await writeFile(target, JSON.stringify(report, null, 2));
   console.log(
     `\ndone — ${tracks.length} tracks, ${requestCount} requests, ${errors.length} errors`
   );
-  console.log(`→ ${join(OUT_DIR, 'crawl.json')}`);
+  console.log(`→ ${target}`);
+  if (SAMPLE) {
+    console.log(
+      'sample crawl — the seeder will refuse this file. Run without --sample to seed.'
+    );
+  }
 }
 
 main().catch((err) => {
