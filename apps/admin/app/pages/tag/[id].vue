@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/select';
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -568,12 +567,14 @@ async function remove(s: any) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Keep it</AlertDialogCancel>
-          <AlertDialogAction
-            class="bg-destructive text-white hover:bg-destructive/90"
-            @click="confirmRemove"
-          >
+          <!-- A plain Button, not AlertDialogAction. The action primitive is a
+               dialog close: it runs its own close before our click handler, and
+               closing is what clears `pendingDelete`, so the handler would find
+               nothing left to delete. This closes the dialog by doing the work
+               instead. -->
+          <Button variant="destructive" @click="confirmRemove">
             Delete shabad
-          </AlertDialogAction>
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
