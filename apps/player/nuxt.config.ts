@@ -7,6 +7,15 @@ export default defineNuxtConfig({
   // `shadcn-vue add` writes to layers/ui/components/ui and neither app keeps
   // its own copy.
   extends: ['../../layers/ui'],
+  // `app/components/ui` is a symlink into that layer, and every shadcn
+  // component is imported explicitly through the `@/components/ui/*` alias —
+  // none is auto-imported. Scanning it anyway registers both
+  // `ui/button/index.ts` and `ui/button/Button.vue` as `UiButton`, and Nuxt
+  // warns once per component: ~50 warnings that scroll the dev server's URL
+  // out of the terminal. The layer already sets `dirs: []` for this reason,
+  // but the symlink lives inside the app's own components dir, so the app has
+  // to exclude it too.
+  components: [{ path: '~/components', ignore: ['**/ui/**'] }],
   css: ['~/assets/main.css'],
   modules: ['@vueuse/nuxt'],
   vite: { plugins: [tailwindcss()] },

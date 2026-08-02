@@ -4,3 +4,4 @@ node_modules
 .output
 .turbo
 packages/crawler/out
+.worktree-setup-done
