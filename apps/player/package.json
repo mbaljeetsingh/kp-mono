@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@kp/layer-ui": "workspace:*",
+    "@kp/shared": "workspace:*",
     "@supabase/supabase-js": "^2.111.0",
     "@vueuse/nuxt": "^13.9.0",
     "class-variance-authority": "^0.7.1",
