@@ -6,16 +6,43 @@ import { SELECTED_SEGMENT } from '@/lib/segmented';
 import { Clock, Layers } from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
-const q = ref('');
+const route = useRoute();
+const router = useRouter();
+
+type Sort = 'shortest' | 'untagged';
+type Filter = 'todo' | 'started' | 'done' | 'all';
+
+const SORTS: Sort[] = ['shortest', 'untagged'];
+const FILTERS: Filter[] = ['todo', 'started', 'done', 'all'];
+
+/**
+ * Which shelf you are looking at belongs to the URL, not to this component.
+ *
+ * Tagging is a loop of open a recording, mark it, come back for the next one —
+ * and coming back is the browser's Back button. Held in component state, the
+ * selection dies when the route changes and Back lands everybody on
+ * "Not started, shortest first" no matter which shelf they were working
+ * through. Reading it from the query means the restored URL restores the view.
+ */
+function fromQuery<T extends string>(
+  key: string,
+  allowed: T[],
+  fallback: T
+): T {
+  const value = route.query[key];
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+const q = ref(typeof route.query.artist === 'string' ? route.query.artist : '');
 const debounced = refDebounced(q, 300);
 
 // Shortest-first is the default because a recording a volunteer can finish in
 // one sitting is worth more than a longer one they abandon halfway.
-const sort = ref<'shortest' | 'untagged'>('shortest');
+const sort = ref<Sort>(fromQuery('sort', SORTS, 'shortest'));
 
 // Without this the same finished recordings sit at the top of the list
 // forever and there is no way to tell what is left.
-const filter = ref<'todo' | 'started' | 'done' | 'all'>('todo');
+const filter = ref<Filter>(fromQuery('filter', FILTERS, 'todo'));
 
 const list = useInfiniteList<any>(async (from, to) => {
   let query = supabase.from('recordings').select('*');
@@ -44,6 +71,16 @@ await list.loadMore();
 watchDebounced(
   [debounced, sort, filter],
   () => {
+    // `replace`, not `push`: picking a shelf is choosing what this one page
+    // shows, and pushing would make Back walk backwards through every filter
+    // click instead of leaving the list. Defaults stay out of the URL so the
+    // plain `/` a tagger bookmarks keeps meaning "whatever the default is".
+    const query: Record<string, string> = {};
+    if (filter.value !== 'todo') query.filter = filter.value;
+    if (sort.value !== 'shortest') query.sort = sort.value;
+    if (debounced.value.trim()) query.artist = debounced.value.trim();
+    router.replace({ query });
+
     list.reset();
     list.loadMore();
   },
