@@ -102,6 +102,50 @@ export type SegmentStatus =
   | 'reviewed'
   | 'published';
 
+/**
+ * A live audio broadcast — a gurdwara's darbar, or a programmed 24-hour feed.
+ *
+ * Checked in as a file rather than a table because it is reference data about
+ * the outside world, the same category as `ragas.json`, and not something a
+ * contributor edits: forty rows that change a few times a year do not earn a
+ * migration, an RLS policy and an admin screen. What would earn them is
+ * wanting to add or retire a station without a deploy — seeding a table from
+ * this file later is easy, and unwinding admin CRUD is not.
+ *
+ * Nothing here is fetched from the station's host at build or render time, so
+ * a dark mount is indistinguishable from a live one until the listener presses
+ * play. That is deliberate: on/off flaps by the hour with the gurdwara's own
+ * programme, so any status baked in here would be a lie most of the day.
+ */
+export interface Station {
+  /** Stable slug. Prefixed with `radio:` when it becomes a Playable id. */
+  id: string;
+  name: string;
+  /**
+   * City, region, country for a gurdwara — one line of what the feed carries
+   * for a channel. Both land in the same slot under the name.
+   */
+  place: string | null;
+  /** Stream URL, passed straight to `<audio src>`. */
+  url: string;
+  /** A live darbar, versus a programmed feed with no single place behind it. */
+  kind: 'gurdwara' | 'channel';
+  /**
+   * Whose server the bytes come from — drives the credit line under the list.
+   * `sgpc` is first-party for Harimandir Sahib; everything else is relayed by
+   * SikhNet, whose bandwidth it is.
+   */
+  source: 'sgpc' | 'sikhnet';
+  /** Display string, e.g. `96 kbps MP3`. Null when the mount was dark when
+   *  last checked and no `icy-br` could be read. */
+  quality: string | null;
+  website: string | null;
+  /** The day's kirtan duties or programme, where the gurdwara publishes one. */
+  schedule: string | null;
+  /** Live video, usually a YouTube channel. */
+  video: string | null;
+}
+
 /** Output of a crawl run — written to disk, then upserted into Postgres. */
 export interface CrawlReport {
   startedAt: string;

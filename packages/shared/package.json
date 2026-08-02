@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./types": "./src/types.ts",
-    "./data/ragas.json": "./src/data/ragas.json"
+    "./data/ragas.json": "./src/data/ragas.json",
+    "./data/stations.json": "./src/data/stations.json"
   }
 }

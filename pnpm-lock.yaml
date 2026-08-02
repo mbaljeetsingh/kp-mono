@@ -127,6 +127,9 @@ importers:
       '@kp/layer-ui':
         specifier: workspace:*
         version: link:../../layers/ui
+      '@kp/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@supabase/supabase-js':
         specifier: ^2.111.0
         version: 2.111.0

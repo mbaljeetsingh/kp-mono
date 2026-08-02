@@ -10,9 +10,9 @@ const tabs = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/search', label: 'Search', icon: Search },
   { to: '/ragis', label: 'Ragis', icon: Users },
-  // Lit whenever the broadcast is playing, wherever the listener has navigated
-  // to — the same signal the sidebar carries on desktop.
-  { to: '/live', label: 'Live', icon: Radio, live: true },
+  // Lit whenever a station is playing, wherever the listener has navigated to
+  // — the same signal the sidebar carries on desktop.
+  { to: '/radio', label: 'Radio', icon: Radio, live: true },
   { to: '/favorites', label: 'Saved', icon: Heart },
 ];
 
