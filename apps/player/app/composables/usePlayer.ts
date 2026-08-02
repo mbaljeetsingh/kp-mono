@@ -10,6 +10,8 @@
  * downloads nothing extra.
  */
 import { ref, computed } from 'vue';
+import type { Station } from '@kp/shared/types';
+import { DEFAULT_STATION, stationById, stationPlayable } from '~/lib/stations';
 
 export interface Playable {
   /** Stable track id — never the URL, which changes when SGPC reorganises. */
@@ -27,28 +29,14 @@ export interface Playable {
   /** Set for a tagged segment; omitted to play the whole file. */
   startSec?: number;
   endSec?: number;
+  /**
+   * A broadcast rather than a recording. A flag rather than an id comparison
+   * because there are forty stations now and every control that treats live
+   * differently — no scrubber, no skip, no resume position, no play count —
+   * has to key off something `toPlayable()` can never accidentally set.
+   */
+  isLive?: boolean;
 }
-
-/**
- * The one live feed, declared here rather than in whichever component needed
- * it first — the page, the sidebar and the mobile tab bar all start the same
- * broadcast.
- *
- * The path must be `/stream`, not `/`: Shoutcast sniffs the User-Agent, and a
- * browser hitting the bare root is sent a 302 to an HTML status page, which
- * the audio element rejects as a format error. curl is given the stream at
- * every path, which is what kept this invisible outside a browser.
- *
- * Unlike the archive it needs no proxy — the stream sends
- * `Access-Control-Allow-Origin: *`. One 28 kbps AAC+ feed; the old 92/32/16
- * tiers were retired with the previous site.
- */
-export const LIVE: Playable = {
-  id: 'live',
-  title: 'Live from Sri Harmandir Sahib',
-  subtitle: 'Amritsar · 28 kbps AAC+',
-  url: 'https://live.sgpc.net:8442/stream',
-};
 
 const QUEUE_KEY = 'kp:queue';
 
@@ -71,6 +59,25 @@ const playing = ref(false);
 const currentTime = ref(0);
 const duration = ref(0);
 const audio = ref<HTMLAudioElement | null>(null);
+/**
+ * Ids whose stream would not start. A dark mount is the normal state for half
+ * these gurdwaras at any hour, so it needs saying on the card rather than
+ * leaving a tap that appears to do nothing.
+ *
+ * A set rather than one id: the listener works down the list trying stations,
+ * and what they have already found to be off air should stay marked while they
+ * try the next one. Each id clears only when that station is tried again.
+ */
+const failed = ref<Set<string>>(new Set());
+/**
+ * Id of the item currently being started, or null.
+ *
+ * "Buffering" cannot be inferred from `selected && !playing`: that is equally
+ * true of a station the listener deliberately stopped, which left its card
+ * reading "Connecting…" for as long as it stayed selected. Only an explicit
+ * attempt sets this, and it is cleared however the attempt ends.
+ */
+const starting = ref<string | null>(null);
 
 /** Resume positions, keyed by stable id so they survive a URL change and
  *  migrate cleanly into an account if auth lands later. */
@@ -99,9 +106,14 @@ function writeResume(id: string, seconds: number) {
 }
 
 export function usePlayer() {
-  /** The broadcast is what's loaded. Several controls key off this: a live
+  /** A broadcast is what's loaded. Several controls key off this: a live
    *  feed has no timeline to scrub, no previous, and no end to advance past. */
-  const isLive = computed(() => current.value?.id === LIVE.id);
+  const isLive = computed(() => current.value?.isLive === true);
+
+  /** Which station, for the Radio page's now-on-air marking and so the
+   *  transport's play button rejoins the right feed. Derived rather than
+   *  stored — `current` is already the single source of truth. */
+  const currentStation = computed(() => stationById(current.value?.id));
 
   function attach(el: HTMLAudioElement) {
     audio.value = el;
@@ -249,12 +261,16 @@ export function usePlayer() {
       el.src = item.url;
       // A segment starts at its own offset; a whole track resumes where the
       // listener left off — at 70-minute lengths that is essential, not polish.
-      const resume = readResume()[item.id];
-      el.currentTime = item.startSec ?? resume ?? 0;
+      // A broadcast has no position to restore and is not seekable anyway.
+      if (!item.isLive) {
+        const resume = readResume()[item.id];
+        el.currentTime = item.startSec ?? resume ?? 0;
+      }
     }
     // Before the await: `useSupabaseClient` reads runtime config, and the Nuxt
     // instance context is gone once execution resumes after an await.
-    registerPlay(item.id);
+    registerPlay(item);
+    starting.value = item.id;
     try {
       await el.play();
       playing.value = true;
@@ -264,30 +280,51 @@ export function usePlayer() {
       // pending play(). Swallow it, but keep the flag honest rather than
       // leaving a Pause icon over silent audio.
       playing.value = !el.paused;
+    } finally {
+      // However it ended — playing, aborted, or rejected because the mount is
+      // dark — this attempt is over. Only clear it if a later attempt has not
+      // already claimed the slot, or a fast failure would erase the newer
+      // station's "Connecting…".
+      if (starting.value === item.id) starting.value = null;
     }
   }
 
   /**
-   * Start or stop the broadcast — what every Live control calls.
+   * Start or stop a broadcast — what every Live and Radio control calls.
+   * Defaults to Harimandir Sahib, which is what the sidebar and the tab bar
+   * start when the listener has not picked a station.
    *
-   * Deliberately `play(LIVE, false)`: the queue belongs to the listener, and
+   * Deliberately `play(item, false)`: the queue belongs to the listener, and
    * dropping into live for a few minutes should not throw away what they had
    * lined up. It stays in Up next, ready for when they come back.
    */
-  async function toggleLive() {
+  async function toggleLive(station: Station = DEFAULT_STATION) {
     const el = audio.value;
-    if (isLive.value && playing.value) {
+    const item = stationPlayable(station);
+    // Only the station already on air stops on a second press. Pressing a
+    // different one while this is playing switches over, which is what a list
+    // of forty stations has to do.
+    if (current.value?.id === item.id && playing.value) {
       el?.pause();
       playing.value = false;
+      // Stopping is not buffering. Without this the card the listener just
+      // stopped goes on reading "Connecting…" for as long as it stays selected.
+      starting.value = null;
       return;
     }
+    // Only this station's mark clears: an encoder that was off a minute ago
+    // may not be, but that says nothing about the others.
+    failed.value.delete(item.id);
     // Rejoin at the live edge instead of resuming. Chrome keeps buffering a
     // paused stream, so a plain play() picks up exactly where it stopped —
     // measured at a full 60 seconds behind after a 60-second pause, under a
     // badge that claims Live. `load()` reconnects; it costs one `emptied`
     // event and no error.
-    if (el && el.src === LIVE.url) el.load();
-    await play(LIVE, false);
+    //
+    // Only needed when the src is unchanged: switching stations assigns a new
+    // src, and that resets the element on its own.
+    if (el && el.src === item.url) el.load();
+    await play(item, false);
   }
 
   function toggle() {
@@ -297,7 +334,7 @@ export function usePlayer() {
     // for the broadcast "resume" is the wrong verb — it would pick the buffer
     // up where it stopped rather than rejoining. Same path as the Live button.
     if (isLive.value) {
-      void toggleLive();
+      void toggleLive(currentStation.value ?? DEFAULT_STATION);
       return;
     }
     if (el.paused) {
@@ -329,17 +366,31 @@ export function usePlayer() {
       return;
     }
     // Only whole-file playback has a resume position. A segment always starts
-    // at its own offset, and the live stream has no meaningful position at all
+    // at its own offset, and a live stream has no meaningful position at all
     // — writing one made a later "listen live" seek to a stale timestamp.
-    if (current.value.startSec === undefined && current.value.id !== LIVE.id) {
+    if (current.value.startSec === undefined && !current.value.isLive) {
       writeResume(current.value.id, el.currentTime);
     }
   }
 
-  /** A live feed can drop mid-listen. Without this the transport would sit
-   *  showing Pause over silence, which reads as the app being broken. */
+  /**
+   * A live feed can drop mid-listen. Without this the transport would sit
+   * showing Pause over silence, which reads as the app being broken.
+   *
+   * Recording the id as well, because for radio this is the ordinary case, not
+   * a fault: a gurdwara's encoder is off between programmes, and roughly a
+   * quarter of these mounts return 404 at any given hour. The Radio page marks
+   * that station unavailable rather than leaving a tap that appears to do
+   * nothing.
+   */
   function onError() {
     playing.value = false;
+    starting.value = null;
+    // Only broadcasts. An archive track that fails is a genuine fault worth
+    // nothing here, and adding its segment uuid to a set only the Radio page
+    // reads would grow the set for the life of the session with ids nothing
+    // can match.
+    if (current.value?.isLive) failed.value.add(current.value.id);
   }
 
   function onLoadedMetadata() {
@@ -359,10 +410,11 @@ export function usePlayer() {
    *
    * The endpoint is a security-definer function, so an anonymous listener can
    * register a play without holding UPDATE on segments, which would also let
-   * them edit tags. The live stream has no segment row and is skipped.
+   * them edit tags. A broadcast has no segment row and is skipped.
    */
-  function registerPlay(id: string) {
-    if (import.meta.server || id === LIVE.id) return;
+  function registerPlay(item: Playable) {
+    if (import.meta.server || item.isLive) return;
+    const id = item.id;
     const { supabaseUrl, supabaseKey } = useRuntimeConfig().public;
     void fetch(`${supabaseUrl}/rest/v1/rpc/register_play`, {
       method: 'POST',
@@ -406,7 +458,10 @@ export function usePlayer() {
   return {
     current,
     isLive,
+    currentStation,
     toggleLive,
+    failed,
+    starting,
     queue,
     upNext,
     playList,

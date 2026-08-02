@@ -1,0 +1,8 @@
+# Gitignored files a worktree needs but git will not bring across.
+# `scripts/worktree/setup.sh` symlinks each of these from the main checkout,
+# so editing one in a worktree edits the original and the two stay in step.
+# Missing entries are skipped, so listing a file that does not exist yet is
+# harmless.
+apps/player/.env
+apps/admin/.env
+supabase/.env

@@ -7,6 +7,10 @@ export default defineNuxtConfig({
   // `shadcn-vue add` writes to layers/ui/components/ui and neither app keeps
   // its own copy.
   extends: ['../../layers/ui'],
+  // Same exclusion the player needs, for the same reason: `app/components/ui`
+  // is a symlink into that layer whose components are imported explicitly, so
+  // scanning it only produces ~50 duplicate-name warnings per boot.
+  components: [{ path: '~/components', ignore: ['**/ui/**'] }],
   // Admin is behind auth and has no SEO surface — SPA keeps session handling
   // entirely client-side and avoids SSR cookie plumbing.
   ssr: false,

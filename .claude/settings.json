@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "MAIN_REPO=$(git worktree list --porcelain | head -1 | sed 's/^worktree //') && WORKTREE_DIR=$(git rev-parse --show-toplevel) && [ \"$MAIN_REPO\" != \"$WORKTREE_DIR\" ] && bash \"$MAIN_REPO/scripts/worktree/setup.sh\" || true",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  }
+}

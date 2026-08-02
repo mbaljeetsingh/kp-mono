@@ -27,6 +27,7 @@ onMounted(() => {
 
 const nav = [
   { to: '/', label: 'Home', icon: Home },
+  { to: '/radio', label: 'Radio', icon: Radio, radio: true },
   { to: '/ragis', label: 'Ragis', icon: Users },
   { to: '/favorites', label: 'Favorites', icon: Heart },
   { to: '/playlists', label: 'Playlists', icon: ListMusic },
@@ -50,45 +51,43 @@ const nav = [
           <span class="text-[15px] font-semibold text-foreground">Kirtan</span>
         </NuxtLink>
 
+        <!-- Radio is an ordinary destination in this list, not the bordered
+             panel it used to be. That panel existed to name the one broadcast
+             and offer the one place to start it; with forty stations the
+             destination is a directory like Ragis or Playlists, and the
+             station currently on air is already named by the player bar.
+             What is kept is the lit state, which follows the *player* rather
+             than the route — a station keeps playing while you browse, and
+             this is where you look to see that. -->
         <nav class="flex-1 px-2">
           <NuxtLink
             v-for="item in nav"
             :key="item.to"
             :to="item.to"
             class="relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground"
+            :class="item.radio && player.isLive.value && '!text-primary'"
             active-class="!text-foreground"
           >
-            <component :is="item.icon" class="size-[18px]" />
+            <component
+              :is="item.icon"
+              class="size-[18px]"
+              :class="
+                item.radio &&
+                player.isLive.value &&
+                player.playing.value &&
+                'animate-pulse'
+              "
+            />
             {{ item.label }}
+            <!-- Only while something is actually on air: a permanent badge
+                 would say nothing, and this is the one row whose state
+                 changes without the listener being on the page. -->
+            <span
+              v-if="item.radio && player.isLive.value && player.playing.value"
+              class="ml-auto size-1.5 rounded-full bg-primary"
+            />
           </NuxtLink>
         </nav>
-        <!-- Names the place rather than saying "Live now", which told you
-             nothing you did not already know from the icon. The lit state
-             follows the player, not the route: the broadcast keeps playing
-             while you browse, and this is where you look to see that. -->
-        <NuxtLink
-          to="/live"
-          class="mx-2 mb-3 flex items-center gap-2.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground transition hover:border-input hover:text-foreground"
-          :class="player.isLive.value && '!border-primary/30 !text-primary'"
-          active-class="!text-foreground"
-        >
-          <Radio
-            class="size-[18px] shrink-0"
-            :class="
-              player.isLive.value && player.playing.value && 'animate-pulse'
-            "
-          />
-          <span class="min-w-0 flex-1 truncate">Harmandir Sahib</span>
-          <span
-            class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wider uppercase"
-            :class="
-              player.isLive.value && player.playing.value
-                ? 'bg-primary/15 text-primary'
-                : 'bg-muted text-muted-foreground'
-            "
-            >Live</span
-          >
-        </NuxtLink>
 
         <div class="border-t border-border p-2"><AccountButton /></div>
       </aside>
