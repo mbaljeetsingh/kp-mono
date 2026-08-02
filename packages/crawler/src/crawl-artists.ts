@@ -76,14 +76,23 @@ async function main() {
 
     // Skip what is already on disk: the photos change far less often than the
     // recordings, so a re-crawl should not re-download 6 MB every time.
-    try {
-      const existing = await stat(path);
-      if (existing.size > 0) {
-        manifest.push({ name: a.name, file, bytes: existing.size });
-        continue;
+    //
+    // The cost of that cache is that a photo SGPC *replaces* is never picked up
+    // on a machine holding the old file — a new ragi appears (the roster is
+    // re-read every run) but a new portrait of an existing one does not. On an
+    // ephemeral runner the disk is empty anyway, so a scheduled crawl refreshes
+    // everything for free; set REFRESH_PHOTOS=1 to force the same on a box with
+    // a persistent out/ directory.
+    if (!process.env.REFRESH_PHOTOS) {
+      try {
+        const existing = await stat(path);
+        if (existing.size > 0) {
+          manifest.push({ name: a.name, file, bytes: existing.size });
+          continue;
+        }
+      } catch {
+        // Not cached yet — fall through and fetch.
       }
-    } catch {
-      // Not cached yet — fall through and fetch.
     }
 
     await sleep(RATE_MS);

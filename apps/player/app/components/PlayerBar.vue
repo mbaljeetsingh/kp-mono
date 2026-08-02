@@ -6,6 +6,7 @@ import {
   SkipForward,
   ListMusic,
   BookOpen,
+  Radio,
   X,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,13 @@ const total = computed(() => {
   if (c?.endSec != null && c.startSec != null) return c.endSec - c.startSec;
   return player.duration.value;
 });
+
+// For the broadcast the clock measures time spent listening, not a position in
+// anything — so it is labelled, and reads as stopped rather than as 0:00 when
+// the listener is not connected.
+const liveStatus = computed(() =>
+  player.playing.value ? `Listening ${formatTime(elapsed.value)}` : 'Stopped'
+);
 </script>
 
 <template>
@@ -63,14 +71,28 @@ const total = computed(() => {
       >
         <div class="mb-2 flex items-center justify-between">
           <p class="text-sm font-semibold text-foreground">Up next</p>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            class="size-7 text-muted-foreground"
-            @click="showQueue = false"
-          >
-            <X class="size-4" />
-          </Button>
+          <!-- Grouped so the title stays hard left rather than the header
+               spacing three children across. -->
+          <div class="flex items-center gap-1">
+            <!-- Absent rather than dimmed when there is nothing to clear. -->
+            <Button
+              v-if="player.upNext.value.length"
+              variant="ghost"
+              size="xs"
+              class="text-muted-foreground hover:text-foreground"
+              @click="player.clearUpNext"
+            >
+              Clear
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              class="size-7 text-muted-foreground"
+              @click="showQueue = false"
+            >
+              <X class="size-4" />
+            </Button>
+          </div>
         </div>
         <p
           v-if="!player.upNext.value.length"
@@ -114,8 +136,20 @@ const total = computed(() => {
     <footer class="border-t border-border bg-background px-4 py-2.5 md:py-3">
       <div class="mx-auto flex max-w-7xl items-center gap-3 md:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
+          <!-- The broadcast has no artist to draw a tile for, and initials of
+               its title would be meaningless — it gets the same mark the Live
+               controls use. -->
+          <div
+            v-if="player.isLive.value"
+            class="grid size-11 shrink-0 place-items-center rounded bg-primary/10 md:size-12"
+          >
+            <Radio
+              class="size-5 text-primary"
+              :class="player.playing.value && 'animate-pulse'"
+            />
+          </div>
           <ArtTile
-            v-if="player.current.value"
+            v-else-if="player.current.value"
             :name="player.current.value.artist ?? player.current.value.title"
             :photo="player.current.value.artistPhoto"
             class="size-11 shrink-0 text-[11px] md:size-12"
@@ -145,9 +179,17 @@ const total = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-[2] flex-col items-center gap-1.5">
+        <!-- The 1:2:1 split is for the desktop bar, where the middle column
+             carries the scrubber. On a phone it left the title 28px and an
+             ellipsis while a lone play button sat in 167px of space, so there
+             the transport and the trailing controls size to their content and
+             the title takes the rest. -->
+        <div class="flex flex-none flex-col items-center gap-1.5 md:flex-[2]">
           <div class="flex items-center gap-4">
+            <!-- Skip controls step through a queue position the broadcast does
+                 not have: there is nothing before now, and nothing after it. -->
             <Button
+              v-if="!player.isLive.value"
               variant="ghost"
               size="icon-sm"
               class="text-muted-foreground"
@@ -166,6 +208,7 @@ const total = computed(() => {
               <Play v-else class="size-4 translate-x-px fill-current" />
             </Button>
             <Button
+              v-if="!player.isLive.value"
               variant="ghost"
               size="icon-sm"
               class="text-muted-foreground"
@@ -175,7 +218,21 @@ const total = computed(() => {
               <SkipForward class="size-4 fill-current" />
             </Button>
           </div>
-          <div class="hidden w-full items-center gap-2 md:flex">
+
+          <!-- No timeline to offer: duration is Infinity and the connection is
+               not seekable, so the scrubber gives way to how long you have been
+               listening. Up next stays reachable — the queue survives a detour
+               through the broadcast. -->
+          <div
+            v-if="player.isLive.value"
+            class="hidden w-full items-center justify-center gap-2 md:flex"
+          >
+            <LiveBadge :pulse="player.playing.value" />
+            <span class="text-[11px] tabular-nums text-muted-foreground">
+              {{ liveStatus }}
+            </span>
+          </div>
+          <div v-else class="hidden w-full items-center gap-2 md:flex">
             <span
               class="w-10 text-right text-[11px] tabular-nums text-muted-foreground"
             >
@@ -197,7 +254,7 @@ const total = computed(() => {
           </div>
         </div>
 
-        <div class="flex flex-1 items-center justify-end gap-3">
+        <div class="flex flex-none items-center justify-end gap-3 md:flex-1">
           <!-- Only rendered when the segment carries a BaniDB shabad id. Most
                will not for a long time, and a permanently dimmed control the
                listener cannot act on is noise rather than information. -->
@@ -225,8 +282,20 @@ const total = computed(() => {
         </div>
       </div>
 
-      <!-- Mobile keeps a hairline progress bar instead of the full scrubber. -->
-      <div class="mt-2 h-0.5 w-full rounded bg-muted md:hidden">
+      <!-- Mobile keeps a hairline progress bar instead of the full scrubber.
+           A broadcast has no progress to draw, so the badge takes that slot
+           rather than the transport row, which on a phone is too narrow to
+           hold it without crushing the title to an ellipsis. -->
+      <div
+        v-if="player.isLive.value"
+        class="mt-2 flex items-center justify-center gap-2 md:hidden"
+      >
+        <LiveBadge :pulse="player.playing.value" />
+        <span class="text-[11px] tabular-nums text-muted-foreground">
+          {{ liveStatus }}
+        </span>
+      </div>
+      <div v-else class="mt-2 h-0.5 w-full rounded bg-muted md:hidden">
         <div
           class="h-full rounded bg-primary"
           :style="{ width: `${player.progress.value}%` }"

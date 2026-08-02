@@ -29,6 +29,27 @@ export interface Playable {
   endSec?: number;
 }
 
+/**
+ * The one live feed, declared here rather than in whichever component needed
+ * it first — the page, the sidebar and the mobile tab bar all start the same
+ * broadcast.
+ *
+ * The path must be `/stream`, not `/`: Shoutcast sniffs the User-Agent, and a
+ * browser hitting the bare root is sent a 302 to an HTML status page, which
+ * the audio element rejects as a format error. curl is given the stream at
+ * every path, which is what kept this invisible outside a browser.
+ *
+ * Unlike the archive it needs no proxy — the stream sends
+ * `Access-Control-Allow-Origin: *`. One 28 kbps AAC+ feed; the old 92/32/16
+ * tiers were retired with the previous site.
+ */
+export const LIVE: Playable = {
+  id: 'live',
+  title: 'Live from Sri Harmandir Sahib',
+  subtitle: 'Amritsar · 28 kbps AAC+',
+  url: 'https://live.sgpc.net:8442/stream',
+};
+
 const QUEUE_KEY = 'kp:queue';
 
 function readQueue(): { items: Playable[]; index: number } {
@@ -78,6 +99,10 @@ function writeResume(id: string, seconds: number) {
 }
 
 export function usePlayer() {
+  /** The broadcast is what's loaded. Several controls key off this: a live
+   *  feed has no timeline to scrub, no previous, and no end to advance past. */
+  const isLive = computed(() => current.value?.id === LIVE.id);
+
   function attach(el: HTMLAudioElement) {
     audio.value = el;
     // Restore the queue but never auto-play: browsers block unprompted audio,
@@ -147,7 +172,37 @@ export function usePlayer() {
     persistQueue();
   }
 
+  /**
+   * Empty Up next without touching what's playing — the same line
+   * `removeFromQueue` draws at `queueIndex`. Truncating rather than emptying
+   * also keeps the items behind the playhead, so `previous()` still works.
+   *
+   * Live is the exception, and it has to be: during the broadcast `current` is
+   * LIVE while `queueIndex` still points into the listener's own queue (see
+   * `toggleLive`). Truncating there would keep that item — invisible, because
+   * `upNext` excludes it — and `attach()` would restore it as `current` on the
+   * next page load. Clearing during live has to mean the whole queue goes.
+   */
+  function clearUpNext() {
+    if (isLive.value) {
+      queue.value = [];
+      queueIndex.value = -1;
+    } else {
+      if (queueIndex.value < 0) return;
+      queue.value = queue.value.slice(0, queueIndex.value + 1);
+    }
+    persistQueue();
+  }
+
   async function next() {
+    // A dropped live connection fires `ended`. Since switching to the
+    // broadcast keeps the listener's queue, without this a stream hiccup would
+    // start playing whatever they had lined up, unprompted.
+    if (isLive.value) {
+      audio.value?.pause();
+      playing.value = false;
+      return;
+    }
     // Nothing queued after this one: stop. Returning silently would leave the
     // element playing straight past the segment's end into the rest of a
     // 70-minute file — which is the *default* case, since a single shabad
@@ -212,9 +267,39 @@ export function usePlayer() {
     }
   }
 
+  /**
+   * Start or stop the broadcast — what every Live control calls.
+   *
+   * Deliberately `play(LIVE, false)`: the queue belongs to the listener, and
+   * dropping into live for a few minutes should not throw away what they had
+   * lined up. It stays in Up next, ready for when they come back.
+   */
+  async function toggleLive() {
+    const el = audio.value;
+    if (isLive.value && playing.value) {
+      el?.pause();
+      playing.value = false;
+      return;
+    }
+    // Rejoin at the live edge instead of resuming. Chrome keeps buffering a
+    // paused stream, so a plain play() picks up exactly where it stopped —
+    // measured at a full 60 seconds behind after a 60-second pause, under a
+    // badge that claims Live. `load()` reconnects; it costs one `emptied`
+    // event and no error.
+    if (el && el.src === LIVE.url) el.load();
+    await play(LIVE, false);
+  }
+
   function toggle() {
     const el = audio.value;
     if (!el || !current.value) return;
+    // The transport button and the lock-screen controls both land here, and
+    // for the broadcast "resume" is the wrong verb — it would pick the buffer
+    // up where it stopped rather than rejoining. Same path as the Live button.
+    if (isLive.value) {
+      void toggleLive();
+      return;
+    }
     if (el.paused) {
       el.play();
       playing.value = true;
@@ -246,9 +331,15 @@ export function usePlayer() {
     // Only whole-file playback has a resume position. A segment always starts
     // at its own offset, and the live stream has no meaningful position at all
     // — writing one made a later "listen live" seek to a stale timestamp.
-    if (current.value.startSec === undefined && current.value.id !== 'live') {
+    if (current.value.startSec === undefined && current.value.id !== LIVE.id) {
       writeResume(current.value.id, el.currentTime);
     }
+  }
+
+  /** A live feed can drop mid-listen. Without this the transport would sit
+   *  showing Pause over silence, which reads as the app being broken. */
+  function onError() {
+    playing.value = false;
   }
 
   function onLoadedMetadata() {
@@ -271,7 +362,7 @@ export function usePlayer() {
    * them edit tags. The live stream has no segment row and is skipped.
    */
   function registerPlay(id: string) {
-    if (import.meta.server || id === 'live') return;
+    if (import.meta.server || id === LIVE.id) return;
     const { supabaseUrl, supabaseKey } = useRuntimeConfig().public;
     void fetch(`${supabaseUrl}/rest/v1/rpc/register_play`, {
       method: 'POST',
@@ -314,6 +405,8 @@ export function usePlayer() {
 
   return {
     current,
+    isLive,
+    toggleLive,
     queue,
     upNext,
     playList,
@@ -321,6 +414,7 @@ export function usePlayer() {
     addToQueue,
     playNextInQueue,
     removeFromQueue,
+    clearUpNext,
     next,
     previous,
     playing,
@@ -333,6 +427,7 @@ export function usePlayer() {
     seek,
     onTimeUpdate,
     onLoadedMetadata,
+    onError,
   };
 }
 

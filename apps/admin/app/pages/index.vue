@@ -2,6 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
+import { SELECTED_SEGMENT } from '@/lib/segmented';
 import { Clock, Layers } from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
@@ -71,8 +72,9 @@ function mins(sec: number | null) {
         ]"
         :key="f.key"
         size="sm"
-        :variant="filter === f.key ? 'secondary' : 'outline'"
-        class="text-xs"
+        variant="outline"
+        :aria-pressed="filter === f.key"
+        :class="['text-xs', SELECTED_SEGMENT]"
         @click="filter = f.key as any"
       >
         {{ f.label }}
@@ -93,7 +95,9 @@ function mins(sec: number | null) {
             { key: 'untagged', label: 'Least tagged', icon: Layers },
           ]"
           :key="opt.key"
-          :variant="sort === opt.key ? 'secondary' : 'outline'"
+          variant="outline"
+          :aria-pressed="sort === opt.key"
+          :class="SELECTED_SEGMENT"
           @click="sort = opt.key as any"
         >
           <component :is="opt.icon" class="size-3.5" />

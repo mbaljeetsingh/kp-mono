@@ -40,7 +40,9 @@ async function signUp() {
 </script>
 
 <template>
-  <div class="dark h-dvh bg-background">
+  <!-- `dark` lives on <html>, set in nuxt.config: portalled overlays would miss
+       it here. -->
+  <div class="h-dvh bg-background">
     <div
       v-if="!ready"
       class="grid h-dvh place-items-center bg-background text-sm text-muted-foreground"

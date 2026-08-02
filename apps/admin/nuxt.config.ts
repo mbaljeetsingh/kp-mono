@@ -35,5 +35,10 @@ export default defineNuxtConfig({
     process.env.NODE_ENV !== 'production'
       ? { '/banidb-api/**': { proxy: 'https://api.banidb.com/v2/**' } }
       : {},
-  app: { head: { title: 'Kirtan Admin' } },
+  // `dark` belongs on <html>, not on a wrapper div: Reka portals every overlay
+  // — selects, dropdown menus, dialogs — to document.body, outside any
+  // app-level wrapper, where the class no longer applies and the tokens resolve
+  // to the light parchment `:root` set. The status Select in the tagger came up
+  // cream-on-dark that way.
+  app: { head: { title: 'Kirtan Admin', htmlAttrs: { class: 'dark' } } },
 });

@@ -28,10 +28,15 @@ export function prettyShabadName(transliteration: string): string {
   return (
     out
       .trim()
-      .split(' ')
-      .filter(Boolean)
-      // Title case, because that is how these are written everywhere they appear.
-      .map((w) => w[0]!.toUpperCase() + w.slice(1))
-      .join(' ')
+      // Title case, because that is how these are written everywhere they
+      // appear. The rest of each word is lowercased, not left alone: BaniDB
+      // capitalises mid-word to mark retroflex and aspirated letters, so
+      // "kooR kapaT" arrived as "KuR KapaT" — meaningful in a transliteration
+      // scheme, noise in a title. Matching on letter runs rather than splitting
+      // on spaces also capitalises after a hyphen ("Ik-Oankar").
+      .replace(
+        /[\p{L}\p{M}']+/gu,
+        (w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase()
+      )
   );
 }

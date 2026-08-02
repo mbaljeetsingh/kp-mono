@@ -2,6 +2,7 @@
 import { Play, Pause, Rewind, FastForward, Repeat } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
+import { SELECTED_SEGMENT } from '@/lib/segmented';
 import { useTagPlayer, fmt, SPEEDS } from '~/composables/useTagPlayer';
 
 const props = defineProps<{ src: string }>();
@@ -139,8 +140,9 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
           v-for="s in SPEEDS"
           :key="s"
           size="sm"
-          :variant="player.speed.value === s ? 'secondary' : 'outline'"
-          class="px-2 text-[11px]"
+          variant="outline"
+          :aria-pressed="player.speed.value === s"
+          :class="['px-2 text-[11px]', SELECTED_SEGMENT]"
           @click="player.setSpeed(s)"
         >
           {{ s }}x

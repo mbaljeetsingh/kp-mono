@@ -3,3 +3,6 @@
 
 @source "../**/*.vue";
 @source "../../../../layers/ui/components/**/*.vue";
+/* Shared class strings live in lib/ — without this the utilities they name are
+   never generated, and the class lands on the element doing nothing. */
+@source "../lib/**/*.ts";

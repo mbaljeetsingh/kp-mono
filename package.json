@@ -11,7 +11,9 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "seed": "SUPABASE_SERVICE_KEY=$(npx supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)[\"SECRET_KEY\"])') node --experimental-strip-types packages/crawler/src/seed.ts",
+    "seed:artists": "SUPABASE_SERVICE_KEY=$(npx supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)[\"SECRET_KEY\"])') node --experimental-strip-types packages/crawler/src/seed-artists.ts",
     "crawl": "node --experimental-strip-types packages/crawler/src/crawl.ts",
+    "crawl:artists": "node --experimental-strip-types packages/crawler/src/crawl-artists.ts",
     "report": "node --experimental-strip-types packages/crawler/src/report.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

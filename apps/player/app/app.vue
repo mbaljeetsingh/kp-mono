@@ -62,13 +62,32 @@ const nav = [
             {{ item.label }}
           </NuxtLink>
         </nav>
+        <!-- Names the place rather than saying "Live now", which told you
+             nothing you did not already know from the icon. The lit state
+             follows the player, not the route: the broadcast keeps playing
+             while you browse, and this is where you look to see that. -->
         <NuxtLink
           to="/live"
           class="mx-2 mb-3 flex items-center gap-2.5 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground transition hover:border-input hover:text-foreground"
-          active-class="!text-primary border-primary/30"
+          :class="player.isLive.value && '!border-primary/30 !text-primary'"
+          active-class="!text-foreground"
         >
-          <Radio class="size-[18px]" />
-          Live now
+          <Radio
+            class="size-[18px] shrink-0"
+            :class="
+              player.isLive.value && player.playing.value && 'animate-pulse'
+            "
+          />
+          <span class="min-w-0 flex-1 truncate">Harmandir Sahib</span>
+          <span
+            class="rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wider uppercase"
+            :class="
+              player.isLive.value && player.playing.value
+                ? 'bg-primary/15 text-primary'
+                : 'bg-muted text-muted-foreground'
+            "
+            >Live</span
+          >
         </NuxtLink>
 
         <div class="border-t border-border p-2"><AccountButton /></div>
@@ -89,6 +108,7 @@ const nav = [
       @timeupdate="player.onTimeUpdate"
       @loadedmetadata="player.onLoadedMetadata"
       @ended="player.next"
+      @error="player.onError"
     />
 
     <PlayerBar />

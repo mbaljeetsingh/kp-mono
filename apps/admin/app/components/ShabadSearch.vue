@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
+import { SELECTED_SEGMENT } from '@/lib/segmented';
 import { toGurmukhiLetters } from '~/composables/useGurmukhi';
 import { prettyShabadName } from '~/composables/useShabadName';
 
@@ -98,8 +99,9 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
         v-for="l in LANGS"
         :key="l.key"
         size="sm"
-        :variant="lang === l.key ? 'secondary' : 'outline'"
-        class="px-2 text-[11px]"
+        variant="outline"
+        :aria-pressed="lang === l.key"
+        :class="['px-2 text-[11px]', SELECTED_SEGMENT]"
         @click="lang = l.key"
       >
         {{ l.label }}
