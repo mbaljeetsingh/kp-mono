@@ -20,11 +20,18 @@ supabase/          migrations
 ```bash
 pnpm install
 npx supabase start                              # Postgres + Auth + Studio
+node --experimental-strip-types packages/crawler/src/crawl.ts         # ~11 min
+node --experimental-strip-types packages/crawler/src/crawl-artists.ts # photos
 node --experimental-strip-types packages/crawler/src/seed.ts          # tracks
 node --experimental-strip-types packages/crawler/src/seed-artists.ts  # photos
 pnpm --filter @kp/player dev                    # → :3000
 pnpm --filter @kp/admin  dev --port 3001        # → :3001
 ```
+
+The two crawl steps come first and are easy to miss: the seeders read
+`out/crawl.json` and `out/artists.json`, neither of which exists in a fresh
+clone, so seeding before crawling fails on a missing file. A committed seed file
+would remove that wait entirely — see #27.
 
 `pnpm seed` and `pnpm seed:artists` are the same two steps with the local
 `SECRET_KEY` filled in for you.
@@ -44,8 +51,14 @@ not keep history — never in an app or a committed file.
 
 Re-crawl (~670 requests, ~11 min) with
 `node --experimental-strip-types packages/crawler/src/crawl.ts`, then re-seed.
-The crawl is a full nightly re-crawl by design: incremental logic costs the same
-number of requests and adds a class of bugs where changes are silently missed.
+The crawl is a full re-crawl by design: incremental logic costs the same number
+of requests and adds a class of bugs where changes are silently missed.
+
+`--sample` crawls three artists per tree into `out/crawl.sample.json`. It never
+writes `out/crawl.json`, and the seeder refuses a sample file even if you rename
+it, because a sample crawl is a _successful_ crawl and nothing downstream could
+otherwise tell the difference. A full run rotates the last good crawl to
+`out/crawl.previous.json` first.
 
 **After any `supabase db reset`, run `seed-artists.ts` too.** Object bytes live
 outside Postgres, so a reset (or restoring a `pg_dump` into a fresh project)
@@ -58,8 +71,22 @@ replaying, and they are idempotent.
 
 - **Audio is never proxied.** It streams straight from sgpc.net, which serves
   `206` with `accept-ranges: bytes` behind Cloudflare from any origin.
-- **Track ids are content-keyed, never URL-derived.** SGPC has reorganised this
-  archive once already; URL-keyed ids would orphan every tag on the next move.
+- **Track ids are keyed on listing metadata, never on the URL.** SGPC has
+  reorganised this archive once already; URL-keyed ids would strand every tag on
+  the next move. Worth stating the limit precisely, because "content-keyed" over-
+  promises: the key is who/when/which-slot, so it survives a **path change** but
+  not a **rename**. Only dated daywise files survive both — every other tree
+  includes the filename or a title derived from it. Closing that gap is
+  reconciliation (match a renamed file on its unchanged size + mtime), not a
+  better hash; tracked in #26. The definition lives in one place,
+  `packages/crawler/src/track-id.ts`, because it was duplicated in the crawler
+  and the seeder and the copies silently drifted.
+- **The seeder never deletes.** `renditions.track_id` is `ON DELETE CASCADE`, so
+  dropping a track row would take its tags with it. Files that vanish from the
+  archive are stamped `missing_since` instead, which every view already excludes.
+  It also refuses to run on a sample crawl, on a crawl with too many errors, or
+  on one that would shrink the catalogue by more than 10% — `--force` overrides
+  the last two, never the first.
 - **No Web Audio** — the MP3s send no CORS headers, so waveforms and visualizers
   are unavailable without proxying. Playback and scrubbing are unaffected.
 - **Listening never requires an account.** Signing in (email + password, same
