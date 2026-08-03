@@ -84,18 +84,13 @@ const { data: scanFindings } = await useAsyncData(
  *  land in the form, the transport jumps there — and NOTHING is saved. The
  *  pointer stays a suggestion; the tagger who listens does the asserting,
  *  which is the whole covenant of this pipeline. */
-function tagFromPointer(f: {
-  shabad_id: number;
-  name: string;
-  start: number;
-  end: number;
-}) {
+function tagFromPointer(f: { name: string; start: number; end: number }) {
   cancelEdit();
   startSec.value = f.start;
   endSec.value = f.end;
-  shabadId.value = f.shabad_id;
-  // The pointer's name is already in house style; keep anything the tagger
-  // typed themselves.
+  // Boundaries and a starting name — deliberately NOT the shabad link. The
+  // pointer's guess is below-gate by definition; the tagger who listens picks
+  // the shabad in search, and the name refreshes when they set the anchor.
   if (!name.value.trim()) name.value = f.name;
   player.value?.seek(Math.max(0, f.start - 5));
 }
@@ -564,7 +559,6 @@ async function remove(s: any) {
         </Button>
         <span class="min-w-0 flex-1 truncate text-sm">
           {{ f.name }}
-          <span class="text-[11px]">· shabad #{{ f.shabad_id }}</span>
         </span>
         <span class="shrink-0 text-[11px] tabular-nums">
           {{ fmt(f.start) }}–{{ fmt(f.end) }} · conf {{ f.confidence }}
