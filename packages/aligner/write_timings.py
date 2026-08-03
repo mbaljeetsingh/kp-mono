@@ -161,7 +161,7 @@ def refine_boundaries(segments, short_windows, lines):
 
 os.makedirs(CACHE, exist_ok=True)
 q = (f"{SB}/renditions?status=eq.published&shabad_id=not.is.null"
-     f"&select=id,name,shabad_id,start_sec,end_sec,tracks(url)"
+     f"&select=id,name,shabad_id,main_verse_id,start_sec,end_sec,tracks(url)"
      f"&order=created_at.asc")
 if not args.all:
     q += "&line_timings=is.null"
@@ -271,6 +271,19 @@ for r in sorted(rends, key=lambda x: x["name"]):
                extra={"Prefer": "return=representation"})
     if rows:
         written += 1
+        # Anchor-drift check (issue #36): the dominant sung line is measured
+        # anyway, and on every verified rendition so far it has agreed with
+        # the human anchor — so a disagreement is worth a line in the log.
+        # A note, never a write: the anchor belongs to whoever listened.
+        held = {}
+        for t in timings:
+            held[t["verse_id"]] = held.get(t["verse_id"], 0) \
+                + t["end"] - t["start"]
+        dominant = max(held, key=held.get) if held else None
+        mv = r.get("main_verse_id")
+        if mv is not None and dominant is not None and mv != dominant:
+            print(f"  note: main_verse_id {mv} is not the most-sung line "
+                  f"({dominant}, {held[dominant]:.0f}s) — worth an ear check")
         print("  written\n")
     else:
         # Deleted or re-cut between the queue fetch and this write (an align
