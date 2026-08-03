@@ -94,32 +94,9 @@ const { data: scanFindings } = await useAsyncData(
   }
 );
 
-/**
- * Three permissions, asked separately, because they do not travel together.
- *
- * This page used to gate everything on `is_reviewer()` — which is
- * `renditions.review` — and that quietly cost the `trusted` role the thing it
- * exists for: it holds `renditions.publish` without `review`, so RLS would
- * happily let a trusted tagger publish their own draft while the UI showed
- * them a read-only badge. Delete is a third permission again, granted only
- * alongside review. Asking for each one means every control on this page is
- * offered exactly where the policy would accept the write.
- */
-const { data: perms } = await useAsyncData('my-perms', async () => {
-  const ask = async (requested: string) => {
-    const { data } = await supabase.rpc('authorize', { requested });
-    return data === true;
-  };
-  const [review, publish, remove] = await Promise.all([
-    ask('renditions.review'),
-    ask('renditions.publish'),
-    ask('renditions.delete'),
-  ]);
-  return { review, publish, remove };
-});
-const canReview = computed(() => perms.value?.review === true);
-const canPublish = computed(() => perms.value?.publish === true);
-const canDelete = computed(() => perms.value?.remove === true);
+// Three permissions, asked separately, because they do not travel together —
+// see useMyPermissions for why that matters to the `trusted` role.
+const { canReview, canPublish, canDelete } = await useMyPermissions();
 
 const { data: userId } = await useAsyncData('me', async () => {
   const { data } = await supabase.auth.getUser();
@@ -138,16 +115,13 @@ function canEdit(r: any) {
   return r.created_by === userId.value && r.status !== 'published';
 }
 
-/**
- * Whether this row can be promoted to published by this user. Reviewers can do
- * it to anything; publish-without-review can only do it to their own
- * unpublished work, and only once — the UPDATE policy stops matching that row
- * the moment it goes published, which is why they get a one-way button below
- * where a reviewer gets a two-state control.
- */
+/** Mirrors the UPDATE policy for a status change — see canPublishRendition. */
 function canPublishRow(r: any) {
-  if (!canPublish.value || r.status === 'published') return false;
-  return canReview.value || r.created_by === userId.value;
+  return canPublishRendition(
+    r,
+    { canReview: canReview.value, canPublish: canPublish.value },
+    userId.value
+  );
 }
 
 /**
