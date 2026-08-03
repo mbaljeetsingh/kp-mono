@@ -2,12 +2,17 @@
 import { onMounted, useTemplateRef } from 'vue';
 import { Home, Users, Heart, ListMusic, Radio } from 'lucide-vue-next';
 import { usePlayer } from '~/composables/usePlayer';
+import { usePlayerKeys } from '~/composables/usePlayerKeys';
 
 const player = usePlayer();
 const auth = useAuth();
 const favorites = useFavorites();
 const playlists = usePlaylists();
 const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
+
+// Here rather than in PlayerBar: the transport outlives every page, so its keys
+// should too, and this is the one component that is always mounted.
+usePlayerKeys();
 
 // One <audio> element for the whole app so playback survives navigation — a
 // shabad keeps playing while the listener browses, which is the single thing

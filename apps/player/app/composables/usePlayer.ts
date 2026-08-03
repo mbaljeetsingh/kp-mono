@@ -403,6 +403,19 @@ export function usePlayer() {
     if (audio.value) audio.value.currentTime = seconds;
   }
 
+  /**
+   * Where playback actually is, as opposed to where the last `timeupdate` said
+   * it was.
+   *
+   * `currentTime` is a mirror the element refreshes about four times a second,
+   * which is right for rendering and wrong for anything that computes a new
+   * position from the old one: two quick presses of a seek shortcut would both
+   * start from the same stale base and the second would be swallowed.
+   */
+  function position(): number {
+    return audio.value?.currentTime ?? currentTime.value;
+  }
+
   function onTimeUpdate() {
     const el = audio.value;
     if (!el || !current.value) return;
@@ -560,6 +573,7 @@ export function usePlayer() {
     play,
     toggle,
     seek,
+    position,
     onTimeUpdate,
     onLoadedMetadata,
     onError,

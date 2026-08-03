@@ -194,6 +194,8 @@ const liveStatus = computed(() =>
               size="icon-sm"
               class="text-muted-foreground"
               :disabled="!player.current.value"
+              aria-label="Previous shabad"
+              title="Previous (shift+← or P)"
               @click="player.previous"
             >
               <SkipBack class="size-4 fill-current" />
@@ -202,6 +204,8 @@ const liveStatus = computed(() =>
               size="icon"
               class="size-9 rounded-full transition hover:scale-105"
               :disabled="!player.current.value"
+              :aria-label="player.playing.value ? 'Pause' : 'Play'"
+              :title="player.playing.value ? 'Pause (space)' : 'Play (space)'"
               @click="player.toggle"
             >
               <Pause v-if="player.playing.value" class="size-4 fill-current" />
@@ -213,6 +217,8 @@ const liveStatus = computed(() =>
               size="icon-sm"
               class="text-muted-foreground"
               :disabled="!player.upNext.value.length"
+              aria-label="Next shabad"
+              title="Next (shift+→ or N)"
               @click="player.next"
             >
               <SkipForward class="size-4 fill-current" />
@@ -246,6 +252,8 @@ const liveStatus = computed(() =>
               :value="player.progress.value"
               :disabled="!player.current.value"
               class="h-1 flex-1 accent-primary"
+              aria-label="Seek within this shabad"
+              :aria-valuetext="`${formatTime(elapsed)} of ${formatTime(total)}`"
               @input="scrub"
             />
             <span class="w-10 text-[11px] tabular-nums text-muted-foreground">
@@ -264,6 +272,7 @@ const liveStatus = computed(() =>
             size="icon-sm"
             class="text-muted-foreground"
             :class="showLyrics && '!text-primary'"
+            aria-label="Read along"
             title="Read along"
             @click="((showLyrics = !showLyrics), (showQueue = false))"
           >
@@ -274,7 +283,8 @@ const liveStatus = computed(() =>
             size="icon-sm"
             class="hidden text-muted-foreground md:inline-flex"
             :class="showQueue && '!text-primary'"
-            title="Queue"
+            aria-label="Up next"
+            title="Up next"
             @click="((showQueue = !showQueue), (showLyrics = false))"
           >
             <ListMusic class="size-4" />

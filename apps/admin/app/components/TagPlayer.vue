@@ -50,7 +50,11 @@ function onKey(e: KeyboardEvent) {
   // Widgets that own the same keys. The speed dropdown answers to ↑ ↓ itself,
   // and the delete dialog to space — driving the transport from inside either
   // one means both things happen at once.
+  // Guarded on `closest` existing: with nothing focused the target is the
+  // document rather than an element, and calling it there throws — taking the
+  // whole handler down before it reaches a single shortcut.
   if (
+    typeof t.closest === 'function' &&
     t.closest(
       '[role="combobox"],[role="listbox"],[role="menu"],[role="dialog"],[role="alertdialog"]'
     )
