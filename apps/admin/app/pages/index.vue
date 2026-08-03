@@ -3,7 +3,15 @@ import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
 import { SELECTED_SEGMENT } from '@/lib/segmented';
-import { Clock, Layers, Sparkles } from 'lucide-vue-next';
+import { Clock, Layers, Sparkles, ListMusic } from 'lucide-vue-next';
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty';
 
 const supabase = useSupabaseClient();
 const route = useRoute();
@@ -44,14 +52,34 @@ const sort = ref<Sort>(fromQuery('sort', SORTS, 'shortest'));
 // forever and there is no way to tell what is left.
 const filter = ref<Filter>(fromQuery('filter', FILTERS, 'todo'));
 
+// Two characters is too short to be a search — it would match most of the
+// archive and cost a scan to say so.
+const searchTerm = computed(() => {
+  const t = debounced.value.trim();
+  return t.length > 1 ? t : '';
+});
+
 const list = useInfiniteList<any>(async (from, to) => {
   let query = supabase.from('recordings').select('*');
   if (filter.value === 'todo') query = query.eq('renditions', 0);
   else if (filter.value === 'started')
     query = query.gt('renditions', 0).eq('published', 0);
   else if (filter.value === 'done') query = query.gt('published', 0);
-  if (debounced.value.trim().length > 1) {
-    query = query.ilike('artist_dir', `%${debounced.value.trim()}%`);
+  const term = searchTerm.value;
+  if (term) {
+    // The filename as well as the artist: `title` is null for almost every
+    // recording, so the filename is the only place the date and the slot
+    // ("5.35pm to 6.10pm") are written — and that is how a tagger looks for the
+    // one recording somebody asked them about.
+    //
+    // Commas and parentheses have to go — they delimit PostgREST's `or` list —
+    // and they become wildcards rather than spaces, because a space is a
+    // character the filename would then have to match in that exact position.
+    // Real filenames are full of parentheses ("(5.35pm to 6.10pm)"), so pasting
+    // one in has to keep working; every other character, dots included, is safe
+    // inside a value.
+    const safe = term.replace(/[(),]/g, '*');
+    query = query.or(`artist_dir.ilike.*${safe}*,raw_filename.ilike.*${safe}*`);
   }
   query =
     sort.value === 'shortest'
@@ -87,8 +115,43 @@ watchDebounced(
   { debounce: 50 }
 );
 
+// Each shelf means something different when it is empty, and "no results" would
+// throw away the only encouraging message this page has: a clear todo shelf is
+// the goal of the whole exercise.
+const SHELF_EMPTY: Record<string, [string, string]> = {
+  todo: [
+    'Every recording has been started',
+    'Nothing is untouched. Check "In progress" for recordings with shabads still waiting to be published.',
+  ],
+  started: [
+    'Nothing in progress',
+    'No recording has shabads waiting. Start one from "Not started".',
+  ],
+  done: [
+    'Nothing published yet',
+    'Publish a shabad and the recording it came from shows up here.',
+  ],
+  all: [
+    'No recordings',
+    'The catalogue is empty — the crawler has not seeded any tracks yet.',
+  ],
+};
+const shelfEmptyTitle = computed(
+  () => SHELF_EMPTY[filter.value]?.[0] ?? 'Nothing here'
+);
+const shelfEmptyHint = computed(() => SHELF_EMPTY[filter.value]?.[1] ?? '');
+
+/** One button out of any dead end, whichever combination produced it. */
+function showEverything() {
+  q.value = '';
+  filter.value = 'all';
+}
+
+// From the published slot, not the file: the two routinely disagree by
+// minutes, so it is marked as the estimate it is — the same ≈ the detail page
+// shows until the audio's own metadata arrives.
 function mins(sec: number | null) {
-  return sec ? `${Math.round(sec / 60)} min` : '—';
+  return sec ? `≈${Math.round(sec / 60)} min` : '—';
 }
 
 // The scan queue, keyed by track so each row can tell whether it may still
@@ -119,10 +182,15 @@ function scanState(id: string): 'none' | 'queued' | 'done' {
 }
 
 const suggestBusy = ref<string | null>(null);
-const suggestError = ref('');
+/**
+ * Keyed by track, because a refusal belongs to the row that earned it. A single
+ * page-level line put "couldn't request suggestions" at the top of a list the
+ * tagger had scrolled a long way down, next to no row in particular.
+ */
+const suggestError = ref<Record<string, string>>({});
 
 async function suggest(t: any) {
-  suggestError.value = '';
+  delete suggestError.value[t.id];
   suggestBusy.value = t.id;
   // Upsert, not insert: the same call requests a first scan AND re-requests
   // one whose earlier run is done (matcher improved, or it found nothing) —
@@ -140,7 +208,7 @@ async function suggest(t: any) {
   });
   suggestBusy.value = null;
   if (error) {
-    suggestError.value = `Couldn't request suggestions: ${error.message}`;
+    suggestError.value[t.id] = `Couldn't request suggestions: ${error.message}`;
     return;
   }
   if (scans.value) scans.value[t.id] = null;
@@ -177,7 +245,7 @@ async function suggest(t: any) {
       <Input
         v-model="q"
         type="search"
-        placeholder="Filter by artist…"
+        placeholder="Filter by artist, or search the filename…"
         class="min-w-56 flex-1 bg-card"
       />
       <ButtonGroup aria-label="Sort recordings">
@@ -198,83 +266,125 @@ async function suggest(t: any) {
       </ButtonGroup>
     </div>
 
-    <p v-if="suggestError" class="mb-2 text-xs text-amber-400">
-      {{ suggestError }}
-    </p>
-
-    <NuxtLink
-      v-for="t in list.items.value"
-      :key="t.id"
-      :to="`/tag/${t.id}`"
-      class="flex items-center gap-3 rounded-md px-3 py-2.5 transition hover:bg-accent"
-    >
-      <ArtTile
-        :name="t.artist_dir ?? t.raw_filename"
-        :photo="t.artist_photo"
-        class="size-9"
-      />
-      <span class="min-w-0 flex-1">
-        <span class="block truncate text-sm">{{
-          t.title ?? t.raw_filename
-        }}</span>
-        <span class="block truncate text-xs text-muted-foreground">
-          {{ [t.artist_dir, t.date].filter(Boolean).join(' · ') }}
+    <div v-for="t in list.items.value" :key="t.id">
+      <NuxtLink
+        :to="`/tag/${t.id}`"
+        class="flex items-center gap-3 rounded-md px-3 py-2.5 transition hover:bg-accent"
+      >
+        <ArtTile
+          :name="t.artist_dir ?? t.raw_filename"
+          :photo="t.artist_photo"
+          class="size-9"
+        />
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-sm">{{
+            t.title ?? t.raw_filename
+          }}</span>
+          <span class="block truncate text-xs text-muted-foreground">
+            {{ [t.artist_dir, t.date].filter(Boolean).join(' · ') }}
+          </span>
         </span>
-      </span>
-      <!-- A quiet side door: ask the nightly scan to draft shabad boundaries
+        <!-- A quiet side door: ask the nightly scan to draft shabad boundaries
            for this recording. Secondary on purpose — tagging by ear stays the
            main act — and the row is a link, so the click must not navigate. -->
-      <Button
-        v-if="scanState(t.id) === 'none'"
-        variant="ghost"
-        size="sm"
-        class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
-        :disabled="suggestBusy === t.id"
-        title="Ask the nightly scan for shabad suggestions — they arrive overnight"
-        @click.stop.prevent="suggest(t)"
+        <Button
+          v-if="scanState(t.id) === 'none'"
+          variant="ghost"
+          size="sm"
+          class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
+          :disabled="suggestBusy === t.id"
+          :aria-label="`Ask the nightly scan to suggest shabads for ${t.raw_filename}`"
+          title="Ask the nightly scan for shabad suggestions — they arrive overnight"
+          @click.stop.prevent="suggest(t)"
+        >
+          <Sparkles class="size-3.5" /> Suggest
+        </Button>
+        <span
+          v-else-if="scanState(t.id) === 'queued'"
+          class="shrink-0 text-[11px] text-muted-foreground/70"
+          title="Suggestions arrive overnight"
+        >
+          queued
+        </span>
+        <Button
+          v-else
+          variant="ghost"
+          size="sm"
+          class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground/70"
+          :disabled="suggestBusy === t.id"
+          :aria-label="`Scan ${t.raw_filename} again`"
+          title="Scanned already — ask again (the scanner may have improved since)"
+          @click.stop.prevent="suggest(t)"
+        >
+          <Sparkles class="size-3.5" /> Suggest again
+        </Button>
+        <span
+          v-if="t.renditions"
+          class="shrink-0 rounded-full px-2 py-0.5 text-[11px]"
+          :class="
+            t.published === t.renditions
+              ? 'bg-emerald-500/15 text-emerald-400'
+              : 'bg-amber-500/15 text-amber-400'
+          "
+        >
+          {{ t.published }}/{{ t.renditions }} published
+        </span>
+        <span
+          class="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground"
+        >
+          {{ mins(t.est_seconds) }}
+        </span>
+      </NuxtLink>
+      <p
+        v-if="suggestError[t.id]"
+        class="px-3 pb-2 pl-14 text-[11px] text-amber-400"
+        role="alert"
       >
-        <Sparkles class="size-3.5" /> Suggest
-      </Button>
-      <span
-        v-else-if="scanState(t.id) === 'queued'"
-        class="shrink-0 text-[11px] text-muted-foreground/70"
-        title="Suggestions arrive overnight"
-      >
-        queued
-      </span>
-      <Button
-        v-else
-        variant="ghost"
-        size="sm"
-        class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground/70"
-        :disabled="suggestBusy === t.id"
-        title="Scanned already — ask again (the scanner may have improved since)"
-        @click.stop.prevent="suggest(t)"
-      >
-        <Sparkles class="size-3.5" /> Suggest again
-      </Button>
-      <span
-        v-if="t.renditions"
-        class="shrink-0 rounded-full px-2 py-0.5 text-[11px]"
-        :class="
-          t.published === t.renditions
-            ? 'bg-emerald-500/15 text-emerald-400'
-            : 'bg-amber-500/15 text-amber-400'
-        "
-      >
-        {{ t.published }}/{{ t.renditions }} published
-      </span>
-      <span
-        class="w-16 shrink-0 text-right text-xs tabular-nums text-muted-foreground"
-      >
-        {{ mins(t.est_seconds) }}
-      </span>
-    </NuxtLink>
+        {{ suggestError[t.id] }}
+      </p>
+    </div>
+
+    <!-- The default shelf is "Not started", so an empty list here is the good
+         news that the shelf is clear — not a dead end. It says which, and
+         offers the way to the rest. -->
+    <Empty
+      v-if="!list.items.value.length && !list.loading.value"
+      class="gap-4 rounded-lg border border-dashed p-8 md:p-8"
+    >
+      <EmptyHeader>
+        <EmptyMedia variant="icon"><ListMusic /></EmptyMedia>
+        <EmptyTitle>
+          {{ searchTerm ? 'Nothing matches that' : shelfEmptyTitle }}
+        </EmptyTitle>
+        <EmptyDescription>
+          {{
+            searchTerm
+              ? 'Try part of an artist’s name, or a date as it appears in the filename.'
+              : shelfEmptyHint
+          }}
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent v-if="searchTerm || filter !== 'all'">
+        <Button variant="outline" size="sm" @click="showEverything">
+          Show all recordings
+        </Button>
+      </EmptyContent>
+    </Empty>
 
     <InfiniteScroll
       :loading="list.loading.value"
       :done="list.done.value"
       @more="list.loadMore"
     />
+
+    <!-- 49,000 recordings means a list that ends is worth confirming: without
+         this, the bottom of the last page is indistinguishable from a page that
+         has not loaded yet. -->
+    <p
+      v-if="list.done.value && list.items.value.length"
+      class="py-4 text-center text-[11px] text-muted-foreground/70"
+    >
+      That’s all {{ list.items.value.length }} on this shelf.
+    </p>
   </div>
 </template>
