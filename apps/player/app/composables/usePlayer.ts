@@ -156,6 +156,11 @@ export function usePlayer() {
         // lyrics panel, which keys its highlight off it, would show no line
         // on a paused, restored rendition. Mirror it by hand.
         currentTime.value = el.currentTime;
+        // Restored items dropped their timings at persist time; resuming via
+        // the bar never goes through play(item), so fetch them here or a
+        // reloaded session stays a static read-along until a list row is
+        // clicked.
+        refreshTimings(item);
       }
     }
   }
@@ -317,6 +322,7 @@ export function usePlayer() {
     // Before the await: `useSupabaseClient` reads runtime config, and the Nuxt
     // instance context is gone once execution resumes after an await.
     registerPlay(item);
+    refreshTimings(item);
     starting.value = item.id;
     try {
       await el.play();
@@ -459,6 +465,33 @@ export function usePlayer() {
    * register a play without holding UPDATE on segments, which would also let
    * them edit tags. A broadcast has no segment row and is skipped.
    */
+  /** A held Playable can predate its alignment — a restored queue (which
+   *  drops timings on purpose) or a row fetched before the nightly run.
+   *  Timings are one cheap read away, so fetch them at play time instead of
+   *  waiting for the next list load. Fire-and-forget, same raw-REST shape as
+   *  registerPlay, and patched in only if this item is still what's playing —
+   *  a failure costs nothing but the static panel we already had. */
+  function refreshTimings(item: Playable) {
+    if (import.meta.server || item.isLive) return;
+    if (item.shabadId == null || item.lineTimings?.length) return;
+    const { supabaseUrl, supabaseKey } = useRuntimeConfig().public;
+    void fetch(
+      `${supabaseUrl}/rest/v1/shabads?id=eq.${item.id}&select=line_timings`,
+      { headers: { apikey: supabaseKey as string } }
+    )
+      .then((r) => r.json())
+      .then((rows) => {
+        const timings = rows?.[0]?.line_timings;
+        if (!Array.isArray(timings) || !timings.length) return;
+        if (current.value?.id !== item.id) return;
+        current.value = { ...current.value, lineTimings: timings };
+        const qi = queue.value.findIndex((x) => x.id === item.id);
+        if (qi >= 0)
+          queue.value[qi] = { ...queue.value[qi]!, lineTimings: timings };
+      })
+      .catch(() => {});
+  }
+
   function registerPlay(item: Playable) {
     if (import.meta.server || item.isLive) return;
     const id = item.id;
