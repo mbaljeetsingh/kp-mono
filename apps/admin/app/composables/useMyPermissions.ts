@@ -24,12 +24,13 @@ export async function useMyPermissions() {
       const { data } = await supabase.rpc('authorize', { requested });
       return data === true;
     };
-    const [review, publish, remove] = await Promise.all([
+    const [review, publish, remove, manageUsers] = await Promise.all([
       ask('renditions.review'),
       ask('renditions.publish'),
       ask('renditions.delete'),
+      ask('users.manage'),
     ]);
-    return { review, publish, remove };
+    return { review, publish, remove, manageUsers };
   });
 
   return {
@@ -39,6 +40,8 @@ export async function useMyPermissions() {
     canPublish: computed(() => data.value?.publish === true),
     /** Remove a rendition outright. Granted only alongside review. */
     canDelete: computed(() => data.value?.remove === true),
+    /** Move other people up and down the trust ladder. */
+    canManageUsers: computed(() => data.value?.manageUsers === true),
   };
 }
 

@@ -11,8 +11,13 @@ defineOptions({
 
 const props = defineProps<{ modelValue?: AcceptableValue | AcceptableValue[], class?: HTMLAttributes["class"] }>()
 
+// A tuple, not a bare type: Vue reads the object form of defineEmits as
+// event -> ARGUMENT LIST, so `AcceptableValue` on its own declares an event
+// that takes no arguments at all. Every caller with a handler that reads the
+// new value was then a type error, which is what made apps/admin's user list
+// permanently red.
 const emit = defineEmits<{
-  "update:modelValue": AcceptableValue
+  "update:modelValue": [value: AcceptableValue]
 }>()
 
 const modelValue = useVModel(props, "modelValue", emit, {
