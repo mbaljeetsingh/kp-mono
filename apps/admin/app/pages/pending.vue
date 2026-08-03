@@ -17,10 +17,23 @@ const { data: pending, refresh } = await useAsyncData('pending', async () => {
   return data;
 });
 
-const { data: canPublish } = await useAsyncData('can-publish', async () => {
-  const { data } = await supabase.rpc('is_reviewer');
-  return data === true;
+// The same three permissions the tagging page asks for, and for the same
+// reason: gating this queue on review alone hid the publish button from the
+// `trusted` role, whose whole purpose is publishing without reviewing. Reject
+// is a delete, which is a third permission again.
+const { canReview, canPublish, canDelete } = await useMyPermissions();
+
+const { data: userId } = await useAsyncData('me', async () => {
+  const { data } = await supabase.auth.getUser();
+  return data.user?.id ?? null;
 });
+
+const canPublishRow = (s: any) =>
+  canPublishRendition(
+    s,
+    { canReview: canReview.value, canPublish: canPublish.value },
+    userId.value
+  );
 
 const error = ref('');
 const audio = ref<HTMLAudioElement | null>(null);
@@ -103,6 +116,7 @@ function fmt(v: number) {
         size="icon-sm"
         class="size-7 text-muted-foreground"
         title="Preview from the start boundary"
+        :aria-label="`Preview ${s.name} from its start boundary`"
         @click.stop.prevent="preview(s)"
       >
         <Play class="size-3.5" />
@@ -130,26 +144,31 @@ function fmt(v: number) {
       <Badge variant="secondary" class="shrink-0 rounded-full text-[11px]">
         {{ s.status }}
       </Badge>
-      <template v-if="canPublish">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          class="size-7 text-emerald-400"
-          title="Publish"
-          @click.stop.prevent="publish(s)"
-        >
-          <Check class="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          class="size-7 text-muted-foreground hover:text-destructive"
-          title="Reject"
-          @click.stop.prevent="reject(s)"
-        >
-          <Trash2 class="size-3.5" />
-        </Button>
-      </template>
+      <!-- Offered per row and per right, so neither button can lead to a write
+           RLS would filter out: publishing somebody else's draft needs review,
+           and rejecting anything needs the delete permission. -->
+      <Button
+        v-if="canPublishRow(s)"
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 text-emerald-400"
+        title="Publish"
+        :aria-label="`Publish ${s.name}`"
+        @click.stop.prevent="publish(s)"
+      >
+        <Check class="size-4" />
+      </Button>
+      <Button
+        v-if="canDelete"
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 text-muted-foreground hover:text-destructive"
+        title="Reject"
+        :aria-label="`Reject ${s.name}`"
+        @click.stop.prevent="reject(s)"
+      >
+        <Trash2 class="size-3.5" />
+      </Button>
     </NuxtLink>
 
     <p
