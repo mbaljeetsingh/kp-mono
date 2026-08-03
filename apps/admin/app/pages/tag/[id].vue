@@ -80,6 +80,26 @@ const { data: scanFindings } = await useAsyncData(
   }
 );
 
+/** One click from pointer to workbench: boundaries, shabad link and name
+ *  land in the form, the transport jumps there — and NOTHING is saved. The
+ *  pointer stays a suggestion; the tagger who listens does the asserting,
+ *  which is the whole covenant of this pipeline. */
+function tagFromPointer(f: {
+  shabad_id: number;
+  name: string;
+  start: number;
+  end: number;
+}) {
+  cancelEdit();
+  startSec.value = f.start;
+  endSec.value = f.end;
+  shabadId.value = f.shabad_id;
+  // The pointer's name is already in house style; keep anything the tagger
+  // typed themselves.
+  if (!name.value.trim()) name.value = f.name;
+  player.value?.seek(Math.max(0, f.start - 5));
+}
+
 const { data: canPublish } = await useAsyncData('can-publish', async () => {
   const { data } = await supabase.rpc('is_reviewer');
   return data === true;
@@ -549,6 +569,15 @@ async function remove(s: any) {
         <span class="shrink-0 text-[11px] tabular-nums">
           {{ fmt(f.start) }}–{{ fmt(f.end) }} · conf {{ f.confidence }}
         </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-7 shrink-0 px-2 text-[11px]"
+          title="Load this into the form — listen, adjust, then save it yourself"
+          @click="tagFromPointer(f)"
+        >
+          Tag this
+        </Button>
       </div>
     </template>
 
