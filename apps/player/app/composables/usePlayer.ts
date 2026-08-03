@@ -391,8 +391,16 @@ export function usePlayer() {
       return;
     }
     if (el.paused) {
-      el.play();
+      // Optimistic, then corrected: the icon should flip on the press rather
+      // than when the buffer fills, but a play() that never starts — the
+      // autoplay policy, a dead mount, a stream that refuses — must not leave a
+      // Pause icon sitting over silence. play() below already gets this right;
+      // this path was the one that did not, which is how the transport ended up
+      // claiming to play a track the element had declined.
       playing.value = true;
+      void el.play().catch(() => {
+        playing.value = !el.paused;
+      });
     } else {
       el.pause();
       playing.value = false;
