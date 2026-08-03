@@ -12,6 +12,11 @@
  */
 import { ref, computed, onUnmounted } from 'vue';
 
+// The shortest segment the workbench will create. One definition: the drag
+// handles in TagPlayer clamp with it and BoundaryControl's min/max derive from
+// it — two copies would let a drag place a boundary the nudges refuse.
+export const MIN_LENGTH = 0.1;
+
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
 export function useTagPlayer() {

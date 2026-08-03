@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Check, Trash2, Play } from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
@@ -36,14 +37,30 @@ function preview(s: any) {
 }
 
 async function publish(s: any) {
-  await supabase
+  error.value = '';
+  // `select('id')` is what makes a refused write visible: RLS filters rows out
+  // of an UPDATE rather than rejecting it, so without asking for the changed
+  // rows back this returns 204 with no error and the row quietly stays put.
+  const { data, error: updateError } = await supabase
     .from('renditions')
     .update({ status: 'published' })
-    .eq('id', s.id);
+    .eq('id', s.id)
+    .select('id');
+  if (updateError) error.value = updateError.message;
+  else if (!data?.length) error.value = 'Not permitted to publish that one.';
   await refresh();
 }
 async function reject(s: any) {
-  await supabase.from('renditions').delete().eq('id', s.id);
+  error.value = '';
+  // Same silent-refusal trap as publish: a DELETE that RLS declines returns
+  // no error and no rows.
+  const { data, error: deleteError } = await supabase
+    .from('renditions')
+    .delete()
+    .eq('id', s.id)
+    .select('id');
+  if (deleteError) error.value = deleteError.message;
+  else if (!data?.length) error.value = 'Not permitted to reject that one.';
   await refresh();
 }
 function fmt(v: number) {
@@ -69,16 +86,24 @@ function fmt(v: number) {
       approve your work.
     </p>
 
-    <div
+    <p v-if="error" class="mb-2 text-xs text-amber-400">{{ error }}</p>
+
+    <!-- The row is a link into the tagging workbench, opened on this very
+         rendition: reviewing means checking boundaries and the shabad link,
+         which only that page can do. The buttons inside stop the click from
+         bubbling to the link, so preview and publish stay one click too. -->
+    <NuxtLink
       v-for="s in pending ?? []"
       :key="s.id"
-      class="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-accent"
+      :to="`/tag/${s.track_id}?rendition=${s.id}`"
+      class="flex items-center gap-3 rounded-md px-3 py-2.5 transition hover:bg-accent"
     >
       <Button
         variant="ghost"
         size="icon-sm"
         class="size-7 text-muted-foreground"
-        @click="preview(s)"
+        title="Preview from the start boundary"
+        @click.stop.prevent="preview(s)"
       >
         <Play class="size-3.5" />
       </Button>
@@ -86,7 +111,14 @@ function fmt(v: number) {
         <span class="block truncate text-sm">{{ s.name }}</span>
         <span class="block truncate text-[11px] text-muted-foreground">
           {{
-            [s.tracks?.artist_dir, s.tracks?.date, s.raag]
+            [
+              s.tracks?.artist_dir,
+              s.tracks?.date,
+              s.raag,
+              // 'manual' is the norm, so only the exception is worth a word —
+              // a scan suggestion earns a closer look at its boundaries.
+              s.source !== 'manual' ? s.source : null,
+            ]
               .filter(Boolean)
               .join(' · ')
           }}
@@ -95,13 +127,16 @@ function fmt(v: number) {
       <span class="shrink-0 text-xs tabular-nums text-muted-foreground">
         {{ fmt(Number(s.start_sec)) }}–{{ fmt(Number(s.end_sec)) }}
       </span>
+      <Badge variant="secondary" class="shrink-0 rounded-full text-[11px]">
+        {{ s.status }}
+      </Badge>
       <template v-if="canPublish">
         <Button
           variant="ghost"
           size="icon-sm"
           class="size-7 text-emerald-400"
           title="Publish"
-          @click="publish(s)"
+          @click.stop.prevent="publish(s)"
         >
           <Check class="size-4" />
         </Button>
@@ -110,12 +145,12 @@ function fmt(v: number) {
           size="icon-sm"
           class="size-7 text-muted-foreground hover:text-destructive"
           title="Reject"
-          @click="reject(s)"
+          @click.stop.prevent="reject(s)"
         >
           <Trash2 class="size-3.5" />
         </Button>
       </template>
-    </div>
+    </NuxtLink>
 
     <p
       v-if="!pending?.length"

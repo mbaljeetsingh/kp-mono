@@ -1,0 +1,30 @@
+# Weekly: re-crawl sgpc.net and re-seed tracks.
+#
+# The crawl is a full re-crawl by design (~670 requests, ~11 min) — incremental
+# logic would cost the same requests and add a class of silently-missed
+# changes; see README. Upserts are keyed on the content-derived track id, so
+# re-running is always safe. New tracks simply join the untagged pool, where
+# the scan queue and the tagger find them like anything else.
+name: crawl
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @kp/crawler
+      - run: node --experimental-strip-types packages/crawler/src/crawl.ts
+      - run: node --experimental-strip-types packages/crawler/src/seed.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
