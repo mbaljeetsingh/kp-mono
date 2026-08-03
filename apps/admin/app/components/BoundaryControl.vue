@@ -16,6 +16,8 @@ const props = defineProps<{
   /** Bounds in seconds. Null means unbounded on that side. */
   min?: number | null;
   max?: number | null;
+  /** The key that marks this boundary, shown on the button that does it. */
+  shortcut?: string;
 }>();
 
 const value = defineModel<number | null>({ required: true });
@@ -63,14 +65,30 @@ const stepLabel = (s: number) => (s > 0 ? `+${s}` : `${s}`);
       {{ stepLabel(s) }}
     </Button>
 
+    <!-- The verb, not a readout: with no boundary yet this is the only button in
+         the group that does anything, and "Start · —" read as a disabled field
+         rather than the thing you press. It says what it will do until there is
+         a number, and then the number takes the space. -->
     <Button
       variant="outline"
       size="sm"
-      :title="`Set ${label.toLowerCase()} to the playhead`"
+      :title="`Set ${label.toLowerCase()} to the playhead${shortcut ? ` (${shortcut})` : ''}`"
       @click="emit('mark')"
     >
-      {{ label }} ·
-      <span class="tabular-nums">{{ fmt(value, true) }}</span>
+      <template v-if="value === null">
+        <span>Mark {{ label.toLowerCase() }}</span>
+      </template>
+      <template v-else>
+        <span class="text-muted-foreground">{{ label }}</span>
+        <span class="font-medium tabular-nums">{{ fmt(value, true) }}</span>
+      </template>
+      <span
+        v-if="shortcut"
+        class="hidden rounded border border-border px-1 text-[10px] leading-4 text-muted-foreground/70 sm:inline"
+        aria-hidden="true"
+      >
+        {{ shortcut }}
+      </span>
     </Button>
 
     <Button
