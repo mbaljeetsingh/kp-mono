@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
 import { SELECTED_SEGMENT } from '@/lib/segmented';
-import { toGurmukhiLetters } from '~/composables/useGurmukhi';
 import { prettyShabadName } from '~/composables/useShabadName';
 
 const emit = defineEmits<{
@@ -30,27 +29,19 @@ const loading = ref(false);
 const results = ref<any[]>([]);
 
 /**
- * Convert keystrokes to Gurmukhi in the field itself, the way np-mono's
- * virtual keyboard does — typing "qmp" leaves ਤਮਪ in the input rather than
- * roman letters the tagger has to trust blindly.
+ * Typing is GurbaniLipi, the way np-mono's shabad search is.
  *
- * Safe to convert in place because BaniDB's first-letter search accepts both
- * forms: "mbj" and "ਮਬਜ" return the same results. The mapping is 1:1 per
- * character, so backspace and selection behave normally.
+ * The field keeps the tagger's raw keystrokes and renders them in the
+ * GurbaniLipi font, so `mdmA` shows as ਮਦਮਅ while the query still holds the
+ * ASCII BaniDB's first-letter search wants. There is no transliteration step,
+ * which is the point: nothing can disagree about what was typed, the caret
+ * never jumps, and paste, backspace and selection all behave like a normal
+ * input because it is one.
+ *
+ * English search is a different alphabet, so it drops the font and reads as
+ * roman.
  */
-function onInput(event: Event) {
-  const el = event.target as HTMLInputElement;
-  if (lang.value !== 0) {
-    q.value = el.value;
-    return;
-  }
-  const caret = el.selectionStart ?? el.value.length;
-  const converted = toGurmukhiLetters(el.value);
-  q.value = converted;
-  // Vue rewrites the value on the next tick; restore the caret so typing in
-  // the middle of a query does not jump to the end.
-  nextTick(() => el.setSelectionRange(caret, caret));
-}
+const gurbaniLipi = computed(() => lang.value === 0);
 
 let generation = 0;
 
@@ -113,20 +104,24 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
         class="pointer-events-none absolute top-1/2 left-3 z-10 size-3.5 -translate-y-1/2 text-muted-foreground"
       />
       <Input
-        :model-value="q"
+        v-model="q"
         placeholder="Search a shabad"
-        class="bg-card py-2 pr-8 pl-9 text-[15px]"
-        @input="onInput"
+        class="bg-card py-2 pr-16 pl-9"
+        :class="gurbaniLipi ? 'font-gurmukhi text-xl' : 'text-[15px]'"
       />
-      <Button
-        v-if="q"
-        variant="ghost"
-        size="icon-sm"
-        class="absolute top-1/2 right-1 size-7 -translate-y-1/2 text-muted-foreground"
-        @click="((q = ''), (results = []))"
-      >
-        <X class="size-3.5" />
-      </Button>
+      <div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
+        <Button
+          v-if="q"
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 text-muted-foreground"
+          aria-label="Clear the search"
+          @click="((q = ''), (results = []))"
+        >
+          <X class="size-3.5" />
+        </Button>
+        <GurmukhiKeyboard v-if="gurbaniLipi" v-model="q" />
+      </div>
     </div>
 
     <p v-if="loading" class="mt-2 text-xs text-muted-foreground">Searching…</p>

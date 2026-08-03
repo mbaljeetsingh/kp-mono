@@ -215,8 +215,17 @@ for r in sorted(rends, key=lambda x: x["name"]):
     # sung. Measured boundary jitter without it was +/-5.6s.
     short_windows = pass_at(SHORT_WIN, SHORT_HOP, "short") if not args.single else None
 
-    shabad = banidb(f"/shabads/{r['shabad_id']}")
-    verses, info = shabad["verses"], shabad["shabadInfo"]
+    # Isolated, because this is the first thing after the ASR and the ASR is
+    # the run. A shabad that cannot be fetched — retries exhausted, or an id
+    # BaniDB does not have — costs this one rendition; letting it raise cost
+    # every rendition still queued behind it.
+    try:
+        shabad = banidb(f"/shabads/{r['shabad_id']}")
+        verses, info = shabad["verses"], shabad["shabadInfo"]
+    except Exception as e:
+        print(f"  SKIP — could not fetch shabad {r['shabad_id']}: {e}\n")
+        skipped += 1
+        continue
     lines = [{"line_idx": i,
               "text": v["verse"].get("unicode") or v["verse"]["gurmukhi"]}
              for i, v in enumerate(verses)]

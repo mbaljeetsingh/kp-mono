@@ -391,8 +391,16 @@ export function usePlayer() {
       return;
     }
     if (el.paused) {
-      el.play();
+      // Optimistic, then corrected: the icon should flip on the press rather
+      // than when the buffer fills, but a play() that never starts — the
+      // autoplay policy, a dead mount, a stream that refuses — must not leave a
+      // Pause icon sitting over silence. play() below already gets this right;
+      // this path was the one that did not, which is how the transport ended up
+      // claiming to play a track the element had declined.
       playing.value = true;
+      void el.play().catch(() => {
+        playing.value = !el.paused;
+      });
     } else {
       el.pause();
       playing.value = false;
@@ -401,6 +409,19 @@ export function usePlayer() {
 
   function seek(seconds: number) {
     if (audio.value) audio.value.currentTime = seconds;
+  }
+
+  /**
+   * Where playback actually is, as opposed to where the last `timeupdate` said
+   * it was.
+   *
+   * `currentTime` is a mirror the element refreshes about four times a second,
+   * which is right for rendering and wrong for anything that computes a new
+   * position from the old one: two quick presses of a seek shortcut would both
+   * start from the same stale base and the second would be swallowed.
+   */
+  function position(): number {
+    return audio.value?.currentTime ?? currentTime.value;
   }
 
   function onTimeUpdate() {
@@ -560,6 +581,7 @@ export function usePlayer() {
     play,
     toggle,
     seek,
+    position,
     onTimeUpdate,
     onLoadedMetadata,
     onError,

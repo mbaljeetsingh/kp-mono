@@ -8,8 +8,11 @@ is how one script gets upgraded and the other keeps gating against a scale
 that no longer exists — silently, since 0.6 stays a valid-looking number.
 """
 
+import http.client
 import json
 import os
+import time
+import urllib.error
 import urllib.request
 
 # The scale. Bump MODEL and the calibration below must be re-measured — see
@@ -75,9 +78,49 @@ def api(url, method="GET", body=None, extra=None):
         return json.loads(raw) if raw else None
 
 
+# BaniDB is a public API reached over the open internet, and the calls that
+# need it come AFTER the expensive part of a run.
+BANIDB_TIMEOUT = 20
+BANIDB_TRIES = 4
+
+
 def banidb(path):
-    with urllib.request.urlopen(f"https://api.banidb.com/v2{path}") as r:
-        return json.load(r)
+    """BaniDB, with the retries a call over the open internet needs.
+
+    A bare urlopen was enough until `RemoteDisconnected` arrived on the shabad
+    fetch that follows ASR — 187 transcribed windows of accelerator time thrown
+    away by one closed socket. Transient failures now get a widening pause; a
+    4xx does not, because a shabad id that does not exist will not start
+    existing, and retrying it four times only delays the real message.
+
+    The timeout matters as much as the retry: urlopen without one can hang on a
+    half-open socket indefinitely, which in a nightly run is indistinguishable
+    from a wedged job.
+    """
+    last = None
+    for attempt in range(BANIDB_TRIES):
+        try:
+            with urllib.request.urlopen(f"https://api.banidb.com/v2{path}",
+                                        timeout=BANIDB_TIMEOUT) as r:
+                return json.load(r)
+        # HTTPError first: it subclasses URLError, which subclasses OSError, so
+        # the broad clause below would otherwise swallow every status code.
+        except urllib.error.HTTPError as e:
+            # Rate limiting and server faults are worth waiting out. Anything
+            # else in 4xx is an answer.
+            if e.code != 429 and e.code < 500:
+                raise
+            last = e
+        except (urllib.error.URLError, http.client.HTTPException,
+                TimeoutError, OSError) as e:
+            last = e
+        if attempt < BANIDB_TRIES - 1:
+            pause = 1.5 * (2 ** attempt)
+            print(f"  banidb {path} failed ({last}); retrying in {pause:g}s",
+                  flush=True)
+            time.sleep(pause)
+    raise RuntimeError(
+        f"banidb {path} failed after {BANIDB_TRIES} attempts: {last}")
 
 
 # ── transcript store ─────────────────────────────────────────────────────────
