@@ -13,6 +13,22 @@ import { ref, computed } from 'vue';
 import type { Station } from '@kp/shared/types';
 import { DEFAULT_STATION, stationById, stationPlayable } from '~/lib/stations';
 
+/**
+ * One sung line of a rendition, as the aligner wrote it into `line_timings`.
+ *
+ * `start`/`end` are absolute seconds into the file — the same clock as
+ * `currentTime`, `startSec` and `endSec` — deliberately, so that re-cutting a
+ * segment's boundaries does not invalidate an alignment that cost real work.
+ *
+ * Snake case because this is the jsonb payload verbatim, not a set of columns
+ * `toPlayable` maps; remapping every element of every row would buy nothing.
+ */
+export interface LineTiming {
+  verse_id: number;
+  start: number;
+  end: number;
+}
+
 export interface Playable {
   /** Stable track id — never the URL, which changes when SGPC reorganises. */
   id: string;
@@ -25,6 +41,13 @@ export interface Playable {
   /** BaniDB ids, when the segment has been linked — drives read-along. */
   shabadId?: number | null;
   mainVerseId?: number | null;
+  /**
+   * Per-line timings, sorted by `start`, when this rendition has been aligned
+   * — null for the rest, which is most of the archive. Sparse on purpose: a
+   * gap between entries is alaap, instrumental or katha, where nothing is
+   * being sung and so nothing should be highlighted.
+   */
+  lineTimings?: LineTiming[] | null;
   url: string;
   /** Set for a tagged segment; omitted to play the whole file. */
   startSec?: number;
@@ -128,6 +151,11 @@ export function usePlayer() {
         current.value = item;
         el.src = item.url;
         el.currentTime = item.startSec ?? readResume()[item.id] ?? 0;
+        // Setting el.currentTime at readyState 0 fires no `timeupdate`, so
+        // the reactive mirror would stay 0 until playback starts — and the
+        // lyrics panel, which keys its highlight off it, would show no line
+        // on a paused, restored rendition. Mirror it by hand.
+        currentTime.value = el.currentTime;
       }
     }
   }
@@ -136,7 +164,15 @@ export function usePlayer() {
     if (import.meta.server) return;
     localStorage.setItem(
       QUEUE_KEY,
-      JSON.stringify({ items: queue.value, index: queueIndex.value })
+      JSON.stringify({
+        // Timings are dropped, not carried: a persisted copy never refreshes,
+        // so it would pin whatever the aligner had produced at queue time —
+        // forever, across re-alignments. A restored queue falls back to the
+        // static read-along until its rows are played from a live list again,
+        // which is the pre-timings behavior, not a regression.
+        items: queue.value.map(({ lineTimings, ...rest }) => rest),
+        index: queueIndex.value,
+      })
     );
   }
 
@@ -256,8 +292,14 @@ export function usePlayer() {
     const el = audio.value;
     if (!el) return;
 
-    if (current.value?.id !== item.id || el.src !== item.url) {
-      current.value = item;
+    // Always adopt the incoming row, even when it is the same rendition: a
+    // list row fetched after alignment carries lineTimings the held copy may
+    // lack (a restored queue drops them on purpose). Only the ELEMENT setup
+    // below is guarded — re-pointing src/currentTime on a same-track click
+    // would needlessly restart playback.
+    const sameTrack = current.value?.id === item.id && el.src === item.url;
+    current.value = item;
+    if (!sameTrack) {
       el.src = item.url;
       // A segment starts at its own offset; a whole track resumes where the
       // listener left off — at 70-minute lengths that is essential, not polish.
@@ -266,6 +308,11 @@ export function usePlayer() {
         const resume = readResume()[item.id];
         el.currentTime = item.startSec ?? resume ?? 0;
       }
+      // Mirror immediately: the ref otherwise holds the PREVIOUS file's
+      // position until the first `timeupdate` (~250ms). Timings are absolute
+      // seconds into the file, so that stale value can land inside the new
+      // item's timings and flash-highlight an arbitrary line.
+      currentTime.value = el.currentTime;
     }
     // Before the await: `useSupabaseClient` reads runtime config, and the Nuxt
     // instance context is gone once execution resumes after an await.
@@ -500,6 +547,10 @@ export function toPlayable(s: any): Playable {
     artistPhoto: s.artist_photo ?? null,
     shabadId: s.shabad_id ?? null,
     mainVerseId: s.main_verse_id ?? null,
+    // An array or nothing. The guard covers null, a view that predates the
+    // column, and a payload that came back as a string, in one test — which is
+    // also the test the panel uses to decide whether this rendition is aligned.
+    lineTimings: Array.isArray(s.line_timings) ? s.line_timings : null,
     url: s.url,
     startSec: Number(s.start_sec),
     endSec: Number(s.end_sec),

@@ -1,0 +1,42 @@
+# Nightly: turn scan requests into draft renditions for review.
+#
+# The queue is scan_requests rows with done_at null — written by the button in
+# admin, one per recording a tagger actually wants suggestions for. Deliberately
+# request-driven rather than archive-driven: a suggestion is only useful when a
+# human is about to review it, and scanning all ~thousands of tracks would be
+# ~1,000 CPU-hours of suggestions going stale in the pending queue.
+#
+# Drafts land as status=shabad_linked / source=scan — invisible to the player
+# until a human reviews the boundaries and publishes. This job never publishes.
+name: scan
+on:
+  schedule:
+    - cron: '30 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: packages/aligner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          # Without this every night re-downloads the same 1-2 GB of wheels
+          # (torch, transformers) that changed zero times since the last run.
+          enable-cache: true
+          cache-dependency-glob: packages/aligner/pyproject.toml
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-surt-small-v3
+      - run: uv venv && uv pip install -e .
+      # ~30 CPU-minutes per broadcast on a runner; 3 a night clears a typical
+      # tagging session's requests while staying far inside the job limit.
+      - run: uv run python scan_track.py --from-queue --limit 3
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
