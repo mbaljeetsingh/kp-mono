@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { Trash2, Play, Send, Scissors, Pencil } from 'lucide-vue-next';
+import {
+  Trash2,
+  Play,
+  Send,
+  Scissors,
+  Pencil,
+  ArrowLeftToLine,
+  ArrowRightToLine,
+} from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { fmt } from '~/composables/useTagPlayer';
+import { MIN_LENGTH, fmt } from '~/composables/useTagPlayer';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
@@ -52,6 +60,26 @@ const { data: renditions, refresh } = await useAsyncData(
   }
 );
 
+// What the scan saw but refused to draft — listen-here pointers, not tags.
+// Times are track-clock seconds, so the transport can jump straight there.
+const { data: scanFindings } = await useAsyncData(
+  `scan-findings:${route.params.id}`,
+  async () => {
+    const { data } = await supabase
+      .from('scan_requests')
+      .select('findings')
+      .eq('track_id', route.params.id)
+      .maybeSingle();
+    return (data?.findings ?? []) as {
+      shabad_id: number;
+      name: string;
+      start: number;
+      end: number;
+      confidence: number;
+    }[];
+  }
+);
+
 const { data: canPublish } = await useAsyncData('can-publish', async () => {
   const { data } = await supabase.rpc('is_reviewer');
   return data === true;
@@ -72,6 +100,27 @@ const { data: userId } = await useAsyncData('me', async () => {
 function canEdit(r: any) {
   if (canPublish.value) return true;
   return r.created_by === userId.value && r.status !== 'published';
+}
+
+/**
+ * The list row's second line: shabad link state, plus whatever the status
+ * control cannot say. `source` matters because a scan suggestion earns a
+ * closer look at its boundaries than a human draft — 'manual' is the norm and
+ * saying it on every row would be noise. The exact status shows for reviewers
+ * because their two-state Select collapses everything unpublished to
+ * "Unpublished", hiding the difference between a bare cut and a linked one;
+ * non-reviewers already see it on the badge.
+ */
+function rowMeta(s: any) {
+  return [
+    s.shabad_id
+      ? `shabad #${s.shabad_id}${s.main_verse_id ? ` · verse #${s.main_verse_id}` : ''}`
+      : 'no shabad linked',
+    s.source !== 'manual' ? s.source : null,
+    canPublish.value && s.status !== 'published' ? s.status : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
 // A segment IS the shabad the player shows. Name is the only required field —
@@ -125,6 +174,18 @@ function edit(r: any) {
   formEl.value?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+// Arriving from the review queue lands straight in editing mode: pending.vue
+// links here as /tag/<track>?rendition=<id> so a reviewer starts on the row
+// they clicked — a scan suggestion whose boundaries need checking — rather
+// than hunting for it in the list below. Only rows the UPDATE policy would
+// accept load, for the same reason the edit button hides on the others.
+onMounted(() => {
+  const wanted = route.query.rendition;
+  if (typeof wanted !== 'string') return;
+  const r = (renditions.value ?? []).find((x: any) => x.id === wanted);
+  if (r && canEdit(r)) edit(r);
+});
+
 function cancelEdit() {
   editingId.value = null;
   editing.value = null;
@@ -147,7 +208,6 @@ const canSave = computed(
 
 // Nudging one end must never push it past the other; a tenth is the finest
 // step either control offers, so it is also the smallest legal gap.
-const MIN_LENGTH = 0.1;
 const duration = computed<number | null>(() => {
   const d = player.value?.duration.value;
   return Number.isFinite(d) && d > 0 ? d : null;
@@ -155,9 +215,9 @@ const duration = computed<number | null>(() => {
 
 const at = () => player.value?.currentTime.value ?? 0;
 function markStart() {
-  startSec.value = at();
-  if (endSec.value !== null && endSec.value <= startSec.value)
-    endSec.value = null;
+  const now = at();
+  startSec.value = now;
+  if (endSec.value !== null && endSec.value <= now) endSec.value = null;
 }
 function markEnd() {
   endSec.value = at();
@@ -314,7 +374,12 @@ async function remove(s: any) {
       {{ [track.artist_dir, track.date].filter(Boolean).join(' · ') }}
     </p>
 
-    <TagPlayer ref="transport" :src="track.url" />
+    <TagPlayer
+      ref="transport"
+      v-model:start-sec="startSec"
+      v-model:end-sec="endSec"
+      :src="track.url"
+    />
 
     <div
       ref="formEl"
@@ -454,6 +519,39 @@ async function remove(s: any) {
       <p v-if="message" class="mt-2 text-xs text-amber-400">{{ message }}</p>
     </div>
 
+    <template v-if="scanFindings?.length">
+      <h2
+        class="mt-6 mb-2 text-xs tracking-wide text-muted-foreground uppercase"
+      >
+        Scan pointers ({{ scanFindings.length }})
+      </h2>
+      <!-- The scanner heard these but was not sure enough to draft them —
+           below its confidence/margin gates. They are pointers, not tags:
+           jump there, listen, and tag by ear if it is real. -->
+      <div
+        v-for="f in scanFindings"
+        :key="`${f.shabad_id}-${f.start}`"
+        class="flex items-center gap-3 rounded-md border border-dashed border-border/70 px-3 py-2 text-muted-foreground"
+      >
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 shrink-0"
+          :title="`Listen from ${fmt(f.start, true)}`"
+          @click="player?.seek(Math.max(0, f.start - 5))"
+        >
+          <Play class="size-3.5" />
+        </Button>
+        <span class="min-w-0 flex-1 truncate text-sm">
+          {{ f.name }}
+          <span class="text-[11px]">· shabad #{{ f.shabad_id }}</span>
+        </span>
+        <span class="shrink-0 text-[11px] tabular-nums">
+          {{ fmt(f.start) }}–{{ fmt(f.end) }} · conf {{ f.confidence }}
+        </span>
+      </div>
+    </template>
+
     <h2 class="mt-6 mb-2 text-xs tracking-wide text-muted-foreground uppercase">
       Shabads ({{ renditions?.length ?? 0 }})
     </h2>
@@ -472,14 +570,31 @@ async function remove(s: any) {
       >
         <Play class="size-3.5" />
       </Button>
+      <!-- Checking a saved boundary should not require opening the row for
+           editing: these loop a few seconds either side of the cut, same as
+           the form's "Check cut", but straight from the list. -->
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 text-muted-foreground"
+        title="Play across start"
+        @click.stop="player?.auditionBoundary(Number(s.start_sec))"
+      >
+        <ArrowLeftToLine class="size-3.5" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 text-muted-foreground"
+        title="Play across end"
+        @click.stop="player?.auditionBoundary(Number(s.end_sec))"
+      >
+        <ArrowRightToLine class="size-3.5" />
+      </Button>
       <span class="min-w-0 flex-1">
         <span class="block truncate text-sm">{{ s.name }}</span>
         <span class="block truncate text-[11px] text-muted-foreground">
-          {{
-            s.shabad_id
-              ? `shabad #${s.shabad_id}${s.main_verse_id ? ` · verse #${s.main_verse_id}` : ''}`
-              : 'no shabad linked'
-          }}
+          {{ rowMeta(s) }}
         </span>
       </span>
       <span class="text-xs tabular-nums text-muted-foreground">

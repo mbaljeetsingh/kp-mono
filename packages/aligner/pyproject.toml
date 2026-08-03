@@ -1,0 +1,29 @@
+# Python, in a TypeScript monorepo, on purpose: this package is where the ASR
+# model lives, and the model only exists in the Python ecosystem. Nothing here
+# runs in an app — like the crawler, it runs on cron (or by hand) and talks to
+# Postgres. The apps only ever read the rows it writes.
+[project]
+name = "kp-aligner"
+version = "0.1.0"
+description = "Aligns Gurbani lines to kirtan audio; writes line_timings to Postgres"
+requires-python = ">=3.11"
+dependencies = [
+  "torch",
+  "transformers",
+  "rapidfuzz",
+  "soundfile",
+  "accelerate",
+]
+
+# Flat modules, no package directory — setuptools auto-discovery refuses that
+# layout and produces an EMPTY wheel (dist-info only), so `uv pip install -e .`
+# fails in a clean environment and both nightly workflows would die at the
+# install step. Declaring the modules explicitly is the whole fix. The two
+# scripts are not listed: they are entry points run from this directory, not
+# importable modules.
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["align", "matcher", "runtime"]

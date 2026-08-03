@@ -11,6 +11,8 @@ See [docs/BRD.md](docs/BRD.md), [docs/PRD.md](docs/PRD.md), and
 apps/player/       public listening app — account optional (favorites, playlists)
 apps/admin/        tagging workbench — auth required (SPA)
 packages/crawler/  crawls sgpc.net → JSON → Postgres. Runs on cron, not in an app.
+packages/aligner/  Python: suggests shabads from audio, writes line timings.
+                   Same shape as the crawler — cron or by hand, never in an app.
 packages/shared/   shared types
 supabase/          migrations
 ```
@@ -28,6 +30,32 @@ pnpm --filter @kp/admin  dev --port 3001        # → :3001
 
 `pnpm seed` and `pnpm seed:artists` are the same two steps with the local
 `SECRET_KEY` filled in for you.
+
+## Shabad suggestions and synced lyrics
+
+Two batch jobs turn tagging work into player features, both in
+[packages/aligner](packages/aligner/README.md) (one-time setup:
+`cd packages/aligner && uv venv && uv pip install -e .`):
+
+- **scan** — consumes the *Suggest* queue from admin and drafts which shabads a
+  recording contains, for a human to review and publish.
+- **align** — gives every *published* rendition with a `shabad_id` its per-line
+  timings, which the player's lyrics panel follows during playback.
+
+On the deployed project these run themselves — `.github/workflows/scan.yml` and
+`align.yml` nightly, `crawl.yml` weekly — once `SUPABASE_URL` and
+`SUPABASE_SERVICE_KEY` exist as repo secrets. Locally there is no scheduler on
+purpose (a sleeping laptop makes cron a lie); after a tagging session run
+
+```bash
+pnpm pipeline
+```
+
+which is `pnpm scan && pnpm align` against the local stack, keys filled in the
+same way the seed scripts do it. Publishing is the only human step in the loop:
+nothing a machine wrote reaches a listener without someone reviewing the
+boundaries in the workbench and pressing publish, and nothing gets lyrics
+until it is published.
 
 Nothing about the crawl is committed — `packages/crawler/out` is gitignored, and
 the seeders write to whatever `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` point

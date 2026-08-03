@@ -1,0 +1,41 @@
+# Nightly: give published renditions their line timings.
+#
+# The queue is data — published + shabad_id + line_timings null — so this job
+# has no inputs, no ordering with the other workflows, and is safe to re-run:
+# a crashed night simply leaves rows for the next one. Alignment deliberately
+# waits for publish (verify first, then spend compute); see issue #30.
+#
+# CPU maths: RTF ≈ 2–2.5 on a runner, so --limit 10 bounds the night at
+# roughly 4 hours even if every rendition is a full hour-long set.
+name: align
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    defaults:
+      run:
+        working-directory: packages/aligner
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          # Without this every night re-downloads the same 1-2 GB of wheels
+          # (torch, transformers) that changed zero times since the last run.
+          enable-cache: true
+          cache-dependency-glob: packages/aligner/pyproject.toml
+      # The ASR model is ~500 MB from Hugging Face; cache it or every night
+      # starts with the same download.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-surt-small-v3
+      - run: uv venv && uv pip install -e .
+      - run: uv run python write_timings.py --limit 10
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
