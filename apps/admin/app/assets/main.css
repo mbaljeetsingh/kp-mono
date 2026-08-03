@@ -6,3 +6,25 @@
 /* Shared class strings live in lib/ — without this the utilities they name are
    never generated, and the class lands on the element doing nothing. */
 @source "../lib/**/*.ts";
+
+/*
+ * GurbaniLipi, the legacy Gurmukhi font np-mono types shabads in.
+ *
+ * It is not a Unicode font: it maps ASCII codepoints to Gurmukhi glyphs, so the
+ * roman string "mdmA" renders as ਮਦਮਅ. That is exactly what BaniDB's
+ * first-letter search wants to receive, which is why the shabad search can keep
+ * the tagger's raw keystrokes in the query and still show them Gurmukhi — no
+ * transliteration step in between, and nothing to disagree about.
+ *
+ * Strictly for input. Real Gurmukhi from BaniDB arrives as Unicode, which this
+ * font has no glyphs for.
+ */
+@font-face {
+  font-family: 'gurbanilipi';
+  src: url('./fonts/Gurb_rg.ttf') format('truetype');
+  font-display: swap;
+}
+
+@utility font-gurmukhi {
+  font-family: 'gurbanilipi', sans-serif;
+}

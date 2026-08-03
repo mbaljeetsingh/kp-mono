@@ -28,7 +28,20 @@ const writes = new Map<string, Promise<unknown>>();
 export function useFavorites() {
   const supabase = useSupabaseClient();
   const { user } = useAuth();
-  const localIds = useLocalStorage<string[]>('kp:favorites', []);
+  /**
+   * `initOnMounted` is what keeps hydration quiet.
+   *
+   * Without it useLocalStorage reads storage during setup, so the server
+   * renders every heart empty and the client's FIRST render already has them
+   * filled — a mismatch Vue reports as an error, on every row, for any guest
+   * with saves. Deferring the read to onMounted makes the first client render
+   * agree with the server; the hearts fill a tick later, after hydration, which
+   * is a paint nobody perceives and the only correct order available: the
+   * server cannot know what is in a guest's browser.
+   */
+  const localIds = useLocalStorage<string[]>('kp:favorites', [], {
+    initOnMounted: true,
+  });
 
   const ids = computed(() => (user.value ? remoteIds.value : localIds.value));
 
