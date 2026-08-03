@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
 import { SELECTED_SEGMENT } from '@/lib/segmented';
-import { Clock, Layers } from 'lucide-vue-next';
+import { Clock, Layers, Sparkles } from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
 const route = useRoute();
@@ -90,6 +90,61 @@ watchDebounced(
 function mins(sec: number | null) {
   return sec ? `${Math.round(sec / 60)} min` : '—';
 }
+
+// The scan queue, keyed by track so each row can tell whether it may still
+// ask. Fetched once rather than joined into the recordings view: the table is
+// small — one row per request, ever — and a second query keeps the view SQL
+// untouched. For anyone without the propose permission RLS returns nothing,
+// so the map stays empty and a click gets the refusal as an error instead.
+const { data: scans } = await useAsyncData('scan-requests', async () => {
+  const { data } = await supabase
+    .from('scan_requests')
+    .select('track_id,done_at');
+  const map: Record<string, string | null> = {};
+  for (const r of data ?? []) map[r.track_id] = r.done_at;
+  return map;
+});
+
+/**
+ * 'none' shows the button, 'queued' the waiting state, and 'done' the button
+ * again in its re-request form — a finished scan is an answer, not a dead
+ * end, and yesterday's "nothing found" is worth re-asking after the matcher
+ * improves. The suggestions themselves, if any, sit on the track as
+ * renditions.
+ */
+function scanState(id: string): 'none' | 'queued' | 'done' {
+  const m = scans.value;
+  if (!m || !(id in m)) return 'none';
+  return m[id] === null ? 'queued' : 'done';
+}
+
+const suggestBusy = ref<string | null>(null);
+const suggestError = ref('');
+
+async function suggest(t: any) {
+  suggestError.value = '';
+  suggestBusy.value = t.id;
+  // Upsert, not insert: the same call requests a first scan AND re-requests
+  // one whose earlier run is done (matcher improved, or it found nothing) —
+  // clearing done_at puts the track back in the queue. It also makes a race
+  // benign: two taggers pressing Suggest both land on "queued" instead of the
+  // loser reading a duplicate-key error for a state that isn't an error.
+  // The INSERT policy does not default requested_by, so it is set from the
+  // session; a missing propose permission still refuses outright.
+  const { data: user } = await supabase.auth.getUser();
+  const { error } = await supabase.from('scan_requests').upsert({
+    track_id: t.id,
+    requested_by: user.user?.id,
+    requested_at: new Date().toISOString(),
+    done_at: null,
+  });
+  suggestBusy.value = null;
+  if (error) {
+    suggestError.value = `Couldn't request suggestions: ${error.message}`;
+    return;
+  }
+  if (scans.value) scans.value[t.id] = null;
+}
 </script>
 
 <template>
@@ -143,6 +198,10 @@ function mins(sec: number | null) {
       </ButtonGroup>
     </div>
 
+    <p v-if="suggestError" class="mb-2 text-xs text-amber-400">
+      {{ suggestError }}
+    </p>
+
     <NuxtLink
       v-for="t in list.items.value"
       :key="t.id"
@@ -162,6 +221,38 @@ function mins(sec: number | null) {
           {{ [t.artist_dir, t.date].filter(Boolean).join(' · ') }}
         </span>
       </span>
+      <!-- A quiet side door: ask the nightly scan to draft shabad boundaries
+           for this recording. Secondary on purpose — tagging by ear stays the
+           main act — and the row is a link, so the click must not navigate. -->
+      <Button
+        v-if="scanState(t.id) === 'none'"
+        variant="ghost"
+        size="sm"
+        class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
+        :disabled="suggestBusy === t.id"
+        title="Ask the nightly scan for shabad suggestions — they arrive overnight"
+        @click.stop.prevent="suggest(t)"
+      >
+        <Sparkles class="size-3.5" /> Suggest
+      </Button>
+      <span
+        v-else-if="scanState(t.id) === 'queued'"
+        class="shrink-0 text-[11px] text-muted-foreground/70"
+        title="Suggestions arrive overnight"
+      >
+        queued
+      </span>
+      <Button
+        v-else
+        variant="ghost"
+        size="sm"
+        class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground/70"
+        :disabled="suggestBusy === t.id"
+        title="Scanned already — ask again (the scanner may have improved since)"
+        @click.stop.prevent="suggest(t)"
+      >
+        <Sparkles class="size-3.5" /> Suggest again
+      </Button>
       <span
         v-if="t.renditions"
         class="shrink-0 rounded-full px-2 py-0.5 text-[11px]"
