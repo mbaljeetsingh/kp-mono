@@ -15,6 +15,7 @@
     "scan": "cd packages/aligner && SB_KEY=$(npx supabase status -o json | python3 -c \"import json,sys;print(json.load(sys.stdin)['SECRET_KEY'])\") uv run python scan_track.py --from-queue",
     "pipeline": "pnpm scan && pnpm align",
     "seed:artists": "SUPABASE_SERVICE_KEY=$(npx supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)[\"SECRET_KEY\"])') node --experimental-strip-types packages/crawler/src/seed-artists.ts",
+    "seed:generate": "node --experimental-strip-types packages/crawler/src/make-seed.ts",
     "crawl": "node --experimental-strip-types packages/crawler/src/crawl.ts",
     "crawl:artists": "node --experimental-strip-types packages/crawler/src/crawl-artists.ts",
     "report": "node --experimental-strip-types packages/crawler/src/report.ts",
