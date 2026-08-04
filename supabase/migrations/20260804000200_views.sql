@@ -23,8 +23,7 @@ select
   r.id, r.name, r.start_sec, r.end_sec,
   r.end_sec - r.start_sec as duration_sec,
   r.shabad_id, r.main_verse_id, r.line_timings,
-  r.raag, r.taal, r.instrument, r.play_count,
-  r.source_ref, r.created_at,
+  r.raag, r.taal, r.play_count, r.created_at,
   t.id as track_id, t.url, t.tree,
   -- The rendition's own artist wins; the file's directory is the fallback.
   coalesce(r.artist, t.artist_dir) as artist,
@@ -118,10 +117,12 @@ join shabads sh on sh.id = i.rendition_id;
 -- shabads, not files — an artist with 800 untagged recordings has nothing to
 -- show yet.
 
--- Home grid: artists ranked by how much of them there is to hear.
+-- Home grid: artists ranked by how much of them there is to hear. The first
+-- field is the coalesced artist from `shabads` (a rendition's own override
+-- wins), not necessarily a directory name — hence `artist`, not `artist_dir`.
 create function artist_counts()
 returns table (
-  artist_dir text,
+  artist text,
   shabads bigint,
   photo_path text,
   display_name text

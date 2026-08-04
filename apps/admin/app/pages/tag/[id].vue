@@ -153,6 +153,10 @@ const endSec = ref<number | null>(null);
 const name = ref('');
 const shabadId = ref<number | null>(null);
 const mainVerseId = ref<number | null>(null);
+// Optional musical tags. The player searches and displays raag; taal is
+// recorded for the day something reads it. Neither gates saving.
+const raag = ref('');
+const taal = ref('');
 const busy = ref(false);
 const message = ref('');
 
@@ -221,6 +225,8 @@ function edit(r: any) {
   name.value = r.name;
   shabadId.value = r.shabad_id;
   mainVerseId.value = r.main_verse_id;
+  raag.value = r.raag ?? '';
+  taal.value = r.taal ?? '';
   message.value = '';
   // The form is above the list, and the list can run long — without this, a
   // click on the tenth row looks like it did nothing.
@@ -247,6 +253,8 @@ function cancelEdit() {
   name.value = '';
   shabadId.value = null;
   mainVerseId.value = null;
+  raag.value = '';
+  taal.value = '';
   autoFilled.value = '';
   suggestedName.value = '';
 }
@@ -441,6 +449,8 @@ async function save(publish = false) {
         name: name.value.trim(),
         shabad_id: shabadId.value,
         main_verse_id: mainVerseId.value,
+        raag: raag.value.trim() || null,
+        taal: taal.value.trim() || null,
         ...(publish && canPublish.value ? { status: 'published' } : {}),
       })
       .eq('id', editingId.value)
@@ -467,6 +477,8 @@ async function save(publish = false) {
     name: name.value.trim(),
     shabad_id: shabadId.value,
     main_verse_id: mainVerseId.value,
+    raag: raag.value.trim() || null,
+    taal: taal.value.trim() || null,
     status: publish && canPublish.value ? 'published' : 'segmented',
     source: 'manual',
     created_by: user.user?.id,
@@ -484,6 +496,8 @@ async function save(publish = false) {
   name.value = '';
   shabadId.value = null;
   mainVerseId.value = null;
+  raag.value = '';
+  taal.value = '';
   // Both belong to the name that was just saved. Left behind, the anchor-line
   // hint keeps offering a swap for a shabad this form no longer has.
   autoFilled.value = '';
@@ -840,6 +854,34 @@ const lengthLabel = computed(() => {
               use as name
             </Button>
           </p>
+          <!-- Optional by design: neither gates saving, and most taggers skip
+               them. Raag shows up in the player's search and rows. -->
+          <div class="mt-3 flex flex-wrap gap-3">
+            <div class="w-40">
+              <Label for="shabad-raag" class="text-[11px] text-muted-foreground"
+                >Raag — optional</Label
+              >
+              <Input
+                id="shabad-raag"
+                v-model="raag"
+                placeholder="e.g. Asa"
+                class="mt-1 bg-card"
+                @keyup.enter="save(false)"
+              />
+            </div>
+            <div class="w-40">
+              <Label for="shabad-taal" class="text-[11px] text-muted-foreground"
+                >Taal — optional</Label
+              >
+              <Input
+                id="shabad-taal"
+                v-model="taal"
+                placeholder="e.g. Teentaal"
+                class="mt-1 bg-card"
+                @keyup.enter="save(false)"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

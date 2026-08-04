@@ -70,7 +70,7 @@ grant select on profiles to authenticated;
 -- row but not this column", and a whole-table UPDATE grant once let any
 -- contributor PATCH themselves to trust='admin' (verified exploitable).
 -- Trust moves only through set_trust().
-grant update (display_name, tasks) on profiles to authenticated;
+grant update (display_name) on profiles to authenticated;
 grant all on profiles to service_role;
 
 -- ── artists ───────────────────────────────────────────────────────────────
@@ -293,7 +293,6 @@ grant execute on function artist_directory()    to anon, authenticated;
 grant execute on function register_play(uuid)   to anon, authenticated;
 
 grant execute on function authorize(app_permission)       to authenticated;
-grant execute on function is_reviewer()                   to authenticated;
 grant execute on function set_trust(uuid, trust_level)    to authenticated;
 grant execute on function set_role_permission(trust_level, app_permission, boolean) to authenticated;
 grant execute on function contribution_stats(uuid)        to authenticated;
