@@ -23,10 +23,9 @@ create extension if not exists pg_trgm with schema extensions;
 
 create type source_tree as enum ('ragiwise', 'puratan', 'daywise');
 
--- Trust is a single earned ladder; task preference is a separate multi-select
--- that routes work and grants nothing. Conflating them is what made an
--- earlier five-role design heavy for no benefit. `blocked` exists so abuse
--- can be stopped short of deleting the account.
+-- Trust is a single earned ladder — an earlier five-role design that mixed
+-- capability with work routing was heavy for no benefit. `blocked` exists so
+-- abuse can be stopped short of deleting the account.
 create type trust_level as enum ('blocked', 'contributor', 'trusted', 'reviewer', 'admin');
 
 create type rendition_status as enum (
@@ -102,8 +101,6 @@ create table profiles (
   id           uuid primary key references auth.users on delete cascade,
   display_name text,
   trust        trust_level not null default 'contributor',
-  -- Free-form so new workbench modes don't need a migration.
-  tasks        text[] not null default '{}',
   created_at   timestamptz not null default now()
 );
 
@@ -152,7 +149,6 @@ create table renditions (
   shabad_id   int,
   raag        text,
   taal        text,
-  instrument  text,
 
   -- The public app reads `published` only, so partial work never leaks.
   status      rendition_status not null default 'draft',
@@ -172,9 +168,6 @@ create table renditions (
   -- directory. A set can feature a second ragi partway through, and future
   -- sources may have no directory at all.
   artist      text,
-  -- Where this rendition came from, so a non-SGPC source is a value rather
-  -- than a schema change.
-  source_ref  text,
 
   -- People recognise a kirtan rendition by its rahao (the refrain the ragi
   -- returns to), not by the shabad's first line.

@@ -92,8 +92,8 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
         <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           <ArtistCard
             v-for="a in artists.slice(0, 12)"
-            :key="a.artist_dir"
-            :name="a.artist_dir"
+            :key="a.artist"
+            :name="a.artist"
             :display="a.display_name"
             :photo="a.photo_path"
             :count="a.shabads"

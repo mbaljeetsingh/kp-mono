@@ -37,14 +37,6 @@ language sql stable security definer set search_path = '' as $$
   );
 $$;
 
--- Legacy alias retained from before the permission matrix existed; reads
--- through it now. Nothing in the apps calls it any more — candidate for
--- removal once confirmed dead.
-create function is_reviewer() returns boolean
-language sql stable security definer set search_path = '' as $$
-  select public.authorize('renditions.review');
-$$;
-
 -- Trust changes go through a definer function that `users.manage` alone may
 -- call, so promotion is never a plain table write.
 create function set_trust(target uuid, level trust_level)
