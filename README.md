@@ -22,21 +22,44 @@ supabase/          migrations
 ```bash
 pnpm install
 npx supabase start                              # Postgres + Auth + Studio
-node --experimental-strip-types packages/crawler/src/crawl.ts         # ~11 min
-node --experimental-strip-types packages/crawler/src/crawl-artists.ts # photos
-node --experimental-strip-types packages/crawler/src/seed.ts          # tracks
-node --experimental-strip-types packages/crawler/src/seed-artists.ts  # photos
 pnpm --filter @kp/player dev                    # → :3000
 pnpm --filter @kp/admin  dev --port 3001        # → :3001
 ```
 
-The two crawl steps come first and are easy to miss: the seeders read
-`out/crawl.json` and `out/artists.json`, neither of which exists in a fresh
-clone, so seeding before crawling fails on a missing file. A committed seed file
-would remove that wait entirely — see #27.
+That is the whole first run: a committed seed (`supabase/seed.sql`, issue #27)
+is applied automatically after migrations, so a fresh clone gets a working
+player and tagging queue with no network access — ~430 tracks sampled across
+all three source trees, every artist, a handful of published shabads (some
+with synced lyrics), and two accounts for testing the permission split:
 
-`pnpm seed` and `pnpm seed:artists` are the same two steps with the local
-`SECRET_KEY` filled in for you.
+| account                  | password      | trust         |
+| ------------------------ | ------------- | ------------- |
+| `admin@kirtan.com`       | `password123` | `admin`       |
+| `contributor@kirtan.com` | `password123` | `contributor` |
+
+The same seed makes `supabase db reset` cheap — reset, and the sample is back.
+Artist photos are seeded as paths only (the images are not in git); tiles fall
+back to gradients until `pnpm seed:artists` fetches them.
+
+### The full catalogue
+
+The seed is a sample. For all 49k tracks, crawl and load:
+
+```bash
+node --experimental-strip-types packages/crawler/src/crawl.ts         # ~11 min
+node --experimental-strip-types packages/crawler/src/crawl-artists.ts # photos
+node --experimental-strip-types packages/crawler/src/seed.ts          # tracks
+node --experimental-strip-types packages/crawler/src/seed-artists.ts  # photos
+```
+
+The two crawl steps come first: the seeders read `out/crawl.json` and
+`out/artists.json`, neither of which exists in a fresh clone. `pnpm seed` and
+`pnpm seed:artists` are the same two steps with the local `SECRET_KEY` filled
+in for you.
+
+Regenerate the committed seed with `pnpm seed:generate` whenever the schema
+moves or the sample should refresh — it samples a database holding a full
+crawl (and refuses to run against one that doesn't).
 
 ## Shabad suggestions and synced lyrics
 
