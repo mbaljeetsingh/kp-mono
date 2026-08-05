@@ -16,7 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '../out');
 const BUCKET = 'artist-photos';
 
-const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
+const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54521';
 const KEY = process.env.SUPABASE_SERVICE_KEY;
 if (!KEY) {
   console.error(

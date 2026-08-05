@@ -19,7 +19,7 @@ export default defineNuxtConfig({
   vite: { plugins: [tailwindcss()] },
   runtimeConfig: {
     public: {
-      supabaseUrl: process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321',
+      supabaseUrl: process.env.SUPABASE_URL ?? 'http://127.0.0.1:54521',
       supabaseKey: process.env.SUPABASE_KEY ?? '',
       // Same-origin in dev (see routeRules), straight to banidb in production.
       banidbApiBaseUrl:
