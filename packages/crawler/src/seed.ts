@@ -42,7 +42,7 @@ const MAX_DROP = 0.1;
 /** A crawl this broken must not be trusted to say what the catalogue contains. */
 const MAX_ERRORS = 50;
 
-const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
+const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54521';
 // Never defaulted: the service role bypasses RLS, so a key baked into the repo
 // is a key that outlives the machine that generated it.
 const KEY = process.env.SUPABASE_SERVICE_KEY;

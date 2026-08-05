@@ -46,7 +46,7 @@ const OUT = join(
 
 const DB_URL =
   process.env.SEED_DB_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+  'postgresql://postgres:postgres@127.0.0.1:54522/postgres';
 
 /** Bypasses the "is this a full crawl" guard below. */
 const FORCE = process.argv.includes('--force');

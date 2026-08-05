@@ -26,7 +26,7 @@ GEN = {"language": "punjabi", "task": "transcribe",
 MIN_CONFIDENCE = 0.60
 
 SR = 16000
-SB = os.environ.get("SB_URL", "http://127.0.0.1:54321/rest/v1")
+SB = os.environ.get("SB_URL", "http://127.0.0.1:54521/rest/v1")
 
 _pipe = None
 
