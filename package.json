@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "prettier": "^3.9.6",
-    "supabase": "^2.111.0",
+    "supabase": "^2.113.0",
     "turbo": "^2.10.8"
   },
   "dependencies": {
