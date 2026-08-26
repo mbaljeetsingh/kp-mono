@@ -17,6 +17,10 @@ cd packages/aligner
 uv venv && uv pip install -e .
 ```
 
+`ffmpeg` must be on `PATH` too — both scripts shell out to it to decode audio,
+and it is not a Python dependency, so `uv` will not bring it. `brew install
+ffmpeg` locally; the workflows apt-install it on the runner.
+
 First run downloads the ASR model (~500 MB) from Hugging Face
 ([surindersinghssj/surt-small-v3](https://huggingface.co/surindersinghssj/surt-small-v3),
 Apache-2.0). Audio is fetched from sgpc.net server-side — the browser can't

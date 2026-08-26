@@ -33,6 +33,14 @@ jobs:
         with:
           path: ~/.cache/huggingface
           key: hf-surt-small-v3
+      # Both aligner scripts decode audio by shelling out to ffmpeg, and the
+      # runner image does not carry it — the scan failed with a bare
+      # "No such file or directory: 'ffmpeg'" and, because a failed track is
+      # deliberately left queued for retry, every request stayed pending with
+      # nothing to show for it. Declared here because nothing else declares it:
+      # it is not a Python dependency, so uv cannot install it.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
       - run: uv venv && uv pip install -e .
       # ~30 CPU-minutes per broadcast on a runner; 3 a night clears a typical
       # tagging session's requests while staying far inside the job limit.
