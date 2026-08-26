@@ -56,8 +56,9 @@ export default defineNuxtConfig({
   // on distinct hosts so the collision could not happen. That was wrong, and
   // it broke production: the HTTP cache is keyed by URL and partitioned by
   // registrable domain, and player.<domain> and admin.<domain> share one.
-  // Observed on kirtanplayer.beejaysoft.com, refused with an allow-origin of
-  // admin.kirtanplayer.beejaysoft.com.
+  // Observed in production: the player's fetch was refused with an
+  // allow-origin naming the admin's host, because a shared parent domain puts
+  // both subdomains in one cache partition.
   //
   // Proxying makes the browser call this origin while Nitro fetches banidb
   // server-side, where CORS does not apply — and it gives each app its own
