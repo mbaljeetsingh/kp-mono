@@ -5,3 +5,5 @@ node_modules
 .turbo
 packages/crawler/out
 .worktree-setup-done
+dist
+.netlify

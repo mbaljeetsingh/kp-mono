@@ -7,6 +7,8 @@
     "dev:player": "turbo dev --filter=@kp/player",
     "dev:admin": "turbo dev --filter=@kp/admin",
     "build": "turbo build",
+    "build:player": "turbo build --filter=@kp/player",
+    "build:admin": "turbo build --filter=@kp/admin",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",

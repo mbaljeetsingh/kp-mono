@@ -1,5 +1,20 @@
 import tailwindcss from '@tailwindcss/vite';
 
+// A Netlify build must never fall through to the local defaults below. With a
+// missing or misnamed site env var the build otherwise goes green and bakes
+// `127.0.0.1:54521` and an empty key into the client bundle — admin is
+// `ssr: false`, so there is no server left to substitute the real values at
+// request time — and every visitor's browser then quietly queries its own
+// localhost. Fail the build instead of shipping that.
+if (
+  process.env.NETLIFY &&
+  (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY)
+) {
+  throw new Error(
+    'SUPABASE_URL and SUPABASE_KEY must be set on the Netlify site; refusing to build with the local defaults.',
+  );
+}
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-07-31',
   devtools: { enabled: true },

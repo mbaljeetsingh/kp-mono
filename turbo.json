@@ -1,5 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["SUPABASE_URL", "SUPABASE_KEY", "NETLIFY"],
+  // shared-theme/theme.css is imported by both apps' assets/main.css but lives
+  // outside every pnpm-workspace glob, so turbo's per-package hash cannot see
+  // it — without this, editing the theme replays a cached build with the old
+  // one baked in.
+  "globalDependencies": ["shared-theme/**", ".nvmrc"],
   "tasks": {
     "dev": {
       "cache": false,
@@ -7,7 +13,12 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".output/**", ".nuxt/**"]
+      // .env is gitignored, so it is absent from the default input hash, and
+      // nuxi (not the shell) loads it — turbo's env hash never sees those
+      // values either. Listing it explicitly keeps a local `.env` edit from
+      // replaying a stale bundle with the previous Supabase URL in it.
+      "inputs": ["$TURBO_DEFAULT$", ".env"],
+      "outputs": [".output/**", ".nuxt/**", "dist/**", ".netlify/**"]
     }
   }
 }
