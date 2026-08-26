@@ -15,6 +15,38 @@
 
 export type SourceTree = 'ragiwise' | 'puratan' | 'daywise';
 
+/**
+ * The trust ladder, mirroring the `trust_level` enum in the schema.
+ *
+ * One earned ladder, cumulative: each rung holds what the one below it holds
+ * and more. `blocked` exists so abuse can be stopped short of deleting the
+ * account, and it deliberately holds no capabilities at all — absence of every
+ * grant IS the block.
+ */
+export type TrustLevel =
+  | 'blocked'
+  | 'contributor'
+  | 'trusted'
+  | 'reviewer'
+  | 'admin';
+
+/**
+ * The rungs a person can actually be moved between, in ladder order.
+ *
+ * `blocked` is absent on purpose: it is a state to put someone in, not a column
+ * to grant capabilities to, and a permission matrix that offered it would be
+ * offering cells whose only correct value is empty. Lives here rather than in
+ * each page because it was written out twice already — the users list and the
+ * permission matrix — and a rung added to one copy but not the other is
+ * invisible: the matrix simply renders no column for it.
+ */
+export const TRUST_LADDER = [
+  'contributor',
+  'trusted',
+  'reviewer',
+  'admin',
+] as const satisfies readonly TrustLevel[];
+
 /** A file as it exists on sgpc.net. One row per URL. */
 export interface Track {
   /** Stable id: sha1 of `url`. */

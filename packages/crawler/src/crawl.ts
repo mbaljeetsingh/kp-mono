@@ -26,6 +26,7 @@ const TREES = {
 
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '../out');
 const RATE_MS = 1000;
+const MAX_ATTEMPTS = 4;
 const SAMPLE = process.argv.includes('--sample');
 /** Seed anyway when a whole tree came back empty — see the guard in main(). */
 const ALLOW_PARTIAL = process.argv.includes('--allow-partial');
@@ -48,6 +49,21 @@ function safeDecode(value) {
   }
 }
 
+/**
+ * Statuses worth waiting out rather than recording as an answer.
+ *
+ * 403 is the important one, and it used to be missing: this file's own comment
+ * has always named "Cloudflare 429/403" as the failure to survive, but only 429
+ * and 5xx ever reached the retry branch — a 403 fell straight through to
+ * `return null`. That is precisely how SGPC refuses a datacentre IP, and it is
+ * a cool-down, not a verdict: on the run that lost ragiwise, puratan and
+ * daywise fetched fine from the same runner seconds later. ragiwise's only
+ * distinction was going first (see main), so it alone met the WAF cold and had
+ * its one chance spent.
+ */
+const RETRYABLE = new Set([403, 408, 425, 429]);
+const isRetryable = (status) => RETRYABLE.has(status) || status >= 500;
+
 /** Rate-limited GET with retry. Cloudflare 429/403 is the failure to survive. */
 async function get(url, attempt = 0) {
   await sleep(RATE_MS);
@@ -57,16 +73,19 @@ async function get(url, attempt = 0) {
       headers: { 'user-agent': UA, accept: 'text/html,*/*' },
       signal: AbortSignal.timeout(45_000),
     });
-    if (res.status === 429 || res.status >= 500)
-      throw new Error(`HTTP ${res.status}`);
+    if (isRetryable(res.status)) throw new Error(`HTTP ${res.status}`);
     if (!res.ok) {
       errors.push({ url, message: `HTTP ${res.status}` });
       return null;
     }
     return await res.text();
   } catch (err) {
-    if (attempt < 3) {
-      await sleep(5000 * (attempt + 1));
+    if (attempt < MAX_ATTEMPTS) {
+      // A WAF cool-down is slower than a rate limit, so the wait is generous:
+      // 10s, 20s, 40s, 80s. Four idle minutes on the worst path is nothing
+      // against re-running an 11-minute crawl, and the whole point is to still
+      // be trying when the door reopens.
+      await sleep(10_000 * 2 ** attempt);
       return get(url, attempt + 1);
     }
     errors.push({ url, message: String(err?.message ?? err) });
@@ -144,7 +163,17 @@ function makeTrack({
 async function crawlArtistTree(tree, baseUrl, now) {
   const tracks = [];
   const indexHtml = await get(baseUrl);
-  if (!indexHtml) return tracks;
+  // Not `return tracks`. A root listing that never arrived is the difference
+  // between "this tree is empty" and "we never saw this tree", and returning
+  // an empty array silently — before even the artist-count log — made those
+  // indistinguishable. That is how a run once reported 7,960 tracks as a
+  // complete archive with ragiwise, 84% of it, simply absent from the output.
+  if (!indexHtml) {
+    throw new Error(
+      `${tree}: root listing ${baseUrl} could not be fetched after ` +
+        `${MAX_ATTEMPTS + 1} attempts — refusing to report the tree as empty.`
+    );
+  }
 
   let artists = parseListing(indexHtml, baseUrl).dirs;
   if (SAMPLE) artists = artists.slice(0, 3);
@@ -188,7 +217,14 @@ async function crawlArtistTree(tree, baseUrl, now) {
 async function crawlDayTree(now) {
   const tracks = [];
   const rootHtml = await get(TREES.daywise);
-  if (!rootHtml) return tracks;
+  // Same reasoning as crawlArtistTree: an unfetched root is a failure, not an
+  // empty tree.
+  if (!rootHtml) {
+    throw new Error(
+      `daywise: root listing ${TREES.daywise} could not be fetched after ` +
+        `${MAX_ATTEMPTS + 1} attempts — refusing to report the tree as empty.`
+    );
+  }
 
   let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) =>
     /^\d{4}$/.test(d)

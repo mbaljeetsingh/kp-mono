@@ -59,28 +59,53 @@ const searchTerm = computed(() => {
   return t.length > 1 ? t : '';
 });
 
-const list = useInfiniteList<any>(async (from, to) => {
-  let query = supabase.from('recordings').select('*');
-  if (filter.value === 'todo') query = query.eq('renditions', 0);
-  else if (filter.value === 'started')
-    query = query.gt('renditions', 0).eq('published', 0);
-  else if (filter.value === 'done') query = query.gt('published', 0);
+/**
+ * How many recordings this shelf holds, which the infinite list cannot say:
+ * it only knows what it has scrolled to. Same filters as the query below and
+ * nothing else — `head: true` asks Postgres to count without shipping a single
+ * row, so the answer costs no bandwidth against a 49,000-track catalogue.
+ */
+function applyShelf(query: any) {
+  if (filter.value === 'todo') return query.eq('renditions', 0);
+  if (filter.value === 'started')
+    return query.gt('renditions', 0).eq('published', 0);
+  if (filter.value === 'done') return query.gt('published', 0);
+  return query;
+}
+
+/**
+ * The filename as well as the artist: `title` is null for almost every
+ * recording, so the filename is the only place the date and the slot
+ * ("5.35pm to 6.10pm") are written — and that is how a tagger looks for the one
+ * recording somebody asked them about.
+ *
+ * Commas and parentheses have to go — they delimit PostgREST's `or` list — and
+ * they become wildcards rather than spaces, because a space is a character the
+ * filename would then have to match in that exact position. Real filenames are
+ * full of parentheses ("(5.35pm to 6.10pm)"), so pasting one in has to keep
+ * working; every other character, dots included, is safe inside a value.
+ */
+function applySearch(query: any) {
   const term = searchTerm.value;
-  if (term) {
-    // The filename as well as the artist: `title` is null for almost every
-    // recording, so the filename is the only place the date and the slot
-    // ("5.35pm to 6.10pm") are written — and that is how a tagger looks for the
-    // one recording somebody asked them about.
-    //
-    // Commas and parentheses have to go — they delimit PostgREST's `or` list —
-    // and they become wildcards rather than spaces, because a space is a
-    // character the filename would then have to match in that exact position.
-    // Real filenames are full of parentheses ("(5.35pm to 6.10pm)"), so pasting
-    // one in has to keep working; every other character, dots included, is safe
-    // inside a value.
-    const safe = term.replace(/[(),]/g, '*');
-    query = query.or(`artist_dir.ilike.*${safe}*,raw_filename.ilike.*${safe}*`);
+  if (!term) return query;
+  const safe = term.replace(/[(),]/g, '*');
+  return query.or(`artist_dir.ilike.*${safe}*,raw_filename.ilike.*${safe}*`);
+}
+
+const { data: total, refresh: refreshTotal } = await useAsyncData(
+  'recordings-count',
+  async () => {
+    const { count } = await applySearch(
+      applyShelf(supabase.from('recordings').select('*', { count: 'exact', head: true }))
+    );
+    return count ?? 0;
   }
+);
+
+const list = useInfiniteList<any>(async (from, to) => {
+  // Same shelf and same search as the count above, from one definition each —
+  // a header that disagrees with the list under it is worse than no header.
+  let query = applySearch(applyShelf(supabase.from('recordings').select('*')));
   query =
     sort.value === 'shortest'
       ? // Nulls last: puratan carries no slot, and an unknown length is a
@@ -111,6 +136,7 @@ watchDebounced(
 
     list.reset();
     list.loadMore();
+    refreshTotal();
   },
   { debounce: 50 }
 );
@@ -222,7 +248,15 @@ async function suggest(t: any) {
 
 <template>
   <div>
-    <h1 class="mb-1 text-xl font-semibold">Recordings</h1>
+    <!-- The count sits with the heading, as it does on Users. It is the shelf's
+         size, not the scroll position: the list below loads a page at a time and
+         has no idea how much is behind it. -->
+    <h1 class="mb-1 text-xl font-semibold">
+      Recordings
+      <span class="text-sm font-normal text-muted-foreground">
+        ({{ (total ?? 0).toLocaleString() }})
+      </span>
+    </h1>
     <p class="mb-4 text-sm text-muted-foreground">
       Mark where each shabad starts and ends. A name is all that's required.
     </p>
