@@ -36,12 +36,29 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  *  that could escape the directory has to go. */
 const safeName = (name) => name.replace(/[^\w \-.]/g, '_').trim();
 
-async function fetchRoster() {
-  const res = await fetch(ROSTER, {
-    headers: { 'user-agent': UA },
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!res.ok) throw new Error(`roster: HTTP ${res.status}`);
+/**
+ * Retried like crawl.ts's get(), and for the same reason: SGPC refuses
+ * datacentre IPs intermittently, and that is a cool-down, not a verdict. This
+ * was the one un-retried request left in the crawler, and it sits in a step
+ * that runs *after* tracks have already crawled and seeded — so a single blip
+ * here used to turn the whole weekly workflow red and skip photos entirely,
+ * rather than costing one retry.
+ */
+async function fetchRoster(attempt = 0) {
+  let res;
+  try {
+    res = await fetch(ROSTER, {
+      headers: { 'user-agent': UA },
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!res.ok) throw new Error(`roster: HTTP ${res.status}`);
+  } catch (err) {
+    if (attempt < 3) {
+      await sleep(10_000 * 2 ** attempt);
+      return fetchRoster(attempt + 1);
+    }
+    throw err;
+  }
   const body = await res.text();
   // The response is a JSON envelope whose `html` holds a script tag with the
   // roster array inline; the entries are matched directly rather than trying

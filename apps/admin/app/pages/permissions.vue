@@ -17,16 +17,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lock, LockOpen } from 'lucide-vue-next';
+// The ladder comes from @kp/shared, which mirrors the trust_level enum —
+// `blocked` is excluded there, for the reason documented alongside it.
+import { TRUST_LADDER, type TrustLevel } from '@kp/shared/types';
 
 const supabase = useSupabaseClient();
 const { canManageUsers } = await useMyPermissions();
 
-// `blocked` is deliberately absent. The schema's rule is that absence of a
-// grant IS the block, so a row on that rung would contradict the level's whole
-// meaning — and the matrix should not offer a cell whose only correct state is
-// empty.
-const LEVELS = ['contributor', 'trusted', 'reviewer', 'admin'] as const;
-type Level = (typeof LEVELS)[number];
+
 
 /**
  * Read from the enum rather than a list kept here: a capability added by a
@@ -50,7 +48,7 @@ const held = computed(() => {
   return s;
 });
 
-function has(role: Level, permission: string) {
+function has(role: TrustLevel, permission: string) {
   return held.value.has(`${role}|${permission}`);
 }
 
@@ -60,7 +58,7 @@ function has(role: Level, permission: string) {
  * from everyone — so disabling it here just declines to offer a click that ends
  * in an exception.
  */
-function locked(role: Level, permission: string) {
+function locked(role: TrustLevel, permission: string) {
   return role === 'admin' && permission === 'users.manage';
 }
 
@@ -78,7 +76,7 @@ const isEditing = ref(false);
 const busy = ref<string | null>(null);
 const error = ref('');
 
-async function toggle(role: Level, permission: string) {
+async function toggle(role: TrustLevel, permission: string) {
   if (locked(role, permission)) return;
   const cell = `${role}|${permission}`;
   busy.value = cell;
@@ -153,7 +151,7 @@ async function toggle(role: Level, permission: string) {
           <tr class="border-b border-border bg-muted/30">
             <th class="px-3 py-2 text-left font-medium">Capability</th>
             <th
-              v-for="l in LEVELS"
+              v-for="l in TRUST_LADDER"
               :key="l"
               class="px-3 py-2 text-center font-medium capitalize"
             >
@@ -170,7 +168,7 @@ async function toggle(role: Level, permission: string) {
             <td class="px-3 py-2">
               <code class="text-xs text-foreground">{{ p }}</code>
             </td>
-            <td v-for="l in LEVELS" :key="l" class="px-3 py-2 text-center">
+            <td v-for="l in TRUST_LADDER" :key="l" class="px-3 py-2 text-center">
               <div class="flex justify-center">
                 <Checkbox
                   :model-value="has(l, p)"

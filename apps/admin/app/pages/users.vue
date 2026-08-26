@@ -4,6 +4,11 @@ import { Input } from '@/components/ui/input';
 import { NativeSelect } from '@/components/ui/native-select';
 // Explicit: @vueuse/nuxt auto-imports the composables, not the plain helpers.
 import { formatTimeAgo } from '@vueuse/core';
+// One earned ladder, from @kp/shared so this page and the permission matrix
+// cannot disagree about what the rungs are. Task preference is separate and
+// multi-select — it routes work and grants nothing, which is why it isn't
+// edited here.
+import { TRUST_LADDER } from '@kp/shared/types';
 const supabase = useSupabaseClient();
 
 // `admin_users()` rather than a `profiles` select: the email is the only handle
@@ -33,12 +38,10 @@ const { data: people, refresh } = await useAsyncData(
 // show them this control.
 const { canManageUsers } = await useMyPermissions();
 
-// One earned ladder. Task preference is separate and multi-select — it routes
-// work and grants nothing, which is why it isn't edited here.
-const LEVELS = ['contributor', 'trusted', 'reviewer', 'admin'] as const;
+
 
 /** What each rung adds, mirroring role_permissions. */
-const GRANTS: Record<(typeof LEVELS)[number], string> = {
+const GRANTS: Record<(typeof TRUST_LADDER)[number], string> = {
   contributor: 'propose shabads',
   trusted: '+ publish their own',
   reviewer: '+ publish, edit and delete anyone’s',
@@ -64,7 +67,7 @@ function joined(iso: string) {
 // small request and already loaded, so a round trip per keystroke would buy
 // nothing. Worth revisiting past a few hundred accounts.
 const q = ref('');
-const levelFilter = ref<'all' | (typeof LEVELS)[number]>('all');
+const levelFilter = ref<'all' | (typeof TRUST_LADDER)[number]>('all');
 
 const shown = computed(() => {
   const term = q.value.trim().toLowerCase();
@@ -119,7 +122,7 @@ async function setTrust(person: any, trust: string) {
     <dl
       class="mb-5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground"
     >
-      <div v-for="l in LEVELS" :key="l" class="flex gap-1.5">
+      <div v-for="l in TRUST_LADDER" :key="l" class="flex gap-1.5">
         <dt class="text-foreground">{{ l }}</dt>
         <dd class="text-muted-foreground/70">{{ GRANTS[l] }}</dd>
       </div>
@@ -141,7 +144,7 @@ async function setTrust(person: any, trust: string) {
       </div>
       <NativeSelect v-model="levelFilter" class="w-auto bg-card text-xs">
         <option value="all">All levels</option>
-        <option v-for="l in LEVELS" :key="l" :value="l">{{ l }}</option>
+        <option v-for="l in TRUST_LADDER" :key="l" :value="l">{{ l }}</option>
       </NativeSelect>
     </div>
 
@@ -177,7 +180,7 @@ async function setTrust(person: any, trust: string) {
         :aria-label="`Trust level for ${p.email || p.id}`"
         @update:model-value="(v) => setTrust(p, String(v))"
       >
-        <option v-for="l in LEVELS" :key="l" :value="l">{{ l }}</option>
+        <option v-for="l in TRUST_LADDER" :key="l" :value="l">{{ l }}</option>
       </NativeSelect>
       <span v-else class="text-xs text-muted-foreground">{{ p.trust }}</span>
     </div>
