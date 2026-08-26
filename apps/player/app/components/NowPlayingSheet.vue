@@ -66,6 +66,11 @@ const DISMISS_PX = 110;
 const dragY = ref(0);
 
 function dismissDrag(down: PointerEvent) {
+  // Capturing the pointer makes every later event for it — `click` included —
+  // fire at the capturing element, so a press that started on the chevron never
+  // reached the chevron: the sheet's one visible close control did nothing.
+  // Anything interactive in this band handles its own press.
+  if ((down.target as HTMLElement).closest('button, a')) return;
   const el = down.currentTarget as HTMLElement;
   el.setPointerCapture(down.pointerId);
   const from = down.clientY;
@@ -104,9 +109,9 @@ function dismissDrag(down: PointerEvent) {
       class="fixed inset-0 z-50 flex flex-col overflow-y-auto overscroll-contain bg-background outline-none md:hidden"
       :style="dragY ? { transform: `translateY(${dragY}px)` } : undefined"
     >
-      <!-- Handle and header are one drag surface: a thumb aiming for a 4px
-           grip lands somewhere in this band, and everything in it either
-           dismisses the sheet or is a button that stops the event itself. -->
+      <!-- Handle and header are one drag surface: a thumb aiming for a 4px grip
+           lands somewhere in this band, so the whole band answers the gesture —
+           except over the chevron, which `dismissDrag` leaves alone. -->
       <div class="shrink-0 touch-none" @pointerdown="dismissDrag">
         <div
           class="mx-auto mt-2.5 h-1 w-10 rounded-full bg-muted-foreground/40"

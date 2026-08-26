@@ -24,13 +24,21 @@ const showSheet = ref(false);
 // does. Only there: on desktop the bar already carries the whole transport,
 // and a target that does something at one width and nothing at another should
 // not advertise itself at both.
-const isPhone = useMediaQuery('(max-width: 767px)');
+// In rem, because that is the unit `md:` resolves against (48rem). Pinning it
+// to 767px instead would let the phone layout render while this stayed false —
+// leaving the full-screen player unreachable — for anyone whose root font is
+// not 16px.
+const isPhone = useMediaQuery('(max-width: 47.999rem)');
 watch(isPhone, (phone) => {
   if (!phone) showSheet.value = false;
 });
 
+/** Whether tapping the title area does anything — and so whether it should
+ *  announce itself as a control at all. */
+const canExpand = computed(() => isPhone.value && !!player.current.value);
+
 function expand() {
-  if (isPhone.value && player.current.value) showSheet.value = true;
+  if (canExpand.value) showSheet.value = true;
 }
 
 // Read-along belongs on the transport, not on a page: you are listening when
@@ -147,12 +155,13 @@ const liveStatus = computed(() =>
              match the vdom. Same reasoning as ShabadRow. -->
         <div
           class="flex min-w-0 flex-1 items-center gap-3 md:cursor-default"
-          :class="isPhone && player.current.value && 'cursor-pointer'"
-          :role="isPhone ? 'button' : undefined"
-          :tabindex="isPhone && player.current.value ? 0 : undefined"
-          :aria-label="isPhone ? 'Open the full player' : undefined"
+          :class="canExpand && 'cursor-pointer'"
+          :role="canExpand ? 'button' : undefined"
+          :tabindex="canExpand ? 0 : undefined"
+          :aria-label="canExpand ? 'Open the full player' : undefined"
           @click="expand"
           @keydown.enter.prevent="expand"
+          @keydown.space.prevent.stop="expand"
         >
           <!-- The broadcast has no artist to draw a tile for, and initials of
                its title would be meaningless — it gets the same mark the Live
