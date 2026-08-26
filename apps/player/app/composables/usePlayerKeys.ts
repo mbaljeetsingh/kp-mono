@@ -103,6 +103,13 @@ export function usePlayerKeys() {
         event.preventDefault();
         void player.previous();
         break;
+      case 'r':
+        // Live has no end to repeat; leave the key inert there rather than
+        // toggling a setting the transport is not showing.
+        if (player.isLive.value) break;
+        event.preventDefault();
+        player.toggleRepeat();
+        break;
     }
   }
 

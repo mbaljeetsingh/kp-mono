@@ -1,0 +1,18 @@
+-- Requesting a scan becomes its own capability.
+--
+-- It was gated on `renditions.propose`, which every signed-in account holds:
+-- `profiles.trust` defaults to 'contributor' and contributor holds exactly
+-- that one permission. So anyone who signed up could queue scans, and a queued
+-- scan is not free — scan.yml budgets ~30 CPU-minutes per broadcast on a
+-- runner, three a night. The button was the only thing rationing it.
+--
+-- A new capability rather than reusing `users.manage`: gating scans on the
+-- permission that also assigns trust levels would mean granting someone the
+-- ability to change everyone's role just to let them ask for suggestions.
+-- That is the exact conflation useMyPermissions' docstring records as having
+-- already cost the `trusted` role its publish button once.
+--
+-- Alone in its own migration because Postgres refuses to *use* an enum value
+-- in the transaction that adds it; the grant and the policies land in the
+-- next file.
+alter type app_permission add value if not exists 'scans.request';

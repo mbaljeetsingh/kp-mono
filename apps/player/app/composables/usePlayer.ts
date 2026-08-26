@@ -102,6 +102,18 @@ const failed = ref<Set<string>>(new Set());
  */
 const starting = ref<string | null>(null);
 
+/**
+ * Repeat the playing shabad instead of moving on.
+ *
+ * Repeat-one rather than repeat-all: a shabad is the unit a listener sits
+ * with, and the queue already handles "keep going". It deliberately does NOT
+ * intercept the skip buttons — pressing next with repeat on moves to the next
+ * shabad, the way every music player behaves. Only the automatic end-of-item
+ * advance is affected.
+ */
+const REPEAT_KEY = 'kp:repeat';
+const repeat = ref(false);
+
 /** Resume positions, keyed by stable id so they survive a URL change and
  *  migrate cleanly into an account if auth lands later. */
 const RESUME_KEY = 'kp:resume';
@@ -128,6 +140,15 @@ function writeResume(id: string, seconds: number) {
   localStorage.setItem(RESUME_KEY, JSON.stringify(all));
 }
 
+function readRepeat(): boolean {
+  if (import.meta.server) return false;
+  try {
+    return localStorage.getItem(REPEAT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function usePlayer() {
   /** A broadcast is what's loaded. Several controls key off this: a live
    *  feed has no timeline to scrub, no previous, and no end to advance past. */
@@ -142,6 +163,7 @@ export function usePlayer() {
     audio.value = el;
     // Restore the queue but never auto-play: browsers block unprompted audio,
     // and resuming sound on page load is hostile anyway.
+    repeat.value = readRepeat();
     const saved = readQueue();
     if (saved.items.length && !queue.value.length) {
       queue.value = saved.items;
@@ -245,6 +267,57 @@ export function usePlayer() {
       queue.value = queue.value.slice(0, queueIndex.value + 1);
     }
     persistQueue();
+  }
+
+  function toggleRepeat() {
+    repeat.value = !repeat.value;
+    if (import.meta.client) {
+      try {
+        localStorage.setItem(REPEAT_KEY, repeat.value ? '1' : '0');
+      } catch {
+        // A listener with storage blocked still gets repeat for this session.
+      }
+    }
+  }
+
+  /**
+   * What to do when an item finishes on its own.
+   *
+   * Separate from `next()` because the two are not the same event: pressing
+   * skip is an instruction to move on, and repeat must not override it. This
+   * is the other path — the segment reaching its end, or `ended` firing on a
+   * whole file — and that is where repeat belongs.
+   */
+  async function itemEnded(fromEnded = false) {
+    // Live has nothing to repeat: a dropped stream fires `ended` too, and
+    // restarting it here would fight the reconnect that next() handles.
+    if (!repeat.value || isLive.value || !current.value) {
+      await next();
+      return;
+    }
+    const el = audio.value;
+    if (!el) return;
+    // Back to the segment's own start, not the file's — a segment is a window
+    // into a long recording and its zero is `startSec`.
+    el.currentTime = current.value.startSec ?? 0;
+    currentTime.value = el.currentTime;
+    // Only a genuine finish resumes playback. `timeupdate` fires on a completed
+    // seek as well, and the scrubber maps 100% to exactly endSec — so without
+    // this, dragging a *paused* player to the end to see where a shabad stops
+    // would snap it back to the start and begin playing, unprompted. A paused
+    // element that got here by seeking is left paused; only the `ended` event,
+    // which cannot fire unless it was playing, restarts it.
+    if (el.paused && !fromEnded) return;
+    if (el.paused) {
+      try {
+        await el.play();
+        playing.value = true;
+      } catch {
+        // Same rule as everywhere else here: a refused play must not leave the
+        // transport claiming to be playing.
+        playing.value = false;
+      }
+    }
   }
 
   async function next() {
@@ -436,7 +509,8 @@ export function usePlayer() {
       // A segment is a window over a longer file, so its end is not the file's
       // end — advance the queue here rather than waiting for an `ended` event
       // that would only fire an hour later.
-      void next();
+      // Segment end reached mid-playback, not a real `ended` event.
+      void itemEnded(false);
       return;
     }
     // Only whole-file playback has a resume position. A segment always starts
@@ -573,6 +647,9 @@ export function usePlayer() {
     clearUpNext,
     next,
     previous,
+    repeat,
+    toggleRepeat,
+    itemEnded,
     playing,
     currentTime,
     duration,

@@ -9,7 +9,7 @@
  * third permission again.
  *
  * Shared so the tagging page and the review queue cannot drift into disagreeing
- * about who may do what, and cached under one key so the three round trips
+ * about who may do what, and cached under one key so the round trips
  * happen once per session rather than once per page.
  */
 export async function useMyPermissions() {
@@ -24,13 +24,15 @@ export async function useMyPermissions() {
       const { data } = await supabase.rpc('authorize', { requested });
       return data === true;
     };
-    const [review, publish, remove, manageUsers] = await Promise.all([
-      ask('renditions.review'),
-      ask('renditions.publish'),
-      ask('renditions.delete'),
-      ask('users.manage'),
-    ]);
-    return { review, publish, remove, manageUsers };
+    const [review, publish, remove, manageUsers, requestScans] =
+      await Promise.all([
+        ask('renditions.review'),
+        ask('renditions.publish'),
+        ask('renditions.delete'),
+        ask('users.manage'),
+        ask('scans.request'),
+      ]);
+    return { review, publish, remove, manageUsers, requestScans };
   });
 
   return {
@@ -42,6 +44,12 @@ export async function useMyPermissions() {
     canDelete: computed(() => data.value?.remove === true),
     /** Move other people up and down the trust ladder. */
     canManageUsers: computed(() => data.value?.manageUsers === true),
+    /**
+     * Queue a recording for the nightly scanner. Its own capability rather
+     * than a rung of the ladder: every signed-in account is a contributor, and
+     * a queued scan spends real runner time.
+     */
+    canRequestScans: computed(() => data.value?.requestScans === true),
   };
 }
 

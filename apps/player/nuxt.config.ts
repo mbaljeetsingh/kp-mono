@@ -43,24 +43,30 @@ export default defineNuxtConfig({
     public: {
       supabaseUrl: process.env.SUPABASE_URL ?? 'http://127.0.0.1:54521',
       supabaseKey: process.env.SUPABASE_KEY ?? '',
-      // Same-origin in dev (see routeRules), straight to banidb in production.
-      banidbApiBaseUrl:
-        process.env.NODE_ENV !== 'production'
-          ? '/banidb-api'
-          : 'https://api.banidb.com/v2',
+      // Always same-origin, in production as well as dev — see routeRules.
+      // Overridable at runtime with NUXT_PUBLIC_BANIDB_API_BASE_URL.
+      banidbApiBaseUrl: '/banidb-api',
     },
   },
-  // Dev-only proxy for shabad lookups, as np-mono does. banidb reflects the
-  // request Origin but sends no `Vary: Origin` with a 6-hour max-age, so the
-  // browser reuses one app's cached response — allow-origin header and all —
-  // for the other, and the second app's fetch fails CORS. Routing through the
-  // dev server makes the browser call same-origin while Nitro fetches banidb
-  // server-side, where CORS does not apply. Omitted in production, where the
-  // two apps are on distinct hosts and the cache collision cannot happen.
-  routeRules:
-    process.env.NODE_ENV !== 'production'
-      ? { '/banidb-api/**': { proxy: 'https://api.banidb.com/v2/**' } }
-      : {},
+  // Shabad lookups go through this app's own origin, never to banidb from the
+  // browser. banidb reflects the request Origin but sends no `Vary: Origin`
+  // with a 6-hour max-age, so one cached response — allow-origin header and
+  // all — gets reused for whichever of the two apps asks second, and that
+  // app's fetch fails CORS.
+  //
+  // This used to be dev-only, on the reasoning that production puts the apps
+  // on distinct hosts so the collision could not happen. That was wrong, and
+  // it broke production: the HTTP cache is keyed by URL and partitioned by
+  // registrable domain, and player.<domain> and admin.<domain> share one.
+  // Observed on kirtanplayer.beejaysoft.com, refused with an allow-origin of
+  // admin.kirtanplayer.beejaysoft.com.
+  //
+  // Proxying makes the browser call this origin while Nitro fetches banidb
+  // server-side, where CORS does not apply — and it gives each app its own
+  // cache key, so neither can serve the other a stale header.
+  routeRules: {
+    '/banidb-api/**': { proxy: 'https://api.banidb.com/v2/**' },
+  },
   // `dark` belongs on <html>, not on a wrapper div: Reka portals every overlay
   // — dialogs, dropdown menus, their submenus — to document.body, outside any
   // app-level wrapper. With the class on a div those overlays resolved the

@@ -27,6 +27,8 @@ const TREES = {
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '../out');
 const RATE_MS = 1000;
 const SAMPLE = process.argv.includes('--sample');
+/** Seed anyway when a whole tree came back empty — see the guard in main(). */
+const ALLOW_PARTIAL = process.argv.includes('--allow-partial');
 
 const UA =
   'kirtan-player-crawler/0.1 (archive indexer; contact: baljeet@underlings.com)';
@@ -236,6 +238,50 @@ async function main() {
     ...(await crawlArtistTree('puratan', TREES.puratan, startedAt)),
     ...(await crawlDayTree(startedAt)),
   ];
+
+  // A tree that contributed nothing is a failed crawl, not a small one.
+  //
+  // `crawlArtistTree` returns an empty array when the root listing fetch fails
+  // — silently, before it logs its artist count — so a blocked or timed-out
+  // tree looks exactly like a successful one from the outside. That happened:
+  // a run on a GitHub runner lost ragiwise, which is 84% of the archive, wrote
+  // a 7,960-track crawl as if it were complete, and the seeder applied it.
+  //
+  // The seeder's own MAX_DROP guard could not catch it either, because the
+  // database was empty on first seed: there was no previous count to drop
+  // from. So the refusal belongs here, before crawl.json is written — which
+  // also leaves the last good crawl un-rotated and still on disk.
+  const perTree = Object.fromEntries(
+    Object.keys(TREES).map((t) => [t, tracks.filter((x) => x.tree === t).length])
+  );
+  console.log(
+    `\ntracks by tree: ${Object.entries(perTree)
+      .map(([t, n]) => `${t} ${n}`)
+      .join(', ')}`
+  );
+  if (errors.length) {
+    console.log(`${errors.length} error(s) during the crawl:`);
+    for (const e of errors.slice(0, 10)) console.log(`  ${e.url} — ${e.message}`);
+    if (errors.length > 10) console.log(`  …and ${errors.length - 10} more`);
+  }
+
+  const emptyTrees = Object.entries(perTree)
+    .filter(([, n]) => n === 0)
+    .map(([t]) => t);
+  // Never on a sample: SAMPLE slices each tree to a couple of directories, so
+  // an empty one means "the two I sampled had nothing", not "the tree is gone"
+  // — and a sample writes crawl.sample.json, which the seeder refuses to load
+  // anyway. Failing there would be a guard against a file that cannot reach
+  // the database.
+  if (emptyTrees.length && !ALLOW_PARTIAL && !SAMPLE) {
+    console.error(
+      `\nrefusing to write the crawl: ${emptyTrees.join(', ')} returned no ` +
+        'tracks at all. SGPC blocks datacentre IPs intermittently, so a rerun ' +
+        'is usually enough. Pass --allow-partial if a tree is genuinely gone ' +
+        'and you mean to seed without it.'
+    );
+    process.exit(1);
+  }
 
   const report = {
     startedAt,

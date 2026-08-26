@@ -1,19 +1,56 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
-import { ListMusic, CheckCheck, Users, LogOut } from 'lucide-vue-next';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  ListMusic,
+  CheckCheck,
+  Users,
+  KeyRound,
+  LogOut,
+  User,
+} from 'lucide-vue-next';
 
 const supabase = useSupabaseClient();
-const email = ref('');
-onMounted(async () => {
-  const { data } = await supabase.auth.getUser();
-  email.value = data.user?.email ?? '';
-});
 
-const nav = [
+// The rung, not the capabilities: the badge names what you are, and the tabs
+// below ask separately about what you may do. Both admin-only tabs would open
+// to nothing without the permission — list_users and the permission matrix are
+// each gated on `users.manage` in the database — so the nav hides them rather
+// than offering the trip.
+//
+// Concurrently, because this blocks first paint and the two ask independent
+// questions: awaited one after the other, a cold load spent a whole extra
+// round trip staring at nothing.
+const [{ email, trust }, { canManageUsers }] = await Promise.all([
+  useMyProfile(),
+  useMyPermissions(),
+]);
+
+const nav = computed(() => [
   { to: '/', label: 'Recordings', icon: ListMusic },
   { to: '/pending', label: 'Pending', icon: CheckCheck },
-  { to: '/users', label: 'Users', icon: Users },
-];
+  ...(canManageUsers.value
+    ? [
+        { to: '/users', label: 'Users', icon: Users },
+        { to: '/permissions', label: 'Permissions', icon: KeyRound },
+      ]
+    : []),
+]);
+
+/** Admin is the only rung worth colouring; the rest are stated, not flagged. */
+const trustClass = computed(() =>
+  trust.value === 'admin'
+    ? 'border-amber-500/30 bg-amber-500/15 text-amber-400'
+    : 'border-border bg-muted/40 text-muted-foreground'
+);
 </script>
 
 <template>
@@ -38,14 +75,38 @@ const nav = [
         </NuxtLink>
       </nav>
       <div class="border-t border-border p-2">
-        <Button
-          variant="ghost"
-          class="w-full justify-start gap-3 px-3 text-sm font-normal text-muted-foreground"
-          @click="supabase.auth.signOut()"
-        >
-          <LogOut class="size-4 shrink-0" />
-          <span class="truncate">{{ email || 'Sign out' }}</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              variant="ghost"
+              class="w-full justify-start gap-3 px-3 text-sm font-normal text-muted-foreground"
+            >
+              <User class="size-4 shrink-0" />
+              <span class="truncate">{{ email || 'Account' }}</span>
+              <Badge
+                v-if="trust"
+                variant="outline"
+                :class="['ml-auto shrink-0 px-1.5 py-0 text-[10px]', trustClass]"
+              >
+                {{ trust }}
+              </Badge>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top" class="w-52">
+            <DropdownMenuLabel class="font-normal">
+              <span class="block truncate text-xs text-muted-foreground">
+                {{ email }}
+              </span>
+              <span class="mt-1 block text-[11px] text-muted-foreground/70">
+                Signed in as <span class="text-foreground">{{ trust }}</span>
+              </span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem @select="supabase.auth.signOut()">
+              <LogOut class="size-4" /> Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
 

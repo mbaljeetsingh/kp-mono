@@ -1,4 +1,4 @@
-# Weekly: re-crawl sgpc.net and re-seed tracks.
+# Weekly: re-crawl sgpc.net and re-seed tracks, artists, and artist photos.
 #
 # The crawl is a full re-crawl by design (~670 requests, ~11 min) — incremental
 # logic would cost the same requests and add a class of silently-missed
@@ -25,6 +25,22 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter @kp/crawler
       - run: node --experimental-strip-types packages/crawler/src/crawl.ts
       - run: node --experimental-strip-types packages/crawler/src/seed.ts
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+      # Artist roster and photos. Independent of the track crawl above — it
+      # reads SGPC's cards.php, not the file listings — but the seeding order
+      # matters: seed-artists links a photo with `update ... where name = ?`
+      # and never inserts, so the artist rows seed.ts derives from the crawled
+      # directories have to be in place first.
+      #
+      # ~204 photos at 400ms apiece, so roughly two minutes. The runner's disk
+      # is empty every time, which is the point: crawl-artists skips whatever
+      # is already cached, so on a persistent box a portrait SGPC *replaced*
+      # would never be picked up, while here the whole set refreshes for free.
+      - run: node --experimental-strip-types packages/crawler/src/crawl-artists.ts
+      - run: node --experimental-strip-types packages/crawler/src/seed-artists.ts
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
