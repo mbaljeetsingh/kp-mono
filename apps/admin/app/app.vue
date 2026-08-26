@@ -13,7 +13,18 @@ onMounted(async () => {
   const { data } = await supabase.auth.getSession();
   session.value = data.session;
   ready.value = true;
-  supabase.auth.onAuthStateChange((_e, s) => (session.value = s));
+  supabase.auth.onAuthStateChange((_e, s) => {
+    // Who is signed in changed, so everything keyed to that identity is stale.
+    // The admin is ssr:false, so signing out and back in as someone else never
+    // reloads the page: without this the sidebar kept the previous account's
+    // email and rung, and — since the nav is now gated on `users.manage` — the
+    // previous account's tabs.
+    const changedUser = s?.user?.id !== session.value?.user?.id;
+    session.value = s;
+    if (changedUser) {
+      refreshNuxtData(['my-profile', 'my-perms', 'app-permissions', 'role-permissions']);
+    }
+  });
 });
 
 async function signIn() {

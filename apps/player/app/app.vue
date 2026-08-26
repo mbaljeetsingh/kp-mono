@@ -111,7 +111,7 @@ const nav = [
       preload="metadata"
       @timeupdate="player.onTimeUpdate"
       @loadedmetadata="player.onLoadedMetadata"
-      @ended="player.next"
+      @ended="player.itemEnded(true)"
       @error="player.onError"
     />
 

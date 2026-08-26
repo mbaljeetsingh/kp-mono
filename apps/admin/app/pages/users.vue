@@ -42,7 +42,7 @@ const GRANTS: Record<(typeof LEVELS)[number], string> = {
   contributor: 'propose shabads',
   trusted: '+ publish their own',
   reviewer: '+ publish, edit and delete anyone’s',
-  admin: '+ manage users',
+  admin: '+ manage users, request scans',
 };
 
 const error = ref('');

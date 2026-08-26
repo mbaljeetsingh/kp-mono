@@ -4,8 +4,8 @@
 -- Applied automatically after migrations by `supabase db reset`.
 -- Contents: 433 tracks (210 ragiwise, 123 puratan, 100 daywise), 230 artists, 9 renditions
 -- (8 published), 2 scan requests, 2 accounts:
---   admin@kirtan.com / password123        (trust: admin)
---   contributor@kirtan.com / password123  (trust: contributor)
+--   admin@kirtanplayer.com / password        (trust: admin)
+--   contributor@kirtanplayer.com / password  (trust: contributor)
 --
 -- Artist photos are NOT seeded (only their photo_path values) — the player
 -- falls back to gradients; run `pnpm seed:artists` to fetch the images.
@@ -18,7 +18,7 @@ insert into auth.users (
   confirmation_token, recovery_token, email_change, email_change_token_new
 ) values (
   '00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000001',
-  'authenticated', 'authenticated', 'admin@kirtan.com', '$2a$06$RhBKRIjE7xhXdUE2EeUsouo.KCenpgSr/ORPTcMS8w8XGYW1tk45m',
+  'authenticated', 'authenticated', 'admin@kirtanplayer.com', '$2a$06$XS.Ou9Iy3MjA9ULvKDUIpOdst4vpb2.hT/OJ2oEImZDy8hiyKE5gS',
   '2026-08-04T00:00:00+00:00', '{"provider":"email","providers":["email"]}',
   '{"display_name":"Seed Admin"}', '2026-08-04T00:00:00+00:00', '2026-08-04T00:00:00+00:00', '', '', '', ''
 );
@@ -28,7 +28,7 @@ insert into auth.identities (
   last_sign_in_at, created_at, updated_at
 ) values (
   '00000000-0000-4000-8000-000000000101', '00000000-0000-4000-8000-000000000001',
-  '{"sub":"00000000-0000-4000-8000-000000000001","email":"admin@kirtan.com","email_verified":true}',
+  '{"sub":"00000000-0000-4000-8000-000000000001","email":"admin@kirtanplayer.com","email_verified":true}',
   'email', '00000000-0000-4000-8000-000000000001', '2026-08-04T00:00:00+00:00', '2026-08-04T00:00:00+00:00', '2026-08-04T00:00:00+00:00'
 );
 
@@ -44,7 +44,7 @@ insert into auth.users (
   confirmation_token, recovery_token, email_change, email_change_token_new
 ) values (
   '00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-000000000002',
-  'authenticated', 'authenticated', 'contributor@kirtan.com', '$2a$06$RhBKRIjE7xhXdUE2EeUsouo.KCenpgSr/ORPTcMS8w8XGYW1tk45m',
+  'authenticated', 'authenticated', 'contributor@kirtanplayer.com', '$2a$06$XS.Ou9Iy3MjA9ULvKDUIpOdst4vpb2.hT/OJ2oEImZDy8hiyKE5gS',
   '2026-08-04T00:00:00+00:00', '{"provider":"email","providers":["email"]}',
   '{"display_name":"Seed Contributor"}', '2026-08-04T00:00:00+00:00', '2026-08-04T00:00:00+00:00', '', '', '', ''
 );
@@ -54,7 +54,7 @@ insert into auth.identities (
   last_sign_in_at, created_at, updated_at
 ) values (
   '00000000-0000-4000-8000-000000000102', '00000000-0000-4000-8000-000000000002',
-  '{"sub":"00000000-0000-4000-8000-000000000002","email":"contributor@kirtan.com","email_verified":true}',
+  '{"sub":"00000000-0000-4000-8000-000000000002","email":"contributor@kirtanplayer.com","email_verified":true}',
   'email', '00000000-0000-4000-8000-000000000002', '2026-08-04T00:00:00+00:00', '2026-08-04T00:00:00+00:00', '2026-08-04T00:00:00+00:00'
 );
 

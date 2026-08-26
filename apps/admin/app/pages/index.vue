@@ -157,7 +157,7 @@ function mins(sec: number | null) {
 // The scan queue, keyed by track so each row can tell whether it may still
 // ask. Fetched once rather than joined into the recordings view: the table is
 // small — one row per request, ever — and a second query keeps the view SQL
-// untouched. For anyone without the propose permission RLS returns nothing,
+// untouched. For anyone without the scans.request permission RLS returns nothing,
 // so the map stays empty and a click gets the refusal as an error instead.
 const { data: scans } = await useAsyncData('scan-requests', async () => {
   const { data } = await supabase
@@ -181,6 +181,11 @@ function scanState(id: string): 'none' | 'queued' | 'done' {
   return m[id] === null ? 'queued' : 'done';
 }
 
+// Requesting a scan is admin-only (see 20260826000100). RLS refuses it either
+// way; hiding the control keeps the list from offering an action that would
+// only come back as an error.
+const { canRequestScans } = await useMyPermissions();
+
 const suggestBusy = ref<string | null>(null);
 /**
  * Keyed by track, because a refusal belongs to the row that earned it. A single
@@ -198,7 +203,7 @@ async function suggest(t: any) {
   // benign: two taggers pressing Suggest both land on "queued" instead of the
   // loser reading a duplicate-key error for a state that isn't an error.
   // The INSERT policy does not default requested_by, so it is set from the
-  // session; a missing propose permission still refuses outright.
+  // session; a missing scans.request permission still refuses outright.
   const { data: user } = await supabase.auth.getUser();
   const { error } = await supabase.from('scan_requests').upsert({
     track_id: t.id,
@@ -288,7 +293,7 @@ async function suggest(t: any) {
            for this recording. Secondary on purpose — tagging by ear stays the
            main act — and the row is a link, so the click must not navigate. -->
         <Button
-          v-if="scanState(t.id) === 'none'"
+          v-if="canRequestScans && scanState(t.id) === 'none'"
           variant="ghost"
           size="sm"
           class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
@@ -300,14 +305,14 @@ async function suggest(t: any) {
           <Sparkles class="size-3.5" /> Suggest
         </Button>
         <span
-          v-else-if="scanState(t.id) === 'queued'"
+          v-else-if="canRequestScans && scanState(t.id) === 'queued'"
           class="shrink-0 text-[11px] text-muted-foreground/70"
           title="Suggestions arrive overnight"
         >
           queued
         </span>
         <Button
-          v-else
+          v-else-if="canRequestScans"
           variant="ghost"
           size="sm"
           class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground/70"

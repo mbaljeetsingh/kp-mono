@@ -4,6 +4,7 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  Repeat1,
   ListMusic,
   BookOpen,
   Radio,
@@ -222,6 +223,31 @@ const liveStatus = computed(() =>
               @click="player.next"
             >
               <SkipForward class="size-4 fill-current" />
+            </Button>
+            <!-- Repeat-one. Hidden during live, which has no end to repeat.
+                 Stays enabled with an empty queue, unlike Next: repeating the
+                 one shabad you are sitting with is exactly the case where
+                 nothing follows it. -->
+            <Button
+              v-if="!player.isLive.value"
+              variant="ghost"
+              size="icon-sm"
+              :class="
+                player.repeat.value ? 'text-primary' : 'text-muted-foreground'
+              "
+              :disabled="!player.current.value"
+              :aria-pressed="player.repeat.value"
+              :aria-label="
+                player.repeat.value ? 'Turn off repeat' : 'Repeat this shabad'
+              "
+              :title="
+                player.repeat.value
+                  ? 'Repeat is on — this shabad replays (R)'
+                  : 'Repeat this shabad (R)'
+              "
+              @click="player.toggleRepeat"
+            >
+              <Repeat1 class="size-4" />
             </Button>
           </div>
 

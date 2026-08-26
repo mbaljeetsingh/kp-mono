@@ -190,6 +190,36 @@ for (let i = 0; i < rows.length; i += BATCH) {
     console.log(`  ${i + chunk.length}/${rows.length}`);
 }
 
+// The artist directories this crawl saw, as rows.
+//
+// `artists.name` IS the directory name — "The directory is the artist of
+// record" — so the set is derivable from what was just seeded and needs no
+// second crawl. It has to exist before seed-artists.ts runs: that script links
+// a photo with `update ... where name = ?` and deliberately does not insert
+// (a roster entry SGPC lists but publishes no recordings for is nothing the
+// player can use). Against an empty table every one of those updates matches
+// nothing, which is exactly what a freshly pushed project is — seed.sql, the
+// only other thing that writes this table, runs on a local `db reset` and
+// never on `db push`.
+//
+// ignoreDuplicates so this stays a pure top-up: an existing row carries a
+// display_name, bio, and photo_path that this crawl knows nothing about, and
+// a plain upsert would blank all three.
+const artistDirs = [...new Set(rows.map((r) => r.artist_dir).filter(Boolean))];
+if (artistDirs.length) {
+  const { error: artistError } = await client
+    .from('artists')
+    .upsert(
+      artistDirs.map((name) => ({ name })),
+      { onConflict: 'name', ignoreDuplicates: true }
+    );
+  if (artistError) {
+    console.error(`seeding artists failed: ${artistError.message}`);
+    process.exit(1);
+  }
+  console.log(`${artistDirs.length} artist directories present`);
+}
+
 // Every row this run touched carries `last_seen_at = now`, so anything older
 // was not in this crawl. Stamping it is how a reorganisation becomes visible on
 // the day it happens: the views already exclude `missing_since is not null`, so

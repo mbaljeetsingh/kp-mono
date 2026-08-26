@@ -34,8 +34,8 @@ with synced lyrics), and two accounts for testing the permission split:
 
 | account                  | password      | trust         |
 | ------------------------ | ------------- | ------------- |
-| `admin@kirtan.com`       | `password123` | `admin`       |
-| `contributor@kirtan.com` | `password123` | `contributor` |
+| `admin@kirtanplayer.com`       | `password` | `admin`       |
+| `contributor@kirtanplayer.com` | `password` | `contributor` |
 
 The same seed makes `supabase db reset` cheap — reset, and the sample is back.
 Artist photos are seeded as paths only (the images are not in git); tiles fall
