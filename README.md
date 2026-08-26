@@ -2,6 +2,9 @@
 
 Search, play, and tag 20 years of kirtan from Sri Harmandir Sahib.
 
+**[Player](https://kirtanplayer.beejaysoft.com)** ·
+**[Admin](https://admin.kirtanplayer.beejaysoft.com)**
+
 See [docs/BRD.md](docs/BRD.md), [docs/PRD.md](docs/PRD.md), and
 [docs/sgpc-api.md](docs/sgpc-api.md) (verified source-API reference).
 
@@ -74,7 +77,9 @@ Two batch jobs turn tagging work into player features, both in
 
 On the deployed project these run themselves — `.github/workflows/scan.yml` and
 `align.yml` nightly, `crawl.yml` weekly — once `SUPABASE_URL` and
-`SUPABASE_SERVICE_KEY` exist as repo secrets. Locally there is no scheduler on
+`SUPABASE_SERVICE_KEY` exist as repo secrets. The weekly run covers all four
+crawler steps, artists and photos included, so a deployed project needs no
+manual seeding after the first one. Locally there is no scheduler on
 purpose (a sleeping laptop makes cron a lie); after a tagging session run
 
 ```bash
@@ -111,12 +116,37 @@ it, because a sample crawl is a _successful_ crawl and nothing downstream could
 otherwise tell the difference. A full run rotates the last good crawl to
 `out/crawl.previous.json` first.
 
+**A tree that returns nothing fails the crawl.** SGPC serves `403` to
+datacentre IPs intermittently, and a tree whose root listing never arrived used
+to come back as an empty array — one run reported 7,960 tracks as a complete
+archive with ragiwise, 84% of it, missing. A `403` is now retried like a rate
+limit, and a zero-track tree refuses to write `crawl.json` at all, so the last
+good crawl survives and the workflow goes red. `--allow-partial` overrides it;
+`--sample` is exempt.
+
 **After any `supabase db reset`, run `seed-artists.ts` too.** Object bytes live
 outside Postgres, so a reset (or restoring a `pg_dump` into a fresh project)
 brings back the `artists.photo_path` values while the images themselves are
 gone — the ragi tiles go blank with nothing in the database to explain it. The
 bucket itself is a migration now, so it always exists; only the uploads need
 replaying, and they are idempotent.
+
+## Deploying
+
+Both apps are Netlify sites off this one repo, each with its own
+`netlify.toml`. The dashboard holds the rest:
+
+| setting           | player              | admin              |
+| ----------------- | ------------------- | ------------------ |
+| package directory | `apps/player`       | `apps/admin`       |
+| build command     | `pnpm build:player` | `pnpm build:admin` |
+| publish directory | `apps/player/dist`  | `apps/admin/dist`  |
+
+Each site needs `NUXT_PUBLIC_SUPABASE_URL` and `NUXT_PUBLIC_SUPABASE_KEY` (the
+**publishable** key). Both configs refuse to build without them rather than
+ship a green deploy pointing at `127.0.0.1`. Leave base and functions
+directories at their defaults, and don't set `NODE_ENV` — `production` makes
+pnpm skip the devDependencies the build needs.
 
 ## Notes
 
@@ -146,3 +176,10 @@ replaying, and they are idempotent.
   the account on first sign-in. Player auth is client-side only — the Supabase
   client persists no session on the server, so SSR renders every page
   signed-out and personalises after hydration.
+
+## License
+
+[MIT](LICENSE) — the code. The recordings are not ours to license: they are
+published by SGPC at sgpc.net and streamed from there, never copied or
+redistributed here. What this repo commits about them is catalogue metadata —
+filenames, dates, artist directories — not audio.
