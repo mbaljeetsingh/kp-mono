@@ -149,7 +149,7 @@ watch(highlightId, () => void scrollToHighlight(true));
 <template>
   <aside
     v-if="open"
-    class="absolute right-4 bottom-full left-4 mb-2 max-h-[28rem] overflow-y-auto rounded-lg border border-border bg-card shadow-2xl md:left-auto md:w-96"
+    class="absolute right-4 bottom-full left-4 mb-2 max-h-[min(28rem,60svh)] overflow-y-auto rounded-lg border border-border bg-card shadow-2xl md:left-auto md:w-96"
     @wheel.passive="onReaderScroll"
     @touchmove.passive="onReaderScroll"
   >

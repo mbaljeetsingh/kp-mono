@@ -107,7 +107,9 @@ const gurmukhi = (v: any) => v.verse?.unicode ?? v.verse?.gurmukhi ?? '';
         v-model="q"
         placeholder="Search a shabad"
         class="bg-card py-2 pr-16 pl-9"
-        :class="gurbaniLipi ? 'font-gurmukhi text-xl' : 'text-[15px]'"
+        :class="
+          gurbaniLipi ? 'font-gurmukhi text-xl' : 'text-base md:text-[15px]'
+        "
       />
       <div class="absolute top-1/2 right-1 flex -translate-y-1/2 items-center">
         <Button

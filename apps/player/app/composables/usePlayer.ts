@@ -481,7 +481,13 @@ export function usePlayer() {
   }
 
   function seek(seconds: number) {
-    if (audio.value) audio.value.currentTime = seconds;
+    if (!audio.value) return;
+    audio.value.currentTime = seconds;
+    // Mirror it by hand, the way `attach` does. The element does not emit a
+    // `timeupdate` for up to a quarter of a second after a seek, so without
+    // this the scrubber's thumb springs back to where it was for a frame or
+    // two after every drag — which reads as the seek having been refused.
+    currentTime.value = audio.value.currentTime;
   }
 
   /**
