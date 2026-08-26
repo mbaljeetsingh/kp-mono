@@ -25,6 +25,12 @@ const props = defineProps<{
   /** Length of the segment — of the file, when nothing is tagged. */
   total: number;
   disabled?: boolean;
+  /**
+   * The full-screen treatment: a heavier line, a bigger thumb, and the clock
+   * under the bar rather than either side of it, which is what a scrubber
+   * with a whole screen to itself should look like.
+   */
+  expanded?: boolean;
 }>();
 
 /** Emitted once per gesture, as a percentage: only the parent knows which
@@ -125,8 +131,12 @@ function onKey(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="flex select-none items-center gap-2">
+  <div
+    class="select-none"
+    :class="expanded ? 'flex flex-col gap-1.5' : 'flex items-center gap-2'"
+  >
     <span
+      v-if="!expanded"
       class="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground"
     >
       {{ formatTime(shownElapsed) }}
@@ -136,8 +146,15 @@ function onKey(event: KeyboardEvent) {
          is the right weight to read and the wrong one to hit. -->
     <div
       ref="bar"
-      class="group relative flex h-6 min-w-0 flex-1 touch-none items-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      :class="inert ? 'cursor-default' : 'cursor-pointer'"
+      class="group relative flex touch-none items-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      :class="[
+        inert ? 'cursor-default' : 'cursor-pointer',
+        // `flex-1` belongs to the inline layout only. Down a column it resolves
+        // against the cross axis instead, zeroing the flex basis, and the band
+        // collapses to the height of the line inside it — an 8px target, which
+        // is the very thing the band exists to prevent.
+        expanded ? 'h-8 w-full' : 'h-6 min-w-0 flex-1',
+      ]"
       role="slider"
       :tabindex="inert ? -1 : 0"
       :aria-disabled="inert || undefined"
@@ -150,7 +167,8 @@ function onKey(event: KeyboardEvent) {
       @keydown="onKey"
     >
       <div
-        class="h-1.5 w-full overflow-hidden rounded-full bg-muted transition-[height] md:h-1 md:group-hover:h-1.5"
+        class="w-full overflow-hidden rounded-full bg-muted transition-[height]"
+        :class="expanded ? 'h-2' : 'h-1.5 md:h-1 md:group-hover:h-1.5'"
       >
         <div
           class="h-full rounded-full bg-primary"
@@ -161,13 +179,29 @@ function onKey(event: KeyboardEvent) {
            the thumb is the part that says the line can be moved at all. -->
       <span
         v-if="!inert"
-        class="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-sm transition-transform md:size-3 md:group-hover:scale-125"
+        class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-sm transition-transform"
+        :class="
+          expanded ? 'size-4' : 'size-3.5 md:size-3 md:group-hover:scale-125'
+        "
         :style="{ left: `${pct}%` }"
       />
     </div>
 
-    <span class="w-9 shrink-0 text-[11px] tabular-nums text-muted-foreground">
+    <span
+      v-if="!expanded"
+      class="w-9 shrink-0 text-[11px] tabular-nums text-muted-foreground"
+    >
       {{ formatTime(total) }}
     </span>
+
+    <!-- Under the bar in the full-screen view, where the bar wants the whole
+         width and there is room for a legible clock beneath it. -->
+    <div
+      v-if="expanded"
+      class="flex items-center justify-between text-xs tabular-nums text-muted-foreground"
+    >
+      <span>{{ formatTime(shownElapsed) }}</span>
+      <span>{{ formatTime(total) }}</span>
+    </div>
   </div>
 </template>

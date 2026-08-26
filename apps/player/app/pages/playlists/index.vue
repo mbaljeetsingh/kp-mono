@@ -31,7 +31,7 @@ const playlists = usePlaylists();
           v-for="playlist in playlists.playlists.value"
           :key="playlist.id"
           :to="`/playlists/${playlist.id}`"
-          class="flex items-center gap-3 rounded-md px-3 py-2.5 transition hover:bg-white/5"
+          class="flex items-center gap-3 rounded-md px-3 py-2.5 transition hover:bg-foreground/5"
         >
           <span
             class="grid size-10 shrink-0 place-items-center rounded-md bg-muted"

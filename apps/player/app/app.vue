@@ -3,6 +3,7 @@ import { onMounted, useTemplateRef } from 'vue';
 import { Home, Users, Heart, ListMusic, Radio } from 'lucide-vue-next';
 import { usePlayer } from '~/composables/usePlayer';
 import { usePlayerKeys } from '~/composables/usePlayerKeys';
+import { initTheme, THEME_KEY } from '~/composables/useTheme';
 
 const player = usePlayer();
 const auth = useAuth();
@@ -14,11 +15,38 @@ const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
 // should too, and this is the one component that is always mounted.
 usePlayerKeys();
 
+/**
+ * The theme, before the first paint.
+ *
+ * The saved choice lives in localStorage, which the server cannot read, and
+ * "follow the device" cannot be answered there at all — so SSR ships no theme
+ * class and this resolves it while <head> is still parsing, ahead of any paint.
+ * Anything later, `onMounted` included, is a flash of the wrong palette on
+ * every navigation to the app.
+ *
+ * Written by hand rather than through `htmlAttrs`: unhead would then manage the
+ * same attribute and overwrite whatever this decided during hydration. It is
+ * also why the string is inlined rather than importing THEME_KEY — this runs
+ * before any bundle — with the constant interpolated so the two cannot drift.
+ */
+useHead({
+  script: [
+    {
+      tagPosition: 'head',
+      innerHTML: `(function(){try{var c=localStorage.getItem('${THEME_KEY}');document.documentElement.classList.toggle('dark',c==='dark'||(c!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches))}catch(e){document.documentElement.classList.add('dark')}})()`,
+    },
+  ],
+});
+
 // One <audio> element for the whole app so playback survives navigation — a
 // shabad keeps playing while the listener browses, which is the single thing
 // separating a music app from a page with an audio tag on it.
 onMounted(() => {
   if (audioEl.value) player.attach(audioEl.value);
+
+  // Takes over from the pre-paint script: reads the same saved choice into
+  // reactive state and starts following the device's own setting.
+  initTheme();
 
   // Auth is client-only: the Supabase client persists no session on the server,
   // so SSR renders every page signed-out and this is what personalises it after
@@ -44,8 +72,9 @@ const nav = [
        between them, which read as separate widgets rather than one app; the
        regions are now separated by hairlines on a single background. -->
   <!-- The `dark` class that makes the shared tokens resolve to the dark palette
-       (:root in shared-theme is the light parchment set) lives on <html>, set in
-       nuxt.config — overlays portal to document.body and would miss it here. -->
+       (:root in shared-theme is the light parchment set) lives on <html>, written
+       by the pre-paint script above and then by useTheme — overlays portal to
+       document.body and would miss it here. -->
   <div class="flex h-dvh flex-col bg-background text-foreground">
     <div class="flex min-h-0 flex-1">
       <aside
@@ -94,7 +123,10 @@ const nav = [
           </NuxtLink>
         </nav>
 
-        <div class="border-t border-border p-2"><AccountButton /></div>
+        <div class="border-t border-border p-2">
+          <ThemeToggle />
+          <AccountButton />
+        </div>
       </aside>
 
       <main class="min-w-0 flex-1 overflow-y-auto">

@@ -17,6 +17,21 @@ import { artworkFor } from '~/composables/useArtwork';
 const player = usePlayer();
 const showQueue = ref(false);
 const showLyrics = ref(false);
+// The full-screen player, which only exists on a phone — see NowPlayingSheet.
+const showSheet = ref(false);
+
+// Tapping the title area opens that sheet, the way every phone music player
+// does. Only there: on desktop the bar already carries the whole transport,
+// and a target that does something at one width and nothing at another should
+// not advertise itself at both.
+const isPhone = useMediaQuery('(max-width: 767px)');
+watch(isPhone, (phone) => {
+  if (!phone) showSheet.value = false;
+});
+
+function expand() {
+  if (isPhone.value && player.current.value) showSheet.value = true;
+}
 
 // Read-along belongs on the transport, not on a page: you are listening when
 // you want it, and it should follow whatever is playing.
@@ -28,40 +43,24 @@ const art = computed(() =>
   )
 );
 
-function scrub(pct: number) {
-  const start = player.current.value?.startSec ?? 0;
-  const end = player.current.value?.endSec ?? player.duration.value;
-  const to = start + ((end - start) * pct) / 100;
-  // Landing exactly on the end trips the advance-to-next check in
-  // onTimeUpdate, so dragging to the far right of the bar would skip the
-  // shabad rather than park at the end of it. Stop just short, the way the
-  // arrow-key nudges do.
-  player.seek(
-    Number.isFinite(end) && end > start ? Math.min(to, end - 0.5) : to
-  );
-}
-
-// Elapsed within the shabad, not within the file it sits inside — a segment
-// starting at 42:10 of a set should read 0:00, not 42:10.
-const elapsed = computed(() =>
-  Math.max(0, player.currentTime.value - (player.current.value?.startSec ?? 0))
-);
-const total = computed(() => {
-  const c = player.current.value;
-  if (c?.endSec != null && c.startSec != null) return c.endSec - c.startSec;
-  return player.duration.value;
-});
-
 // For the broadcast the clock measures time spent listening, not a position in
 // anything — so it is labelled, and reads as stopped rather than as 0:00 when
 // the listener is not connected.
 const liveStatus = computed(() =>
-  player.playing.value ? `Listening ${formatTime(elapsed.value)}` : 'Stopped'
+  player.playing.value
+    ? `Listening ${formatTime(player.elapsed.value)}`
+    : 'Stopped'
 );
 </script>
 
 <template>
   <div class="relative">
+    <NowPlayingSheet
+      v-model:open="showSheet"
+      @lyrics="((showSheet = false), (showLyrics = true), (showQueue = false))"
+      @queue="((showSheet = false), (showQueue = true), (showLyrics = false))"
+    />
+
     <LyricsPanel v-model:open="showLyrics" />
 
     <!-- Up next slides over the content rather than pushing it, so the queue
@@ -125,7 +124,7 @@ const liveStatus = computed(() =>
             <span
               class="absolute inset-0 grid place-items-center rounded-md bg-black/55 opacity-0 transition group-hover:opacity-100"
             >
-              <Play class="size-3.5 fill-current text-foreground" />
+              <Play class="size-3.5 fill-current text-white" />
             </span>
           </span>
           <span class="min-w-0 flex-1">
@@ -142,7 +141,19 @@ const liveStatus = computed(() =>
 
     <footer class="border-t border-border bg-background px-4 py-2.5 md:py-3">
       <div class="mx-auto flex max-w-7xl items-center gap-3 md:gap-4">
-        <div class="flex min-w-0 flex-1 items-center gap-3">
+        <!-- Not a <button>, though the whole area is tappable on a phone: it
+             contains the artist link, and a button may not nest one — the
+             parser reparents it and hydration then walks a DOM that does not
+             match the vdom. Same reasoning as ShabadRow. -->
+        <div
+          class="flex min-w-0 flex-1 items-center gap-3 md:cursor-default"
+          :class="isPhone && player.current.value && 'cursor-pointer'"
+          :role="isPhone ? 'button' : undefined"
+          :tabindex="isPhone && player.current.value ? 0 : undefined"
+          :aria-label="isPhone ? 'Open the full player' : undefined"
+          @click="expand"
+          @keydown.enter.prevent="expand"
+        >
           <!-- The broadcast has no artist to draw a tile for, and initials of
                its title would be meaningless — it gets the same mark the Live
                controls use. -->
@@ -177,6 +188,7 @@ const liveStatus = computed(() =>
                 v-if="player.current.value?.artist"
                 :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
                 class="hover:text-foreground hover:underline"
+                @click.stop
                 >{{ player.current.value.subtitle }}</NuxtLink
               >
               <template v-else>{{
@@ -278,10 +290,10 @@ const liveStatus = computed(() =>
             v-else
             class="hidden w-full md:flex"
             :progress="player.progress.value"
-            :elapsed="elapsed"
-            :total="total"
+            :elapsed="player.elapsed.value"
+            :total="player.total.value"
             :disabled="!player.current.value"
-            @seek="scrub"
+            @seek="player.seekPct"
           />
         </div>
 
@@ -343,10 +355,10 @@ const liveStatus = computed(() =>
           v-else
           class="min-w-0 flex-1"
           :progress="player.progress.value"
-          :elapsed="elapsed"
-          :total="total"
+          :elapsed="player.elapsed.value"
+          :total="player.total.value"
           :disabled="!player.current.value"
-          @seek="scrub"
+          @seek="player.seekPct"
         />
         <Button
           v-if="!player.isLive.value"

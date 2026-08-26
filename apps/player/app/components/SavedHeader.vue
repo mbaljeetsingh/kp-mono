@@ -4,8 +4,9 @@
  *
  * Favorites and playlists are one destination as far as the tab bar is
  * concerned — five tabs is its ceiling, so they share the "Saved" entry and
- * switch here. The account control rides along because these pages are the only
- * place it can live on touch, where there is no sidebar.
+ * switch here. The account control and the theme switch ride along because
+ * these pages are the only place they can live on touch, where there is no
+ * sidebar.
  */
 const links = [
   { to: '/favorites', label: 'Favorites' },
@@ -29,6 +30,9 @@ const links = [
     <!-- Wrapped rather than given the class directly: AccountButton renders
          nothing until the session is known, so it has no single root element for
          a class to land on. -->
-    <div class="md:hidden"><AccountButton compact /></div>
+    <div class="flex items-center gap-1 md:hidden">
+      <ThemeToggle compact />
+      <AccountButton compact />
+    </div>
   </div>
 </template>

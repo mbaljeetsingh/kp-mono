@@ -632,6 +632,41 @@ export function usePlayer() {
     return ((currentTime.value - start) / (end - start)) * 100;
   });
 
+  /**
+   * Elapsed within the shabad, not within the file it sits inside — a segment
+   * starting at 42:10 of a set should read 0:00, not 42:10.
+   *
+   * Here rather than in the transport because there is more than one transport
+   * now: the bar and the full-screen sheet show the same clock, and the
+   * segment arithmetic behind it belongs next to `startSec`.
+   */
+  const elapsed = computed(() =>
+    Math.max(0, currentTime.value - (current.value?.startSec ?? 0))
+  );
+
+  /** Length of the segment — of the file, when nothing is tagged. */
+  const total = computed(() => {
+    const c = current.value;
+    if (c?.endSec != null && c.startSec != null) return c.endSec - c.startSec;
+    return duration.value;
+  });
+
+  /**
+   * Seek to a position expressed as a percentage of the segment — what a
+   * scrubber has, given it knows its own width and nothing about the file
+   * underneath.
+   */
+  function seekPct(pct: number) {
+    const start = current.value?.startSec ?? 0;
+    const end = current.value?.endSec ?? duration.value;
+    const to = start + ((end - start) * pct) / 100;
+    // Landing exactly on the end trips the advance-to-next check in
+    // onTimeUpdate, so dragging to the far right of a scrubber would skip the
+    // shabad rather than park at the end of it. Stop just short, the way the
+    // arrow-key nudges do.
+    seek(Number.isFinite(end) && end > start ? Math.min(to, end - 0.5) : to);
+  }
+
   const upNext = computed(() =>
     queueIndex.value < 0 ? [] : queue.value.slice(queueIndex.value + 1)
   );
@@ -660,6 +695,9 @@ export function usePlayer() {
     currentTime,
     duration,
     progress,
+    elapsed,
+    total,
+    seekPct,
     attach,
     play,
     toggle,

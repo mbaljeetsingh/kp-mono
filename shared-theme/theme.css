@@ -55,6 +55,15 @@
    */
   --radius: 0.75rem;
 
+  /*
+   * Tells the browser which way its own chrome should go — form controls, the
+   * caret, and the default scrollbar where the custom one below does not
+   * apply. Without it a light page keeps dark native widgets (and vice versa),
+   * which is the one part of the palette CSS cannot restyle. The player now
+   * switches palettes at runtime, so this switches with it.
+   */
+  color-scheme: light;
+
   --background: #f5f4ed; /* Parchment */
   --foreground: #141413; /* Anthropic Near Black */
   --card: #faf9f5; /* Ivory */
@@ -98,6 +107,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   /*
    * Warm dark — lamp-lit, not charcoal-with-a-hint-of-warmth.
    * Browns pushed toward red-orange hue so warmth is visible, not theoretical.
@@ -152,6 +163,13 @@
  */
 body {
   color: var(--foreground);
+  /*
+   * And the canvas. The app shell paints `bg-background` over this, so it only
+   * shows through where the shell does not reach — an overscroll bounce, or the
+   * strip behind a portalled overlay — which in the light palette was the
+   * browser's white rather than parchment.
+   */
+  background-color: var(--background);
 }
 
 /*
