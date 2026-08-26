@@ -60,21 +60,41 @@ async function fetchRoster(attempt = 0) {
     throw err;
   }
   const body = await res.text();
-  // The response is a JSON envelope whose `html` holds a script tag with the
-  // roster array inline; the entries are matched directly rather than trying
-  // to parse the surrounding page.
-  const html = JSON.parse(body.replace(/^﻿/, '')).html as string;
+  // The response is a JSON envelope whose `html` holds the page, and the page
+  // carries the roster inline as `window._pageRecordings = [...]`. That array
+  // is real JSON, so it is lifted whole and parsed rather than picked apart
+  // field by field — which is what the previous version did, and why this
+  // stopped working silently: it matched `"name":…,"url":…,"img":…` in that
+  // exact order, and SGPC renamed `img` to `localImg`. Every run since has
+  // reported "roster: 0 artists", uploaded nothing, and exited 0.
+  const html = JSON.parse(body.replace(/^\ufeff/, '')).html as string;
+  const inline = html.match(/window\._pageRecordings\s*=\s*(\[[\s\S]*?\])\s*;/);
+  if (!inline) {
+    throw new Error(
+      'roster: window._pageRecordings not found — SGPC changed cards.php again. ' +
+        'Refusing to report an empty roster as success.'
+    );
+  }
 
   const artists: { name: string; img: string }[] = [];
   const seen = new Set<string>();
-  for (const m of html.matchAll(
-    /"name":"([^"]+)","url":"[^"]*","img":"([^"]+)"/g
-  )) {
-    const name = m[1]!;
-    const img = m[2]!.replace(/\\\//g, '/');
-    if (seen.has(name)) continue;
-    seen.add(name);
-    artists.push({ name, img });
+  for (const rec of JSON.parse(inline[1]!) as {
+    name?: string;
+    localImg?: string;
+  }[]) {
+    // `localImg` is relative to the roster page ("assets/images/Name.png"),
+    // where the old `img` was absolute — resolved here so the fetch below is
+    // unchanged, and encoded because every one of these paths has spaces in it.
+    if (!rec.name || !rec.localImg) continue;
+    if (seen.has(rec.name)) continue;
+    seen.add(rec.name);
+    artists.push({ name: rec.name, img: new URL(rec.localImg, ROSTER).href });
+  }
+  if (!artists.length) {
+    throw new Error(
+      `roster: parsed ${inline[1]!.length} bytes of _pageRecordings but found ` +
+        'no usable entries — refusing to report an empty roster as success.'
+    );
   }
   return artists;
 }
