@@ -1,17 +1,22 @@
 import tailwindcss from '@tailwindcss/vite';
 
-// A Netlify build must never fall through to the local defaults below. With a
-// missing or misnamed site env var the build otherwise goes green and bakes
-// `127.0.0.1:54521` and an empty key into the client bundle — admin is
-// `ssr: false`, so there is no server left to substitute the real values at
-// request time — and every visitor's browser then quietly queries its own
-// localhost. Fail the build instead of shipping that.
-if (
-  process.env.NETLIFY &&
-  (!process.env.SUPABASE_URL || !process.env.SUPABASE_KEY)
-) {
+// A Netlify build must never fall through to the local defaults below. Either
+// naming satisfies this and both are checked: SUPABASE_URL/SUPABASE_KEY are
+// read below and baked in as the build-time defaults, while
+// NUXT_PUBLIC_SUPABASE_URL/_KEY are applied by Nitro over runtimeConfig.public
+// per request — verified against the built function, whose served HTML carries
+// the runtime values and none of the baked ones (this holds for admin too: its
+// `ssr: false` still ships a catch-all server function that renders the shell).
+// What must not happen is neither being set: the build then goes green with
+// `127.0.0.1:54521` and an empty key as the effective config, and every
+// visitor's browser quietly queries its own localhost.
+const supabaseUrlSet =
+  process.env.SUPABASE_URL || process.env.NUXT_PUBLIC_SUPABASE_URL;
+const supabaseKeySet =
+  process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_KEY;
+if (process.env.NETLIFY && (!supabaseUrlSet || !supabaseKeySet)) {
   throw new Error(
-    'SUPABASE_URL and SUPABASE_KEY must be set on the Netlify site; refusing to build with the local defaults.',
+    'Supabase env vars missing on the Netlify site: set either SUPABASE_URL + SUPABASE_KEY or NUXT_PUBLIC_SUPABASE_URL + NUXT_PUBLIC_SUPABASE_KEY. Refusing to build with the local defaults.',
   );
 }
 
