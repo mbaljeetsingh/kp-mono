@@ -2,6 +2,23 @@
 @import "tw-animate-css";
 
 /*
+ * `dark:` follows the class, not the operating system.
+ *
+ * Tailwind v4's built-in variant compiles to
+ * `@media (prefers-color-scheme: dark)`, which is not what either app means by
+ * dark: the palette below is selected by a `.dark` class on <html>, and in the
+ * player that class is now a listener's choice. Without this the two disagree
+ * exactly when they differ — picking Light on a dark-mode phone kept every
+ * `dark:` utility on, from shadcn's `dark:bg-input/30` to this repo's own
+ * amber notices, at dark-on-light contrast.
+ *
+ * `:where` so the variant adds no specificity, and it matches the element
+ * carrying the class as well as its descendants — some utilities land on
+ * <html> itself.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
  * Shared theme tokens for all np-mono apps (apps/app, apps/admin, apps/web).
  * Default shadcn-vue "New York" theme (zinc base). Each app's index.css
  * @imports this file; Tailwind v4 resolves @theme through @import.
@@ -55,6 +72,15 @@
    */
   --radius: 0.75rem;
 
+  /*
+   * Tells the browser which way its own chrome should go — form controls, the
+   * caret, and the default scrollbar where the custom one below does not
+   * apply. Without it a light page keeps dark native widgets (and vice versa),
+   * which is the one part of the palette CSS cannot restyle. The player now
+   * switches palettes at runtime, so this switches with it.
+   */
+  color-scheme: light;
+
   --background: #f5f4ed; /* Parchment */
   --foreground: #141413; /* Anthropic Near Black */
   --card: #faf9f5; /* Ivory */
@@ -98,6 +124,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   /*
    * Warm dark — lamp-lit, not charcoal-with-a-hint-of-warmth.
    * Browns pushed toward red-orange hue so warmth is visible, not theoretical.
@@ -152,6 +180,13 @@
  */
 body {
   color: var(--foreground);
+  /*
+   * And the canvas. The app shell paints `bg-background` over this, so it only
+   * shows through where the shell does not reach — an overscroll bounce, or the
+   * strip behind a portalled overlay — which in the light palette was the
+   * browser's white rather than parchment.
+   */
+  background-color: var(--background);
 }
 
 /*

@@ -17,6 +17,29 @@ import { artworkFor } from '~/composables/useArtwork';
 const player = usePlayer();
 const showQueue = ref(false);
 const showLyrics = ref(false);
+// The full-screen player, which only exists on a phone — see NowPlayingSheet.
+const showSheet = ref(false);
+
+// Tapping the title area opens that sheet, the way every phone music player
+// does. Only there: on desktop the bar already carries the whole transport,
+// and a target that does something at one width and nothing at another should
+// not advertise itself at both.
+// In rem, because that is the unit `md:` resolves against (48rem). Pinning it
+// to 767px instead would let the phone layout render while this stayed false —
+// leaving the full-screen player unreachable — for anyone whose root font is
+// not 16px.
+const isPhone = useMediaQuery('(max-width: 47.999rem)');
+watch(isPhone, (phone) => {
+  if (!phone) showSheet.value = false;
+});
+
+/** Whether tapping the title area does anything — and so whether it should
+ *  announce itself as a control at all. */
+const canExpand = computed(() => isPhone.value && !!player.current.value);
+
+function expand() {
+  if (canExpand.value) showSheet.value = true;
+}
 
 // Read-along belongs on the transport, not on a page: you are listening when
 // you want it, and it should follow whatever is playing.
@@ -28,34 +51,24 @@ const art = computed(() =>
   )
 );
 
-function scrub(event: Event) {
-  const pct = Number((event.target as HTMLInputElement).value);
-  const start = player.current.value?.startSec ?? 0;
-  const end = player.current.value?.endSec ?? player.duration.value;
-  player.seek(start + ((end - start) * pct) / 100);
-}
-
-// Elapsed within the shabad, not within the file it sits inside — a segment
-// starting at 42:10 of a set should read 0:00, not 42:10.
-const elapsed = computed(() =>
-  Math.max(0, player.currentTime.value - (player.current.value?.startSec ?? 0))
-);
-const total = computed(() => {
-  const c = player.current.value;
-  if (c?.endSec != null && c.startSec != null) return c.endSec - c.startSec;
-  return player.duration.value;
-});
-
 // For the broadcast the clock measures time spent listening, not a position in
 // anything — so it is labelled, and reads as stopped rather than as 0:00 when
 // the listener is not connected.
 const liveStatus = computed(() =>
-  player.playing.value ? `Listening ${formatTime(elapsed.value)}` : 'Stopped'
+  player.playing.value
+    ? `Listening ${formatTime(player.elapsed.value)}`
+    : 'Stopped'
 );
 </script>
 
 <template>
   <div class="relative">
+    <NowPlayingSheet
+      v-model:open="showSheet"
+      @lyrics="((showSheet = false), (showLyrics = true), (showQueue = false))"
+      @queue="((showSheet = false), (showQueue = true), (showLyrics = false))"
+    />
+
     <LyricsPanel v-model:open="showLyrics" />
 
     <!-- Up next slides over the content rather than pushing it, so the queue
@@ -68,7 +81,7 @@ const liveStatus = computed(() =>
     >
       <aside
         v-if="showQueue"
-        class="absolute right-4 bottom-full mb-2 max-h-96 w-80 overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-2xl"
+        class="absolute right-4 bottom-full left-4 mb-2 max-h-[min(24rem,55svh)] overflow-y-auto rounded-lg border border-border bg-card p-3 shadow-2xl sm:left-auto sm:w-80"
       >
         <div class="mb-2 flex items-center justify-between">
           <p class="text-sm font-semibold text-foreground">Up next</p>
@@ -105,7 +118,7 @@ const liveStatus = computed(() =>
           v-for="item in player.upNext.value"
           :key="item.id"
           variant="ghost"
-          class="group h-auto w-full justify-start gap-2.5 px-2 py-1.5 font-normal"
+          class="group h-auto w-full justify-start gap-2.5 px-2 py-1.5 text-left font-normal"
           @click="player.playFromQueue(item.id)"
         >
           <!-- Same affordance as a row in a list: the tile is what you click,
@@ -119,7 +132,7 @@ const liveStatus = computed(() =>
             <span
               class="absolute inset-0 grid place-items-center rounded-md bg-black/55 opacity-0 transition group-hover:opacity-100"
             >
-              <Play class="size-3.5 fill-current text-foreground" />
+              <Play class="size-3.5 fill-current text-white" />
             </span>
           </span>
           <span class="min-w-0 flex-1">
@@ -136,7 +149,20 @@ const liveStatus = computed(() =>
 
     <footer class="border-t border-border bg-background px-4 py-2.5 md:py-3">
       <div class="mx-auto flex max-w-7xl items-center gap-3 md:gap-4">
-        <div class="flex min-w-0 flex-1 items-center gap-3">
+        <!-- Not a <button>, though the whole area is tappable on a phone: it
+             contains the artist link, and a button may not nest one — the
+             parser reparents it and hydration then walks a DOM that does not
+             match the vdom. Same reasoning as ShabadRow. -->
+        <div
+          class="flex min-w-0 flex-1 items-center gap-3 md:cursor-default"
+          :class="canExpand && 'cursor-pointer'"
+          :role="canExpand ? 'button' : undefined"
+          :tabindex="canExpand ? 0 : undefined"
+          :aria-label="canExpand ? 'Open the full player' : undefined"
+          @click="expand"
+          @keydown.enter.prevent="expand"
+          @keydown.space.prevent.stop="expand"
+        >
           <!-- The broadcast has no artist to draw a tile for, and initials of
                its title would be meaningless — it gets the same mark the Live
                controls use. -->
@@ -171,6 +197,7 @@ const liveStatus = computed(() =>
                 v-if="player.current.value?.artist"
                 :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
                 class="hover:text-foreground hover:underline"
+                @click.stop
                 >{{ player.current.value.subtitle }}</NuxtLink
               >
               <template v-else>{{
@@ -183,10 +210,12 @@ const liveStatus = computed(() =>
         <!-- The 1:2:1 split is for the desktop bar, where the middle column
              carries the scrubber. On a phone it left the title 28px and an
              ellipsis while a lone play button sat in 167px of space, so there
-             the transport and the trailing controls size to their content and
-             the title takes the rest. -->
+             the transport sizes to its content and the title takes the rest —
+             everything else has moved to the row below. -->
         <div class="flex flex-none flex-col items-center gap-1.5 md:flex-[2]">
-          <div class="flex items-center gap-4">
+          <!-- Tighter on a phone, where gap-4 between these spent 32px on air
+               that the title needs. -->
+          <div class="flex items-center gap-2 md:gap-4">
             <!-- Skip controls step through a queue position the broadcast does
                  not have: there is nothing before now, and nothing after it. -->
             <Button
@@ -227,11 +256,13 @@ const liveStatus = computed(() =>
             <!-- Repeat-one. Hidden during live, which has no end to repeat.
                  Stays enabled with an empty queue, unlike Next: repeating the
                  one shabad you are sitting with is exactly the case where
-                 nothing follows it. -->
+                 nothing follows it. On a phone it rides the scrubber row
+                 instead — see below. -->
             <Button
               v-if="!player.isLive.value"
               variant="ghost"
               size="icon-sm"
+              class="hidden md:inline-flex"
               :class="
                 player.repeat.value ? 'text-primary' : 'text-muted-foreground'
               "
@@ -264,31 +295,23 @@ const liveStatus = computed(() =>
               {{ liveStatus }}
             </span>
           </div>
-          <div v-else class="hidden w-full items-center gap-2 md:flex">
-            <span
-              class="w-10 text-right text-[11px] tabular-nums text-muted-foreground"
-            >
-              {{ formatTime(elapsed) }}
-            </span>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="0.1"
-              :value="player.progress.value"
-              :disabled="!player.current.value"
-              class="h-1 flex-1 accent-primary"
-              aria-label="Seek within this shabad"
-              :aria-valuetext="`${formatTime(elapsed)} of ${formatTime(total)}`"
-              @input="scrub"
-            />
-            <span class="w-10 text-[11px] tabular-nums text-muted-foreground">
-              {{ formatTime(total) }}
-            </span>
-          </div>
+          <SeekBar
+            v-else
+            class="hidden w-full md:flex"
+            :progress="player.progress.value"
+            :elapsed="player.elapsed.value"
+            :total="player.total.value"
+            :disabled="!player.current.value"
+            @seek="player.seekPct"
+          />
         </div>
 
-        <div class="flex flex-none items-center justify-end gap-3 md:flex-1">
+        <!-- Desktop only. On a phone these two ride the second row with the
+             scrubber: at 320px the bar was spending 76px on them and leaving
+             the title 16 — an ellipsis and nothing else. -->
+        <div
+          class="hidden flex-none items-center justify-end gap-3 md:flex md:flex-1"
+        >
           <!-- Only rendered when the segment carries a BaniDB shabad id. Most
                will not for a long time, and a permanently dimmed control the
                listener cannot act on is noise rather than information. -->
@@ -304,10 +327,13 @@ const liveStatus = computed(() =>
           >
             <BookOpen class="size-4" />
           </Button>
+          <!-- On a phone as well as on desktop: rows queue shabads from
+               every list, and this was the only way to read that queue or
+               clear it. -->
           <Button
             variant="ghost"
             size="icon-sm"
-            class="hidden text-muted-foreground md:inline-flex"
+            class="text-muted-foreground"
             :class="showQueue && '!text-primary'"
             aria-label="Up next"
             title="Up next"
@@ -318,24 +344,71 @@ const liveStatus = computed(() =>
         </div>
       </div>
 
-      <!-- Mobile keeps a hairline progress bar instead of the full scrubber.
-           A broadcast has no progress to draw, so the badge takes that slot
-           rather than the transport row, which on a phone is too narrow to
-           hold it without crushing the title to an ellipsis. -->
-      <div
-        v-if="player.isLive.value"
-        class="mt-2 flex items-center justify-center gap-2 md:hidden"
-      >
-        <LiveBadge :pulse="player.playing.value" />
-        <span class="text-[11px] tabular-nums text-muted-foreground">
-          {{ liveStatus }}
-        </span>
-      </div>
-      <div v-else class="mt-2 h-0.5 w-full rounded bg-muted md:hidden">
+      <!-- The phone's second row. The transport above only has room for the
+           title and the three controls that move playback, so the timeline —
+           or the live clock, which replaces it, having nothing to scrub — and
+           every secondary toggle live down here. Read-along and Up next are
+           reachable during a broadcast too: the queue survives a detour
+           through it. -->
+      <div class="mt-1 flex items-center gap-1 md:hidden">
         <div
-          class="h-full rounded bg-primary"
-          :style="{ width: `${player.progress.value}%` }"
+          v-if="player.isLive.value"
+          class="flex min-w-0 flex-1 items-center justify-center gap-2"
+        >
+          <LiveBadge :pulse="player.playing.value" />
+          <span class="text-[11px] tabular-nums text-muted-foreground">
+            {{ liveStatus }}
+          </span>
+        </div>
+        <SeekBar
+          v-else
+          class="min-w-0 flex-1"
+          :progress="player.progress.value"
+          :elapsed="player.elapsed.value"
+          :total="player.total.value"
+          :disabled="!player.current.value"
+          @seek="player.seekPct"
         />
+        <Button
+          v-if="!player.isLive.value"
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 shrink-0"
+          :class="
+            player.repeat.value ? 'text-primary' : 'text-muted-foreground'
+          "
+          :disabled="!player.current.value"
+          :aria-pressed="player.repeat.value"
+          :aria-label="
+            player.repeat.value ? 'Turn off repeat' : 'Repeat this shabad'
+          "
+          @click="player.toggleRepeat"
+        >
+          <Repeat1 class="size-4" />
+        </Button>
+        <Button
+          v-if="hasShabad"
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 shrink-0 text-muted-foreground"
+          :class="showLyrics && '!text-primary'"
+          aria-label="Read along"
+          @click="((showLyrics = !showLyrics), (showQueue = false))"
+        >
+          <BookOpen class="size-4" />
+        </Button>
+        <!-- Rows queue shabads from every list, and before this a phone had no
+             way to read that queue or clear it. -->
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          class="size-7 shrink-0 text-muted-foreground"
+          :class="showQueue && '!text-primary'"
+          aria-label="Up next"
+          @click="((showQueue = !showQueue), (showLyrics = false))"
+        >
+          <ListMusic class="size-4" />
+        </Button>
       </div>
     </footer>
   </div>

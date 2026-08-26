@@ -39,8 +39,8 @@ function play() {
   <div
     role="button"
     tabindex="0"
-    class="group grid w-full cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-    :class="isCurrent && 'bg-white/5'"
+    class="group grid w-full cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    :class="isCurrent && 'bg-foreground/5'"
     @click="play"
     @keydown.enter.prevent="play"
     @keydown.space.prevent="play"

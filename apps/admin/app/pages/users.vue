@@ -139,7 +139,7 @@ async function setTrust(person: any, trust: string) {
           v-model="q"
           type="search"
           placeholder="Search by email, name or id"
-          class="h-9 bg-card pl-9 text-xs"
+          class="h-9 bg-card pl-9 text-base md:text-xs"
         />
       </div>
       <NativeSelect v-model="levelFilter" class="w-auto bg-card text-xs">

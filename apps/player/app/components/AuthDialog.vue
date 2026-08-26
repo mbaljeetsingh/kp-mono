@@ -104,7 +104,9 @@ async function submit() {
           />
         </div>
 
-        <p v-if="message" class="text-xs text-amber-400">{{ message }}</p>
+        <p v-if="message" class="text-xs text-amber-600 dark:text-amber-400">
+          {{ message }}
+        </p>
 
         <Button type="submit" :disabled="busy" class="mt-1">
           {{
