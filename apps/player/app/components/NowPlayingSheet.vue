@@ -2,11 +2,18 @@
 /**
  * The full-screen player, opened by tapping the mini transport on a phone.
  *
- * The mini bar can only ever be a compromise: at 320px it has room for a
- * title, three controls and a 104px scrubber. Tapping it here is what every
- * phone music player does, and it is the only place a thumb gets a full-width
- * timeline and artwork big enough to see — so precise scrubbing lives here and
- * the bar stays a summary.
+ * This is the phone's player; the bar is a summary of it. That split is what
+ * every phone music player settles on, and the arithmetic says why: a 390px bar
+ * that also carries a scrubber, its clock, four transport controls and three
+ * toggles leaves the title 98px, and at 320px it left it 16. So the bar keeps
+ * what you glance at — who is playing, and play/next — and everything you have
+ * to aim at lives here, at a size a thumb can hit: a full-width timeline, the
+ * skip and repeat controls, the read-along, and the queue.
+ *
+ * The read-along and the queue are views in this screen rather than panels over
+ * the bar, for the same reason. A panel that opens behind a full-screen sheet is
+ * invisible, and collapsing the sheet to show it throws away the context the
+ * listener just opened.
  *
  * Hand-rolled rather than the Drawer in layers/ui: vaul reads pointer moves on
  * its content to drag the sheet down, and the scrubber's own drag — which
@@ -31,11 +38,28 @@ import { usePlayer, formatTime } from '~/composables/usePlayer';
 const player = usePlayer();
 const open = defineModel<boolean>('open', { default: false });
 
-/** Read-along and Up next draw over the mini bar, underneath this. Rather than
- *  open a panel nobody can see, both collapse the sheet on the way out. */
-const emit = defineEmits<{ lyrics: []; queue: [] }>();
-
 const hasShabad = computed(() => player.current.value?.shabadId != null);
+
+/**
+ * What fills the space above the controls. Artwork is the resting state and
+ * both toggles come back to it, so the button that opened a view closes it.
+ */
+type View = 'art' | 'lyrics' | 'queue';
+const view = ref<View>('art');
+
+function show(next: View) {
+  view.value = view.value === next ? 'art' : next;
+}
+
+// A fresh open starts on the artwork, and a shabad without a read-along cannot
+// stay on one — skipping from a tagged rendition to an untagged one would
+// otherwise leave the screen on an empty panel.
+watch(open, (isOpen) => {
+  if (!isOpen) view.value = 'art';
+});
+watch(hasShabad, (has) => {
+  if (!has && view.value === 'lyrics') view.value = 'art';
+});
 
 const liveStatus = computed(() =>
   player.playing.value
@@ -137,25 +161,51 @@ function dismissDrag(down: PointerEvent) {
         </div>
       </div>
 
-      <!-- Artwork takes whatever height is left over, so a tall phone gets a
+      <!-- Whatever is on show takes the height left over, so a tall phone gets a
            big tile and a short one still fits the controls without scrolling.
-           `min-h-0` is what allows it to give that height back. -->
-      <div class="flex min-h-0 flex-1 items-center justify-center px-8 py-4">
-        <div
-          v-if="player.isLive.value"
-          class="grid aspect-square w-full max-w-xs place-items-center rounded-xl bg-primary/10"
-        >
-          <Radio
-            class="size-20 text-primary"
-            :class="player.playing.value && 'animate-pulse'"
-          />
-        </div>
-        <ArtTile
-          v-else-if="player.current.value"
-          :name="player.current.value.artist ?? player.current.value.title"
-          :photo="player.current.value.artistPhoto"
-          class="aspect-square w-full max-w-xs rounded-xl text-5xl shadow-2xl"
+           `min-h-0` is what allows it to give that height back — and what lets
+           the two scrolling views scroll instead of pushing the transport off
+           the bottom of the screen. -->
+      <div
+        class="flex min-h-0 flex-1 flex-col justify-center"
+        :class="
+          view === 'art'
+            ? 'items-center px-8 py-4'
+            : // A scrolling view is cut off by this edge rather than ending at
+              // it, so the edge has to be drawn — otherwise the last line
+              // visible looks like a rendering fault rather than a fold.
+              'border-b border-border'
+        "
+      >
+        <LyricsPanel
+          v-if="view === 'lyrics'"
+          inline
+          :open="true"
+          class="min-h-0 flex-1"
         />
+        <div
+          v-else-if="view === 'queue'"
+          class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3"
+        >
+          <QueueList />
+        </div>
+        <template v-else>
+          <div
+            v-if="player.isLive.value"
+            class="grid aspect-square w-full max-w-xs place-items-center rounded-xl bg-primary/10"
+          >
+            <Radio
+              class="size-20 text-primary"
+              :class="player.playing.value && 'animate-pulse'"
+            />
+          </div>
+          <ArtTile
+            v-else-if="player.current.value"
+            :name="player.current.value.artist ?? player.current.value.title"
+            :photo="player.current.value.artistPhoto"
+            class="aspect-square w-full max-w-xs rounded-xl text-5xl shadow-2xl"
+          />
+        </template>
       </div>
 
       <div class="shrink-0 px-6 pb-8">
@@ -254,16 +304,22 @@ function dismissDrag(down: PointerEvent) {
             v-if="hasShabad"
             variant="ghost"
             size="sm"
-            class="gap-2 text-muted-foreground"
-            @click="emit('lyrics')"
+            class="gap-2"
+            :class="
+              view === 'lyrics' ? 'text-primary' : 'text-muted-foreground'
+            "
+            :aria-pressed="view === 'lyrics'"
+            @click="show('lyrics')"
           >
             <BookOpen class="size-4" /> Read along
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            class="gap-2 text-muted-foreground"
-            @click="emit('queue')"
+            class="gap-2"
+            :class="view === 'queue' ? 'text-primary' : 'text-muted-foreground'"
+            :aria-pressed="view === 'queue'"
+            @click="show('queue')"
           >
             <ListMusic class="size-4" /> Up next
           </Button>

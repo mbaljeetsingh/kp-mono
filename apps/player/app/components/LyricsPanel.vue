@@ -7,13 +7,31 @@ const player = usePlayer();
 const { shabad, loading, load } = useShabadText();
 const open = defineModel<boolean>('open', { default: false });
 
+/**
+ * Filling a container rather than floating over the bar.
+ *
+ * The full-screen player shows the read-along where the artwork was, which is
+ * where every phone music player puts lyrics. Same component either way — all
+ * the follow-along logic below is the part worth having once — so only the
+ * frame changes: no positioning, no border, no shadow, and no close button,
+ * because the toggle that opened the view closes it.
+ */
+const props = defineProps<{ inline?: boolean }>();
+
 // Only tagged segments carry a shabad id — most will not, for a long time.
 const shabadId = computed(() => player.current.value?.shabadId ?? null);
 const mainVerseId = computed(() => player.current.value?.mainVerseId ?? null);
 
-watch([open, shabadId], () => {
-  if (open.value) void load(shabadId.value);
-});
+// `immediate` because the panel is no longer always mounted: the full-screen
+// player creates it already open, and a watcher that only answers a *change*
+// would then never fetch — the frame appeared with no shabad in it.
+watch(
+  [open, shabadId],
+  () => {
+    if (open.value) void load(shabadId.value);
+  },
+  { immediate: true }
+);
 
 const lines = computed(() => shabad.value?.verses ?? []);
 
@@ -149,12 +167,18 @@ watch(highlightId, () => void scrollToHighlight(true));
 <template>
   <aside
     v-if="open"
-    class="absolute right-4 bottom-full left-4 mb-2 max-h-[min(28rem,60svh)] overflow-y-auto rounded-lg border border-border bg-card shadow-2xl md:left-auto md:w-96"
+    class="overflow-y-auto"
+    :class="
+      props.inline
+        ? 'size-full overscroll-contain'
+        : 'absolute right-4 bottom-full left-4 mb-2 max-h-[min(28rem,60svh)] rounded-lg border border-border bg-card shadow-2xl md:left-auto md:w-96'
+    "
     @wheel.passive="onReaderScroll"
     @touchmove.passive="onReaderScroll"
   >
     <div
-      class="sticky top-0 flex items-start justify-between gap-2 border-b border-border bg-card px-4 py-3"
+      class="sticky top-0 flex items-start justify-between gap-2 border-b border-border px-4 py-3"
+      :class="props.inline ? 'bg-background' : 'bg-card'"
     >
       <div class="min-w-0">
         <p
@@ -183,9 +207,11 @@ watch(highlightId, () => void scrollToHighlight(true));
           <ChevronsDownUp v-else class="size-4" />
         </Button>
         <Button
+          v-if="!props.inline"
           variant="ghost"
           size="icon-sm"
           class="size-7 text-muted-foreground"
+          aria-label="Close the read-along"
           @click="open = false"
         >
           <X class="size-4" />
