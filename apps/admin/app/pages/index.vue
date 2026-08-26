@@ -18,10 +18,10 @@ const route = useRoute();
 const router = useRouter();
 
 type Sort = 'shortest' | 'untagged';
-type Filter = 'todo' | 'started' | 'done' | 'all';
+type Filter = 'todo' | 'queued' | 'started' | 'done' | 'all';
 
 const SORTS: Sort[] = ['shortest', 'untagged'];
-const FILTERS: Filter[] = ['todo', 'started', 'done', 'all'];
+const FILTERS: Filter[] = ['todo', 'queued', 'started', 'done', 'all'];
 
 /**
  * Which shelf you are looking at belongs to the URL, not to this component.
@@ -59,17 +59,52 @@ const searchTerm = computed(() => {
   return t.length > 1 ? t : '';
 });
 
+// The scan queue, keyed by track so each row can tell whether it may still
+// ask. Fetched once rather than joined into the recordings view: the table is
+// small — one row per request, ever — and a second query keeps the view SQL
+// untouched. For anyone without the scans.request permission RLS returns nothing,
+// so the map stays empty and a click gets the refusal as an error instead.
+const { data: scans } = await useAsyncData('scan-requests', async () => {
+  const { data } = await supabase
+    .from('scan_requests')
+    .select('track_id,done_at');
+  const map: Record<string, string | null> = {};
+  for (const r of data ?? []) map[r.track_id] = r.done_at;
+  return map;
+});
+
 /**
- * How many recordings this shelf holds, which the infinite list cannot say:
- * it only knows what it has scrolled to. Same filters as the query below and
- * nothing else — `head: true` asks Postgres to count without shipping a single
- * row, so the answer costs no bandwidth against a 49,000-track catalogue.
+ * Ids the Queued shelf will ask for at once. ~19 bytes each in the query
+ * string, so this stays far inside the 8 KB a proxy will usually carry.
  */
+const QUEUED_SHELF_MAX = 200;
+
+/** Tracks with a scan requested and not yet finished — the "Queued" shelf. */
+const queuedIds = computed(() =>
+  Object.entries(scans.value ?? {})
+    .filter(([, doneAt]) => doneAt === null)
+    .map(([trackId]) => trackId)
+);
+
 function applyShelf(query: any) {
   if (filter.value === 'todo') return query.eq('renditions', 0);
   if (filter.value === 'started')
     return query.gt('renditions', 0).eq('published', 0);
   if (filter.value === 'done') return query.gt('published', 0);
+  // Waiting on the scanner. Unlike the other shelves this is not a column on
+  // the view — the queue is its own table — so it filters by the ids awaiting a
+  // scan. An empty list needs no special case: PostgREST answers `in.()` with
+  // no rows, which is the right answer for an empty queue (measured, not
+  // assumed).
+  //
+  // Capped because the list rides in the query string and the queue is only
+  // self-limiting while the scanner is healthy: every id it stamps leaves the
+  // queue, so a scanner that fails on every track — which is what a missing
+  // ffmpeg did — lets requests pile up until the URL is too long to send, and
+  // this shelf breaks exactly when someone opens it to ask why.
+  if (filter.value === 'queued') {
+    return query.in('id', queuedIds.value.slice(0, QUEUED_SHELF_MAX));
+  }
   return query;
 }
 
@@ -92,6 +127,12 @@ function applySearch(query: any) {
   return query.or(`artist_dir.ilike.*${safe}*,raw_filename.ilike.*${safe}*`);
 }
 
+/**
+ * How many recordings this shelf holds, which the infinite list cannot say:
+ * it only knows what it has scrolled to. Same filters as the query below and
+ * nothing else — `head: true` asks Postgres to count without shipping a single
+ * row, so the answer costs no bandwidth against a 49,000-track catalogue.
+ */
 const { data: total, refresh: refreshTotal } = await useAsyncData(
   'recordings-count',
   async () => {
@@ -149,6 +190,10 @@ const SHELF_EMPTY: Record<string, [string, string]> = {
     'Every recording has been started',
     'Nothing is untouched. Check "In progress" for recordings with shabads still waiting to be published.',
   ],
+  queued: [
+    'Nothing waiting on the scanner',
+    'Press Suggest on a recording and it appears here until the nightly scan has had its turn.',
+  ],
   started: [
     'Nothing in progress',
     'No recording has shabads waiting. Start one from "Not started".',
@@ -179,20 +224,6 @@ function showEverything() {
 function mins(sec: number | null) {
   return sec ? `≈${Math.round(sec / 60)} min` : '—';
 }
-
-// The scan queue, keyed by track so each row can tell whether it may still
-// ask. Fetched once rather than joined into the recordings view: the table is
-// small — one row per request, ever — and a second query keeps the view SQL
-// untouched. For anyone without the scans.request permission RLS returns nothing,
-// so the map stays empty and a click gets the refusal as an error instead.
-const { data: scans } = await useAsyncData('scan-requests', async () => {
-  const { data } = await supabase
-    .from('scan_requests')
-    .select('track_id,done_at');
-  const map: Record<string, string | null> = {};
-  for (const r of data ?? []) map[r.track_id] = r.done_at;
-  return map;
-});
 
 /**
  * 'none' shows the button, 'queued' the waiting state, and 'done' the button
@@ -265,6 +296,7 @@ async function suggest(t: any) {
       <Button
         v-for="f in [
           { key: 'todo', label: 'Not started' },
+          { key: 'queued', label: 'Queued' },
           { key: 'started', label: 'In progress' },
           { key: 'done', label: 'Has published' },
           { key: 'all', label: 'All' },
