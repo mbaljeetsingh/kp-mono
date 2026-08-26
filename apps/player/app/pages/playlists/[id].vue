@@ -183,7 +183,10 @@ async function confirmDelete() {
         </DialogHeader>
         <form @submit.prevent="submitRename">
           <Input v-model="draftName" maxlength="120" autofocus />
-          <p v-if="renameError" class="mt-2 text-xs text-amber-400">
+          <p
+            v-if="renameError"
+            class="mt-2 text-xs text-amber-600 dark:text-amber-400"
+          >
             {{ renameError }}
           </p>
           <DialogFooter class="mt-4">

@@ -85,7 +85,12 @@ async function submit() {
           maxlength="120"
           autofocus
         />
-        <p v-if="message" class="mt-2 text-xs text-amber-400">{{ message }}</p>
+        <p
+          v-if="message"
+          class="mt-2 text-xs text-amber-600 dark:text-amber-400"
+        >
+          {{ message }}
+        </p>
         <DialogFooter class="mt-4">
           <Button type="submit" :disabled="busy">
             {{ busy ? 'Creating…' : 'Create playlist' }}

@@ -52,7 +52,7 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
         v-model="q"
         type="search"
         placeholder="Search shabads, artists, raags"
-        class="h-12 rounded-full border-0 bg-muted pr-4 pl-10 text-sm"
+        class="h-12 rounded-full border-0 bg-muted pr-4 pl-10 text-base md:text-sm"
       />
     </div>
 

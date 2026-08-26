@@ -68,9 +68,13 @@ export default defineNuxtConfig({
   routeRules: {
     '/banidb-api/**': { proxy: 'https://api.banidb.com/v2/**' },
   },
-  // `dark` belongs on <html>, not on a wrapper div: Reka portals every overlay
-  // — dialogs, dropdown menus, their submenus — to document.body, outside any
-  // app-level wrapper. With the class on a div those overlays resolved the
-  // light `:root` palette from shared-theme and came up cream-on-dark.
-  app: { head: { title: 'Kirtan', htmlAttrs: { class: 'dark' } } },
+  // No `dark` class here any more: the theme is a listener's choice now, so it
+  // is written to <html> by the pre-paint script in app.vue and thereafter by
+  // useTheme. It stays on <html> rather than a wrapper div for the original
+  // reason — Reka portals every overlay (dialogs, dropdown menus, their
+  // submenus) to document.body, outside any app-level wrapper, where the class
+  // no longer applies and the tokens resolve to the other palette. Declaring
+  // it here as well would put unhead in charge of the same attribute and the
+  // two would fight over it on hydration.
+  app: { head: { title: 'Kirtan' } },
 });

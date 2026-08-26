@@ -33,8 +33,16 @@ export function artworkFor(name: string) {
   const hue = HUES[i];
   // Offset rather than an independent pick: two hues can otherwise land on the
   // same value, collapsing the gradient into a flat, muddy tile.
-  const hue2 = HUES[(i + 1 + ((h >> 8) % (HUES.length - 1))) % HUES.length];
-  const angle = 115 + ((h >> 16) % 60);
+  //
+  // `>>>` rather than `>>`: `hash` returns an unsigned 32-bit value, and half
+  // of those are negative once `>>` coerces them back to a signed int. A
+  // negative remainder then indexed HUES out of bounds, `undefined` went into
+  // the oklch() stop, and the browser threw the whole gradient away — leaving a
+  // transparent tile with initials floating on the page behind it. It hit
+  // roughly one name in seven, "Sri Harmandir Sahib" among them, everywhere
+  // artwork appears.
+  const hue2 = HUES[(i + 1 + ((h >>> 8) % (HUES.length - 1))) % HUES.length];
+  const angle = 115 + ((h >>> 16) % 60);
 
   return {
     style: {
