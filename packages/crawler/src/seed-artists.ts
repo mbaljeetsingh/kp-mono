@@ -51,9 +51,17 @@ const failures: string[] = [];
 
 for (const item of manifest) {
   const bytes = await readFile(join(OUT, 'artist-photos', item.file));
+  // Sniffed, not assumed. Every roster path ends in `.png`, but SGPC serves
+  // JPEG bytes behind some of those names — a third of a sample of three — and
+  // this used to declare `image/png` for all of them. Browsers sniff `<img>`
+  // regardless so the tiles still rendered, but the bucket then held objects
+  // whose Content-Type contradicted their contents, which is the sort of thing
+  // a CDN or an <img> preload eventually takes literally.
+  const contentType =
+    bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg' : 'image/png';
   const { error: uploadError } = await client.storage
     .from(BUCKET)
-    .upload(item.file, bytes, { contentType: 'image/png', upsert: true });
+    .upload(item.file, bytes, { contentType, upsert: true });
   if (uploadError) {
     failures.push(`${item.name}: ${uploadError.message}`);
     continue;
