@@ -624,12 +624,22 @@ export function usePlayer() {
     navigator.mediaSession.setActionHandler('pause', () => toggle());
   }
 
-  /** Position within the current segment, or within the file if untagged. */
+  /**
+   * Position within the current segment, or within the file if untagged.
+   *
+   * Clamped, because `duration` is only ever written by `loadedmetadata`: load
+   * a long file after a short one and, until its metadata lands, the old
+   * duration is the denominator and a resumed position divides out well past
+   * 100. A scrubber survives that (it clamps again before painting), but the
+   * bar's progress line is a bare percentage width — unclamped it drew a line
+   * several screens wide and left the page pannable sideways.
+   */
   const progress = computed(() => {
     const start = current.value?.startSec ?? 0;
     const end = current.value?.endSec ?? duration.value;
     if (!end || end <= start) return 0;
-    return ((currentTime.value - start) / (end - start)) * 100;
+    const pct = ((currentTime.value - start) / (end - start)) * 100;
+    return Math.min(100, Math.max(0, pct));
   });
 
   /**

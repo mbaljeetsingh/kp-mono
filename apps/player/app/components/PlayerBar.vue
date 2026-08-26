@@ -32,9 +32,19 @@ watch(isPhone, (phone) => {
   if (!phone) showSheet.value = false;
 });
 
-/** Whether tapping the title area does anything — and so whether it should
- *  announce itself as a control at all. */
-const canExpand = computed(() => isPhone.value && !!player.current.value);
+/**
+ * Whether tapping the title area does anything — and so whether it should
+ * announce itself as a control at all.
+ *
+ * A queue counts, not only a loaded track. `addToQueue` deliberately starts
+ * nothing, so "add to queue" with an idle transport leaves shabads queued and
+ * no `current` — and since the queue is now only reachable through the player
+ * screen on a phone, gating this on `current` alone stranded them there.
+ */
+const canExpand = computed(
+  () =>
+    isPhone.value && (!!player.current.value || player.upNext.value.length > 0)
+);
 
 function expand() {
   if (canExpand.value) showSheet.value = true;
@@ -292,7 +302,7 @@ const liveStatus = computed(() =>
            marked in the subtitle instead. -->
       <div
         v-if="!player.isLive.value"
-        class="absolute inset-x-0 bottom-0 h-[3px] bg-foreground/10 md:hidden"
+        class="absolute inset-x-0 bottom-0 h-[3px] overflow-hidden bg-foreground/10 md:hidden"
       >
         <div
           class="h-full bg-primary transition-[width] duration-300 ease-linear"
