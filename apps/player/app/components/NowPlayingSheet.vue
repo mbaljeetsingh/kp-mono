@@ -278,16 +278,43 @@ function dismissDrag(down: PointerEvent) {
 
         <PlayerControls size="lg" class="mt-4 justify-center" />
 
-        <!-- Tabs rather than three toggles in a row: the two panels are
-             alternatives to each other, and the strip says so. Pressing the
-             lit one goes back to the artwork, which is the third state a
-             phone has and a desktop does not. -->
-        <div class="mt-4 flex items-center justify-center gap-1">
+        <!-- Three columns so the two view toggles stay centred under the
+             transport while repeat sits out on the right, where the desktop bar
+             also ends: it is the setting that outlives this shabad, not one of
+             the two things this screen switches between, and having it lead the
+             row made it look like a third view.
+             Icons without labels — there are two of them, they are the two
+             obvious things a player hides, and the words were costing a phone a
+             whole row of height next to a 56px play button. The lit one is
+             washed rather than underlined, which is what reads on an icon.
+             Pressing the lit one still goes back to the artwork, the third
+             state a phone has and a desktop does not. -->
+        <div class="mt-4 grid grid-cols-[1fr_auto_1fr] items-center">
+          <div aria-hidden="true" />
+          <div class="flex items-center justify-center gap-1">
+            <button
+              v-for="t in tabs"
+              :key="t.value"
+              type="button"
+              class="grid size-10 place-items-center rounded-lg transition"
+              :class="
+                view === t.value
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground'
+              "
+              :aria-pressed="view === t.value"
+              :aria-label="t.label"
+              :title="t.label"
+              @click="show(t.value)"
+            >
+              <component :is="t.icon" class="size-5" />
+            </button>
+          </div>
           <Button
             v-if="!player.isLive.value"
             variant="ghost"
             size="icon-sm"
-            class="mr-2"
+            class="justify-self-end"
             :class="
               player.repeat.value ? 'text-primary' : 'text-muted-foreground'
             "
@@ -300,22 +327,6 @@ function dismissDrag(down: PointerEvent) {
           >
             <Repeat1 class="size-4" />
           </Button>
-          <button
-            v-for="t in tabs"
-            :key="t.value"
-            type="button"
-            class="flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition"
-            :class="
-              view === t.value
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground'
-            "
-            :aria-pressed="view === t.value"
-            @click="show(t.value)"
-          >
-            <component :is="t.icon" class="size-4" />
-            {{ t.label }}
-          </button>
         </div>
       </div>
     </section>
