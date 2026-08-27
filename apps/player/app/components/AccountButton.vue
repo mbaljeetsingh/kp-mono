@@ -5,9 +5,9 @@
  * Deliberately one small control. The player stores nothing about an account
  * beyond what that account has saved, so there is no profile to edit.
  *
- * `compact` is for the saved pages' headers, which is where this has to appear
- * on touch — the mobile tab bar is full at five entries and there is no sidebar
- * to hold it.
+ * Desktop only, in practice: the sidebar is the one place it renders. On touch
+ * the same two states — the email with a way out, or a way in — are rows inside
+ * MobileTabBar's More sheet, since there is no sidebar to hold this.
  */
 import { LogIn, LogOut, User } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
@@ -20,15 +20,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const props = defineProps<{ compact?: boolean }>();
-
 const auth = useAuth();
 
-const trigger = computed(() =>
-  props.compact
-    ? 'max-w-[11rem] gap-2 px-2 text-xs font-normal text-muted-foreground'
-    : 'w-full justify-start gap-3 px-3 text-sm font-normal text-muted-foreground'
-);
+const trigger =
+  'w-full justify-start gap-3 px-3 text-sm font-normal text-muted-foreground';
 </script>
 
 <template>
