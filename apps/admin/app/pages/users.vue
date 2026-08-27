@@ -38,8 +38,6 @@ const { data: people, refresh } = await useAsyncData(
 // show them this control.
 const { canManageUsers } = await useMyPermissions();
 
-
-
 /** What each rung adds, mirroring role_permissions. */
 const GRANTS: Record<(typeof TRUST_LADDER)[number], string> = {
   contributor: 'propose shabads',

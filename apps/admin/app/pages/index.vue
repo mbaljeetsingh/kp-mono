@@ -137,7 +137,9 @@ const { data: total, refresh: refreshTotal } = await useAsyncData(
   'recordings-count',
   async () => {
     const { count } = await applySearch(
-      applyShelf(supabase.from('recordings').select('*', { count: 'exact', head: true }))
+      applyShelf(
+        supabase.from('recordings').select('*', { count: 'exact', head: true })
+      )
     );
     return count ?? 0;
   }

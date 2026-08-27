@@ -24,23 +24,29 @@ import { TRUST_LADDER, type TrustLevel } from '@kp/shared/types';
 const supabase = useSupabaseClient();
 const { canManageUsers } = await useMyPermissions();
 
-
-
 /**
  * Read from the enum rather than a list kept here: a capability added by a
  * migration has to appear in this grid on its own, since an ungranted
  * capability is precisely the cell an admin comes here to tick. `scans.request`
  * arrived that way.
  */
-const { data: permissions } = await useAsyncData('app-permissions', async () => {
-  const { data } = await supabase.rpc('app_permissions');
-  return (data as string[] | null) ?? [];
-});
+const { data: permissions } = await useAsyncData(
+  'app-permissions',
+  async () => {
+    const { data } = await supabase.rpc('app_permissions');
+    return (data as string[] | null) ?? [];
+  }
+);
 
-const { data: granted, refresh } = await useAsyncData('role-permissions', async () => {
-  const { data } = await supabase.from('role_permissions').select('role,permission');
-  return (data ?? []) as { role: string; permission: string }[];
-});
+const { data: granted, refresh } = await useAsyncData(
+  'role-permissions',
+  async () => {
+    const { data } = await supabase
+      .from('role_permissions')
+      .select('role,permission');
+    return (data ?? []) as { role: string; permission: string }[];
+  }
+);
 
 const held = computed(() => {
   const s = new Set<string>();
@@ -168,7 +174,11 @@ async function toggle(role: TrustLevel, permission: string) {
             <td class="px-3 py-2">
               <code class="text-xs text-foreground">{{ p }}</code>
             </td>
-            <td v-for="l in TRUST_LADDER" :key="l" class="px-3 py-2 text-center">
+            <td
+              v-for="l in TRUST_LADDER"
+              :key="l"
+              class="px-3 py-2 text-center"
+            >
               <div class="flex justify-center">
                 <Checkbox
                   :model-value="has(l, p)"
