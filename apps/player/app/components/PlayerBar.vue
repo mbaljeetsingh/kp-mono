@@ -148,10 +148,13 @@ const liveStatus = computed(() =>
                 :pulse="player.playing.value"
                 class="shrink-0 md:hidden"
               />
+              <!-- Inert on touch, like a list row's: this line sits inside the
+                   area that opens the full player, and a link inside a tap
+                   target is a coin toss. The player itself carries the ragi. -->
               <NuxtLink
                 v-if="player.current.value?.artist"
                 :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
-                class="truncate hover:text-foreground hover:underline"
+                class="pointer-events-none truncate md:pointer-events-auto md:hover:text-foreground md:hover:underline"
                 @click.stop
                 >{{ player.current.value.subtitle }}</NuxtLink
               >

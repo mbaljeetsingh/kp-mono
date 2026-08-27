@@ -69,10 +69,18 @@ function play() {
         {{ shabad.name }}
       </span>
       <span class="block truncate text-xs text-muted-foreground">
+        <!-- Inert on touch. The artist sits in a 143x14 band directly under the
+             title — 12% of the row, and exactly where a thumb aiming at the row
+             lands — so on a phone it swallowed taps meant for play and went to
+             the ragi instead. A row does one thing there: it plays. The ragi
+             stays two taps away in this row's own menu, and one tap away from
+             the full-screen player, which has the room for a real target.
+             `pointer-events` rather than dropping the link, so the markup stays
+             a link for assistive tech, which does not activate it by pointer. -->
         <NuxtLink
           v-if="shabad.artist"
           :to="`/ragis/${encodeURIComponent(shabad.artist)}`"
-          class="hover:text-foreground hover:underline"
+          class="pointer-events-none md:pointer-events-auto md:hover:text-foreground md:hover:underline"
           @click.stop
           >{{ shabad.artist_display ?? shabad.artist }}</NuxtLink
         >

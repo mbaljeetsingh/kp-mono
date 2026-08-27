@@ -23,6 +23,7 @@
  */
 import {
   ChevronDown,
+  ChevronRight,
   Play,
   Pause,
   SkipBack,
@@ -212,17 +213,22 @@ function dismissDrag(down: PointerEvent) {
         <p class="text-lg leading-snug font-semibold text-foreground">
           {{ player.current.value?.title ?? 'Nothing playing' }}
         </p>
-        <p class="mt-0.5 truncate text-sm text-muted-foreground">
-          <NuxtLink
-            v-if="player.current.value?.artist"
-            :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
-            class="hover:text-foreground hover:underline"
-            @click="open = false"
-            >{{ player.current.value.subtitle }}</NuxtLink
-          >
-          <template v-else>{{
-            player.current.value?.subtitle ?? 'Pick a shabad to start'
-          }}</template>
+        <!-- The way to the ragi from a phone, now that a list row is only a
+             row: a real target with a caret to say where it goes, rather than
+             a 14px line of text that has to be aimed at. Negative margin so the
+             padding that makes it hittable does not indent the name away from
+             the title above it. -->
+        <NuxtLink
+          v-if="player.current.value?.artist"
+          :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
+          class="-mx-2 mt-0.5 flex max-w-full items-center gap-1 rounded-md px-2 py-2 text-sm text-muted-foreground transition active:bg-foreground/5 md:hover:text-foreground"
+          @click="open = false"
+        >
+          <span class="truncate">{{ player.current.value.subtitle }}</span>
+          <ChevronRight class="size-4 shrink-0 opacity-70" />
+        </NuxtLink>
+        <p v-else class="mt-0.5 truncate text-sm text-muted-foreground">
+          {{ player.current.value?.subtitle ?? 'Pick a shabad to start' }}
         </p>
 
         <!-- A broadcast has no timeline: the connection is not seekable and
