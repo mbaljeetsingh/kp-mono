@@ -122,7 +122,6 @@ const tabs = computed(() =>
         <div class="min-h-0 flex-1 overflow-y-auto pt-3">
           <LyricsPanel
             v-if="tab === 'lyrics' && hasShabad"
-            inline
             :open="true"
             class="size-full"
           />

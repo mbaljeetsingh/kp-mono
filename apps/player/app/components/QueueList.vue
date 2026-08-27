@@ -2,19 +2,16 @@
 /**
  * Up next, wherever it is shown.
  *
- * Two places now: the panel that slides over the desktop bar, and a view inside
- * the full-screen player on a phone. Same list, so it lives here rather than in
- * both — only the frame around it differs, which is what `onClose` decides.
+ * Two places: a tab inside the desktop full player, and a view inside the
+ * phone's. Same list, so it lives here rather than in both. It used to carry a
+ * `closable` flag for a third frame — the panel that slid over the transport
+ * bar — which #48 removed; nothing has passed it since, so it has gone with the
+ * close button it drew.
  */
-import { X, Play } from 'lucide-vue-next';
+import { Play } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { usePlayer, toPlayable } from '~/composables/usePlayer';
 import { useQueueSuggestions } from '~/composables/useQueueSuggestions';
-
-/** Close affordance, for the frame that needs one. The full-screen view
- *  switches back with the same toggle that opened it, so it passes nothing. */
-const props = defineProps<{ closable?: boolean }>();
-const emit = defineEmits<{ close: [] }>();
 
 const player = usePlayer();
 
@@ -45,16 +42,6 @@ function playSuggestion(items: any[], index: number) {
           @click="player.clearUpNext"
         >
           Clear
-        </Button>
-        <Button
-          v-if="props.closable"
-          variant="ghost"
-          size="icon-sm"
-          class="size-7 text-muted-foreground"
-          aria-label="Close up next"
-          @click="emit('close')"
-        >
-          <X class="size-4" />
         </Button>
       </div>
     </div>

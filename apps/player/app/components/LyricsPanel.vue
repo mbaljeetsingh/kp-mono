@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { X } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
 import { usePlayer } from '~/composables/usePlayer';
 
 const player = usePlayer();
@@ -8,15 +6,20 @@ const { shabad, loading, load } = useShabadText();
 const open = defineModel<boolean>('open', { default: false });
 
 /**
- * Filling a container rather than floating over the bar.
+ * Filling a container, always.
  *
- * The full-screen player shows the read-along where the artwork was, which is
- * where every phone music player puts lyrics. Same component either way — all
- * the follow-along logic below is the part worth having once — so only the
- * frame changes: no positioning, no border, no shadow, and no close button,
- * because the toggle that opened the view closes it.
+ * Both full players — the phone's sheet and the desktop's view — show the
+ * read-along where the artwork was, which is where every music player puts
+ * lyrics. This used to have a second frame as well, floating over the transport
+ * bar with its own border, shadow and close button; #48 moved the read-along
+ * into the desktop player and left nothing rendering it, so the frame, the
+ * `inline` flag that chose between the two and the close button have gone. The
+ * toggle that opened the view is what closes it.
+ *
+ * `open` stays a model even though both callers bind it as a static `true`: the
+ * fetch watcher keys off it, and it is the panel's own record of whether it is
+ * being shown.
  */
-const props = defineProps<{ inline?: boolean }>();
 
 // Only tagged segments carry a shabad id — most will not, for a long time.
 const shabadId = computed(() => player.current.value?.shabadId ?? null);
@@ -142,36 +145,14 @@ watch(highlightId, () => void scrollToHighlight(true));
   <aside
     v-if="open"
     ref="panelEl"
-    class="overflow-y-auto"
-    :class="
-      props.inline
-        ? 'size-full overscroll-contain'
-        : 'absolute right-4 bottom-full left-4 mb-2 max-h-[min(28rem,60svh)] rounded-lg border border-border bg-card shadow-2xl md:left-auto md:w-96'
-    "
+    class="size-full overflow-y-auto overscroll-contain"
     @wheel.passive="onReaderScroll"
     @touchmove.passive="onReaderScroll"
   >
-    <!-- No title and no writer/raag/ang line any more: the panel is opened
-         from a tab that already says "Read along", and what is playing is named
-         by the bar and by the full player's own heading — so the header was
-         three restatements taking the top of a small scrolling box. What is
-         left is the floating panel's way out; inline, the tab that opened this
-         closes it. -->
-    <div
-      v-if="!props.inline"
-      class="sticky top-0 z-10 flex justify-end bg-card px-2 pt-2"
-    >
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        class="size-7 text-muted-foreground"
-        aria-label="Close the read-along"
-        @click="open = false"
-      >
-        <X class="size-4" />
-      </Button>
-    </div>
-
+    <!-- No title and no writer/raag/ang line: this is opened from a tab that
+         already says "Read along", above a heading that already names what is
+         playing, so a header here was a third restatement holding the top of a
+         small scrolling box. -->
     <div class="px-4 py-3">
       <p v-if="loading" class="py-8 text-center text-xs text-muted-foreground">
         Loading…

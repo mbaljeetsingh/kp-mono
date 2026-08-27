@@ -226,7 +226,6 @@ function dismissDrag(down: PointerEvent) {
       >
         <LyricsPanel
           v-if="view === 'lyrics'"
-          inline
           :open="true"
           class="min-h-0 flex-1"
         />
