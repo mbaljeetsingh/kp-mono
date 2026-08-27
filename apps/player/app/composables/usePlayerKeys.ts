@@ -62,10 +62,16 @@ export function usePlayerKeys() {
     // document, not an element, and calling it there threw — which killed the
     // handler before it reached the switch and made every shortcut a no-op in
     // exactly the state they are most used from.
+    //
+    // A focused button owns its own keys too: space is how a button is pressed,
+    // so hijacking it meant tabbing to Open the full player, or repeat, or a
+    // row in the queue and pressing space paused playback instead of doing the
+    // thing that had focus. ShabadRow stops the event by hand for exactly this
+    // reason; every other button now gets it for free.
     if (
       typeof target.closest === 'function' &&
       target.closest(
-        '[role="combobox"],[role="listbox"],[role="menu"],[role="dialog"],[role="alertdialog"]'
+        'button,[role="button"],[role="combobox"],[role="listbox"],[role="menu"],[role="dialog"],[role="alertdialog"]'
       )
     )
       return;
