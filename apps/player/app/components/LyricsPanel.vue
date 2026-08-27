@@ -117,6 +117,8 @@ const anchorId = computed(() => highlightId.value ?? mainVerseId.value);
 // usually below the fold on open. Scroll to it rather than making the reader
 // hunt for the line the rendition is actually on.
 const anchorEl = ref<HTMLElement | null>(null);
+/** The scrolling box itself, so a scroll can be aimed at it and nothing else. */
+const panelEl = useTemplateRef<HTMLElement>('panelEl');
 
 // Written through a setter so the template's `:ref` and the clear below agree,
 // and so clearing it does not narrow the ref to `null` for the read after the
@@ -145,8 +147,20 @@ async function scrollToHighlight(smooth: boolean) {
   // The cached path fills `lines` on a microtask, so wait for the render that
   // creates the element before reaching for it.
   await nextTick();
-  anchorEl.value?.scrollIntoView({
-    block: 'center',
+  const line = anchorEl.value;
+  const box = panelEl.value;
+  if (!line || !box) return;
+  // Scrolling this panel by hand rather than `scrollIntoView`, which walks up
+  // and moves every scrollable ancestor it finds. Inside the desktop player
+  // that reached the document itself and slid the entire app — sidebar,
+  // transport and all — 173px up the window.
+  const lineBox = line.getBoundingClientRect();
+  const panelBox = box.getBoundingClientRect();
+  box.scrollTo({
+    top:
+      box.scrollTop +
+      (lineBox.top - panelBox.top) -
+      (panelBox.height - lineBox.height) / 2,
     behavior: smooth ? 'smooth' : 'auto',
   });
 }
@@ -167,6 +181,7 @@ watch(highlightId, () => void scrollToHighlight(true));
 <template>
   <aside
     v-if="open"
+    ref="panelEl"
     class="overflow-y-auto"
     :class="
       props.inline
