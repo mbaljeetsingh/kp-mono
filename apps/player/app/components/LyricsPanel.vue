@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { X, BookOpen, ChevronsUpDown, ChevronsDownUp } from 'lucide-vue-next';
+import { X } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { usePlayer } from '~/composables/usePlayer';
 
@@ -35,21 +35,6 @@ watch(
 
 const lines = computed(() => shabad.value?.verses ?? []);
 
-// Which shabad this is — writer, raag and ang. It comes back on the same
-// fetch as the verses, and without it the panel shows Gurbani without saying
-// what was linked, which is the one thing a listener would check it against.
-const info = computed(() => {
-  const i = shabad.value?.shabadInfo;
-  if (!i) return '';
-  return [
-    i.writer?.english,
-    i.raag?.english,
-    i.pageNo ? `Ang ${i.pageNo}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-});
-
 // Which line is being sung right now, for an aligned rendition. The timings
 // are sparse by design, so falling between two of them — alaap, instrumental,
 // katha — is not a miss to paper over: nothing is being sung, and nothing
@@ -70,39 +55,14 @@ const highlightId = computed(() =>
   timings.value?.length ? singingVerseId.value : mainVerseId.value
 );
 
-// One line, or the whole shabad. An aligned rendition defaults to the single
-// sung line — the projector view, all signal — with the full text one caret
-// away. Unaligned renditions have nothing to follow, so they are always the
-// full shabad and get no toggle. Collapses again on track change: the mode is
-// a property of listening-along, not a sticky preference.
-const expanded = ref(false);
-watch(
-  () => player.current.value?.id,
-  () => {
-    expanded.value = false;
-  }
-);
-const followMode = computed(() => !!timings.value?.length && !expanded.value);
-
-// What the one-line view shows during a gap: the line that was just sung,
-// dimmed, rather than a blank — alaap between lines would otherwise blink the
-// panel empty and back several times a minute.
-const lastSungId = ref<number | null>(null);
-watch(singingVerseId, (v) => {
-  if (v != null) lastSungId.value = v;
-});
-watch(
-  () => player.current.value?.id,
-  () => {
-    lastSungId.value = null;
-  }
-);
-const focusVerse = computed(() => {
-  const id = singingVerseId.value ?? lastSungId.value;
-  return id == null
-    ? null
-    : (lines.value.find((v: any) => v.verseId === id) ?? null);
-});
+// Always the whole shabad, with the sung line lit and scrolled to.
+//
+// An aligned rendition used to open on the sung line alone — a projector view,
+// with the full text one caret away. It reads well and it was the wrong
+// default: a shabad is a poem you follow, so the lines already sung and the
+// ones coming are the context that makes the lit one mean anything, and a
+// single centred line gives a reader no way to see where they are in it. The
+// toggle went with it rather than becoming a preference nobody would find.
 
 // Where the scroll goes. Falls back to the tagger's anchor when nothing is
 // being sung right now: opening the panel mid-alaap on an aligned rendition
@@ -191,79 +151,31 @@ watch(highlightId, () => void scrollToHighlight(true));
     @wheel.passive="onReaderScroll"
     @touchmove.passive="onReaderScroll"
   >
+    <!-- No title and no writer/raag/ang line any more: the panel is opened
+         from a tab that already says "Read along", and what is playing is named
+         by the bar and by the full player's own heading — so the header was
+         three restatements taking the top of a small scrolling box. What is
+         left is the floating panel's way out; inline, the tab that opened this
+         closes it. -->
     <div
-      class="sticky top-0 flex items-start justify-between gap-2 border-b border-border px-4 py-3"
-      :class="props.inline ? 'bg-background' : 'bg-card'"
+      v-if="!props.inline"
+      class="sticky top-0 z-10 flex justify-end bg-card px-2 pt-2"
     >
-      <div class="min-w-0">
-        <p
-          class="flex items-center gap-2 text-sm font-semibold text-foreground"
-        >
-          <BookOpen class="size-4 shrink-0" /> Shabad
-        </p>
-        <p v-if="info" class="truncate text-xs text-muted-foreground">
-          {{ info }}
-        </p>
-      </div>
-      <div class="flex shrink-0 items-center gap-1">
-        <!-- Only aligned renditions can follow the singing, so only they get
-             the one-line/full-shabad toggle. -->
-        <Button
-          v-if="timings?.length"
-          variant="ghost"
-          size="icon-sm"
-          class="size-7 text-muted-foreground"
-          :title="
-            followMode ? 'Show the full shabad' : 'Show the sung line only'
-          "
-          @click="expanded = !expanded"
-        >
-          <ChevronsUpDown v-if="followMode" class="size-4" />
-          <ChevronsDownUp v-else class="size-4" />
-        </Button>
-        <Button
-          v-if="!props.inline"
-          variant="ghost"
-          size="icon-sm"
-          class="size-7 text-muted-foreground"
-          aria-label="Close the read-along"
-          @click="open = false"
-        >
-          <X class="size-4" />
-        </Button>
-      </div>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        class="size-7 text-muted-foreground"
+        aria-label="Close the read-along"
+        @click="open = false"
+      >
+        <X class="size-4" />
+      </Button>
     </div>
 
     <div class="px-4 py-3">
       <p v-if="loading" class="py-8 text-center text-xs text-muted-foreground">
         Loading…
       </p>
-      <div v-else-if="followMode" class="py-4">
-        <!-- The projector view: just the sung line, dimming through gaps
-             rather than vanishing — alaap is a pause, not a blank screen. -->
-        <template v-if="focusVerse">
-          <div
-            class="transition-opacity duration-500"
-            :class="singingVerseId == null && 'opacity-40'"
-          >
-            <p class="text-center text-xl leading-loose text-primary">
-              {{ focusVerse.verse?.unicode ?? focusVerse.verse?.gurmukhi }}
-            </p>
-            <p class="mt-1 text-center text-sm text-primary/70">
-              {{ focusVerse.transliteration?.english }}
-            </p>
-            <p
-              v-if="focusVerse.translation?.en?.bdb"
-              class="mt-2 text-center text-xs text-muted-foreground"
-            >
-              {{ focusVerse.translation.en.bdb }}
-            </p>
-          </div>
-        </template>
-        <p v-else class="py-4 text-center text-xs text-muted-foreground">
-          Waiting for the singing to begin…
-        </p>
-      </div>
       <template v-else>
         <!-- The line is marked the same way the tagger saw the anchor in admin
              — a warm wash and a rule down the side. On an aligned rendition
