@@ -60,6 +60,19 @@ const onAir = computed(() => player.isLive.value && player.playing.value);
 
 const open = ref(false);
 
+// Any navigation closes it, rather than each row closing it on the way out.
+// The sheet is a modal, so while it is open the body carries
+// `pointer-events: none` — and a back gesture, which is how a phone dismisses
+// things, moves the route without touching `open`. That left the sheet parked
+// over the restored page with every tap under it swallowed. The same watcher
+// app.vue runs for the full player, for the same reason.
+watch(
+  () => route.fullPath,
+  () => {
+    open.value = false;
+  }
+);
+
 // `active-class` is a NuxtLink affordance and More is a button, so its lit
 // state is computed. It covers the pages that live inside the sheet as well as
 // the sheet itself — otherwise no tab lights at all on /favorites, and the
@@ -105,12 +118,15 @@ const moreActive = computed(
   </nav>
 
   <Sheet v-model:open="open">
-    <!-- Capped and scrollable: `side="bottom"` is h-auto, and a phone held
-         sideways is ~375px tall — enough for the list to run off the top of the
-         screen with no way to reach what it pushed off. -->
+    <!-- Capped, because `side="bottom"` is h-auto and a phone held sideways is
+         ~375px tall — enough for the list to run off the top of the screen. The
+         scrolling is on the wrapper below rather than here: SheetContent puts
+         its own close button at `absolute top-4 right-4`, which against a
+         scrolling box travels up and out of the sheet as soon as the content
+         moves. -->
     <SheetContent
       side="bottom"
-      class="max-h-[85dvh] gap-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]"
+      class="max-h-[85dvh] gap-0 pb-[env(safe-area-inset-bottom)]"
     >
       <SheetHeader class="pb-2">
         <SheetTitle>More</SheetTitle>
@@ -119,16 +135,13 @@ const moreActive = computed(
         </SheetDescription>
       </SheetHeader>
 
-      <div class="px-2 pb-2">
-        <!-- Closed by hand on every row: the sheet is a fixed overlay, so
-             without this it stays parked over the page just navigated to. -->
+      <div class="min-h-0 overflow-y-auto px-2 pb-2">
         <NuxtLink
           v-for="link in saved"
           :key="link.to"
           :to="link.to"
           class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent"
           active-class="!text-foreground"
-          @click="open = false"
         >
           <component :is="link.icon" class="size-[18px] shrink-0" />
           {{ link.label }}
@@ -139,28 +152,40 @@ const moreActive = computed(
         <!-- The three choices flat rather than ThemeToggle's dropdown: a menu
              inside a sheet is an overlay over an overlay, and it would put the
              thing this sheet exists to expose one extra tap away. -->
-        <div class="px-3 py-1 text-xs font-medium text-muted-foreground">
+        <div
+          id="more-theme-label"
+          class="px-3 py-1 text-xs font-medium text-muted-foreground"
+        >
           Theme
         </div>
-        <button
-          v-for="option in THEME_OPTIONS"
-          :key="option.value"
-          type="button"
-          class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition hover:bg-accent"
-          :class="
-            theme.choice.value === option.value
-              ? 'text-foreground'
-              : 'text-muted-foreground'
-          "
-          @click="theme.set(option.value)"
-        >
-          <component :is="option.icon" class="size-[18px] shrink-0" />
-          {{ option.label }}
-          <Check
-            v-if="theme.choice.value === option.value"
-            class="ml-auto size-4"
-          />
-        </button>
+        <!-- A radiogroup rather than three buttons: the check is an
+             `aria-hidden` svg and the lit colour is invisible to a screen
+             reader, so without `aria-checked` these announce as three
+             identical buttons with no way to tell which theme is on. The
+             desktop menu gets this from DropdownMenuRadioGroup. -->
+        <div role="radiogroup" aria-labelledby="more-theme-label">
+          <button
+            v-for="option in THEME_OPTIONS"
+            :key="option.value"
+            type="button"
+            role="radio"
+            :aria-checked="theme.choice.value === option.value"
+            class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm transition hover:bg-accent"
+            :class="
+              theme.choice.value === option.value
+                ? 'text-foreground'
+                : 'text-muted-foreground'
+            "
+            @click="theme.set(option.value)"
+          >
+            <component :is="option.icon" class="size-[18px] shrink-0" />
+            {{ option.label }}
+            <Check
+              v-if="theme.choice.value === option.value"
+              class="ml-auto size-4"
+            />
+          </button>
+        </div>
 
         <!-- Nothing until the stored session has been read, for the reason
              AccountButton gives: the signed-out state would flash at someone
