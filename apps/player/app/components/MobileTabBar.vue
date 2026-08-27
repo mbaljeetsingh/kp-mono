@@ -128,8 +128,15 @@ const moreActive = computed(
       side="bottom"
       class="max-h-[85dvh] gap-0 pb-[env(safe-area-inset-bottom)]"
     >
+      <!-- The app's name and mark live here rather than saying "More" again:
+           the tab that opened this sheet already said that, and the desktop
+           sidebar was the only place in the app carrying the logo — so on a
+           phone nothing ever said what app this was. -->
       <SheetHeader class="pb-2">
-        <SheetTitle>More</SheetTitle>
+        <SheetTitle class="flex items-center gap-2.5 text-[15px]">
+          <img src="/brand/logo-badge.svg" alt="" class="size-6 rounded-md" />
+          Kirtan Player
+        </SheetTitle>
         <SheetDescription class="sr-only">
           Saved shabads, theme, and your account.
         </SheetDescription>
