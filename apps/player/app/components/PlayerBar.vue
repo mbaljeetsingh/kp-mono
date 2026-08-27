@@ -107,8 +107,8 @@ const liveStatus = computed(() =>
           :tabindex="canExpand ? 0 : undefined"
           :aria-label="canExpand ? 'Open the full player' : undefined"
           @click="expand"
-          @keydown.enter.prevent="expand"
-          @keydown.space.prevent.stop="expand"
+          @keydown.enter.self.prevent="expand"
+          @keydown.space.self.prevent.stop="expand"
         >
           <!-- The broadcast has no artist to draw a tile for, and initials of
                its title would be meaningless — it gets the same mark the Live
@@ -148,10 +148,17 @@ const liveStatus = computed(() =>
                 :pulse="player.playing.value"
                 class="shrink-0 md:hidden"
               />
+              <!-- Inert to a thumb, like a list row's: this line sits inside
+                   the area that opens the full player, and a link inside a tap
+                   target is a coin toss. The player itself carries the ragi —
+                   which is why this one is also gated on the phone layout,
+                   unlike a row's. Above `md` there is no full-screen player to
+                   fall through to, so a coarse-pointer tablet in landscape
+                   would have had a dead link and nowhere else to go. -->
               <NuxtLink
                 v-if="player.current.value?.artist"
                 :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
-                class="truncate hover:text-foreground hover:underline"
+                class="truncate max-md:pointer-coarse:pointer-events-none hover:text-foreground hover:underline"
                 @click.stop
                 >{{ player.current.value.subtitle }}</NuxtLink
               >

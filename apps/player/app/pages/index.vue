@@ -89,7 +89,18 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
             View all {{ artists.length }}
           </NuxtLink>
         </div>
-        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <!-- A shelf on a phone, a grid where there is width for one.
+             Twelve tiles two-across cost 1414px — 2.6 screens of a 390px
+             phone — so a first visit was a wall of circles and the first
+             shabad you could actually play sat three screens down. Sideways is
+             the direction a phone has to spare, which is why every music app
+             browses entities this way.
+             Bleeding the row past the page's padding, and putting that padding
+             back inside it, is what lets a tile scroll off the edge instead of
+             being clipped short of it. -->
+        <div
+          class="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-6"
+        >
           <ArtistCard
             v-for="a in artists.slice(0, 12)"
             :key="a.artist"
@@ -97,6 +108,7 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
             :display="a.display_name"
             :photo="a.photo_path"
             :count="a.shabads"
+            class="w-32 shrink-0 sm:w-auto"
           />
         </div>
       </section>
