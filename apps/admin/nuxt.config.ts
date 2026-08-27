@@ -16,7 +16,7 @@ const supabaseKeySet =
   process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_KEY;
 if (process.env.NETLIFY && (!supabaseUrlSet || !supabaseKeySet)) {
   throw new Error(
-    'Supabase env vars missing on the Netlify site: set either SUPABASE_URL + SUPABASE_KEY or NUXT_PUBLIC_SUPABASE_URL + NUXT_PUBLIC_SUPABASE_KEY. Refusing to build with the local defaults.',
+    'Supabase env vars missing on the Netlify site: set either SUPABASE_URL + SUPABASE_KEY or NUXT_PUBLIC_SUPABASE_URL + NUXT_PUBLIC_SUPABASE_KEY. Refusing to build with the local defaults.'
   );
 }
 
@@ -71,5 +71,5 @@ export default defineNuxtConfig({
   // app-level wrapper, where the class no longer applies and the tokens resolve
   // to the light parchment `:root` set. The status Select in the tagger came up
   // cream-on-dark that way.
-  app: { head: { title: 'Kirtan Admin', htmlAttrs: { class: 'dark' } } },
+  app: { head: { title: 'Kirtan Player Admin', htmlAttrs: { class: 'dark' } } },
 });

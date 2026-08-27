@@ -16,7 +16,7 @@ const supabaseKeySet =
   process.env.SUPABASE_KEY || process.env.NUXT_PUBLIC_SUPABASE_KEY;
 if (process.env.NETLIFY && (!supabaseUrlSet || !supabaseKeySet)) {
   throw new Error(
-    'Supabase env vars missing on the Netlify site: set either SUPABASE_URL + SUPABASE_KEY or NUXT_PUBLIC_SUPABASE_URL + NUXT_PUBLIC_SUPABASE_KEY. Refusing to build with the local defaults.',
+    'Supabase env vars missing on the Netlify site: set either SUPABASE_URL + SUPABASE_KEY or NUXT_PUBLIC_SUPABASE_URL + NUXT_PUBLIC_SUPABASE_KEY. Refusing to build with the local defaults.'
   );
 }
 
@@ -76,5 +76,5 @@ export default defineNuxtConfig({
   // no longer applies and the tokens resolve to the other palette. Declaring
   // it here as well would put unhead in charge of the same attribute and the
   // two would fight over it on hydration.
-  app: { head: { title: 'Kirtan' } },
+  app: { head: { title: 'Kirtan Player' } },
 });
