@@ -16,6 +16,15 @@ const showSheet = ref(false);
 // for anyone whose root font is not 16px.
 const isPhone = useMediaQuery('(max-width: 47.999rem)');
 
+// Each player belongs to one side of the breakpoint, and its only way out is a
+// control that lives on that side. Crossing it while one is open would leave
+// the sheet stranded on a desktop, or the desktop view invisible-but-open on a
+// phone — and open over whatever was navigated to by the time it came back.
+watch(isPhone, (phone) => {
+  if (phone) nowPlayingView.open.value = false;
+  else showSheet.value = false;
+});
+
 /**
  * Whether there is a player to open — and so whether the bar should announce
  * itself as a control at all.

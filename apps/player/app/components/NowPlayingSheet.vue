@@ -65,12 +65,12 @@ const tabs = computed(() =>
 // view back to the artwork while the listener watched it slide away.
 watch(open, (isOpen) => {
   if (!isOpen) return;
-  // Read along when the rendition has one — it is the reason to open a player
-  // rather than glance at the bar, and most renditions carry no shabad id, so
-  // this is a preference rather than the usual case. Failing that: nothing
-  // loaded with something queued is the one state where the artwork has
-  // nothing to draw, reachable only by queueing onto an idle transport, so it
-  // opens on what the listener came here for. Otherwise the artwork.
+  // Read along first: a published shabad carries a shabad id, so the text is
+  // there to follow, and following it is the reason to open a player rather
+  // than glance at the bar. Failing that — a rendition not linked yet —
+  // nothing loaded with something queued is the one state where the artwork
+  // has nothing to draw, reachable only by queueing onto an idle transport, so
+  // it opens on what the listener came here for. Otherwise the artwork.
   view.value = hasShabad.value
     ? 'lyrics'
     : !player.current.value && player.upNext.value.length

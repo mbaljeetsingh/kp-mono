@@ -20,11 +20,12 @@ const hasShabad = computed(() => player.current.value?.shabadId != null);
 
 type Tab = 'queue' | 'lyrics';
 
-// Read along wins when there is one. Most renditions carry no shabad id and
-// will not for a long time, so the queue is what this falls back to rather
-// than what it prefers. Set once, as the view mounts — which is every time it
-// is opened — so a tagged shabad arriving mid-browse does not yank the panel
-// off the queue while it is being read.
+// Read along is what this opens on: a published shabad carries a shabad id, so
+// the text is there to follow, and following it is the reason to open a player
+// rather than glance at the bar. The queue is the fallback for the renditions
+// that have not been linked yet. Set once, as the view mounts — which is every
+// time it is opened — so a track change mid-browse does not yank the panel off
+// the queue while it is being read.
 const tab = ref<Tab>(
   player.current.value?.shabadId != null ? 'lyrics' : 'queue'
 );
@@ -45,14 +46,14 @@ const tabs = computed(() =>
 </script>
 
 <template>
-  <div class="flex size-full min-h-0 flex-col bg-background">
+  <div class="flex size-full min-h-0 flex-col overflow-hidden bg-background">
     <div
-      class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-8 px-8 py-8 lg:flex-row lg:items-start"
+      class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-8 px-8 py-8 lg:flex-row"
     >
       <!-- The artwork keeps its own column rather than being swapped out by a
            tab: there is width for both, and losing the tile every time you
            check the queue is what makes a player feel like a different page. -->
-      <div class="shrink-0 lg:w-72 xl:w-80">
+      <div class="shrink-0 lg:w-72 lg:self-start xl:w-80">
         <div
           v-if="player.isLive.value"
           class="grid aspect-square w-full max-w-72 place-items-center rounded-xl bg-primary/10"

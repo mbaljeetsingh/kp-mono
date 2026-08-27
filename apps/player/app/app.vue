@@ -13,6 +13,17 @@ const playlists = usePlaylists();
 const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
 const nowPlayingView = useNowPlayingView();
 
+// Any navigation closes the full player. Its own ragi link, the sidebar, the
+// tab bar — all of them would otherwise land on a page drawn behind an opaque
+// overlay, which looks exactly like a dead click.
+const route = useRoute();
+watch(
+  () => route.fullPath,
+  () => {
+    nowPlayingView.open.value = false;
+  }
+);
+
 // Here rather than in PlayerBar: the transport outlives every page, so its keys
 // should too, and this is the one component that is always mounted.
 usePlayerKeys();
@@ -131,20 +142,27 @@ const nav = [
         </div>
       </aside>
 
-      <main class="relative min-w-0 flex-1 overflow-y-auto">
-        <div class="mx-auto max-w-5xl px-5 py-7 pb-10 md:px-8">
-          <NuxtPage />
-        </div>
+      <!-- The wrapper is the positioning context, not `main` itself: `main`
+           is the scroll container, so an overlay anchored to it would sit at
+           the scroll origin and slide off the top of the window the moment a
+           list was scrolled. This div never scrolls, so `inset-0` is the
+           visible area whatever the page underneath is doing. -->
+      <div class="relative flex min-w-0 flex-1">
+        <main class="min-w-0 flex-1 overflow-y-auto">
+          <div class="mx-auto max-w-5xl px-5 py-7 pb-10 md:px-8">
+            <NuxtPage />
+          </div>
+        </main>
 
         <!-- Over the content area, not the window: the sidebar stays put and
              the transport below keeps its controls, so the full player needs
-             none of its own. Closing it returns to the page underneath with
-             its scroll position intact. -->
+             none of its own. `main` stays mounted and scrolled, so closing it
+             returns to the list exactly where it was left. -->
         <NowPlayingView
           v-if="nowPlayingView.open.value"
           class="absolute inset-0 hidden md:flex"
         />
-      </main>
+      </div>
     </div>
 
     <!-- Streams straight from sgpc.net: it honours Range requests and is
