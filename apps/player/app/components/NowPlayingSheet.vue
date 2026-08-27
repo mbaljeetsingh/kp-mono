@@ -221,7 +221,7 @@ function dismissDrag(down: PointerEvent) {
         <NuxtLink
           v-if="player.current.value?.artist"
           :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
-          class="-mx-2 mt-0.5 flex max-w-full items-center gap-1 rounded-md px-2 py-2 text-sm text-muted-foreground transition active:bg-foreground/5 md:hover:text-foreground"
+          class="-mx-2 mt-0.5 flex max-w-full items-center gap-1 rounded-md px-2 py-2 text-sm text-muted-foreground transition active:bg-foreground/5 hover:text-foreground"
           @click="open = false"
         >
           <span class="truncate">{{ player.current.value.subtitle }}</span>
