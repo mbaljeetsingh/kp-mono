@@ -255,7 +255,14 @@ function dismissDrag(down: PointerEvent) {
         </template>
       </div>
 
-      <div class="shrink-0 px-6 pb-8">
+      <!-- `pt-5` because there was no top padding at all: the title sat flush
+           against the read-along's bottom edge, reading as though it had been
+           clipped by it rather than placed under it. The bottom pad honours the
+           home indicator — this is a fixed, full-screen sheet, so nothing else
+           is holding that space open. -->
+      <div
+        class="shrink-0 px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+      >
         <p class="text-lg leading-snug font-semibold text-foreground">
           {{ player.current.value?.title ?? 'Nothing playing' }}
         </p>
@@ -282,7 +289,7 @@ function dismissDrag(down: PointerEvent) {
              listening instead. -->
         <div
           v-if="player.isLive.value"
-          class="mt-6 flex items-center justify-center gap-2"
+          class="mt-4 flex items-center justify-center gap-2"
         >
           <LiveBadge :pulse="player.playing.value" />
           <span class="text-xs tabular-nums text-muted-foreground">
@@ -292,7 +299,7 @@ function dismissDrag(down: PointerEvent) {
         <SeekBar
           v-else
           expanded
-          class="mt-5"
+          class="mt-3"
           :progress="player.progress.value"
           :elapsed="player.elapsed.value"
           :total="player.total.value"
@@ -305,7 +312,7 @@ function dismissDrag(down: PointerEvent) {
              always room. The empty span balances it so the play button stays
              dead centre instead of drifting left by half a button — the same
              trick the header used before the toggles moved into it. -->
-        <div class="mt-4 flex items-center justify-center gap-4">
+        <div class="mt-1 flex items-center justify-center gap-4">
           <span
             v-if="!player.isLive.value"
             class="size-8 shrink-0"
