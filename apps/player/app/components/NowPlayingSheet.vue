@@ -163,11 +163,19 @@ function dismissDrag(down: PointerEvent) {
         <div
           class="mx-auto mt-2.5 h-1 w-10 rounded-full bg-muted-foreground/40"
         />
-        <div class="flex items-center justify-between px-2 py-2">
+        <!-- Three columns rather than `justify-between`, so the label stays
+             centred whatever sits either side of it — the right cell used to
+             hold nothing but a spacer balancing the chevron, and now holds the
+             view toggles.
+             They belong up here: they switch what fills the region directly
+             below, which makes this its header, and it leaves the transport a
+             row of its own. Safe inside the drag band because `dismissDrag`
+             ignores any press that lands on a button. -->
+        <div class="grid grid-cols-[1fr_auto_1fr] items-center px-2 py-2">
           <Button
             variant="ghost"
             size="icon-sm"
-            class="text-muted-foreground"
+            class="justify-self-start text-muted-foreground"
             aria-label="Collapse the player"
             @click="open = false"
           >
@@ -178,9 +186,25 @@ function dismissDrag(down: PointerEvent) {
           >
             {{ player.isLive.value ? 'On air' : 'Now playing' }}
           </p>
-          <!-- Balances the chevron so the label sits centred rather than
-               drifting right by half a button. -->
-          <span class="size-8" />
+          <div class="flex items-center gap-1 justify-self-end">
+            <button
+              v-for="t in tabs"
+              :key="t.value"
+              type="button"
+              class="grid size-8 place-items-center rounded-lg transition"
+              :class="
+                view === t.value
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground'
+              "
+              :aria-pressed="view === t.value"
+              :aria-label="t.label"
+              :title="t.label"
+              @click="show(t.value)"
+            >
+              <component :is="t.icon" class="size-[18px]" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -276,45 +300,23 @@ function dismissDrag(down: PointerEvent) {
           @seek="player.seekPct"
         />
 
-        <PlayerControls size="lg" class="mt-4 justify-center" />
-
-        <!-- Three columns so the two view toggles stay centred under the
-             transport while repeat sits out on the right, where the desktop bar
-             also ends: it is the setting that outlives this shabad, not one of
-             the two things this screen switches between, and having it lead the
-             row made it look like a third view.
-             Icons without labels — there are two of them, they are the two
-             obvious things a player hides, and the words were costing a phone a
-             whole row of height next to a 56px play button. The lit one is
-             washed rather than underlined, which is what reads on an icon.
-             Pressing the lit one still goes back to the artwork, the third
-             state a phone has and a desktop does not. -->
-        <div class="mt-4 grid grid-cols-[1fr_auto_1fr] items-center">
-          <div aria-hidden="true" />
-          <div class="flex items-center justify-center gap-1">
-            <button
-              v-for="t in tabs"
-              :key="t.value"
-              type="button"
-              class="grid size-10 place-items-center rounded-lg transition"
-              :class="
-                view === t.value
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground'
-              "
-              :aria-pressed="view === t.value"
-              :aria-label="t.label"
-              :title="t.label"
-              @click="show(t.value)"
-            >
-              <component :is="t.icon" class="size-5" />
-            </button>
-          </div>
+        <!-- Repeat rides in the transport row rather than on a strip of its
+             own, which is where every full player puts it and where there was
+             always room. The empty span balances it so the play button stays
+             dead centre instead of drifting left by half a button — the same
+             trick the header used before the toggles moved into it. -->
+        <div class="mt-4 flex items-center justify-center gap-4">
+          <span
+            v-if="!player.isLive.value"
+            class="size-8 shrink-0"
+            aria-hidden="true"
+          />
+          <PlayerControls size="lg" />
           <Button
             v-if="!player.isLive.value"
             variant="ghost"
             size="icon-sm"
-            class="justify-self-end"
+            class="shrink-0"
             :class="
               player.repeat.value ? 'text-primary' : 'text-muted-foreground'
             "
