@@ -4,12 +4,14 @@ import { Home, Users, Heart, ListMusic, Radio } from 'lucide-vue-next';
 import { usePlayer } from '~/composables/usePlayer';
 import { usePlayerKeys } from '~/composables/usePlayerKeys';
 import { initTheme, THEME_KEY } from '~/composables/useTheme';
+import { useNowPlayingView } from '~/composables/useNowPlayingView';
 
 const player = usePlayer();
 const auth = useAuth();
 const favorites = useFavorites();
 const playlists = usePlaylists();
 const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
+const nowPlayingView = useNowPlayingView();
 
 // Here rather than in PlayerBar: the transport outlives every page, so its keys
 // should too, and this is the one component that is always mounted.
@@ -129,10 +131,19 @@ const nav = [
         </div>
       </aside>
 
-      <main class="min-w-0 flex-1 overflow-y-auto">
+      <main class="relative min-w-0 flex-1 overflow-y-auto">
         <div class="mx-auto max-w-5xl px-5 py-7 pb-10 md:px-8">
           <NuxtPage />
         </div>
+
+        <!-- Over the content area, not the window: the sidebar stays put and
+             the transport below keeps its controls, so the full player needs
+             none of its own. Closing it returns to the page underneath with
+             its scroll position intact. -->
+        <NowPlayingView
+          v-if="nowPlayingView.open.value"
+          class="absolute inset-0 hidden md:flex"
+        />
       </main>
     </div>
 

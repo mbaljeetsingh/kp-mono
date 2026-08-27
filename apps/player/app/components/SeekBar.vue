@@ -31,6 +31,13 @@ const props = defineProps<{
    * with a whole screen to itself should look like.
    */
   expanded?: boolean;
+  /**
+   * Riding the top edge of the transport bar, full width and unlabelled — the
+   * shape every desktop player has settled on. The band stays thin because it
+   * sits in the bar's top padding, where a taller one would swallow clicks
+   * meant for the row beneath it.
+   */
+  edge?: boolean;
 }>();
 
 /** Emitted once per gesture, as a percentage: only the parent knows which
@@ -133,10 +140,16 @@ function onKey(event: KeyboardEvent) {
 <template>
   <div
     class="select-none"
-    :class="expanded ? 'flex flex-col gap-1.5' : 'flex items-center gap-2'"
+    :class="
+      expanded
+        ? 'flex flex-col gap-1.5'
+        : edge
+          ? 'flex'
+          : 'flex items-center gap-2'
+    "
   >
     <span
-      v-if="!expanded"
+      v-if="!expanded && !edge"
       class="w-9 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground"
     >
       {{ formatTime(shownElapsed) }}
@@ -153,7 +166,10 @@ function onKey(event: KeyboardEvent) {
         // against the cross axis instead, zeroing the flex basis, and the band
         // collapses to the height of the line inside it — an 8px target, which
         // is the very thing the band exists to prevent.
-        expanded ? 'h-8 w-full' : 'h-6 min-w-0 flex-1',
+        expanded ? 'h-8 w-full' : edge ? 'h-3 w-full' : 'h-6 min-w-0 flex-1',
+        // Square at the ends only when it spans the whole bar, so the line
+        // meets the edges of the screen rather than stopping short of them.
+        edge && 'rounded-none',
       ]"
       role="slider"
       :tabindex="inert ? -1 : 0"
@@ -167,11 +183,19 @@ function onKey(event: KeyboardEvent) {
       @keydown="onKey"
     >
       <div
-        class="w-full overflow-hidden rounded-full bg-muted transition-[height]"
-        :class="expanded ? 'h-2' : 'h-1.5 md:h-1 md:group-hover:h-1.5'"
+        class="w-full overflow-hidden bg-muted transition-[height]"
+        :class="[
+          edge ? 'rounded-none' : 'rounded-full',
+          expanded
+            ? 'h-2'
+            : edge
+              ? 'h-[3px] group-hover:h-1.5'
+              : 'h-1.5 md:h-1 md:group-hover:h-1.5',
+        ]"
       >
         <div
-          class="h-full rounded-full bg-primary"
+          class="h-full bg-primary"
+          :class="edge ? 'rounded-none' : 'rounded-full'"
           :style="{ width: `${pct}%` }"
         />
       </div>
@@ -181,14 +205,18 @@ function onKey(event: KeyboardEvent) {
         v-if="!inert"
         class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow-sm transition-transform"
         :class="
-          expanded ? 'size-4' : 'size-3.5 md:size-3 md:group-hover:scale-125'
+          expanded
+            ? 'size-4'
+            : edge
+              ? 'size-3 scale-0 group-hover:scale-100 group-focus-visible:scale-100'
+              : 'size-3.5 md:size-3 md:group-hover:scale-125'
         "
         :style="{ left: `${pct}%` }"
       />
     </div>
 
     <span
-      v-if="!expanded"
+      v-if="!expanded && !edge"
       class="w-9 shrink-0 text-[11px] tabular-nums text-muted-foreground"
     >
       {{ formatTime(total) }}

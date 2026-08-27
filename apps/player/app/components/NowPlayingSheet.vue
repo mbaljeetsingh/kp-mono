@@ -24,10 +24,6 @@
 import {
   ChevronDown,
   ChevronRight,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
   Repeat1,
   ListMusic,
   BookOpen,
@@ -52,6 +48,14 @@ function show(next: View) {
   view.value = view.value === next ? 'art' : next;
 }
 
+const TABS: { value: Exclude<View, 'art'>; label: string; icon: any }[] = [
+  { value: 'queue', label: 'Up next', icon: ListMusic },
+  { value: 'lyrics', label: 'Read along', icon: BookOpen },
+];
+const tabs = computed(() =>
+  TABS.filter((t) => t.value !== 'lyrics' || hasShabad.value)
+);
+
 // A fresh open starts on the artwork, and a shabad without a read-along cannot
 // stay on one — skipping from a tagged rendition to an untagged one would
 // otherwise leave the screen on an empty panel.
@@ -61,11 +65,17 @@ function show(next: View) {
 // view back to the artwork while the listener watched it slide away.
 watch(open, (isOpen) => {
   if (!isOpen) return;
-  // Nothing loaded and something queued is the one case where the artwork has
-  // nothing to draw — that state is only reachable by queueing onto an idle
-  // transport, so open on the thing the listener came here for.
-  view.value =
-    !player.current.value && player.upNext.value.length ? 'queue' : 'art';
+  // Read along when the rendition has one — it is the reason to open a player
+  // rather than glance at the bar, and most renditions carry no shabad id, so
+  // this is a preference rather than the usual case. Failing that: nothing
+  // loaded with something queued is the one state where the artwork has
+  // nothing to draw, reachable only by queueing onto an idle transport, so it
+  // opens on what the listener came here for. Otherwise the artwork.
+  view.value = hasShabad.value
+    ? 'lyrics'
+    : !player.current.value && player.upNext.value.length
+      ? 'queue'
+      : 'art';
 });
 watch(hasShabad, (has) => {
   if (!has && view.value === 'lyrics') view.value = 'art';
@@ -263,46 +273,18 @@ function dismissDrag(down: PointerEvent) {
           @seek="player.seekPct"
         />
 
-        <div class="mt-4 flex items-center justify-center gap-6">
-          <Button
-            v-if="!player.isLive.value"
-            variant="ghost"
-            size="icon-lg"
-            class="text-muted-foreground"
-            :disabled="!player.current.value"
-            aria-label="Previous shabad"
-            @click="player.previous"
-          >
-            <SkipBack class="size-6 fill-current" />
-          </Button>
-          <Button
-            size="icon"
-            class="size-16 rounded-full transition hover:scale-105"
-            :disabled="!player.current.value && !player.upNext.value.length"
-            :aria-label="player.playing.value ? 'Pause' : 'Play'"
-            @click="player.toggle"
-          >
-            <Pause v-if="player.playing.value" class="size-7 fill-current" />
-            <Play v-else class="size-7 translate-x-px fill-current" />
-          </Button>
-          <Button
-            v-if="!player.isLive.value"
-            variant="ghost"
-            size="icon-lg"
-            class="text-muted-foreground"
-            :disabled="!player.upNext.value.length"
-            aria-label="Next shabad"
-            @click="player.next"
-          >
-            <SkipForward class="size-6 fill-current" />
-          </Button>
-        </div>
+        <PlayerControls size="lg" class="mt-4 justify-center" />
 
-        <div class="mt-4 flex items-center justify-center gap-2">
+        <!-- Tabs rather than three toggles in a row: the two panels are
+             alternatives to each other, and the strip says so. Pressing the
+             lit one goes back to the artwork, which is the third state a
+             phone has and a desktop does not. -->
+        <div class="mt-4 flex items-center justify-center gap-1">
           <Button
             v-if="!player.isLive.value"
             variant="ghost"
             size="icon-sm"
+            class="mr-2"
             :class="
               player.repeat.value ? 'text-primary' : 'text-muted-foreground'
             "
@@ -315,29 +297,22 @@ function dismissDrag(down: PointerEvent) {
           >
             <Repeat1 class="size-4" />
           </Button>
-          <Button
-            v-if="hasShabad"
-            variant="ghost"
-            size="sm"
-            class="gap-2"
+          <button
+            v-for="t in tabs"
+            :key="t.value"
+            type="button"
+            class="flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition"
             :class="
-              view === 'lyrics' ? 'text-primary' : 'text-muted-foreground'
+              view === t.value
+                ? 'border-primary text-foreground'
+                : 'border-transparent text-muted-foreground'
             "
-            :aria-pressed="view === 'lyrics'"
-            @click="show('lyrics')"
+            :aria-pressed="view === t.value"
+            @click="show(t.value)"
           >
-            <BookOpen class="size-4" /> Read along
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            class="gap-2"
-            :class="view === 'queue' ? 'text-primary' : 'text-muted-foreground'"
-            :aria-pressed="view === 'queue'"
-            @click="show('queue')"
-          >
-            <ListMusic class="size-4" /> Up next
-          </Button>
+            <component :is="t.icon" class="size-4" />
+            {{ t.label }}
+          </button>
         </div>
       </div>
     </section>
