@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { X, BookOpen, ChevronsUpDown, ChevronsDownUp } from 'lucide-vue-next';
-import { Button } from '@/components/ui/button';
 import { usePlayer } from '~/composables/usePlayer';
 
 const player = usePlayer();
@@ -8,15 +6,20 @@ const { shabad, loading, load } = useShabadText();
 const open = defineModel<boolean>('open', { default: false });
 
 /**
- * Filling a container rather than floating over the bar.
+ * Filling a container, always.
  *
- * The full-screen player shows the read-along where the artwork was, which is
- * where every phone music player puts lyrics. Same component either way — all
- * the follow-along logic below is the part worth having once — so only the
- * frame changes: no positioning, no border, no shadow, and no close button,
- * because the toggle that opened the view closes it.
+ * Both full players — the phone's sheet and the desktop's view — show the
+ * read-along where the artwork was, which is where every music player puts
+ * lyrics. This used to have a second frame as well, floating over the transport
+ * bar with its own border, shadow and close button; #48 moved the read-along
+ * into the desktop player and left nothing rendering it, so the frame, the
+ * `inline` flag that chose between the two and the close button have gone. The
+ * toggle that opened the view is what closes it.
+ *
+ * `open` stays a model even though both callers bind it as a static `true`: the
+ * fetch watcher keys off it, and it is the panel's own record of whether it is
+ * being shown.
  */
-const props = defineProps<{ inline?: boolean }>();
 
 // Only tagged segments carry a shabad id — most will not, for a long time.
 const shabadId = computed(() => player.current.value?.shabadId ?? null);
@@ -34,21 +37,6 @@ watch(
 );
 
 const lines = computed(() => shabad.value?.verses ?? []);
-
-// Which shabad this is — writer, raag and ang. It comes back on the same
-// fetch as the verses, and without it the panel shows Gurbani without saying
-// what was linked, which is the one thing a listener would check it against.
-const info = computed(() => {
-  const i = shabad.value?.shabadInfo;
-  if (!i) return '';
-  return [
-    i.writer?.english,
-    i.raag?.english,
-    i.pageNo ? `Ang ${i.pageNo}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-});
 
 // Which line is being sung right now, for an aligned rendition. The timings
 // are sparse by design, so falling between two of them — alaap, instrumental,
@@ -70,39 +58,14 @@ const highlightId = computed(() =>
   timings.value?.length ? singingVerseId.value : mainVerseId.value
 );
 
-// One line, or the whole shabad. An aligned rendition defaults to the single
-// sung line — the projector view, all signal — with the full text one caret
-// away. Unaligned renditions have nothing to follow, so they are always the
-// full shabad and get no toggle. Collapses again on track change: the mode is
-// a property of listening-along, not a sticky preference.
-const expanded = ref(false);
-watch(
-  () => player.current.value?.id,
-  () => {
-    expanded.value = false;
-  }
-);
-const followMode = computed(() => !!timings.value?.length && !expanded.value);
-
-// What the one-line view shows during a gap: the line that was just sung,
-// dimmed, rather than a blank — alaap between lines would otherwise blink the
-// panel empty and back several times a minute.
-const lastSungId = ref<number | null>(null);
-watch(singingVerseId, (v) => {
-  if (v != null) lastSungId.value = v;
-});
-watch(
-  () => player.current.value?.id,
-  () => {
-    lastSungId.value = null;
-  }
-);
-const focusVerse = computed(() => {
-  const id = singingVerseId.value ?? lastSungId.value;
-  return id == null
-    ? null
-    : (lines.value.find((v: any) => v.verseId === id) ?? null);
-});
+// Always the whole shabad, with the sung line lit and scrolled to.
+//
+// An aligned rendition used to open on the sung line alone — a projector view,
+// with the full text one caret away. It reads well and it was the wrong
+// default: a shabad is a poem you follow, so the lines already sung and the
+// ones coming are the context that makes the lit one mean anything, and a
+// single centred line gives a reader no way to see where they are in it. The
+// toggle went with it rather than becoming a preference nobody would find.
 
 // Where the scroll goes. Falls back to the tagger's anchor when nothing is
 // being sung right now: opening the panel mid-alaap on an aligned rendition
@@ -182,88 +145,18 @@ watch(highlightId, () => void scrollToHighlight(true));
   <aside
     v-if="open"
     ref="panelEl"
-    class="overflow-y-auto"
-    :class="
-      props.inline
-        ? 'size-full overscroll-contain'
-        : 'absolute right-4 bottom-full left-4 mb-2 max-h-[min(28rem,60svh)] rounded-lg border border-border bg-card shadow-2xl md:left-auto md:w-96'
-    "
+    class="size-full overflow-y-auto overscroll-contain"
     @wheel.passive="onReaderScroll"
     @touchmove.passive="onReaderScroll"
   >
-    <div
-      class="sticky top-0 flex items-start justify-between gap-2 border-b border-border px-4 py-3"
-      :class="props.inline ? 'bg-background' : 'bg-card'"
-    >
-      <div class="min-w-0">
-        <p
-          class="flex items-center gap-2 text-sm font-semibold text-foreground"
-        >
-          <BookOpen class="size-4 shrink-0" /> Shabad
-        </p>
-        <p v-if="info" class="truncate text-xs text-muted-foreground">
-          {{ info }}
-        </p>
-      </div>
-      <div class="flex shrink-0 items-center gap-1">
-        <!-- Only aligned renditions can follow the singing, so only they get
-             the one-line/full-shabad toggle. -->
-        <Button
-          v-if="timings?.length"
-          variant="ghost"
-          size="icon-sm"
-          class="size-7 text-muted-foreground"
-          :title="
-            followMode ? 'Show the full shabad' : 'Show the sung line only'
-          "
-          @click="expanded = !expanded"
-        >
-          <ChevronsUpDown v-if="followMode" class="size-4" />
-          <ChevronsDownUp v-else class="size-4" />
-        </Button>
-        <Button
-          v-if="!props.inline"
-          variant="ghost"
-          size="icon-sm"
-          class="size-7 text-muted-foreground"
-          aria-label="Close the read-along"
-          @click="open = false"
-        >
-          <X class="size-4" />
-        </Button>
-      </div>
-    </div>
-
+    <!-- No title and no writer/raag/ang line: this is opened from a tab that
+         already says "Read along", above a heading that already names what is
+         playing, so a header here was a third restatement holding the top of a
+         small scrolling box. -->
     <div class="px-4 py-3">
       <p v-if="loading" class="py-8 text-center text-xs text-muted-foreground">
         Loading…
       </p>
-      <div v-else-if="followMode" class="py-4">
-        <!-- The projector view: just the sung line, dimming through gaps
-             rather than vanishing — alaap is a pause, not a blank screen. -->
-        <template v-if="focusVerse">
-          <div
-            class="transition-opacity duration-500"
-            :class="singingVerseId == null && 'opacity-40'"
-          >
-            <p class="text-center text-xl leading-loose text-primary">
-              {{ focusVerse.verse?.unicode ?? focusVerse.verse?.gurmukhi }}
-            </p>
-            <p class="mt-1 text-center text-sm text-primary/70">
-              {{ focusVerse.transliteration?.english }}
-            </p>
-            <p
-              v-if="focusVerse.translation?.en?.bdb"
-              class="mt-2 text-center text-xs text-muted-foreground"
-            >
-              {{ focusVerse.translation.en.bdb }}
-            </p>
-          </div>
-        </template>
-        <p v-else class="py-4 text-center text-xs text-muted-foreground">
-          Waiting for the singing to begin…
-        </p>
-      </div>
       <template v-else>
         <!-- The line is marked the same way the tagger saw the anchor in admin
              — a warm wash and a rule down the side. On an aligned rendition

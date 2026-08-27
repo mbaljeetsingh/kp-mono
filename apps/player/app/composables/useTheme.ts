@@ -10,8 +10,26 @@
  * every component reads the same value without a store or a provide.
  */
 import { computed, ref, watch } from 'vue';
+import { Sun, Moon, Monitor, type LucideIcon } from 'lucide-vue-next';
 
 export type ThemeChoice = 'system' | 'light' | 'dark';
+
+/**
+ * The three choices, in the order they are always offered.
+ *
+ * Shared rather than declared per-component: the sidebar toggle and the phone's
+ * More sheet both name these, and a label that drifts between the two surfaces
+ * is the kind of thing nobody notices until it is wrong in a screenshot.
+ */
+export const THEME_OPTIONS: {
+  value: ThemeChoice;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+];
 
 /** Read by the pre-paint script in `app.vue` as well, which cannot import. */
 export const THEME_KEY = 'kp:theme';

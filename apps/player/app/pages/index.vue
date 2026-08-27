@@ -26,15 +26,22 @@ const { data: results } = await useAsyncData(
   { watch: [debounced] }
 );
 
-const recent = useInfiniteList<any>('recent', async (from, to) => {
-  const { data } = await supabase
+// A shelf, not the archive. This scrolled forever in pages of 50, so "recently
+// added" grew into every published shabad there has ever been and home had no
+// bottom — while the thing it is actually answering is "what is new since I was
+// last here", which twenty rows covers. Everything is still reachable: Search
+// takes a term and Ragis takes a name.
+const RECENT_LIMIT = 20;
+
+const { data: recent } = await useAsyncData('recent', async () => {
+  const { data, error } = await supabase
     .from('shabads')
     .select('*')
     .order('created_at', { ascending: false })
-    .range(from, to);
-  return data;
+    .limit(RECENT_LIMIT);
+  if (error) console.error('recent failed', error.message);
+  return data ?? [];
 });
-await recent.loadMore();
 
 const { data: artists } = await useAsyncData('top-artists', async () => {
   const { data } = await supabase.rpc('artist_counts');
@@ -118,21 +125,16 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
           Recently added
         </h2>
         <ShabadRow
-          v-for="(s, i) in recent.items.value"
+          v-for="(s, i) in recent ?? []"
           :key="s.id"
           :shabad="s"
           :index="i"
-          :list="recent.items.value"
+          :list="recent ?? []"
         />
         <EmptyState
-          v-if="!recent.items.value.length"
+          v-if="!recent?.length"
           title="No shabads published yet"
           hint="Tag a few in the admin app and publish them — they appear here immediately."
-        />
-        <InfiniteScroll
-          :loading="recent.loading.value"
-          :done="recent.done.value"
-          @more="recent.loadMore"
         />
       </section>
     </template>

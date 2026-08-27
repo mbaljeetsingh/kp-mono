@@ -6,11 +6,17 @@
  * the default and has to stay reachable, or a listener who taps light once at
  * noon has silently opted out of their phone's dark mode for good.
  *
- * `compact` mirrors AccountButton's, and for the same reason — the sidebar
- * gives a full-width row with a label, while on touch this rides in the saved
- * pages' header, where there is only room for the icon.
+ * The trigger names the choice — "System", not the palette that choice happened
+ * to resolve to. It read the other way round at first, on the theory that what
+ * you can see is the useful thing to show; but the control's whole job is the
+ * third state, and a sun on a light-by-daylight "System" is indistinguishable
+ * from a sun on a pinned "Light". Naming the choice is also the only way to
+ * tell, without opening the menu, that you are still following the device.
+ *
+ * Desktop only, in practice: the sidebar is the one place it renders. The phone
+ * lists the same three choices flat inside MobileTabBar's More sheet, where a
+ * dropdown over a sheet would be an overlay too many.
  */
-import { Sun, Moon, Monitor } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -19,26 +25,16 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useTheme, type ThemeChoice } from '~/composables/useTheme';
-
-const props = defineProps<{ compact?: boolean }>();
+import {
+  useTheme,
+  THEME_OPTIONS,
+  type ThemeChoice,
+} from '~/composables/useTheme';
 
 const theme = useTheme();
 
-const OPTIONS: { value: ThemeChoice; label: string; icon: any }[] = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Monitor },
-];
-
-// The trigger shows what you are looking at, not what you picked: on "system"
-// the useful thing to see is which way the device went.
-const icon = computed(() => (theme.resolved.value ? Moon : Sun));
-
-const trigger = computed(() =>
-  props.compact
-    ? 'size-8 text-muted-foreground'
-    : 'w-full justify-start gap-3 px-3 text-sm font-normal text-muted-foreground'
+const current = computed(() =>
+  THEME_OPTIONS.find((o) => o.value === theme.choice.value)!
 );
 </script>
 
@@ -47,13 +43,12 @@ const trigger = computed(() =>
     <DropdownMenuTrigger as-child>
       <Button
         variant="ghost"
-        :size="compact ? 'icon-sm' : undefined"
-        :class="trigger"
-        aria-label="Theme"
-        title="Theme"
+        class="w-full justify-start gap-3 px-3 text-sm font-normal text-muted-foreground"
+        :aria-label="`Theme: ${current.label}`"
+        :title="`Theme: ${current.label}`"
       >
-        <component :is="icon" class="size-[18px] shrink-0" />
-        <template v-if="!compact">Theme</template>
+        <component :is="current.icon" class="size-[18px] shrink-0" />
+        {{ current.label }}
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="start" class="w-40">
@@ -62,7 +57,7 @@ const trigger = computed(() =>
         @update:model-value="theme.set($event as ThemeChoice)"
       >
         <DropdownMenuRadioItem
-          v-for="option in OPTIONS"
+          v-for="option in THEME_OPTIONS"
           :key="option.value"
           :value="option.value"
         >

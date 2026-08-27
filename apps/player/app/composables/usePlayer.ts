@@ -36,6 +36,8 @@ export interface Playable {
   subtitle?: string;
   /** Kept separate from `subtitle` so the player bar can link to the artist. */
   artist?: string;
+  /** Carried so Up next can suggest by raag when the queue runs dry. */
+  raag?: string | null;
   /** Storage filename for the artist's photo, when SGPC published one. */
   artistPhoto?: string | null;
   /** BaniDB ids, when the segment has been linked — drives read-along. */
@@ -755,6 +757,7 @@ export function toPlayable(s: any): Playable {
     title: s.name,
     subtitle: s.artist_display ?? s.artist ?? undefined,
     artist: s.artist ?? undefined,
+    raag: s.raag ?? null,
     artistPhoto: s.artist_photo ?? null,
     shabadId: s.shabad_id ?? null,
     mainVerseId: s.main_verse_id ?? null,

@@ -11,18 +11,42 @@ const auth = useAuth();
 const favorites = useFavorites();
 const playlists = usePlaylists();
 const audioEl = useTemplateRef<HTMLAudioElement>('audioEl');
+const mainEl = useTemplateRef<HTMLElement>('mainEl');
 const nowPlayingView = useNowPlayingView();
 
-// Any navigation closes the full player. Its own ragi link, the sidebar, the
-// tab bar — all of them would otherwise land on a page drawn behind an opaque
-// overlay, which looks exactly like a dead click.
 const route = useRoute();
 watch(
   () => route.fullPath,
   () => {
+    // Any navigation closes the full player. Its own ragi link, the sidebar,
+    // the tab bar — all of them would otherwise land on a page drawn behind an
+    // opaque overlay, which looks exactly like a dead click.
     nowPlayingView.open.value = false;
+
+    // …and starts the new page at the top. The scrolling box is `main`, not the
+    // window, so vue-router's own scroll handling never touches it: it resets
+    // `window`, which here never moved. The container simply kept whatever
+    // offset the last page left behind, so arriving anywhere from a scrolled
+    // list dropped you into the middle of it — on a short page, past the end of
+    // it entirely, showing blank.
+    resetScroll();
   }
 );
+
+function resetScroll() {
+  mainEl.value?.scrollTo({ top: 0 });
+}
+
+// Twice, because the route updates before the page does. Every list here awaits
+// its first page, so Suspense keeps the outgoing component on screen until that
+// resolves — and a reset fired on the route change alone lands while the old
+// content is still mounted, leaving the incoming page free to be scrolled again
+// once it swaps in. `page:finish` runs after the new page is actually rendered,
+// which is the one moment the offset is certain to stick. The watcher above
+// stays: it kills the visible jump while the next page is still loading.
+useNuxtApp().hook('page:finish', () => {
+  resetScroll();
+});
 
 // Here rather than in PlayerBar: the transport outlives every page, so its keys
 // should too, and this is the one component that is always mounted.
@@ -95,7 +119,9 @@ const nav = [
       >
         <NuxtLink to="/" class="flex items-center gap-2.5 px-5 py-4">
           <img src="/brand/logo-badge.svg" alt="" class="size-7 rounded-md" />
-          <span class="text-[15px] font-semibold text-foreground">Kirtan</span>
+          <span class="text-[15px] font-semibold text-foreground"
+            >Kirtan Player</span
+          >
         </NuxtLink>
 
         <!-- Radio is an ordinary destination in this list, not the bordered
@@ -148,7 +174,7 @@ const nav = [
            list was scrolled. This div never scrolls, so `inset-0` is the
            visible area whatever the page underneath is doing. -->
       <div class="relative flex min-w-0 flex-1">
-        <main class="min-w-0 flex-1 overflow-y-auto">
+        <main ref="mainEl" class="min-w-0 flex-1 overflow-y-auto">
           <div class="mx-auto max-w-5xl px-5 py-7 pb-10 md:px-8">
             <NuxtPage />
           </div>
