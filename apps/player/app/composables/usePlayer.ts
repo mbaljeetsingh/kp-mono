@@ -235,11 +235,17 @@ export function usePlayer() {
     persistQueue();
   }
 
-  /** Insert directly after the current item rather than at the end. */
+  /**
+   * Insert directly after the current item rather than at the end.
+   *
+   * Straight after the cursor, which is where "next" is — clamping it to 0
+   * meant that with nothing playing, "Play next" put the shabad *second*,
+   * behind whatever was already queued.
+   */
   function playNextInQueue(item: Playable) {
     const rest = queue.value.filter((q) => q.id !== item.id);
-    const at = Math.max(queueIndex.value, 0);
-    queue.value = [...rest.slice(0, at + 1), item, ...rest.slice(at + 1)];
+    const at = queueIndex.value + 1;
+    queue.value = [...rest.slice(0, at), item, ...rest.slice(at)];
     persistQueue();
   }
 
@@ -463,7 +469,15 @@ export function usePlayer() {
 
   function toggle() {
     const el = audio.value;
-    if (!el || !current.value) return;
+    if (!el) return;
+    // Nothing loaded but something queued: Play means "start the queue". That
+    // is the state `addToQueue` leaves behind on an idle transport, and it is
+    // the state the full-screen player now opens into — so the primary control
+    // has to do the obvious thing there rather than sit dead.
+    if (!current.value) {
+      if (upNext.value.length) void next();
+      return;
+    }
     // The transport button and the lock-screen controls both land here, and
     // for the broadcast "resume" is the wrong verb — it would pick the buffer
     // up where it stopped rather than rejoining. Same path as the Live button.

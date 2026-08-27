@@ -278,7 +278,7 @@ function dismissDrag(down: PointerEvent) {
           <Button
             size="icon"
             class="size-16 rounded-full transition hover:scale-105"
-            :disabled="!player.current.value"
+            :disabled="!player.current.value && !player.upNext.value.length"
             :aria-label="player.playing.value ? 'Pause' : 'Play'"
             @click="player.toggle"
           >

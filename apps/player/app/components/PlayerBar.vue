@@ -193,7 +193,7 @@ const liveStatus = computed(() =>
             <Button
               size="icon"
               class="size-9 rounded-full transition hover:scale-105"
-              :disabled="!player.current.value"
+              :disabled="!player.current.value && !player.upNext.value.length"
               :aria-label="player.playing.value ? 'Pause' : 'Play'"
               :title="player.playing.value ? 'Pause (space)' : 'Play (space)'"
               @click="player.toggle"

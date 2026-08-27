@@ -43,7 +43,7 @@ function play() {
     :class="isCurrent && 'bg-foreground/5'"
     @click="play"
     @keydown.enter.self.prevent="play"
-    @keydown.space.self.prevent="play"
+    @keydown.space.self.prevent.stop="play"
   >
     <span
       class="grid place-items-center text-xs tabular-nums text-muted-foreground"
