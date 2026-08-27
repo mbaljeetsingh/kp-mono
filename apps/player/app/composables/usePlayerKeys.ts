@@ -9,6 +9,7 @@
  */
 import { onMounted, onUnmounted } from 'vue';
 import { usePlayer } from './usePlayer';
+import { skipToNext } from './useQueueSuggestions';
 
 /** Ten seconds is the step every player uses for an arrow press. */
 const SEEK_STEP = 10;
@@ -90,10 +91,10 @@ export function usePlayerKeys() {
         break;
       case 'ArrowRight':
         event.preventDefault();
-        if (event.shiftKey) void player.next();
+        if (event.shiftKey) void skipToNext();
         // A broadcast has no position to move within — only the queue keys mean
-        // anything while it is on air, and next() knows to stop rather than
-        // start whatever the listener had lined up.
+        // anything while it is on air, and the skip knows to stop there rather
+        // than start whatever the listener had lined up.
         else if (!player.isLive.value) nudge(SEEK_STEP);
         break;
       case 'ArrowLeft':
@@ -103,7 +104,7 @@ export function usePlayerKeys() {
         break;
       case 'n':
         event.preventDefault();
-        void player.next();
+        void skipToNext();
         break;
       case 'p':
         event.preventDefault();

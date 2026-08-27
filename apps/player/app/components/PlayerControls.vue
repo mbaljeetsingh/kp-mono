@@ -16,6 +16,7 @@
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { usePlayer } from '~/composables/usePlayer';
+import { skipToNext } from '~/composables/useQueueSuggestions';
 
 const props = defineProps<{
   /** `lg` is the full player's; the default is the transport bar's. */
@@ -74,10 +75,10 @@ const big = computed(() => props.size === 'lg');
       variant="ghost"
       :size="big ? 'icon' : 'icon-sm'"
       class="text-muted-foreground"
-      :disabled="!player.upNext.value.length"
+      :disabled="!player.current.value && !player.upNext.value.length"
       aria-label="Next shabad"
       title="Next (shift+→ or N)"
-      @click="player.next"
+      @click="skipToNext"
     >
       <SkipForward
         :class="big ? 'size-5 fill-current' : 'size-4 fill-current'"
