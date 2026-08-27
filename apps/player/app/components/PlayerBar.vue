@@ -150,11 +150,15 @@ const liveStatus = computed(() =>
               />
               <!-- Inert to a thumb, like a list row's: this line sits inside
                    the area that opens the full player, and a link inside a tap
-                   target is a coin toss. The player itself carries the ragi. -->
+                   target is a coin toss. The player itself carries the ragi —
+                   which is why this one is also gated on the phone layout,
+                   unlike a row's. Above `md` there is no full-screen player to
+                   fall through to, so a coarse-pointer tablet in landscape
+                   would have had a dead link and nowhere else to go. -->
               <NuxtLink
                 v-if="player.current.value?.artist"
                 :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
-                class="truncate pointer-coarse:pointer-events-none hover:text-foreground hover:underline"
+                class="truncate max-md:pointer-coarse:pointer-events-none hover:text-foreground hover:underline"
                 @click.stop
                 >{{ player.current.value.subtitle }}</NuxtLink
               >

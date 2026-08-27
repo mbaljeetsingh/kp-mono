@@ -55,8 +55,17 @@ function show(next: View) {
 // A fresh open starts on the artwork, and a shabad without a read-along cannot
 // stay on one — skipping from a tagged rendition to an untagged one would
 // otherwise leave the screen on an empty panel.
+//
+// On the opening edge, not the closing one: the section stays mounted through
+// its 200ms leave transition, so resetting as it goes flipped a lyrics or queue
+// view back to the artwork while the listener watched it slide away.
 watch(open, (isOpen) => {
-  if (!isOpen) view.value = 'art';
+  if (!isOpen) return;
+  // Nothing loaded and something queued is the one case where the artwork has
+  // nothing to draw — that state is only reachable by queueing onto an idle
+  // transport, so open on the thing the listener came here for.
+  view.value =
+    !player.current.value && player.upNext.value.length ? 'queue' : 'art';
 });
 watch(hasShabad, (has) => {
   if (!has && view.value === 'lyrics') view.value = 'art';
