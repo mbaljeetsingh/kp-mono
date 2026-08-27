@@ -49,8 +49,11 @@ function show(next: View) {
 }
 
 const TABS: { value: Exclude<View, 'art'>; label: string; icon: any }[] = [
-  { value: 'queue', label: 'Up next', icon: ListMusic },
+  // Read along first, because it is what this screen is for and what it opens
+  // on. Up next was leading the row while the panel underneath showed the
+  // shabad, so the lit tab was the second one.
   { value: 'lyrics', label: 'Read along', icon: BookOpen },
+  { value: 'queue', label: 'Up next', icon: ListMusic },
 ];
 const tabs = computed(() =>
   TABS.filter((t) => t.value !== 'lyrics' || hasShabad.value)
@@ -160,11 +163,19 @@ function dismissDrag(down: PointerEvent) {
         <div
           class="mx-auto mt-2.5 h-1 w-10 rounded-full bg-muted-foreground/40"
         />
-        <div class="flex items-center justify-between px-2 py-2">
+        <!-- Three columns rather than `justify-between`, so the label stays
+             centred whatever sits either side of it — the right cell used to
+             hold nothing but a spacer balancing the chevron, and now holds the
+             view toggles.
+             They belong up here: they switch what fills the region directly
+             below, which makes this its header, and it leaves the transport a
+             row of its own. Safe inside the drag band because `dismissDrag`
+             ignores any press that lands on a button. -->
+        <div class="grid grid-cols-[1fr_auto_1fr] items-center px-2 py-2">
           <Button
             variant="ghost"
             size="icon-sm"
-            class="text-muted-foreground"
+            class="justify-self-start text-muted-foreground"
             aria-label="Collapse the player"
             @click="open = false"
           >
@@ -175,9 +186,25 @@ function dismissDrag(down: PointerEvent) {
           >
             {{ player.isLive.value ? 'On air' : 'Now playing' }}
           </p>
-          <!-- Balances the chevron so the label sits centred rather than
-               drifting right by half a button. -->
-          <span class="size-8" />
+          <div class="flex items-center gap-1 justify-self-end">
+            <button
+              v-for="t in tabs"
+              :key="t.value"
+              type="button"
+              class="grid size-8 place-items-center rounded-lg transition"
+              :class="
+                view === t.value
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground'
+              "
+              :aria-pressed="view === t.value"
+              :aria-label="t.label"
+              :title="t.label"
+              @click="show(t.value)"
+            >
+              <component :is="t.icon" class="size-[18px]" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -199,7 +226,6 @@ function dismissDrag(down: PointerEvent) {
       >
         <LyricsPanel
           v-if="view === 'lyrics'"
-          inline
           :open="true"
           class="min-h-0 flex-1"
         />
@@ -228,7 +254,14 @@ function dismissDrag(down: PointerEvent) {
         </template>
       </div>
 
-      <div class="shrink-0 px-6 pb-8">
+      <!-- `pt-5` because there was no top padding at all: the title sat flush
+           against the read-along's bottom edge, reading as though it had been
+           clipped by it rather than placed under it. The bottom pad honours the
+           home indicator — this is a fixed, full-screen sheet, so nothing else
+           is holding that space open. -->
+      <div
+        class="shrink-0 px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+      >
         <p class="text-lg leading-snug font-semibold text-foreground">
           {{ player.current.value?.title ?? 'Nothing playing' }}
         </p>
@@ -255,7 +288,7 @@ function dismissDrag(down: PointerEvent) {
              listening instead. -->
         <div
           v-if="player.isLive.value"
-          class="mt-6 flex items-center justify-center gap-2"
+          class="mt-4 flex items-center justify-center gap-2"
         >
           <LiveBadge :pulse="player.playing.value" />
           <span class="text-xs tabular-nums text-muted-foreground">
@@ -265,7 +298,7 @@ function dismissDrag(down: PointerEvent) {
         <SeekBar
           v-else
           expanded
-          class="mt-5"
+          class="mt-3"
           :progress="player.progress.value"
           :elapsed="player.elapsed.value"
           :total="player.total.value"
@@ -273,18 +306,23 @@ function dismissDrag(down: PointerEvent) {
           @seek="player.seekPct"
         />
 
-        <PlayerControls size="lg" class="mt-4 justify-center" />
-
-        <!-- Tabs rather than three toggles in a row: the two panels are
-             alternatives to each other, and the strip says so. Pressing the
-             lit one goes back to the artwork, which is the third state a
-             phone has and a desktop does not. -->
-        <div class="mt-4 flex items-center justify-center gap-1">
+        <!-- Repeat rides in the transport row rather than on a strip of its
+             own, which is where every full player puts it and where there was
+             always room. The empty span balances it so the play button stays
+             dead centre instead of drifting left by half a button — the same
+             trick the header used before the toggles moved into it. -->
+        <div class="mt-1 flex items-center justify-center gap-4">
+          <span
+            v-if="!player.isLive.value"
+            class="size-8 shrink-0"
+            aria-hidden="true"
+          />
+          <PlayerControls size="lg" />
           <Button
             v-if="!player.isLive.value"
             variant="ghost"
             size="icon-sm"
-            class="mr-2"
+            class="shrink-0"
             :class="
               player.repeat.value ? 'text-primary' : 'text-muted-foreground'
             "
@@ -297,22 +335,6 @@ function dismissDrag(down: PointerEvent) {
           >
             <Repeat1 class="size-4" />
           </Button>
-          <button
-            v-for="t in tabs"
-            :key="t.value"
-            type="button"
-            class="flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition"
-            :class="
-              view === t.value
-                ? 'border-primary text-foreground'
-                : 'border-transparent text-muted-foreground'
-            "
-            :aria-pressed="view === t.value"
-            @click="show(t.value)"
-          >
-            <component :is="t.icon" class="size-4" />
-            {{ t.label }}
-          </button>
         </div>
       </div>
     </section>

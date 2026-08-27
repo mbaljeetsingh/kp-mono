@@ -37,8 +37,11 @@ watch(hasShabad, (has) => {
 });
 
 const TABS: { value: Tab; label: string; icon: any }[] = [
-  { value: 'queue', label: 'Up next', icon: ListMusic },
+  // Read along first, because it is what this screen is for and what it opens
+  // on. Up next was leading the row while the panel underneath showed the
+  // shabad, so the lit tab was the second one.
   { value: 'lyrics', label: 'Read along', icon: BookOpen },
+  { value: 'queue', label: 'Up next', icon: ListMusic },
 ];
 const tabs = computed(() =>
   TABS.filter((t) => t.value !== 'lyrics' || hasShabad.value)
@@ -119,7 +122,6 @@ const tabs = computed(() =>
         <div class="min-h-0 flex-1 overflow-y-auto pt-3">
           <LyricsPanel
             v-if="tab === 'lyrics' && hasShabad"
-            inline
             :open="true"
             class="size-full"
           />

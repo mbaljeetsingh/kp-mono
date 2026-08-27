@@ -2,11 +2,9 @@
 /**
  * Shared header for the two saved shelves.
  *
- * Favorites and playlists are one destination as far as the tab bar is
- * concerned — five tabs is its ceiling, so they share the "Saved" entry and
- * switch here. The account control and the theme switch ride along because
- * these pages are the only place they can live on touch, where there is no
- * sidebar.
+ * Favorites and playlists are one destination as far as navigation is
+ * concerned — the sidebar lists them separately, the phone reaches both through
+ * More — and this is the fast flip between them once you are on either.
  */
 const links = [
   { to: '/favorites', label: 'Favorites' },
@@ -15,7 +13,7 @@ const links = [
 </script>
 
 <template>
-  <div class="mb-6 flex items-center justify-between gap-3">
+  <div class="mb-6 flex items-center">
     <nav class="flex gap-1 rounded-full bg-muted p-1">
       <NuxtLink
         v-for="link in links"
@@ -27,12 +25,5 @@ const links = [
         {{ link.label }}
       </NuxtLink>
     </nav>
-    <!-- Wrapped rather than given the class directly: AccountButton renders
-         nothing until the session is known, so it has no single root element for
-         a class to land on. -->
-    <div class="flex items-center gap-1 md:hidden">
-      <ThemeToggle compact />
-      <AccountButton compact />
-    </div>
   </div>
 </template>

@@ -37,13 +37,40 @@ const hasPlayer = computed(
   () => !!player.current.value || player.upNext.value.length > 0
 );
 
-/** Tapping the title area, which is the phone's way in. A desktop click near
- *  the scrubber should not take the whole window, so there it does nothing —
- *  the chevron is the deliberate act. */
-const canExpand = computed(() => isPhone.value && hasPlayer.value);
+/**
+ * Clicking the bar itself, anywhere that is not a control.
+ *
+ * This was the phone's way in only — on a desktop the reasoning was that a
+ * click near the scrubber should not take the whole window, so the chevron was
+ * the deliberate act. But a bar that opens a player on one side of a breakpoint
+ * and ignores the same click on the other is just inconsistent, and the pattern
+ * every desktop player has settled on (YouTube Music, Spotify) is that the bar
+ * is the handle: click it to raise the player, click it again to put it back.
+ * So the desktop toggles. The phone only opens, because there the sheet covers
+ * the bar and its own handle is what closes it.
+ */
+const canExpand = computed(() => hasPlayer.value);
 
 function expand() {
-  if (canExpand.value) showSheet.value = true;
+  if (!canExpand.value) return;
+  if (isPhone.value) showSheet.value = true;
+  else nowPlayingView.open.value = !nowPlayingView.open.value;
+}
+
+/**
+ * One handler for the whole bar, rather than one per empty region.
+ *
+ * A control opts out by being one — the transport buttons, the artist link, the
+ * timeline's slider band all match this selector, so a click that lands on them
+ * does its own job and nothing more. Everything else is empty bar and raises
+ * the player. Deliberately not also on the title block: two handlers on nested
+ * elements would both fire for one click, and on the desktop that toggles twice
+ * and looks like a dead click.
+ */
+function onBarClick(event: MouseEvent) {
+  const el = event.target as HTMLElement | null;
+  if (el?.closest('button, a, input, [role="slider"]')) return;
+  expand();
 }
 
 const art = computed(() =>
@@ -66,8 +93,18 @@ const liveStatus = computed(() =>
   <div class="relative">
     <NowPlayingSheet v-model:open="showSheet" />
 
+    <!-- No hairline under the timeline: the border and the 3px track were two
+         muted lines a few pixels apart, which read as one heavy rule rather
+         than as a progress line. Since #48 put the timeline along the top of
+         the bar, the track *is* this region's edge — so the border is only
+         drawn when there is no timeline to be the edge, which is a broadcast. -->
     <footer
-      class="relative border-t border-border bg-background px-4 py-2.5 md:py-3"
+      class="relative bg-background px-4 py-2.5 md:py-3"
+      :class="[
+        player.isLive.value && 'border-t border-border',
+        canExpand && 'cursor-pointer',
+      ]"
+      @click="onBarClick"
     >
       <!-- Desktop reads left to right the way a deck does: what moves
            playback, then where you are in it, then what is playing. A phone
@@ -109,12 +146,16 @@ const liveStatus = computed(() =>
              parser reparents it and hydration then walks a DOM that does not
              match the vdom. Same reasoning as ShabadRow. -->
         <div
-          class="order-1 flex min-w-0 flex-1 items-center gap-3 md:order-none md:w-full md:max-w-sm md:flex-none md:cursor-default md:justify-self-center"
-          :class="canExpand && 'cursor-pointer'"
+          class="order-1 flex min-w-0 flex-1 items-center gap-3 md:order-none md:w-full md:max-w-sm md:flex-none md:justify-self-center"
           :role="canExpand ? 'button' : undefined"
           :tabindex="canExpand ? 0 : undefined"
-          :aria-label="canExpand ? 'Open the full player' : undefined"
-          @click="expand"
+          :aria-label="
+            !canExpand
+              ? undefined
+              : nowPlayingView.open.value
+                ? 'Close the full player'
+                : 'Open the full player'
+          "
           @keydown.enter.self.prevent="expand"
           @keydown.space.self.prevent.stop="expand"
         >

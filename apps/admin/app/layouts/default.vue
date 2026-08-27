@@ -60,7 +60,7 @@ const trustClass = computed(() =>
     >
       <div class="flex items-center gap-2.5 px-4 py-4">
         <img src="/brand/logo-badge.svg" alt="" class="size-8 rounded-lg" />
-        <span class="text-sm font-semibold">Kirtan Admin</span>
+        <span class="text-sm font-semibold">Kirtan Player Admin</span>
       </div>
       <nav class="flex-1 px-2">
         <NuxtLink
@@ -86,7 +86,10 @@ const trustClass = computed(() =>
               <Badge
                 v-if="trust"
                 variant="outline"
-                :class="['ml-auto shrink-0 px-1.5 py-0 text-[10px]', trustClass]"
+                :class="[
+                  'ml-auto shrink-0 px-1.5 py-0 text-[10px]',
+                  trustClass,
+                ]"
               >
                 {{ trust }}
               </Badge>

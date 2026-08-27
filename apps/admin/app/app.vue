@@ -22,7 +22,12 @@ onMounted(async () => {
     const changedUser = s?.user?.id !== session.value?.user?.id;
     session.value = s;
     if (changedUser) {
-      refreshNuxtData(['my-profile', 'my-perms', 'app-permissions', 'role-permissions']);
+      refreshNuxtData([
+        'my-profile',
+        'my-perms',
+        'app-permissions',
+        'role-permissions',
+      ]);
     }
   });
 });
@@ -69,7 +74,9 @@ async function signUp() {
         <div class="mb-6 flex items-center gap-2.5">
           <img src="/brand/logo-badge.svg" alt="" class="size-9 rounded-lg" />
           <div>
-            <p class="text-sm font-semibold text-foreground">Kirtan Admin</p>
+            <p class="text-sm font-semibold text-foreground">
+              Kirtan Player Admin
+            </p>
             <p class="text-xs text-muted-foreground">Tagging workbench</p>
           </div>
         </div>
