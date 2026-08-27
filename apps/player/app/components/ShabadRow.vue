@@ -42,8 +42,8 @@ function play() {
     class="group grid w-full cursor-pointer grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-md px-3 py-2 text-left transition hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     :class="isCurrent && 'bg-foreground/5'"
     @click="play"
-    @keydown.enter.prevent="play"
-    @keydown.space.prevent="play"
+    @keydown.enter.self.prevent="play"
+    @keydown.space.self.prevent="play"
   >
     <span
       class="grid place-items-center text-xs tabular-nums text-muted-foreground"
@@ -69,10 +69,22 @@ function play() {
         {{ shabad.name }}
       </span>
       <span class="block truncate text-xs text-muted-foreground">
+        <!-- Inert to a thumb. The artist sits in a 143x14 band directly under
+             the title — 12% of the row, and exactly where a thumb aiming at the
+             row lands — so on a phone it swallowed taps meant for play and went
+             to the ragi instead. A row does one thing there: it plays. The ragi
+             stays two taps away in this row's own menu, and one tap away from
+             the full-screen player, which has the room for a real target.
+             Keyed on the pointer rather than the viewport, because the pointer
+             is the thing that cannot hit 14px: a mouse in a 700px window still
+             gets the link, and a tablet at 800px still does not. And
+             `pointer-events` rather than dropping the link, so it stays a link
+             for the keyboard and for assistive tech, neither of which
+             activates by pointer. -->
         <NuxtLink
           v-if="shabad.artist"
           :to="`/ragis/${encodeURIComponent(shabad.artist)}`"
-          class="hover:text-foreground hover:underline"
+          class="pointer-coarse:pointer-events-none hover:text-foreground hover:underline"
           @click.stop
           >{{ shabad.artist_display ?? shabad.artist }}</NuxtLink
         >

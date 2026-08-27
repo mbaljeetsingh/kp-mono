@@ -227,8 +227,11 @@ export function usePlayer() {
   function addToQueue(item: Playable) {
     if (queue.value.some((q) => q.id === item.id)) return;
     queue.value = [...queue.value, item];
-    // Playing nothing yet: queueing is enough to make the transport usable.
-    if (queueIndex.value < 0) queueIndex.value = 0;
+    // The cursor stays before the queue while nothing is playing. It used to be
+    // parked on 0 here, which said the first item was the *current* one when
+    // nothing was current — so `upNext` skipped past it and the first thing
+    // anyone queued onto an idle transport was invisible in the queue panel and
+    // unreachable from it.
     persistQueue();
   }
 
@@ -263,7 +266,9 @@ export function usePlayer() {
       queue.value = [];
       queueIndex.value = -1;
     } else {
-      if (queueIndex.value < 0) return;
+      // Keeps whatever is playing and drops the rest — and with the cursor
+      // before the queue that is an empty slice, which is exactly right: none
+      // of it has played, so Clear clears all of it.
       queue.value = queue.value.slice(0, queueIndex.value + 1);
     }
     persistQueue();
@@ -333,7 +338,10 @@ export function usePlayer() {
     // element playing straight past the segment's end into the rest of a
     // 70-minute file — which is the *default* case, since a single shabad
     // played from search or favorites has no follower.
-    if (queueIndex.value < 0 || queueIndex.value >= queue.value.length - 1) {
+    //
+    // A cursor before the queue is not that case: nothing has played, so the
+    // first item is what comes next rather than a reason to stop.
+    if (queueIndex.value >= queue.value.length - 1) {
       audio.value?.pause();
       playing.value = false;
       return;
@@ -677,9 +685,12 @@ export function usePlayer() {
     seek(Number.isFinite(end) && end > start ? Math.min(to, end - 0.5) : to);
   }
 
-  const upNext = computed(() =>
-    queueIndex.value < 0 ? [] : queue.value.slice(queueIndex.value + 1)
-  );
+  /**
+   * What plays after the cursor. With the cursor before the queue — nothing
+   * loaded — that is the whole queue, which is the case `addToQueue` leaves
+   * behind and the one that used to come back empty.
+   */
+  const upNext = computed(() => queue.value.slice(queueIndex.value + 1));
 
   return {
     current,
