@@ -120,6 +120,15 @@ export async function skipToNext() {
     await player.next();
     return;
   }
+  // Repeat-all makes the end of the queue a dead end no longer: Next wraps to
+  // the top, which `next()` handles. Checked here as well as there, because
+  // this branch is reached precisely when Up next is empty — otherwise a skip
+  // off the last item would append suggestions and the queue the listener
+  // asked to hear on a loop would quietly grow instead.
+  if (player.repeatMode.value === 'all' && player.queue.value.length) {
+    await player.next();
+    return;
+  }
   // Only this branch awaits a fetch, and the button does not disable while it
   // runs — so two quick presses on a cold cache would both read the queue as it
   // was and the second would overwrite the first's append, swallowing a press.
