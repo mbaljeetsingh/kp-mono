@@ -24,16 +24,23 @@
 import {
   ChevronDown,
   ChevronRight,
+  Repeat,
   Repeat1,
   ListMusic,
   BookOpen,
   Radio,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { usePlayer, formatTime } from '~/composables/usePlayer';
+import { usePlayer, formatTime, REPEAT_LABELS } from '~/composables/usePlayer';
+import { useNowPlayingView } from '~/composables/useNowPlayingView';
 
 const player = usePlayer();
-const open = defineModel<boolean>('open', { default: false });
+// Read straight from the composable rather than through a model prop: this is
+// the app's one full player on a phone, PlayerBar merely happens to be where it
+// is mounted, and navigation has to be able to close it without going through
+// the bar. The ragi link below used to close it by hand for the same reason —
+// app.vue's route watcher now covers every way out at once.
+const { sheet: open } = useNowPlayingView();
 
 const hasShabad = computed(() => player.current.value?.shabadId != null);
 
@@ -274,7 +281,6 @@ function dismissDrag(down: PointerEvent) {
           v-if="player.current.value?.artist"
           :to="`/ragis/${encodeURIComponent(player.current.value.artist)}`"
           class="-mx-2 mt-0.5 flex max-w-full items-center gap-1 rounded-md px-2 py-2 text-sm text-muted-foreground transition active:bg-foreground/5 hover:text-foreground"
-          @click="open = false"
         >
           <span class="truncate">{{ player.current.value.subtitle }}</span>
           <ChevronRight class="size-4 shrink-0 opacity-70" />
@@ -318,22 +324,24 @@ function dismissDrag(down: PointerEvent) {
             aria-hidden="true"
           />
           <PlayerControls size="lg" />
+          <!-- Cycles off → all → one, like the bar's. No tooltip to lean on
+               here, so the mode has to be legible from the icon itself. -->
           <Button
             v-if="!player.isLive.value"
             variant="ghost"
             size="icon-sm"
             class="shrink-0"
             :class="
-              player.repeat.value ? 'text-primary' : 'text-muted-foreground'
+              player.repeatMode.value !== 'off'
+                ? 'text-primary'
+                : 'text-muted-foreground'
             "
             :disabled="!player.current.value"
-            :aria-pressed="player.repeat.value"
-            :aria-label="
-              player.repeat.value ? 'Turn off repeat' : 'Repeat this shabad'
-            "
-            @click="player.toggleRepeat"
+            :aria-label="REPEAT_LABELS[player.repeatMode.value]"
+            @click="player.cycleRepeat"
           >
-            <Repeat1 class="size-4" />
+            <Repeat1 v-if="player.repeatMode.value === 'one'" class="size-4" />
+            <Repeat v-else class="size-4" />
           </Button>
         </div>
       </div>

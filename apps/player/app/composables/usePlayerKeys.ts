@@ -112,10 +112,10 @@ export function usePlayerKeys() {
         break;
       case 'r':
         // Live has no end to repeat; leave the key inert there rather than
-        // toggling a setting the transport is not showing.
+        // cycling a setting the transport is not showing.
         if (player.isLive.value) break;
         event.preventDefault();
-        player.toggleRepeat();
+        player.cycleRepeat();
         break;
     }
   }

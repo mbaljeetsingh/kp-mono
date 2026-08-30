@@ -18,10 +18,17 @@ const route = useRoute();
 watch(
   () => route.fullPath,
   () => {
-    // Any navigation closes the full player. Its own ragi link, the sidebar,
-    // the tab bar — all of them would otherwise land on a page drawn behind an
-    // opaque overlay, which looks exactly like a dead click.
-    nowPlayingView.open.value = false;
+    // Any navigation closes the full player — both sizes of it. Its own ragi
+    // link, the sidebar, the tab bar — all of them would otherwise land on a
+    // page drawn behind an opaque overlay, which looks exactly like a dead
+    // click. The phone's sheet had no watcher of its own at all until its flag
+    // moved into the composable, so a back gesture left it parked over the
+    // restored page: the same bug MobileTabBar's watcher exists to prevent.
+    //
+    // Clicking a link *to the page already showing* is the case a watcher
+    // cannot cover — the route never moves — so the nav items below close it
+    // themselves as well.
+    nowPlayingView.close();
 
     // …and starts the new page at the top. The scrolling box is `main`, not the
     // window, so vue-router's own scroll handling never touches it: it resets
@@ -35,6 +42,29 @@ watch(
 
 function resetScroll() {
   mainEl.value?.scrollTo({ top: 0 });
+}
+
+/**
+ * A nav click that is going to land on a page in THIS window.
+ *
+ * The watcher above cannot cover a link to the page already showing — no route
+ * change, no dead-click fix — so the nav items close the player themselves. But
+ * NuxtLink leaves a modified click to the browser: cmd or ctrl opens a new tab,
+ * shift a new window, alt downloads, and this window stays exactly where it is.
+ * Closing the player on those collapsed it in the window the listener was still
+ * looking at, over a click they made about a different one.
+ */
+function onNavClick(event: MouseEvent) {
+  if (
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    event.button !== 0
+  ) {
+    return;
+  }
+  nowPlayingView.close();
 }
 
 // Twice, because the route updates before the page does. Every list here awaits
@@ -117,7 +147,11 @@ const nav = [
       <aside
         class="hidden w-56 shrink-0 flex-col border-r border-border md:flex"
       >
-        <NuxtLink to="/" class="flex items-center gap-2.5 px-5 py-4">
+        <NuxtLink
+          to="/"
+          class="flex items-center gap-2.5 px-5 py-4"
+          @click="onNavClick"
+        >
           <img src="/brand/logo-badge.svg" alt="" class="size-7 rounded-md" />
           <span class="text-[15px] font-semibold text-foreground"
             >Kirtan Player</span
@@ -140,6 +174,7 @@ const nav = [
             class="relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground"
             :class="item.radio && player.isLive.value && '!text-primary'"
             active-class="!text-foreground"
+            @click="onNavClick"
           >
             <component
               :is="item.icon"
