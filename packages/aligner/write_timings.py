@@ -26,6 +26,8 @@ import json
 import os
 import statistics
 import subprocess
+import sys
+import time
 
 import soundfile as sf
 
@@ -39,17 +41,28 @@ SHORT_WIN, SHORT_HOP, ALPHA = 8.0, 2.0, 0.5
 BLEND, FLOOR = 0.4, 0.40
 CACHE = "cache"
 
+# Cost of a run, measured on a CI runner rather than estimated. Whisper pads
+# every clip to a fixed 30s mel input, so cost is per ASR WINDOW (~9s each), not
+# per second of audio; the two passes emit D/5 + D/2 windows, so a rendition
+# costs ~6x its duration. Apple Silicon manages ~0.83 — never budget CI off that
+# number, which is the mistake that cancelled two nights. See README.
+CI_RTF = 6.0
+
 ap = argparse.ArgumentParser()
 ap.add_argument("--dry-run", action="store_true", help="align but do not write")
 ap.add_argument("--only", help="restrict to one rendition id prefix")
 ap.add_argument("--single", action="store_true",
                 help="single scale only: 3x cheaper, blurrier boundaries")
 ap.add_argument("--limit", type=int, default=None,
-                help="align at most N renditions this run — keeps a nightly "
-                     "CI job bounded no matter how the queue spikes")
+                help="align at most N renditions this run. Bounds the count "
+                     "only — pair it with --deadline-min to bound the clock")
 ap.add_argument("--all", action="store_true",
                 help="re-align renditions that already have timings (matcher "
                      "improved, boundaries re-cut). Default is new work only")
+ap.add_argument("--deadline-min", type=int, default=None,
+                help="stop starting renditions once the run would exceed N "
+                     "minutes. --limit bounds the count; this bounds the "
+                     "clock, which is what a CI timeout actually enforces")
 args = ap.parse_args()
 
 
@@ -159,31 +172,141 @@ def refine_boundaries(segments, short_windows, lines):
     return segs
 
 
+# --limit bounds the EXPENSIVE work — renditions that actually get aligned —
+# not the rows fetched. The distinction is not pedantic: a rendition refused by
+# the confidence gate never gets timings, so it never leaves the queue, and with
+# order=created_at.asc it is the oldest row every night thereafter. Counting it
+# against the limit permanently retires one of the night's slots. Shabad 3590
+# alone would take a --limit 3 night from three alignments to two, which is the
+# same starvation that had newly published renditions waiting behind an
+# ever-growing backlog.
+#
+# So over-fetch by a small budget and stop once `limit` renditions have cleared
+# the gate. The budget is what keeps the night bounded in the other direction:
+# a skip is cheap only once its transcript is cached, and a mistag's FIRST night
+# still pays a full pass (~23 min for a 12-minute set). limit 3 + budget 4 is a
+# worst case of roughly 5 hours, inside timeout-minutes.
+SKIP_BUDGET = 4
+
 os.makedirs(CACHE, exist_ok=True)
-q = (f"{SB}/renditions?status=eq.published&shabad_id=not.is.null"
+
+# The queue's filter, kept apart from the page so queue_depth() can ask about
+# the whole thing rather than the slice this run happens to have fetched.
+where = "status=eq.published&shabad_id=not.is.null"
+if not args.all:
+    where += "&line_timings=is.null"
+
+# --only names one rendition; a limit would have it silently match nothing
+# whenever the id is not among the oldest few rows fetched. Bounding applies to
+# queue-draining runs, not to targeted ones.
+bounded = bool(args.limit) and not args.only
+
+q = (f"{SB}/renditions?{where}"
      f"&select=id,name,shabad_id,main_verse_id,start_sec,end_sec,tracks(url)"
      f"&order=created_at.asc")
-if not args.all:
-    q += "&line_timings=is.null"
-if args.limit:
-    q += f"&limit={args.limit}"
+if bounded:
+    q += f"&limit={args.limit + SKIP_BUDGET}"
 rends = api(q)
-print(f"{len(rends)} published rendition(s) to align"
+
+
+def queue_depth():
+    """How many renditions are actually waiting.
+
+    Counting what is left from `rends` cannot answer this: the page is capped at
+    limit + SKIP_BUDGET, so a 50-deep backlog would report as 4 — a run that is
+    falling behind would look identical to one that had nearly caught up, which
+    is precisely the signal a bounded run exists to give. Ids only, and only on
+    the paths that actually stop early, so the runs that drain the queue pay
+    nothing for it.
+
+    Best-effort, like the transcript store: this runs after hours of ASR that is
+    already safely written, and a closed socket on a reporting query must not
+    turn a night that did its work into a failed job.
+    """
+    try:
+        return str(len(api(f"{SB}/renditions?{where}&select=id") or []))
+    except Exception as e:
+        print(f"  (queue depth unavailable: {e})", flush=True)
+        return "an unknown number of"
+
+
+def remaining():
+    """What is left, worded for the mode.
+
+    Under --all the filter is not a queue at all — every published, tagged
+    rendition matches it whether or not it has timings — so counting it and
+    calling the result "still queued" would report the same large number after
+    every run and never fall.
+    """
+    if args.all:
+        return "more rendition(s) match --all and are"
+    return f"{queue_depth()} rendition(s) still"
+
+
+print(f"{len(rends)} published rendition(s) fetched"
+      f"{f', aligning at most {args.limit}' if bounded else ''}"
       f"{' (--all: including already-timed)' if args.all else ''}\n")
 
-written = skipped = 0
+written = skipped = aligned = deferred = 0
+started_at = time.monotonic()
 for r in sorted(rends, key=lambda x: x["name"]):
     rid = r["id"]
     short = rid[:8]
     if args.only and not rid.startswith(args.only):
         continue
+    # Never silently: a bounded run that does not say what it left behind reads
+    # exactly like a run that found nothing more to do.
+    if bounded and aligned >= args.limit:
+        print(f"── stopping at --limit {args.limit}; {remaining()} "
+              f"queued for the next run\n")
+        break
+
     off, end = float(r["start_sec"]), float(r["end_sec"])
+
+    # --limit bounds the count; --deadline-min bounds the clock, and only the
+    # second one is what a CI timeout actually enforces. Three half-hour
+    # renditions is ~9 hours at RTF 6 — a count of three does not stop that, and
+    # the run dies at timeout-minutes with its in-flight ASR thrown away. So
+    # project the cost from the duration and defer anything that will not fit.
+    #
+    # The projection assumes a full two-pass ASR. A rendition whose transcripts
+    # are already banked costs far less than this, so the budget defers some
+    # work that would in fact have fit — deliberately conservative, because
+    # over-deferring costs one night's delay while under-deferring costs a run
+    # cancelled at timeout-minutes with its in-flight ASR thrown away.
+    #
+    # `aligned` in the guard: the first rendition of a run is always attempted,
+    # so an unusually long one is deferred by later runs rather than starved by
+    # every one of them. `continue` rather than `break` because the list is
+    # sorted by name, not duration — a shorter rendition further down may still
+    # fit in what is left of the budget.
+    projected = (end - off) * CI_RTF / 60.0
+    left = (args.deadline_min or 0) - (time.monotonic() - started_at) / 60.0
+    if bounded and args.deadline_min is not None and aligned \
+            and projected > left:
+        print(f"── deferring {r['name']} — needs ~{projected:.0f} min, "
+              f"{left:.0f} min left in the {args.deadline_min}-minute budget\n")
+        deferred += 1
+        continue
+
     print(f"── {r['name']}  (shabad {r['shabad_id']}, {off:.0f}-{end:.0f}s)")
 
     # audio: the whole rendition, straight from sgpc.net. The boundaries are
     # part of the cache key: the wav is cut at fetch time with -ss/-t, so a
     # re-cut rendition MUST miss this cache — reusing the old audio while
     # adding the new offset would shift every timing by the boundary delta.
+    #
+    # Which means a re-cut is NOT cheap, whatever else you may have read. The
+    # requeue_alignment_on_recut trigger (20260804000100_functions.sql) carries
+    # a note saying re-alignment after a boundary change costs "seconds of
+    # matching, not minutes of ASR, because transcripts are cached". That claim
+    # is wrong and cannot be corrected in place — the migration is applied in
+    # production, and this repo only rewrites migrations while no database has
+    # them. So the correction lives here, next to the cache key that causes it:
+    # a re-cut pays a full two-pass ASR, ~6x the rendition's duration on a CI
+    # runner. Shabad 4248, re-cut 180-555 -> 171-516, re-transcribed from
+    # scratch for 35 minutes on 29 Aug. Correct behaviour, but not free — and it
+    # spends one of the night's --limit slots.
     cut = f"{short}_{off:.0f}_{end:.0f}"
     wav = f"{CACHE}/{cut}.wav"
     if not os.path.exists(wav):
@@ -209,11 +332,6 @@ for r in sorted(rends, key=lambda x: x["name"]):
         return w
 
     windows = pass_at(WIN, HOP, "full")
-    # Second, shorter pass. Its value is concentrated at transitions, which is
-    # invisible to frame accuracy (interiors dominate) but is the only thing a
-    # listener perceives: a boundary landing early shows a line before it is
-    # sung. Measured boundary jitter without it was +/-5.6s.
-    short_windows = pass_at(SHORT_WIN, SHORT_HOP, "short") if not args.single else None
 
     # Isolated, because this is the first thing after the ASR and the ASR is
     # the run. A shabad that cannot be fetched — retries exhausted, or an id
@@ -241,6 +359,23 @@ for r in sorted(rends, key=lambda x: x["name"]):
               f"review before this can be aligned.\n")
         skipped += 1
         continue
+
+    aligned += 1
+
+    # Second, shorter pass. Its value is concentrated at transitions, which is
+    # invisible to frame accuracy (interiors dominate) but is the only thing a
+    # listener perceives: a boundary landing early shows a line before it is
+    # sung. Measured boundary jitter without it was +/-5.6s.
+    #
+    # Deliberately AFTER the two gates above, not beside the full pass. At
+    # hop 2 it is 5/7 of the windows and two thirds of the runtime, and nothing
+    # before this point reads it: confidence scores `windows` alone. Running it
+    # first meant a mistagged rendition — which never leaves the queue, so it is
+    # retried every night — paid the whole ASR before being refused. Now it pays
+    # the full pass only. The full pass is already banked to the bucket by
+    # pass_at, so a shabad fetch that fails transiently still costs nothing the
+    # next run has to redo.
+    short_windows = pass_at(SHORT_WIN, SHORT_HOP, "short") if not args.single else None
 
     span = max(w["end"] for w in windows)
     case = {"video_id": short, "uem": {"start": 0, "end": span}, "lines": lines}
@@ -300,4 +435,21 @@ for r in sorted(rends, key=lambda x: x["name"]):
         print("  NOT WRITTEN — the rendition changed or vanished while this "
               "run was aligning it\n")
 
-print(f"{'would write' if args.dry_run else 'wrote'} {written}, skipped {skipped}")
+print(f"{'would write' if args.dry_run else 'wrote'} {written}, "
+      f"skipped {skipped}{f', deferred {deferred}' if deferred else ''}")
+
+# A head-of-queue jam. Refused renditions never get timings, so they never leave
+# an order=created_at.asc queue — and once there are as many of them as a page
+# holds, every night fetches the same refusals, aligns nothing, and exits 0.
+# That is indistinguishable in the logs from an empty queue, and it is exactly
+# how newly published renditions end up waiting with nobody knowing why. Say so,
+# and fail the job when the page was full, because rows behind it are starving
+# and only a human reviewing those tags can clear it.
+if rends and not args.only and aligned == 0 and skipped == len(rends):
+    print(f"\nJAMMED — all {len(rends)} rendition(s) at the head of the queue "
+          f"were refused by the confidence gate. {queue_depth()} rendition(s) "
+          f"are queued in total; none can be aligned until those tags are "
+          f"reviewed.")
+    if not args.dry_run and bounded \
+            and len(rends) == args.limit + SKIP_BUDGET:
+        sys.exit(1)
