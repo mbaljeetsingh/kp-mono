@@ -40,13 +40,33 @@ compute waits for, and re-cutting a rendition's boundaries re-queues it
 automatically (a trigger clears its timings). Renditions whose audio does not
 match their tagged shabad (confidence < 0.6) are **skipped and reported**, not
 written — that gate has already caught one real mistag. Flags: `--dry-run`
-prints without writing; `--limit N` bounds a run; `--all` re-aligns
-already-timed renditions (after a matcher improvement); `--only <id-prefix>`
-restricts to one; `--single` skips the second ASR pass (3x cheaper, blurrier
-boundaries — not recommended for publishing).
+prints without writing; `--limit N` caps how many renditions a run ALIGNS
+(refused ones do not count against it, so a permanently mistagged row cannot
+starve the queue); `--deadline-min N` stops starting renditions that will not
+fit in N minutes, which is the bound a CI timeout actually enforces; `--all`
+re-aligns already-timed renditions (after a matcher improvement); `--only
+<id-prefix>` restricts to one and overrides `--limit`, so a targeted run cannot
+silently miss a rendition that is not among the oldest rows; `--single` skips
+the second ASR pass (3x cheaper, blurrier boundaries — not recommended for
+publishing).
 
-Roughly RTF 0.83 on Apple Silicon: a 10-minute rendition costs ~8 minutes,
-once, ever. ASR output caches in `cache/` so re-running the matcher is free.
+A run that aligns nothing because every rendition at the head of the queue was
+refused reports `JAMMED` and exits non-zero: nothing behind those rows can be
+reached until a human reviews their tags.
+
+Roughly RTF 0.83 on Apple Silicon: a 10-minute rendition costs ~8 minutes.
+**On a CI runner it is RTF ~6, not 0.83** — there is no MPS, and cost is per ASR
+window rather than per second of audio, since Whisper pads every clip to a fixed
+30s mel input (an 8s window costs 7.8s of runner time, a 15s one 9.7s). Each
+pass emits `duration/HOP` windows, so the hop-2 short pass alone is two thirds
+of a run. Do not size a CI job off the Apple Silicon number; that mistake put
+`--limit 10` and a 330-minute timeout in `align.yml` and cancelled two nights
+part-way through the queue.
+
+ASR output caches in `cache/` and in the `transcripts` bucket, so re-running the
+matcher is free — but only at the same boundaries. The cache key includes them
+(`{id}_{start}_{end}`), deliberately: the wav is cut at fetch time, so re-cutting
+a rendition MUST miss the cache and pay the full two-pass ASR again.
 
 ## Suggest shabads for untagged recordings
 

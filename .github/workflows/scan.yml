@@ -11,7 +11,17 @@
 name: scan
 on:
   schedule:
-    - cron: '30 1 * * *'
+    # Odd minute, deliberately. GitHub creates scheduled runs late under load,
+    # and :00/:30 are the most contended slots on the hour. Measured here: every
+    # scheduled run's created_at equals its run_started_at, so the run object is
+    # not made until hours after the cron — the delay is in the dispatch, not in
+    # waiting for a runner. align (30 2) started 09:18, 13:00, 14:31 UTC; scan
+    # (30 1) started 08:02, 13:06, 11:43 despite finishing in a minute; crawl
+    # (0 0) started 02:10. Moving off the round minute is GitHub's own documented
+    # mitigation, not a guarantee — if the lag persists over a week or two, the
+    # fix is an external trigger (repository_dispatch from a cron elsewhere), not
+    # another minute. Do not tidy these back to :00.
+    - cron: '17 4 * * *'
   workflow_dispatch:
 
 jobs:
