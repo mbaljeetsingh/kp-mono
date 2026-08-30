@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next';
+import { Search, Shuffle } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { usePlayer, toPlayable } from '~/composables/usePlayer';
 
 const supabase = useSupabaseClient();
+const player = usePlayer();
 const q = ref('');
 const debounced = refDebounced(q, 250);
 
@@ -26,11 +29,55 @@ const { data: results } = await useAsyncData(
   { watch: [debounced] }
 );
 
+/**
+ * Play a random handful of the archive.
+ *
+ * The other three ways in all need the listener to name something first: a term
+ * to search, a ragi to open, or a row to recognise on the shelf below. This is
+ * the one for arriving with nothing in mind, which for kirtan is not the
+ * unusual case — and it sits beside the search box because that is exactly
+ * where somebody stalls when they have nothing to type into it.
+ *
+ * The randomness is the database's (`random_shabads`, 20260830000100): PostgREST
+ * has no `order=random()` to send, and the client-side substitutes are either N
+ * round trips or a contiguous window, which is not a sample.
+ */
+// Enough to listen through without thinking about it again, few enough that the
+// queue panel stays readable and a reshuffle is cheap. The queue is the
+// listener's from the moment it lands — Clear and Shuffle in Up next both act
+// on it like any other list.
+const SHUFFLE_SIZE = 30;
+
+const shuffling = ref(false);
+
+async function shuffleArchive() {
+  // The RPC is quick, but a double press would build the queue twice and start
+  // the second one over the first.
+  if (shuffling.value) return;
+  shuffling.value = true;
+  try {
+    const { data, error } = await supabase.rpc('random_shabads', {
+      n: SHUFFLE_SIZE,
+    });
+    if (error) {
+      console.error('shuffle failed', error.message);
+      return;
+    }
+    const items = ((data as any[]) ?? []).map(toPlayable);
+    // Nothing published yet. The button is hidden in that case, so this is the
+    // race where the archive emptied under us rather than a state to explain.
+    if (!items.length) return;
+    player.playList(items, 0);
+  } finally {
+    shuffling.value = false;
+  }
+}
+
 // A shelf, not the archive. This scrolled forever in pages of 50, so "recently
 // added" grew into every published shabad there has ever been and home had no
 // bottom — while the thing it is actually answering is "what is new since I was
-// last here", which twenty rows covers. Everything is still reachable: Search
-// takes a term and Ragis takes a name.
+// last here", which twenty rows covers. The archive itself is one link away, on
+// /shabads, which is where the endless list belongs.
 const RECENT_LIMIT = 20;
 
 const { data: recent } = await useAsyncData('recent', async () => {
@@ -51,16 +98,40 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
 
 <template>
   <div>
-    <div class="relative mb-8 max-w-xl">
-      <Search
-        class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-      <Input
-        v-model="q"
-        type="search"
-        placeholder="Search shabads, artists, raags"
-        class="h-12 rounded-full border-0 bg-muted pr-4 pl-10 text-base md:text-sm"
-      />
+    <!-- The two ways to start, side by side: name something, or let the
+         archive pick. They share a row because they answer the same question,
+         and the shuffle is the answer when the box is still empty. -->
+    <div class="mb-8 flex max-w-xl items-center gap-2">
+      <div class="relative min-w-0 flex-1">
+        <Search
+          class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
+          v-model="q"
+          type="search"
+          placeholder="Search shabads, artists, raags"
+          class="h-12 rounded-full border-0 bg-muted pr-4 pl-10 text-base md:text-sm"
+        />
+      </div>
+      <!-- Only once there is something to shuffle. An archive with nothing
+           published says so in the shelf below; a button that starts silence
+           would be a worse way to learn it. -->
+      <!-- The glyph alone. It is the one icon every music app has taught, the
+           row reads as two controls rather than a field with a slogan beside
+           it, and dropping the word gives the search box back ~70px — which on
+           a 375px phone is the difference between reading your query and
+           scrolling it. The label it loses as text it keeps as an accessible
+           name: without one this announces as "button". -->
+      <Button
+        v-if="recent?.length"
+        class="size-12 shrink-0 rounded-full"
+        :disabled="shuffling"
+        aria-label="Shuffle the archive"
+        title="Play a random selection from the archive"
+        @click="shuffleArchive"
+      >
+        <Shuffle class="size-5" />
+      </Button>
     </div>
 
     <section v-if="results">
@@ -121,9 +192,21 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
       </section>
 
       <section>
-        <h2 class="mb-1 text-xl font-semibold text-foreground">
-          Recently added
-        </h2>
+        <!-- The heading carries the way out of the shelf, the same way the
+             Ragis heading does. No count beside it: `artist_counts()` hands
+             that number over for free and there is no equivalent for shabads,
+             so naming one would cost a query to say something the list below
+             is already showing. -->
+        <div class="mb-1 flex items-baseline justify-between gap-4">
+          <h2 class="text-xl font-semibold text-foreground">Recently added</h2>
+          <NuxtLink
+            v-if="recent?.length"
+            to="/shabads"
+            class="shrink-0 text-xs text-muted-foreground transition hover:text-foreground"
+          >
+            View all
+          </NuxtLink>
+        </div>
         <ShabadRow
           v-for="(s, i) in recent ?? []"
           :key="s.id"

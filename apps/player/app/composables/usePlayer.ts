@@ -105,16 +105,50 @@ const failed = ref<Set<string>>(new Set());
 const starting = ref<string | null>(null);
 
 /**
- * Repeat the playing shabad instead of moving on.
+ * What happens at the end — nothing, the queue again, or this shabad again.
  *
- * Repeat-one rather than repeat-all: a shabad is the unit a listener sits
- * with, and the queue already handles "keep going". It deliberately does NOT
- * intercept the skip buttons — pressing next with repeat on moves to the next
- * shabad, the way every music player behaves. Only the automatic end-of-item
- * advance is affected.
+ * Three states rather than two, cycled off → all → one, because the two are
+ * different needs and only one of them was served: `one` is sitting with a
+ * shabad, `all` is putting a list on and letting it run. Without `all` a queue
+ * simply stopped dead at its last item, and the only way to hear it again was
+ * to play the list from the top by hand.
+ *
+ * `all` is the one state that changes what the *skip* buttons mean: at the end
+ * of the queue Next wraps to the top and Previous off the front wraps to the
+ * bottom, which is what "repeat all" says. `one` still does not touch them —
+ * pressing skip is the listener saying "move on", and a repeat setting must
+ * not answer back. Only the automatic end-of-item advance is affected by it.
  */
+export type RepeatMode = 'off' | 'all' | 'one';
+
+/** In cycle order, so the control can advance without a switch statement. */
+const REPEAT_MODES: RepeatMode[] = ['off', 'all', 'one'];
+
 const REPEAT_KEY = 'kp:repeat';
-const repeat = ref(false);
+const repeatMode = ref<RepeatMode>('off');
+
+/**
+ * How the one repeat control reads in each state — its accessible name, and
+ * the tooltip where there is a pointer to hover with.
+ *
+ * Here rather than in either component because the bar and the full player
+ * draw the same button, and three states typed out twice is three states that
+ * drift. The name states what is *on* rather than what a press would do: a
+ * cycle of three has no single "would do", and `aria-pressed` cannot describe
+ * it either — a tri-state control announced as a two-state toggle tells a
+ * screen reader something false.
+ */
+export const REPEAT_LABELS: Record<RepeatMode, string> = {
+  off: 'Repeat off',
+  all: 'Repeat all',
+  one: 'Repeat this shabad',
+};
+
+export const REPEAT_HINTS: Record<RepeatMode, string> = {
+  off: 'Not repeating — the queue plays to its end and stops',
+  all: 'Repeating the queue — it starts again at its end',
+  one: 'Repeating this shabad',
+};
 
 /** Resume positions, keyed by stable id so they survive a URL change and
  *  migrate cleanly into an account if auth lands later. */
@@ -142,12 +176,19 @@ function writeResume(id: string, seconds: number) {
   localStorage.setItem(RESUME_KEY, JSON.stringify(all));
 }
 
-function readRepeat(): boolean {
-  if (import.meta.server) return false;
+function readRepeat(): RepeatMode {
+  if (import.meta.server) return 'off';
   try {
-    return localStorage.getItem(REPEAT_KEY) === '1';
+    const saved = localStorage.getItem(REPEAT_KEY);
+    // '1' is what the two-state version wrote, and it meant repeat-one. Read
+    // rather than migrated: the next press writes the new vocabulary anyway,
+    // and a listener who left repeat on should not find it off.
+    if (saved === '1') return 'one';
+    return REPEAT_MODES.includes(saved as RepeatMode)
+      ? (saved as RepeatMode)
+      : 'off';
   } catch {
-    return false;
+    return 'off';
   }
 }
 
@@ -165,7 +206,7 @@ export function usePlayer() {
     audio.value = el;
     // Restore the queue but never auto-play: browsers block unprompted audio,
     // and resuming sound on page load is hostile anyway.
-    repeat.value = readRepeat();
+    repeatMode.value = readRepeat();
     const saved = readQueue();
     if (saved.items.length && !queue.value.length) {
       queue.value = saved.items;
@@ -211,6 +252,11 @@ export function usePlayer() {
     const i = queue.value.findIndex((q) => q.id === id);
     if (i < 0) return;
     queueIndex.value = i;
+    // Like every other cursor move. Without it a click in Up next changed what
+    // was playing but not what was saved, so a reload restored the cursor where
+    // it had been before the click — and Previous then walked forward through
+    // shabads the listener had already skipped past.
+    persistQueue();
     await play(queue.value[i]!, false);
   }
 
@@ -282,11 +328,50 @@ export function usePlayer() {
     persistQueue();
   }
 
-  function toggleRepeat() {
-    repeat.value = !repeat.value;
+  /**
+   * Shuffle what is still to come.
+   *
+   * An action, not a mode — the one place it is offered is the Up next panel,
+   * which is a list of exactly what this reorders, so pressing it shows its own
+   * result. A persistent toggle would have to keep a shadow copy of the
+   * original order to restore, decide where newly queued items land, and stay
+   * honest across a wrap; all of that machinery to hide, behind a flag, an
+   * effect that is already on screen.
+   *
+   * Only the tail moves. What has played stays where it is so Previous still
+   * walks back through it in the order it was heard, and the cursor does not
+   * move, so nothing about what is playing changes — a shuffle that restarted
+   * the shabad would be a different button.
+   *
+   * With nothing playing the cursor sits before the queue, so the "tail" is the
+   * whole of it — which is right: `addToQueue` onto an idle transport leaves
+   * everything ahead of the cursor and nothing behind it.
+   */
+  function shuffleUpNext() {
+    const at = queueIndex.value;
+    const played = queue.value.slice(0, at + 1);
+    const coming = queue.value.slice(at + 1);
+    // One item cannot be reordered, and a no-op that redraws the list would
+    // read as a failed press.
+    if (coming.length < 2) return;
+    // Fisher-Yates: every permutation equally likely. `sort(() => 0.5 -
+    // Math.random())` is the one-liner for this and it is biased — with a
+    // handful of shabads that bias is visible as the same few leading.
+    for (let i = coming.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [coming[i], coming[j]] = [coming[j]!, coming[i]!];
+    }
+    queue.value = [...played, ...coming];
+    persistQueue();
+  }
+
+  /** Off → all → one → off, from the one control that carries all three. */
+  function cycleRepeat() {
+    const at = REPEAT_MODES.indexOf(repeatMode.value);
+    repeatMode.value = REPEAT_MODES[(at + 1) % REPEAT_MODES.length]!;
     if (import.meta.client) {
       try {
-        localStorage.setItem(REPEAT_KEY, repeat.value ? '1' : '0');
+        localStorage.setItem(REPEAT_KEY, repeatMode.value);
       } catch {
         // A listener with storage blocked still gets repeat for this session.
       }
@@ -304,7 +389,9 @@ export function usePlayer() {
   async function itemEnded(fromEnded = false) {
     // Live has nothing to repeat: a dropped stream fires `ended` too, and
     // restarting it here would fight the reconnect that next() handles.
-    if (!repeat.value || isLive.value || !current.value) {
+    // `all` is handled by next() itself, which is where the end of the queue
+    // is known; only `one` short-circuits the advance.
+    if (repeatMode.value !== 'one' || isLive.value || !current.value) {
       await next();
       return;
     }
@@ -333,6 +420,53 @@ export function usePlayer() {
     }
   }
 
+  /**
+   * Move the cursor to `index` and play what is under it.
+   *
+   * Why the transport does not simply call `play()`: `play()` deliberately
+   * skips its element setup — the src, and the seek to the segment's own start
+   * — when the incoming item is the one already loaded, so that clicking the
+   * row that is currently playing does not restart it. A skip is the opposite
+   * instruction, and repeat-all can land it on the item already loaded: a
+   * one-item queue wraps onto itself.
+   *
+   * That case shipped broken for exactly one afternoon and is worth naming.
+   * With no seek, the element ran on past `endSec` into the rest of the
+   * 70-minute file — the one thing `endSec` exists to prevent — and the
+   * `timeupdate` that noticed fired the wrap again, four times a second, for as
+   * long as the tab stayed open. Measured: 38 seconds past the end and 143 play
+   * counts registered in 35 seconds.
+   *
+   * `playFromQueue` stays on `play()`: that one IS a click on a row.
+   */
+  async function playAt(index: number) {
+    const item = queue.value[index];
+    if (!item) return;
+    queueIndex.value = index;
+    persistQueue();
+
+    const el = audio.value;
+    if (el && current.value?.id === item.id) {
+      // Back to the segment's own start, not the file's — the same restart
+      // `itemEnded` performs for repeat-one, for the same reason.
+      el.currentTime = item.startSec ?? 0;
+      currentTime.value = el.currentTime;
+      // A paused transport starts, because this is a skip: pressing Next or
+      // Previous on a paused player has always begun playback, and a wrap that
+      // stayed silent would read as a dead button.
+      if (el.paused) {
+        try {
+          await el.play();
+          playing.value = true;
+        } catch {
+          playing.value = false;
+        }
+      }
+      return;
+    }
+    await play(item, false);
+  }
+
   async function next() {
     // A dropped live connection fires `ended`. Since switching to the
     // broadcast keeps the listener's queue, without this a stream hiccup would
@@ -350,13 +484,19 @@ export function usePlayer() {
     // A cursor before the queue is not that case: nothing has played, so the
     // first item is what comes next rather than a reason to stop.
     if (queueIndex.value >= queue.value.length - 1) {
+      // …unless repeat-all, which says the end of the queue is the start of
+      // it. A one-item queue wraps onto itself, which is repeat-one by another
+      // name and exactly what "repeat all" should do with a list of one — see
+      // `playAt`, which is what makes that case restart rather than run on.
+      if (repeatMode.value === 'all' && queue.value.length) {
+        await playAt(0);
+        return;
+      }
       audio.value?.pause();
       playing.value = false;
       return;
     }
-    queueIndex.value += 1;
-    persistQueue();
-    await play(queue.value[queueIndex.value]!, false);
+    await playAt(queueIndex.value + 1);
   }
 
   async function previous() {
@@ -372,10 +512,15 @@ export function usePlayer() {
       seek(current.value?.startSec ?? 0);
       return;
     }
-    if (queueIndex.value <= 0) return;
-    queueIndex.value -= 1;
-    persistQueue();
-    await play(queue.value[queueIndex.value]!, false);
+    if (queueIndex.value <= 0) {
+      // The other half of the wrap: stepping back off the front of a repeating
+      // queue lands on its last item. Asymmetry here would read as a bug.
+      if (repeatMode.value === 'all' && queue.value.length) {
+        await playAt(queue.value.length - 1);
+      }
+      return;
+    }
+    await playAt(queueIndex.value - 1);
   }
 
   async function play(item: Playable, clearQueue = true) {
@@ -723,10 +868,11 @@ export function usePlayer() {
     playNextInQueue,
     removeFromQueue,
     clearUpNext,
+    shuffleUpNext,
     next,
     previous,
-    repeat,
-    toggleRepeat,
+    repeatMode,
+    cycleRepeat,
     itemEnded,
     playing,
     currentTime,

@@ -1,15 +1,26 @@
 <script setup lang="ts">
-import { Repeat1, Radio, ChevronUp, ChevronDown } from 'lucide-vue-next';
+import {
+  Repeat,
+  Repeat1,
+  Radio,
+  ChevronUp,
+  ChevronDown,
+} from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
-import { usePlayer, formatTime } from '~/composables/usePlayer';
+import {
+  usePlayer,
+  formatTime,
+  REPEAT_LABELS,
+  REPEAT_HINTS,
+} from '~/composables/usePlayer';
 import { useNowPlayingView } from '~/composables/useNowPlayingView';
 import { artworkFor } from '~/composables/useArtwork';
 
 const player = usePlayer();
-const nowPlayingView = useNowPlayingView();
 // The full player — see NowPlayingSheet. Both sizes open it now: a phone by
-// tapping the bar, a desktop from the chevron at the far right.
-const showSheet = ref(false);
+// tapping the bar, a desktop from the chevron at the far right. Both flags
+// live in the composable rather than here, so navigation can close them.
+const nowPlayingView = useNowPlayingView();
 
 // In rem, because that is the unit `md:` resolves against (48rem). Pinning it
 // to 767px instead would let the phone layout render while this stayed false
@@ -22,7 +33,7 @@ const isPhone = useMediaQuery('(max-width: 47.999rem)');
 // phone — and open over whatever was navigated to by the time it came back.
 watch(isPhone, (phone) => {
   if (phone) nowPlayingView.open.value = false;
-  else showSheet.value = false;
+  else nowPlayingView.sheet.value = false;
 });
 
 /**
@@ -53,7 +64,7 @@ const canExpand = computed(() => hasPlayer.value);
 
 function expand() {
   if (!canExpand.value) return;
-  if (isPhone.value) showSheet.value = true;
+  if (isPhone.value) nowPlayingView.sheet.value = true;
   else nowPlayingView.open.value = !nowPlayingView.open.value;
 }
 
@@ -91,7 +102,7 @@ const liveStatus = computed(() =>
 
 <template>
   <div class="relative">
-    <NowPlayingSheet v-model:open="showSheet" />
+    <NowPlayingSheet />
 
     <!-- No hairline under the timeline: the border and the 3px track were two
          muted lines a few pixels apart, which read as one heavy rule rather
@@ -224,26 +235,27 @@ const liveStatus = computed(() =>
         <div
           class="order-3 hidden flex-none items-center gap-1 md:flex md:justify-self-end"
         >
+          <!-- One button, three states, cycled — the arrangement every player
+               uses, because repeat-all and repeat-one are the same setting at
+               different scopes and two controls would imply otherwise. The
+               numeral is the only thing that separates them at 16px, so the
+               icon changes with the mode rather than only the colour. -->
           <Button
             v-if="!player.isLive.value"
             variant="ghost"
             size="icon-sm"
             :class="
-              player.repeat.value ? 'text-primary' : 'text-muted-foreground'
+              player.repeatMode.value !== 'off'
+                ? 'text-primary'
+                : 'text-muted-foreground'
             "
             :disabled="!player.current.value"
-            :aria-pressed="player.repeat.value"
-            :aria-label="
-              player.repeat.value ? 'Turn off repeat' : 'Repeat this shabad'
-            "
-            :title="
-              player.repeat.value
-                ? 'Repeat is on — this shabad replays (R)'
-                : 'Repeat this shabad (R)'
-            "
-            @click="player.toggleRepeat"
+            :aria-label="REPEAT_LABELS[player.repeatMode.value]"
+            :title="`${REPEAT_HINTS[player.repeatMode.value]} (R)`"
+            @click="player.cycleRepeat"
           >
-            <Repeat1 class="size-4" />
+            <Repeat1 v-if="player.repeatMode.value === 'one'" class="size-4" />
+            <Repeat v-else class="size-4" />
           </Button>
           <Button
             variant="ghost"

@@ -8,7 +8,7 @@
  * bar — which #48 removed; nothing has passed it since, so it has gone with the
  * close button it drew.
  */
-import { Play } from 'lucide-vue-next';
+import { Play, Shuffle } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { usePlayer, toPlayable } from '~/composables/usePlayer';
 import { useQueueSuggestions } from '~/composables/useQueueSuggestions';
@@ -33,6 +33,23 @@ function playSuggestion(items: any[], index: number) {
       <!-- Grouped so the title stays hard left rather than the header spacing
            three children across. -->
       <div class="flex items-center gap-1">
+        <!-- Shuffle lives here rather than beside Repeat in the transport,
+             because it acts on this list and nothing else. In the bar it would
+             be a control whose effect is off screen — and one that is dead most
+             of the time it is visible, since the usual queue is the single
+             shabad somebody tapped in a list. Two items is where it starts to
+             mean something, which is when it appears. -->
+        <Button
+          v-if="player.upNext.value.length > 1"
+          variant="ghost"
+          size="xs"
+          class="text-muted-foreground hover:text-foreground"
+          title="Shuffle what is coming up"
+          @click="player.shuffleUpNext"
+        >
+          <Shuffle class="size-3.5" />
+          Shuffle
+        </Button>
         <!-- Absent rather than dimmed when there is nothing to clear. -->
         <Button
           v-if="player.upNext.value.length"
