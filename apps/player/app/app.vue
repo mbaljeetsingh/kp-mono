@@ -206,11 +206,10 @@ const nav = [
           </NuxtLink>
         </nav>
 
-        <!-- The meta block: rows where the app talks about itself rather than
-             navigates itself. The ask leads it — taggers are the scarce
-             resource, and the primary colour alone is the highlight — with
-             GitHub quiet below it: developers find a repo from anywhere.
-             New tabs on purpose — following either must not stop what is
+        <!-- The ask gets a section of its own, fenced by borders on both
+             sides: taggers are the scarce resource, and a row that shares a
+             box with GitHub/theme/account reads as one more meta link.
+             New tab on purpose — following it must not stop what is
              playing. -->
         <div class="border-t border-border p-2">
           <a
@@ -222,6 +221,12 @@ const nav = [
             <Tags class="size-[18px]" />
             Contribute shabads
           </a>
+        </div>
+
+        <!-- The meta block: rows where the app talks about itself rather than
+             navigates itself. GitHub stays quiet — developers find a repo
+             from anywhere. -->
+        <div class="border-t border-border p-2">
           <a
             :href="GITHUB_URL"
             target="_blank"
