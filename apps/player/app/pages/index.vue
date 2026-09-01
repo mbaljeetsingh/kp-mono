@@ -3,7 +3,6 @@ import { Search, Shuffle } from 'lucide-vue-next';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { usePlayer, toPlayable } from '~/composables/usePlayer';
-import { GITHUB_URL, CONTRIBUTE_URL } from '~/lib/links';
 
 const supabase = useSupabaseClient();
 const player = usePlayer();
@@ -222,34 +221,5 @@ const { data: artists } = await useAsyncData('top-artists', async () => {
         />
       </section>
     </template>
-
-    <!-- The ask, at the natural stopping point. Everything above exists
-         because somebody tagged a recording, and the player itself offers no
-         way to join in — so the bottom of home names the two doors: the
-         tagging workbench and the repository. New tabs on purpose: both are
-         other apps, and following a link must not stop what is playing. -->
-    <footer
-      class="mt-14 border-t border-border pt-5 text-xs text-muted-foreground"
-    >
-      <p class="max-w-xl leading-relaxed">
-        Kirtan Player is open source, and the archive grows one tagged shabad at
-        a time.
-        <a
-          :href="CONTRIBUTE_URL"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-foreground/80 underline underline-offset-2 transition hover:text-foreground"
-          >Help tag recordings</a
-        >
-        or
-        <a
-          :href="GITHUB_URL"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-foreground/80 underline underline-offset-2 transition hover:text-foreground"
-          >contribute code on GitHub</a
-        >.
-      </p>
-    </footer>
   </div>
 </template>
