@@ -9,6 +9,7 @@ import {
   ListMusic,
   ArrowLeft,
   Check,
+  SkipForward,
 } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,6 +50,16 @@ definePageMeta({ key: (route) => route.fullPath });
 
 const route = useRoute();
 const supabase = useSupabaseClient();
+
+/** The recordings list as it was last configured — index.vue keeps this in
+ *  step with its own URL — so "Back to recordings" restores the shelf, tree
+ *  and search the tagger was working from rather than the defaults. Empty
+ *  (plain "/") when the list hasn't been visited this session. */
+const listQuery = useState<Record<string, string>>(
+  'recordings-query',
+  () => ({})
+);
+const listLink = computed(() => ({ path: '/', query: listQuery.value }));
 const transport = useTemplateRef<any>('transport');
 const player = computed(() => transport.value?.player);
 
@@ -260,18 +271,21 @@ onMounted(() => {
     wholeFile.value = true;
     fillWholeFile();
     void matchTitle();
-    // `.neq` so the recording on screen doesn't count itself — the number
-    // means "after this one", matching what saveAndNext will actually find.
-    void supabase
+    // `.neq` so the recording on screen doesn't count itself, and the same
+    // skip exclusion as the queue — the number means "after this one, before
+    // the skips", matching what Publish & next will actually find.
+    let counted = supabase
       .from('recordings')
       .select('id', { count: 'exact', head: true })
       .eq('tree', 'puratan')
       .eq('renditions', 0)
       .is('tagged_done_at', null)
-      .neq('id', route.params.id as string)
-      .then(({ count }) => {
-        puratanLeft.value = count;
-      });
+      .neq('id', route.params.id as string);
+    if (skipFilter().length)
+      counted = counted.not('id', 'in', `(${skipFilter().join(',')})`);
+    void counted.then(({ count }) => {
+      puratanLeft.value = count;
+    });
   }
 });
 
@@ -462,11 +476,25 @@ const puratanLeft = ref<number | null>(null);
 const nextBusy = ref(false);
 
 /**
- * The whole loop in one button: publish this shabad, mark the recording done
- * (coverage can never close a slot-less track on its own), and open the next
- * untagged puratan recording — same ragi first, so a session walks one
- * directory at a time the way the source tree is organised.
+ * Recordings set aside with Skip. Session state, never the database: a skip
+ * is "not this one right now", not a fact about the recording — a reload
+ * forgets it, and other taggers never see it. Without this memory a skip
+ * would be pointless: the queue always serves the alphabetically first
+ * untagged file in the ragi, so the very next Publish & next would bounce
+ * straight back to the file just skipped. `useState` because the page
+ * remounts on every hop (see definePageMeta above) and a plain ref would
+ * forget the list one navigation later.
  */
+const skipped = useState<string[]>('puratan-skips', () => []);
+
+/** The most recent skips the queue can afford to exclude. The list rides in
+ *  the query string at ~17 bytes an id, and index.vue's QUEUED_SHELF_MAX
+ *  documents the 8 KB proxy ceiling that puts on an id list — past the cap
+ *  the oldest skips simply come back into rotation, which beats a session
+ *  where every navigation 414s. */
+const SKIP_FILTER_MAX = 200;
+const skipFilter = () => skipped.value.slice(-SKIP_FILTER_MAX);
+
 /** One row from the untagged-puratan queue, optionally held to one ragi.
  *  Always limit 1 and let the database pick: PostgREST caps responses at
  *  max_rows (1000) and truncates silently, so fetching "the whole queue" to
@@ -479,10 +507,45 @@ function nextUntagged(ragi?: string | null) {
     .eq('renditions', 0)
     .is('tagged_done_at', null)
     .neq('id', route.params.id as string);
+  if (skipFilter().length) q = q.not('id', 'in', `(${skipFilter().join(',')})`);
   if (ragi) q = q.eq('artist_dir', ragi);
   return q.order('artist_dir').order('title').limit(1);
 }
 
+/** Open the next untagged puratan recording — same ragi first, skipped ones
+ *  excluded. 'empty' only when the queue truly answered empty: a failed
+ *  query must not read as "all tagged", so errors surface and stop the loop
+ *  instead. */
+async function goNext(): Promise<'moved' | 'empty' | 'error'> {
+  const ragi = track.value?.artist_dir as string | null;
+  let next: { id: string } | undefined;
+  if (ragi) {
+    const { data, error } = await nextUntagged(ragi);
+    if (error) {
+      message.value = `Couldn't look up the next recording: ${error.message}`;
+      return 'error';
+    }
+    next = data?.[0];
+  }
+  if (!next) {
+    const { data, error } = await nextUntagged();
+    if (error) {
+      message.value = `Couldn't look up the next recording: ${error.message}`;
+      return 'error';
+    }
+    next = data?.[0];
+  }
+  if (!next) return 'empty';
+  await navigateTo(`/tag/${next.id}`);
+  return 'moved';
+}
+
+/**
+ * The whole loop in one button: publish this shabad, mark the recording done
+ * (coverage can never close a slot-less track on its own), and hand off to
+ * goNext — same ragi first, so a session walks one directory at a time the
+ * way the source tree is organised.
+ */
 async function saveAndNext() {
   if (!canSave.value || busy.value || nextBusy.value) return;
   nextBusy.value = true;
@@ -501,18 +564,33 @@ async function saveAndNext() {
         return;
       }
     }
-    const ragi = track.value?.artist_dir as string | null;
-    let { data } = ragi
-      ? await nextUntagged(ragi)
-      : { data: null as { id: string }[] | null };
-    if (!data?.length) ({ data } = await nextUntagged());
-    const next = data?.[0];
-    if (next) {
-      await navigateTo(`/tag/${next.id}`);
+    if ((await goNext()) !== 'empty') return; // moved on, or error already shown
+    message.value = skipped.value.length
+      ? 'Nothing left except the ones you skipped — they’re still on the recordings list.'
+      : 'That was the last one — no untagged puratan recordings left.';
+  } finally {
+    nextBusy.value = false;
+  }
+}
+
+/** Set this one aside and move on. Nothing is written anywhere — the skip
+ *  lives only in this session, and the recording stays visible on the
+ *  recordings list, which is where it gets picked up again. */
+async function skipForNow() {
+  if (busy.value || nextBusy.value) return;
+  nextBusy.value = true;
+  try {
+    const id = route.params.id as string;
+    if (!skipped.value.includes(id)) skipped.value = [...skipped.value, id];
+    const went = await goNext();
+    if (went === 'moved') return;
+    if (went === 'error') {
+      // The skip shouldn't outlive a navigation that never happened.
+      skipped.value = skipped.value.filter((s) => s !== id);
       return;
     }
     message.value =
-      'That was the last one — no untagged puratan recordings left.';
+      'Nothing else to open — the skipped ones are still on the recordings list.';
   } finally {
     nextBusy.value = false;
   }
@@ -881,7 +959,7 @@ const lengthLabel = computed(() => {
       That recording isn’t in the catalogue.
     </p>
     <Button variant="outline" size="sm" class="mt-4" as-child>
-      <NuxtLink to="/"
+      <NuxtLink :to="listLink"
         ><ArrowLeft class="size-3.5" /> Back to recordings</NuxtLink
       >
     </Button>
@@ -889,7 +967,7 @@ const lengthLabel = computed(() => {
 
   <div v-else>
     <NuxtLink
-      to="/"
+      :to="listLink"
       class="inline-flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground"
     >
       <ArrowLeft class="size-3" /> Recordings
@@ -1324,6 +1402,20 @@ const lengthLabel = computed(() => {
         >
           <Send class="size-3.5" />
           {{ editingId ? 'Update &amp; publish' : 'Save &amp; publish' }}
+        </Button>
+        <!-- Not this one right now. Saves nothing anywhere — the queue just
+             stops serving it this session, and it stays on the recordings
+             list to be picked up later. -->
+        <Button
+          v-if="isPuratan && wholeFile && !editingId"
+          variant="ghost"
+          size="sm"
+          class="text-muted-foreground"
+          :disabled="busy || nextBusy"
+          title="Set this one aside — nothing is saved, and it stays on the recordings list"
+          @click="skipForNow"
+        >
+          <SkipForward class="size-3.5" /> Skip for now
         </Button>
         <Button
           v-if="editingId"
