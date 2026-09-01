@@ -205,6 +205,27 @@ body {
 }
 
 /*
+ * Default border colour, restored.
+ *
+ * Tailwind v4's bare `border` utility falls back to `currentColor` — so every
+ * shadcn component that says `border` without naming a colour (dropdowns,
+ * dialogs, cards) drew its edge in the text colour: a bright ivory ring in
+ * dark mode, near-black in light. Explicit `border-border` usage never showed
+ * it, which is why only the portalled overlays looked outlined. This is the
+ * v3-behaviour compat rule the Tailwind v4 upgrade guide (and shadcn's v4
+ * templates) ship for exactly this.
+ */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
+}
+
+/*
  * Custom scrollbars — applied globally here so apps/app's in-container
  * scroll surfaces (editor, lists, sheets) match the rest of the app, and
  * apps/admin + apps/web pick up the same treatment by default.
