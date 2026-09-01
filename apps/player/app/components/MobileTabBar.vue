@@ -159,6 +159,23 @@ const moreActive = computed(
 
         <Separator class="my-2" />
 
+        <!-- The ask, in its own block above the meta rows — the same position
+             the desktop sidebar gives it. Primary colour marks it as the one
+             row here that grows the archive; theme, account, and GitHub below
+             are the app talking about itself. New tab so following it never
+             stops what is playing. -->
+        <a
+          :href="CONTRIBUTE_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-primary transition hover:bg-accent"
+        >
+          <Tags class="size-[18px] shrink-0" />
+          Contribute shabads
+        </a>
+
+        <Separator class="my-2" />
+
         <!-- The three choices flat rather than ThemeToggle's dropdown: a menu
              inside a sheet is an overlay over an overlay, and it would put the
              thing this sheet exists to expose one extra tap away. -->
@@ -235,20 +252,10 @@ const moreActive = computed(
           </button>
         </template>
 
-        <!-- The same two doors the desktop sidebar holds, since this sheet is
-             the phone's only equivalent of it. Contribute keeps its primary
-             colour — the ask — and GitHub stays a quiet meta row. New tabs so
-             following either never stops what is playing. -->
+        <!-- GitHub stays a quiet meta row at the end, the same door the
+             desktop sidebar holds. New tab so following it never stops what
+             is playing. -->
         <Separator class="my-2" />
-        <a
-          :href="CONTRIBUTE_URL"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-primary transition hover:bg-accent"
-        >
-          <Tags class="size-[18px] shrink-0" />
-          Contribute shabads
-        </a>
         <a
           :href="GITHUB_URL"
           target="_blank"
