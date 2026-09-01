@@ -40,6 +40,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { MIN_LENGTH, fmt } from '~/composables/useTagPlayer';
 import { coverageOpen } from '@/lib/tagging';
+import { prettyShabadName } from '~/composables/useShabadName';
+
+// Each id is its own workbench. Every useAsyncData key and form ref here is
+// built once per mount, so Save & next navigating tag-to-tag must remount the
+// page — reused, it would keep showing the recording it was mounted with.
+definePageMeta({ key: (route) => route.fullPath });
 
 const route = useRoute();
 const supabase = useSupabaseClient();
@@ -242,9 +248,31 @@ function edit(r: any) {
 // accept load, for the same reason the edit button hides on the others.
 onMounted(() => {
   const wanted = route.query.rendition;
-  if (typeof wanted !== 'string') return;
-  const r = (renditions.value ?? []).find((x: any) => x.id === wanted);
-  if (r && canEdit(r)) edit(r);
+  if (typeof wanted === 'string') {
+    const r = (renditions.value ?? []).find((x: any) => x.id === wanted);
+    if (r && canEdit(r)) edit(r);
+  }
+
+  // A fresh puratan recording opens ready to confirm rather than to tag:
+  // whole-file boundaries (filled once the metadata arrives), the shabad
+  // matched from the filename, and the backlog counted.
+  if (isPuratan.value && untouched.value && !editingId.value) {
+    wholeFile.value = true;
+    fillWholeFile();
+    void matchTitle();
+    // `.neq` so the recording on screen doesn't count itself — the number
+    // means "after this one", matching what saveAndNext will actually find.
+    void supabase
+      .from('recordings')
+      .select('id', { count: 'exact', head: true })
+      .eq('tree', 'puratan')
+      .eq('renditions', 0)
+      .is('tagged_done_at', null)
+      .neq('id', route.params.id as string)
+      .then(({ count }) => {
+        puratanLeft.value = count;
+      });
+  }
 });
 
 function cancelEdit() {
@@ -299,6 +327,195 @@ function onShabadSelect(v: {
   // Fill the name only if the tagger hasn't written one — their wording wins,
   // since they heard it and BaniDB's transliteration may differ.
   applyAutoName(v.firstLine, false);
+}
+
+/* ---------------------------------------------------------------------------
+ * Whole-file tagging — built for puratan, where one file IS one shabad.
+ *
+ * Two facts make that tier confirmable rather than taggable: the recording
+ * runs shabad end-to-end (so the boundaries are 0 → the file's own length,
+ * no listening required), and the filename is the shabad's first line in
+ * loose roman (so BaniDB's romanized search can usually name the exact
+ * shabad before anyone presses play). The tagger's job collapses to reading
+ * the suggested text, optionally spot-checking a few seconds, and publishing.
+ * The judgment stays human — a wrong match here would ship a mislabeled
+ * shabad straight to the player — which is why nothing saves itself.
+ * ------------------------------------------------------------------------- */
+
+const isPuratan = computed(() => track.value?.tree === 'puratan');
+
+/** No renditions yet — the only state where whole-file boundaries are an
+ *  offer rather than a duplicate of work somebody already did. */
+const untouched = computed(() => (renditions.value?.length ?? 0) === 0);
+
+const wholeFile = ref(false);
+
+/** The end this mode last wrote itself. While the fields still hold the
+ *  auto-filled pair, a revised duration (browsers correct their first VBR
+ *  estimate) may follow through; the moment the tagger drags a boundary,
+ *  their placement wins and no revision overwrites it. */
+const autoEnd = ref<number | null>(null);
+
+/** 0 → duration, once the audio has said how long it is. Runs again on the
+ *  metadata arriving, because puratan carries no slot and the length is
+ *  unknowable until then. */
+function fillWholeFile(force = false) {
+  const d = duration.value;
+  if (!wholeFile.value || !d || editingId.value) return;
+  const untouchedBounds =
+    (startSec.value === null && endSec.value === null) ||
+    (startSec.value === 0 && endSec.value === autoEnd.value);
+  if (!force && !untouchedBounds) return;
+  startSec.value = 0;
+  endSec.value = Math.round(d * 100) / 100;
+  autoEnd.value = endSec.value;
+}
+
+// Wrapped: a bare `fillWholeFile` here would receive the new duration as its
+// `force` argument.
+watch(duration, () => fillWholeFile());
+
+function setWholeFile(on: boolean) {
+  wholeFile.value = on;
+  // Turning it on fills; turning it off keeps whatever is filled. 0 → end is
+  // the right starting point for nudging a real boundary back from a tail of
+  // applause — wiping it would force re-marking both ends by ear the moment
+  // the whole-file premise turns out wrong.
+  if (on) fillWholeFile(true);
+}
+
+/**
+ * What to ask BaniDB, best guess first: the whole cleaned title (a real first
+ * line may contain a hyphen), then — only as a fallback — the part after a
+ * " - ", for filenames written as "Bhai … - line". The "[1]" duplicate marker
+ * goes either way; the extension is already gone from `heading`.
+ */
+function titleCandidates(): string[] {
+  const s = heading.value
+    .replace(/\[\d+\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const out = [s];
+  const parts = s.split(/\s+-\s+/);
+  const last = parts[parts.length - 1]?.trim();
+  if (parts.length > 1 && last) out.push(last);
+  return out.filter((c) => c.length >= 3);
+}
+
+const banidbBase = useRuntimeConfig().public.banidbApiBaseUrl;
+
+const titleMatches = ref<any[]>([]);
+const matchState = ref<'idle' | 'searching' | 'matched' | 'none'>('idle');
+
+async function matchTitle() {
+  const candidates = titleCandidates();
+  if (!candidates.length) {
+    matchState.value = 'none';
+    return;
+  }
+  matchState.value = 'searching';
+  try {
+    for (const q of candidates) {
+      // searchtype 4 is BaniDB's romanized search: it takes whole
+      // transliterated words and is forgiving of spelling ("vapar karo
+      // vaparee" finds "vaapaar karahu vaapaaree"), which is exactly the
+      // register these filenames are in.
+      const res = await fetch(
+        `${banidbBase}/search/${encodeURIComponent(q)}?searchtype=4`
+      );
+      const json = await res.json();
+      const verses = ((json.verses ?? []) as any[]).slice(0, 6);
+      if (!verses.length) continue;
+      // The tagger may have picked a shabad while this was in flight — their
+      // choice outranks the filename guess, so it is never clobbered.
+      if (shabadId.value !== null) {
+        matchState.value = 'idle';
+        return;
+      }
+      titleMatches.value = verses;
+      // Top match pre-selected so the form is saveable on arrival; the rest
+      // stay one click away below the shabad text.
+      chooseMatch(verses[0]);
+      matchState.value = 'matched';
+      return;
+    }
+    matchState.value = 'none';
+  } catch {
+    matchState.value = 'none';
+  }
+}
+
+/** Same handler as a manual search click on purpose — the anchor rule and the
+ *  never-overwrite-a-typed-name rule live in one place. */
+function chooseMatch(v: any) {
+  onShabadSelect({
+    shabadId: v.shabadId,
+    verseId: typeof v.verseId === 'number' ? v.verseId : null,
+    firstLine: prettyShabadName(v.transliteration?.english ?? ''),
+  });
+}
+
+/** How many puratan recordings still wait — the number that makes a 1,000-file
+ *  backlog feel finishable, counted the same way "next" is picked. */
+const puratanLeft = ref<number | null>(null);
+
+const nextBusy = ref(false);
+
+/**
+ * The whole loop in one button: publish this shabad, mark the recording done
+ * (coverage can never close a slot-less track on its own), and open the next
+ * untagged puratan recording — same ragi first, so a session walks one
+ * directory at a time the way the source tree is organised.
+ */
+/** One row from the untagged-puratan queue, optionally held to one ragi.
+ *  Always limit 1 and let the database pick: PostgREST caps responses at
+ *  max_rows (1000) and truncates silently, so fetching "the whole queue" to
+ *  choose client-side breaks exactly for ragis late in the alphabet. */
+function nextUntagged(ragi?: string | null) {
+  let q = supabase
+    .from('recordings')
+    .select('id')
+    .eq('tree', 'puratan')
+    .eq('renditions', 0)
+    .is('tagged_done_at', null)
+    .neq('id', route.params.id as string);
+  if (ragi) q = q.eq('artist_dir', ragi);
+  return q.order('artist_dir').order('title').limit(1);
+}
+
+async function saveAndNext() {
+  if (!canSave.value || busy.value || nextBusy.value) return;
+  nextBusy.value = true;
+  try {
+    await save(canPublish.value);
+    if (message.value) return; // the insert was refused — stay and say so
+    if (canMarkDone.value && !taggingDone.value) {
+      // A refused mark strands the recording: with a rendition it leaves this
+      // queue, and with no slot nothing can ever measure it done — so a
+      // failure here must stay on screen, not navigate into the void.
+      const marked = await setTaggingDone(true);
+      if (!marked) {
+        message.value = `Saved, but couldn't mark the recording done${
+          doneError.value ? `: ${doneError.value}` : '.'
+        }`;
+        return;
+      }
+    }
+    const ragi = track.value?.artist_dir as string | null;
+    let { data } = ragi
+      ? await nextUntagged(ragi)
+      : { data: null as { id: string }[] | null };
+    if (!data?.length) ({ data } = await nextUntagged());
+    const next = data?.[0];
+    if (next) {
+      await navigateTo(`/tag/${next.id}`);
+      return;
+    }
+    message.value =
+      'That was the last one — no untagged puratan recordings left.';
+  } finally {
+    nextBusy.value = false;
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -387,7 +604,9 @@ const shelfCoverageOpen = computed(() =>
 const doneBusy = ref(false);
 const doneError = ref('');
 
-async function setTaggingDone(done: boolean) {
+/** Returns whether the write actually landed — saveAndNext must not navigate
+ *  away from a refusal that would otherwise render for zero frames. */
+async function setTaggingDone(done: boolean): Promise<boolean> {
   doneBusy.value = true;
   doneError.value = '';
   const { data: user } = await supabase.auth.getUser();
@@ -408,13 +627,14 @@ async function setTaggingDone(done: boolean) {
   doneBusy.value = false;
   if (error) {
     doneError.value = error.message;
-    return;
+    return false;
   }
   if (!data?.length) {
     doneError.value = 'Not permitted to change that.';
-    return;
+    return false;
   }
   await refreshTrack();
+  return true;
 }
 
 /** Segments and gaps on one axis, in time order, so the list reads as the
@@ -549,10 +769,18 @@ async function save(publish = false) {
     return;
   }
 
-  // Roll the start forward: the next shabad begins where this one ended, so
-  // consecutive segments are one click each.
-  startSec.value = endSec.value;
-  endSec.value = null;
+  if (wholeFile.value) {
+    // The file held one shabad and it is saved — there is no "next segment"
+    // to roll toward, and leaving start = end would only arm a broken form.
+    wholeFile.value = false;
+    startSec.value = null;
+    endSec.value = null;
+  } else {
+    // Roll the start forward: the next shabad begins where this one ended, so
+    // consecutive segments are one click each.
+    startSec.value = endSec.value;
+    endSec.value = null;
+  }
   name.value = '';
   shabadId.value = null;
   mainVerseId.value = null;
@@ -765,7 +993,29 @@ const lengthLabel = computed(() => {
           cancel and start a new shabad
         </Button>
       </div>
-      <h2 v-else class="mb-4 text-sm font-medium">Add a shabad</h2>
+      <div v-else class="mb-4">
+        <h2 class="text-sm font-medium">
+          {{ wholeFile && untouched ? 'Confirm this shabad' : 'Add a shabad' }}
+        </h2>
+        <!-- The promise of the puratan flow, said where the work happens: the
+             machine filled everything, the human only vouches for it. -->
+        <p
+          v-if="wholeFile && untouched"
+          class="mt-1 text-xs text-muted-foreground"
+        >
+          This recording is one shabad end to end — the boundaries come from the
+          file{{
+            matchState === 'matched' ? ' and the shabad from its name' : ''
+          }}. Check it’s what you hear, then publish.
+          <span v-if="isPuratan && puratanLeft !== null" class="tabular-nums">
+            {{
+              puratanLeft
+                ? `${puratanLeft} more after this one.`
+                : 'This is the last one.'
+            }}
+          </span>
+        </p>
+      </div>
 
       <!-- Three steps, numbered and ticked as they are satisfied. The fields
            were the same before; what was missing was any sign of how far along
@@ -783,13 +1033,45 @@ const lengthLabel = computed(() => {
             <Check v-if="startSec !== null && endSec !== null" class="size-3" />
             <template v-else>1</template>
           </span>
-          <h3 class="text-xs font-medium">Mark where it starts and ends</h3>
+          <h3 class="text-xs font-medium">
+            {{
+              wholeFile
+                ? 'The whole file is one shabad'
+                : 'Mark where it starts and ends'
+            }}
+          </h3>
           <span
             class="w-full pl-7 text-[11px] text-muted-foreground sm:w-auto sm:pl-0"
-            >— from the playhead, then nudge</span
+            >{{
+              wholeFile
+                ? '— boundaries filled from the file itself'
+                : '— from the playhead, then nudge'
+            }}</span
           >
         </div>
-        <div class="flex flex-wrap items-center gap-2 pl-7">
+        <!-- Nothing to mark and nothing to nudge: the file's own length is the
+             end boundary, which arrives with the audio metadata — no playback,
+             no download beyond the header. -->
+        <div
+          v-if="wholeFile"
+          class="flex flex-wrap items-center gap-x-2 gap-y-1 pl-7"
+        >
+          <span class="text-xs tabular-nums text-muted-foreground">
+            {{
+              duration
+                ? `0:00 – ${fmt(duration)} · ${fmt(duration)} long`
+                : 'reading the file’s length…'
+            }}
+          </span>
+          <Button
+            variant="link"
+            class="h-auto p-0 text-[11px] text-muted-foreground"
+            @click="setWholeFile(false)"
+          >
+            tag part of it instead
+          </Button>
+        </div>
+        <div v-else class="flex flex-wrap items-center gap-2 pl-7">
           <!-- A boundary is rarely right the first time. Both ends can be
                walked in 0.1s and 1s steps rather than re-marked from the
                playhead, and each is clamped so the pair cannot cross. -->
@@ -825,6 +1107,17 @@ const lengthLabel = computed(() => {
           >
             <Scissors class="size-3.5" /> Check cut
           </Button>
+          <!-- Any tree can hold a single-shabad file; puratan is just the tier
+               where it is the rule rather than the exception. Only offered
+               while nothing is tagged — afterwards it could only duplicate. -->
+          <Button
+            v-if="untouched && !editingId"
+            variant="link"
+            class="h-auto p-0 text-[11px] text-muted-foreground"
+            @click="setWholeFile(true)"
+          >
+            the whole file is one shabad
+          </Button>
         </div>
       </div>
 
@@ -852,6 +1145,19 @@ const lengthLabel = computed(() => {
           >
         </div>
         <div class="pl-7">
+          <p
+            v-if="matchState === 'searching'"
+            class="mb-2 text-xs text-muted-foreground"
+          >
+            Matching the filename against BaniDB…
+          </p>
+          <p
+            v-else-if="matchState === 'none' && wholeFile"
+            class="mb-2 text-xs text-muted-foreground"
+          >
+            The filename didn’t match anything in BaniDB — search for the shabad
+            below.
+          </p>
           <ShabadSearch v-if="!shabadId" @select="onShabadSelect" />
           <ShabadDisplay
             v-else
@@ -867,6 +1173,37 @@ const lengthLabel = computed(() => {
             @first-line="(line: string) => applyAutoName(line, false)"
             @renamed="(line: string) => applyAutoName(line, false)"
           />
+          <!-- The runners-up from the filename match. The pre-selected pick is
+               usually right, but "usually" is exactly what the human is here
+               for — the alternatives stay one click away rather than a search
+               away. -->
+          <div v-if="titleMatches.length > 1" class="mt-2">
+            <p class="text-[11px] text-muted-foreground">
+              Not this one? The filename also matches:
+            </p>
+            <div class="mt-1 flex flex-wrap gap-1.5">
+              <template v-for="v in titleMatches" :key="v.verseId">
+                <Button
+                  v-if="v.shabadId !== shabadId"
+                  variant="outline"
+                  size="sm"
+                  class="h-7 max-w-full px-2 text-[11px]"
+                  @click="chooseMatch(v)"
+                >
+                  <!-- Same Gurmukhi fallback chain as ShabadSearch, so the
+                       chip and the search list can't render the same verse
+                       in different scripts. -->
+                  <span class="truncate">
+                    {{
+                      v.verse?.unicode ??
+                      v.verse?.gurmukhi ??
+                      v.transliteration?.english
+                    }}
+                  </span>
+                </Button>
+              </template>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -951,13 +1288,35 @@ const lengthLabel = computed(() => {
       <div
         class="mt-5 flex flex-wrap items-center gap-2 border-t border-border pt-4"
       >
-        <Button size="sm" :disabled="busy || !canSave" @click="save(false)">
+        <!-- The whole puratan loop in one press: publish, mark the recording
+             done, open the next untagged one — same ragi first. -->
+        <Button
+          v-if="isPuratan && wholeFile && !editingId"
+          size="sm"
+          :disabled="busy || nextBusy || !canSave"
+          @click="saveAndNext"
+        >
+          <Send class="size-3.5" />
+          {{ canPublish ? 'Publish & next' : 'Save & next' }}
+        </Button>
+        <Button
+          size="sm"
+          :variant="
+            isPuratan && wholeFile && !editingId ? 'outline' : 'default'
+          "
+          :disabled="busy || nextBusy || !canSave"
+          @click="save(false)"
+        >
           {{ editingId ? 'Update shabad' : 'Save shabad' }}
         </Button>
         <!-- Nothing to offer a published row here: it is already published, and
-             the update carries its status through untouched. -->
+             the update carries its status through untouched. Hidden while the
+             puratan button above already is the publish path. -->
         <Button
-          v-if="editing ? canPublishRow(editing) : canPublish"
+          v-if="
+            !(isPuratan && wholeFile && !editingId) &&
+            (editing ? canPublishRow(editing) : canPublish)
+          "
           variant="outline"
           size="sm"
           :disabled="busy || !canSave"
@@ -982,7 +1341,9 @@ const lengthLabel = computed(() => {
         >
           {{
             startSec === null || endSec === null
-              ? 'Mark both boundaries to save.'
+              ? wholeFile
+                ? 'Waiting for the file to say how long it is…'
+                : 'Mark both boundaries to save.'
               : !name.trim()
                 ? 'A name is all that’s still missing.'
                 : 'The end must come after the start.'
@@ -1072,9 +1433,11 @@ const lengthLabel = computed(() => {
         <EmptyMedia variant="icon"><ListMusic /></EmptyMedia>
         <EmptyTitle>Nothing tagged yet</EmptyTitle>
         <EmptyDescription>
-          Play the recording, mark where the first shabad starts and ends, then
-          name it. Both boundaries can be nudged after you mark them, so a rough
-          pass is worth more than a perfect one.
+          {{
+            wholeFile
+              ? 'This recording is one shabad end to end — confirm the match in the form above and publish. Nothing needs marking.'
+              : 'Play the recording, mark where the first shabad starts and ends, then name it. Both boundaries can be nudged after you mark them, so a rough pass is worth more than a perfect one.'
+          }}
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent v-if="scanFindings?.length">

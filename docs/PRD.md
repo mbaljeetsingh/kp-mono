@@ -54,8 +54,8 @@ Recent · Artists (204) · Puratan · Featured (curated table). No date-wise nav
 - **No waveforms or visualizers** — no CORS on the MP3s makes Web Audio unavailable
 
 ### P4 — Live
-`https://live.sgpc.net:8442/` — direct `<audio>`, `ACAO: *`, no proxy. Single 28 kbps
-AAC feed. Its own tab, independent of the catalog.
+`https://live.sgpc.net:8443/stream` — direct `<audio>`, `ACAO: *`, no proxy. ~96 kbps
+AAC feed (a 28 kbps fallback lives on :8442). Its own tab, independent of the catalog.
 
 ### P5 — Artist pages
 Work with zero tagging: artist, date, and time slot all come free from the directory and

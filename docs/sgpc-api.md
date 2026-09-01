@@ -17,7 +17,10 @@
 - Ragi roster: parse `cards.php?_spa=1` → 204 names as `ragi=Bhai+X+Singh`
 
 ## Live stream
-`https://live.sgpc.net:8442/` → 200, `audio/aacp`, Range OK. Single bitrate now (old 3-tier gone).
+Two Shoutcast mounts, both → 200, `audio/aacp`, `ACAO: *`, Range OK:
+`https://live.sgpc.net:8443/stream` (~96 kbps, the one the player uses) and
+`https://live.sgpc.net:8442/stream` (28 kbps fallback). SGPC's own live pages
+label 8443 "128 kbps"; the server reports `icy-br: 96` and measures ~96.
 
 ## Traversable file trees (Apache autoindex — key finding)
 - `https://sgpc.net/kirtan/` → `?dir=YYYY` → `/kirtan/YYYY/MM/` → 31 `.mp3` files, e.g.

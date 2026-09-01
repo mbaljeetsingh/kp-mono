@@ -2,6 +2,13 @@
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { SELECTED_SEGMENT } from '@/lib/segmented';
 import { DONE_SLACK_SECONDS, coverageOpen } from '@/lib/tagging';
 import { Clock, Layers, Sparkles, ListMusic } from 'lucide-vue-next';
@@ -20,9 +27,11 @@ const router = useRouter();
 
 type Sort = 'shortest' | 'untagged';
 type Filter = 'todo' | 'queued' | 'started' | 'done' | 'all';
+type Tree = 'all' | 'ragiwise' | 'puratan';
 
 const SORTS: Sort[] = ['shortest', 'untagged'];
 const FILTERS: Filter[] = ['todo', 'queued', 'started', 'done', 'all'];
+const TREES: Tree[] = ['all', 'ragiwise', 'puratan'];
 
 /**
  * Which shelf you are looking at belongs to the URL, not to this component.
@@ -52,6 +61,16 @@ const sort = ref<Sort>(fromQuery('sort', SORTS, 'shortest'));
 // Without this the same finished recordings sit at the top of the list
 // forever and there is no way to tell what is left.
 const filter = ref<Filter>(fromQuery('filter', FILTERS, 'todo'));
+
+// The source tree is a different kind of recording, not just a different
+// folder: puratan is one shabad per file and confirmable from its name, while
+// ragiwise is a long set that needs listening. A tagger sitting down to blast
+// through puratan needs to see only puratan.
+const tree = ref<Tree>(fromQuery('tree', TREES, 'all'));
+
+function applyTree(query: any) {
+  return tree.value === 'all' ? query : query.eq('tree', tree.value);
+}
 
 // Two characters is too short to be a search — it would match most of the
 // archive and cost a scan to say so.
@@ -157,8 +176,12 @@ const { data: total, refresh: refreshTotal } = await useAsyncData(
   'recordings-count',
   async () => {
     const { count } = await applySearch(
-      applyShelf(
-        supabase.from('recordings').select('*', { count: 'exact', head: true })
+      applyTree(
+        applyShelf(
+          supabase
+            .from('recordings')
+            .select('*', { count: 'exact', head: true })
+        )
       )
     );
     return count ?? 0;
@@ -168,7 +191,9 @@ const { data: total, refresh: refreshTotal } = await useAsyncData(
 const list = useInfiniteList<any>(async (from, to) => {
   // Same shelf and same search as the count above, from one definition each —
   // a header that disagrees with the list under it is worse than no header.
-  let query = applySearch(applyShelf(supabase.from('recordings').select('*')));
+  let query = applySearch(
+    applyTree(applyShelf(supabase.from('recordings').select('*')))
+  );
   query =
     sort.value === 'shortest'
       ? // Nulls last: puratan carries no slot, and an unknown length is a
@@ -179,13 +204,17 @@ const list = useInfiniteList<any>(async (from, to) => {
       : query
           .order('renditions', { ascending: true })
           .order('est_seconds', { ascending: true, nullsFirst: false });
+  // Final tiebreakers. For ragiwise they only stabilise the paging; for
+  // puratan — where est_seconds is null across the board — they ARE the
+  // order, ragi by ragi then title, the same walk Publish & next takes.
+  query = query.order('artist_dir').order('title');
   const { data } = await query.range(from, to);
   return data;
 });
 await list.loadMore();
 
 watchDebounced(
-  [debounced, sort, filter],
+  [debounced, sort, filter, tree],
   () => {
     // `replace`, not `push`: picking a shelf is choosing what this one page
     // shows, and pushing would make Back walk backwards through every filter
@@ -194,6 +223,7 @@ watchDebounced(
     const query: Record<string, string> = {};
     if (filter.value !== 'todo') query.filter = filter.value;
     if (sort.value !== 'shortest') query.sort = sort.value;
+    if (tree.value !== 'all') query.tree = tree.value;
     if (debounced.value.trim()) query.artist = debounced.value.trim();
     router.replace({ query });
 
@@ -238,6 +268,7 @@ const shelfEmptyHint = computed(() => SHELF_EMPTY[filter.value]?.[1] ?? '');
 function showEverything() {
   q.value = '';
   filter.value = 'all';
+  tree.value = 'all';
 }
 
 // From the published slot, not the file: the two routinely disagree by
@@ -304,12 +335,34 @@ async function suggest(t: any) {
     <!-- The count sits with the heading, as it does on Users. It is the shelf's
          size, not the scroll position: the list below loads a page at a time and
          has no idea how much is behind it. -->
-    <h1 class="mb-1 text-xl font-semibold">
-      Recordings
-      <span class="text-sm font-normal text-muted-foreground">
-        ({{ (total ?? 0).toLocaleString() }})
-      </span>
-    </h1>
+    <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+      <h1 class="text-xl font-semibold">
+        Recordings
+        <span class="text-sm font-normal text-muted-foreground">
+          ({{ (total ?? 0).toLocaleString() }})
+        </span>
+      </h1>
+      <!-- Which archive, not which state: puratan files are one shabad each
+           and confirmable from their names, so a session is usually spent in
+           one tree or the other rather than across both. For everyone — it
+           only chooses what to look at, and contributors tag puratan too
+           (their confirmations land as drafts for the review queue). -->
+      <Select :model-value="tree" @update:model-value="(v: any) => (tree = v)">
+        <SelectTrigger
+          size="sm"
+          class="h-8 w-32 text-xs"
+          aria-label="Which source tree to show"
+          title="Which source tree to show"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all" class="text-xs">All</SelectItem>
+          <SelectItem value="ragiwise" class="text-xs">Ragiwise</SelectItem>
+          <SelectItem value="puratan" class="text-xs">Puratan</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
     <p class="mb-4 text-sm text-muted-foreground">
       Mark where each shabad starts and ends. A name is all that's required.
     </p>
@@ -374,43 +427,52 @@ async function suggest(t: any) {
             t.title ?? t.raw_filename
           }}</span>
           <span class="block truncate text-xs text-muted-foreground">
-            {{ [t.artist_dir, t.date].filter(Boolean).join(' · ') }}
+            {{
+              [t.artist_dir, t.date, t.tree === 'puratan' ? 'puratan' : null]
+                .filter(Boolean)
+                .join(' · ')
+            }}
           </span>
         </span>
         <!-- A quiet side door: ask the nightly scan to draft shabad boundaries
            for this recording. Secondary on purpose — tagging by ear stays the
-           main act — and the row is a link, so the click must not navigate. -->
-        <Button
-          v-if="canRequestScans && scanState(t.id) === 'none'"
-          variant="ghost"
-          size="sm"
-          class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
-          :disabled="suggestBusy === t.id"
-          :aria-label="`Ask the nightly scan to suggest shabads for ${t.raw_filename}`"
-          title="Ask the nightly scan for shabad suggestions — they arrive overnight"
-          @click.stop.prevent="suggest(t)"
-        >
-          <Sparkles class="size-3.5" /> Suggest
-        </Button>
-        <span
-          v-else-if="canRequestScans && scanState(t.id) === 'queued'"
-          class="shrink-0 text-[11px] text-muted-foreground/70"
-          title="Suggestions arrive overnight"
-        >
-          queued
-        </span>
-        <Button
-          v-else-if="canRequestScans"
-          variant="ghost"
-          size="sm"
-          class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground/70"
-          :disabled="suggestBusy === t.id"
-          :aria-label="`Scan ${t.raw_filename} again`"
-          title="Scanned already — ask again (the scanner may have improved since)"
-          @click.stop.prevent="suggest(t)"
-        >
-          <Sparkles class="size-3.5" /> Suggest again
-        </Button>
+           main act — and the row is a link, so the click must not navigate.
+           Not offered for puratan: a scan hunts boundaries inside a long set,
+           and a puratan file has none to hunt — the tag page names its one
+           shabad from the filename the moment it opens. -->
+        <template v-if="canRequestScans && t.tree !== 'puratan'">
+          <Button
+            v-if="scanState(t.id) === 'none'"
+            variant="ghost"
+            size="sm"
+            class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
+            :disabled="suggestBusy === t.id"
+            :aria-label="`Ask the nightly scan to suggest shabads for ${t.raw_filename}`"
+            title="Ask the nightly scan for shabad suggestions — they arrive overnight"
+            @click.stop.prevent="suggest(t)"
+          >
+            <Sparkles class="size-3.5" /> Suggest
+          </Button>
+          <span
+            v-else-if="scanState(t.id) === 'queued'"
+            class="shrink-0 text-[11px] text-muted-foreground/70"
+            title="Suggestions arrive overnight"
+          >
+            queued
+          </span>
+          <Button
+            v-else
+            variant="ghost"
+            size="sm"
+            class="h-7 shrink-0 px-2 text-[11px] text-muted-foreground/70"
+            :disabled="suggestBusy === t.id"
+            :aria-label="`Scan ${t.raw_filename} again`"
+            title="Scanned already — ask again (the scanner may have improved since)"
+            @click.stop.prevent="suggest(t)"
+          >
+            <Sparkles class="size-3.5" /> Suggest again
+          </Button>
+        </template>
         <!-- The other half of "is it finished?": rows count published work,
              this says how much of the recording the work covers. Amber like a
              pending publish — both mean the same thing, someone has to come
@@ -480,7 +542,10 @@ async function suggest(t: any) {
           }}
         </EmptyDescription>
       </EmptyHeader>
-      <EmptyContent v-if="searchTerm || filter !== 'all'">
+      <!-- Every filter that showEverything() resets must be named here, or a
+           combination (tree=puratan + filter=all, say) dead-ends with no way
+           out on screen. -->
+      <EmptyContent v-if="searchTerm || filter !== 'all' || tree !== 'all'">
         <Button variant="outline" size="sm" @click="showEverything">
           Show all recordings
         </Button>
