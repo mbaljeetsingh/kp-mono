@@ -3,7 +3,7 @@
 Search, play, and tag 20 years of kirtan from Sri Harmandir Sahib.
 
 **[Player](https://kirtanplayer.beejaysoft.com)** ·
-**[Admin](https://admin.kirtanplayer.beejaysoft.com)**
+**[Contribute](https://contribute.kirtanplayer.beejaysoft.com)** (tagging workbench)
 
 See [docs/BRD.md](docs/BRD.md), [docs/PRD.md](docs/PRD.md), and
 [docs/sgpc-api.md](docs/sgpc-api.md) (verified source-API reference).
@@ -35,8 +35,8 @@ player and tagging queue with no network access — ~430 tracks sampled across
 all three source trees, every artist, a handful of published shabads (some
 with synced lyrics), and two accounts for testing the permission split:
 
-| account                  | password      | trust         |
-| ------------------------ | ------------- | ------------- |
+| account                        | password   | trust         |
+| ------------------------------ | ---------- | ------------- |
 | `admin@kirtanplayer.com`       | `password` | `admin`       |
 | `contributor@kirtanplayer.com` | `password` | `contributor` |
 
@@ -70,9 +70,9 @@ Two batch jobs turn tagging work into player features, both in
 [packages/aligner](packages/aligner/README.md) (one-time setup:
 `cd packages/aligner && uv venv && uv pip install -e .`):
 
-- **scan** — consumes the *Suggest* queue from admin and drafts which shabads a
+- **scan** — consumes the _Suggest_ queue from admin and drafts which shabads a
   recording contains, for a human to review and publish.
-- **align** — gives every *published* rendition with a `shabad_id` its per-line
+- **align** — gives every _published_ rendition with a `shabad_id` its per-line
   timings, which the player's lyrics panel follows during playback.
 
 On the deployed project these run themselves — `.github/workflows/scan.yml` and

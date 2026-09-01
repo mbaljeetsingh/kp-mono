@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { MIN_LENGTH, fmt } from '~/composables/useTagPlayer';
+import { coverageOpen } from '@/lib/tagging';
 
 const route = useRoute();
 const supabase = useSupabaseClient();
@@ -49,7 +50,7 @@ const player = computed(() => transport.value?.player);
 // recording is recognisable by the same face here as in the list you came from,
 // and the slot length gives the header something to say before the audio's own
 // metadata arrives.
-const { data: track } = await useAsyncData(
+const { data: track, refresh: refreshTrack } = await useAsyncData(
   `track:${route.params.id}`,
   async () => {
     const { data } = await supabase
@@ -96,7 +97,8 @@ const { data: scanFindings } = await useAsyncData(
 
 // Three permissions, asked separately, because they do not travel together —
 // see useMyPermissions for why that matters to the `trusted` role.
-const { canReview, canPublish, canDelete } = await useMyPermissions();
+const { canReview, canPublish, canDelete, canMarkDone } =
+  await useMyPermissions();
 
 const { data: userId } = await useAsyncData('me', async () => {
   const { data } = await supabase.auth.getUser();
@@ -356,6 +358,64 @@ const gaps = computed(() => {
 const untaggedSeconds = computed(() =>
   gaps.value.reduce((sum, g) => sum + (g.end - g.start), 0)
 );
+
+/**
+ * The tagger's word that the untagged remainder is not shabads.
+ *
+ * Coverage can only measure; it cannot hear that the last fifteen minutes are
+ * announcements, simran or ardas. Without this assertion such a recording
+ * sits on In progress forever — unfinishable by any amount of tagging — so
+ * the mark is what lets the recordings list count it done. Reversible, like
+ * publishing: unmarking clears the columns and the shelves recompute.
+ */
+const taggingDone = computed(() => !!track.value?.tagged_done_at);
+
+/**
+ * Whether the shelves would still hold this recording open on coverage.
+ *
+ * Deliberately the VIEW's number, not this page's gap list: the two disagree
+ * whenever the filename slot and the real audio do (routinely, by minutes),
+ * and the mark-done offer must appear exactly where the shelf traps the
+ * recording — a fully-tagged set whose slot overestimates its length showed
+ * "0:00 left" here while sitting on In progress forever, with no way out.
+ * NULL means the length is unknowable (no slot), which also needs the mark.
+ */
+const shelfCoverageOpen = computed(() =>
+  coverageOpen(track.value?.untagged_seconds)
+);
+
+const doneBusy = ref(false);
+const doneError = ref('');
+
+async function setTaggingDone(done: boolean) {
+  doneBusy.value = true;
+  doneError.value = '';
+  const { data: user } = await supabase.auth.getUser();
+  // `select('id')` for the same reason every other write here asks for its
+  // rows back: RLS filters refused rows out of an UPDATE silently.
+  const { data, error } = await supabase
+    .from('tracks')
+    .update(
+      done
+        ? {
+            tagged_done_at: new Date().toISOString(),
+            tagged_done_by: user.user?.id,
+          }
+        : { tagged_done_at: null, tagged_done_by: null }
+    )
+    .eq('id', route.params.id)
+    .select('id');
+  doneBusy.value = false;
+  if (error) {
+    doneError.value = error.message;
+    return;
+  }
+  if (!data?.length) {
+    doneError.value = 'Not permitted to change that.';
+    return;
+  }
+  await refreshTrack();
+}
 
 /** Segments and gaps on one axis, in time order, so the list reads as the
  *  recording does rather than as a table of rows with holes you have to infer. */
@@ -651,7 +711,10 @@ const lengthLabel = computed(() => {
           <dt class="text-[11px] text-muted-foreground">Tagged</dt>
           <dd class="text-sm tabular-nums">
             {{ Math.round((taggedSeconds / duration) * 100) }}%
-            <span class="text-muted-foreground/60"
+            <!-- Marked done, the minutes left stop being a todo — repeating
+                 them here would keep calling the recording unfinished. -->
+            <span v-if="taggingDone" class="text-emerald-400">· done</span>
+            <span v-else class="text-muted-foreground/60"
               >· {{ fmt(untaggedSeconds) }} left</span
             >
           </dd>
@@ -1222,6 +1285,78 @@ const lengthLabel = computed(() => {
         </li>
       </template>
     </ul>
+
+    <!-- The way out when the remainder is not shabads — or when nothing can
+         measure it. Gated on the VIEW's coverage number, not this page's gap
+         list: the offer must appear exactly where the shelves would hold the
+         recording open, including a fully-tagged set whose filename slot
+         overestimates its length, and a slot-less recording whose length is
+         unknowable. The saying is gated (tracks.mark_done — admin, by
+         default): taggers just tag, and the mark moves the recording off
+         everyone's In progress shelf, so it stays a review judgment like
+         publishing. -->
+    <div
+      v-if="
+        canMarkDone &&
+        (renditions?.length ?? 0) > 0 &&
+        (taggingDone || shelfCoverageOpen)
+      "
+      class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-dashed border-border/70 px-3 py-2.5"
+    >
+      <!-- The mark and publishing are independent: Done also needs a
+           published shabad, so the copy on both sides says which of the two
+           is still missing rather than promising a shelf move the filters
+           would refuse. -->
+      <template v-if="taggingDone">
+        <Check class="size-3.5 shrink-0 text-emerald-400" />
+        <span class="text-xs text-muted-foreground">
+          {{
+            publishedCount > 0
+              ? 'Marked fully tagged — the recordings list counts it done despite the untagged stretches.'
+              : 'Marked fully tagged — the recordings list counts it done once a shabad here is published.'
+          }}
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-7 px-2 text-[11px] text-muted-foreground"
+          :disabled="doneBusy"
+          @click="setTaggingDone(false)"
+        >
+          Unmark
+        </Button>
+      </template>
+      <template v-else>
+        <span class="text-xs text-muted-foreground">
+          {{
+            track?.untagged_seconds === null
+              ? 'This recording has no slot in its filename, so nothing can measure what is left. When you have listened to the end, say so'
+              : 'Nothing left worth tagging? If what remains is announcements, simran or silence — or the recording simply runs shorter than its slot — say so'
+          }}
+          {{
+            publishedCount > 0
+              ? 'and it counts as done.'
+              : 'and it counts as done once a shabad here is published.'
+          }}
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          class="h-7 px-2 text-[11px]"
+          :disabled="doneBusy"
+          @click="setTaggingDone(true)"
+        >
+          <Check class="size-3.5" /> Mark fully tagged
+        </Button>
+      </template>
+      <p
+        v-if="doneError"
+        class="w-full text-[11px] text-amber-400"
+        role="alert"
+      >
+        {{ doneError }}
+      </p>
+    </div>
 
     <AlertDialog
       :open="!!pendingDelete"
