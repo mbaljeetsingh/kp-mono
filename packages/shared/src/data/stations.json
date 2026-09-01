@@ -3,10 +3,10 @@
     "id": "harmandir-sahib",
     "name": "Sri Harimandir Sahib",
     "place": "Amritsar, Punjab, India",
-    "url": "https://live.sgpc.net:8442/stream",
+    "url": "https://live.sgpc.net:8443/stream",
     "kind": "gurdwara",
     "source": "sgpc",
-    "quality": "28 kbps AAC+",
+    "quality": "96 kbps AAC+",
     "website": "https://sgpc.net",
     "schedule": "https://sgpc.net/kirtan-duties-english/",
     "video": "https://www.youtube.com/@SGPCSriAmritsar/streams"

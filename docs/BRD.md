@@ -76,7 +76,7 @@ content as our own. Reaching out to SGPC proactively is preferred over being a s
 - `kirtan.sgpc.net/api/*` sends no CORS headers — a server layer is mandatory
 - Audio MP3s send no CORS headers — Web Audio is unavailable, so **no waveforms or
   visualizers** without proxying. Playback and scrubbing are unaffected.
-- Live stream is a single **28 kbps** feed; the previous 92/32/16 tiers are gone
+- Live stream comes in two feeds: **~96 kbps** on :8443 (used) and **28 kbps** on :8442
 - SGPC has already reorganised this archive once, breaking a prior integration entirely
 
 **Cost.** Audio streams directly from SGPC, so bandwidth is near zero. AI inference for
