@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select';
 import { SELECTED_SEGMENT } from '@/lib/segmented';
 import { DONE_SLACK_SECONDS, coverageOpen } from '@/lib/tagging';
-import { Clock, Layers, Sparkles, ListMusic } from 'lucide-vue-next';
+import { Clock, History, Shuffle, Sparkles, ListMusic } from 'lucide-vue-next';
 import {
   Empty,
   EmptyContent,
@@ -25,11 +25,11 @@ const supabase = useSupabaseClient();
 const route = useRoute();
 const router = useRouter();
 
-type Sort = 'shortest' | 'untagged';
+type Sort = 'recent' | 'shortest' | 'random';
 type Filter = 'todo' | 'queued' | 'started' | 'done' | 'all';
 type Tree = 'all' | 'ragiwise' | 'puratan';
 
-const SORTS: Sort[] = ['shortest', 'untagged'];
+const SORTS: Sort[] = ['recent', 'shortest', 'random'];
 const FILTERS: Filter[] = ['todo', 'queued', 'started', 'done', 'all'];
 const TREES: Tree[] = ['all', 'ragiwise', 'puratan'];
 
@@ -54,13 +54,32 @@ function fromQuery<T extends string>(
 const q = ref(typeof route.query.artist === 'string' ? route.query.artist : '');
 const debounced = refDebounced(q, 300);
 
-// Shortest-first is the default because a recording a volunteer can finish in
-// one sitting is worth more than a longer one they abandon halfway.
-const sort = ref<Sort>(fromQuery('sort', SORTS, 'shortest'));
-
 // Without this the same finished recordings sit at the top of the list
 // forever and there is no way to tell what is left.
 const filter = ref<Filter>(fromQuery('filter', FILTERS, 'todo'));
+
+/**
+ * The tagger's explicit pick, or null for "whatever fits the shelf".
+ *
+ * Each shelf answers a different question, so each gets the default that
+ * matches it: Not started is about choosing new work, and shortest-first
+ * offers what a volunteer can finish in one sitting; every other shelf is
+ * about work already begun, where "what was I just doing?" is the question —
+ * recent-first answers it. An explicit pick sticks across shelves until the
+ * URL says otherwise.
+ */
+const sortChoice = ref<Sort | null>(
+  SORTS.includes(route.query.sort as Sort) ? (route.query.sort as Sort) : null
+);
+const sort = computed<Sort>(() => {
+  const pick =
+    sortChoice.value ?? (filter.value === 'todo' ? 'shortest' : 'recent');
+  // Recent has nothing to say about untouched recordings, so on the todo
+  // shelf a carried-over Recent pick degrades to shortest — visibly, since
+  // aria-pressed follows this computed — instead of rendering an
+  // alphabetical list under a pressed Recent button.
+  return pick === 'recent' && filter.value === 'todo' ? 'shortest' : pick;
+});
 
 // The source tree is a different kind of recording, not just a different
 // folder: puratan is one shabad per file and confirmable from its name, while
@@ -194,37 +213,72 @@ const list = useInfiniteList<any>(async (from, to) => {
   let query = applySearch(
     applyTree(applyShelf(supabase.from('recordings').select('*')))
   );
-  query =
-    sort.value === 'shortest'
-      ? // Nulls last: puratan carries no slot, and an unknown length is a
-        // worse bet than a known short one.
-        query
-          .order('est_seconds', { ascending: true, nullsFirst: false })
-          .order('renditions', { ascending: true })
-      : query
-          .order('renditions', { ascending: true })
-          .order('est_seconds', { ascending: true, nullsFirst: false });
-  // Final tiebreakers. For ragiwise they only stabilise the paging; for
-  // puratan — where est_seconds is null across the board — they ARE the
-  // order, ragi by ragi then title, the same walk Publish & next takes.
-  query = query.order('artist_dir').order('title');
+  if (sort.value === 'random') {
+    // Ids are content hashes, so id order is an arbitrary-but-stable shuffle:
+    // it scatters artists and dates the way a true random() would, without
+    // breaking the infinite scroll (random() re-rolls per page, so rows
+    // duplicate and vanish between pages).
+    query = query.order('id');
+  } else {
+    query =
+      sort.value === 'shortest'
+        ? // Nulls last: puratan carries no slot, and an unknown length is a
+          // worse bet than a known short one.
+          query
+            .order('est_seconds', { ascending: true, nullsFirst: false })
+            .order('renditions', { ascending: true })
+        : // Recent: the newest human trace first — the shelf reads as "what
+          // was I just doing?". Untouched recordings have no trace and sort
+          // last.
+          query.order('last_activity_at', {
+            ascending: false,
+            nullsFirst: false,
+          });
+    // Final tiebreakers. For ragiwise they only stabilise the paging; for
+    // puratan — where est_seconds is null across the board — they ARE the
+    // order, ragi by ragi then title, the same walk Publish & next takes.
+    query = query.order('artist_dir').order('title');
+  }
   const { data } = await query.range(from, to);
   return data;
 });
 await list.loadMore();
 
+// Non-default filters as URL params — one definition for the router.replace
+// below and for the tag page's "Back to recordings" link, which restores
+// this view through the shared `recordings-query` state.
+function currentQuery() {
+  const query: Record<string, string> = {};
+  if (filter.value !== 'todo') query.filter = filter.value;
+  // Only an explicit pick travels in the URL — the shelf defaults stay
+  // defaults, so a bookmarked shelf keeps meaning "whatever fits it".
+  if (sortChoice.value) query.sort = sortChoice.value;
+  if (tree.value !== 'all') query.tree = tree.value;
+  if (debounced.value.trim()) query.artist = debounced.value.trim();
+  return query;
+}
+
+const listQuery = useState<Record<string, string>>(
+  'recordings-query',
+  () => ({})
+);
+// Set at load as well as on change: arriving via a bookmarked URL must give
+// the tag page the same way back as clicking the filters would.
+listQuery.value = currentQuery();
+
 watchDebounced(
-  [debounced, sort, filter, tree],
+  // `sortChoice`, not the derived `sort`: pinning the sort the shelf already
+  // defaults to changes only the choice, and that pin still has to reach the
+  // URL and `listQuery` or it silently evaporates on the next reload. The
+  // default flip when shelves change still fires through `filter`.
+  [debounced, sortChoice, filter, tree],
   () => {
     // `replace`, not `push`: picking a shelf is choosing what this one page
     // shows, and pushing would make Back walk backwards through every filter
     // click instead of leaving the list. Defaults stay out of the URL so the
     // plain `/` a tagger bookmarks keeps meaning "whatever the default is".
-    const query: Record<string, string> = {};
-    if (filter.value !== 'todo') query.filter = filter.value;
-    if (sort.value !== 'shortest') query.sort = sort.value;
-    if (tree.value !== 'all') query.tree = tree.value;
-    if (debounced.value.trim()) query.artist = debounced.value.trim();
+    const query = currentQuery();
+    listQuery.value = query;
     router.replace({ query });
 
     list.reset();
@@ -395,16 +449,27 @@ async function suggest(t: any) {
         class="min-w-56 flex-1 bg-card"
       />
       <ButtonGroup aria-label="Sort recordings">
+        <!-- Recent is meaningless on Not started — everything there is
+             untouched, so it would be an alphabetical list wearing a pressed
+             Recent button. Disabled rather than hidden, so the control stays
+             put when shelves switch. -->
         <Button
           v-for="opt in [
-            { key: 'shortest', label: 'Shortest first', icon: Clock },
-            { key: 'untagged', label: 'Least tagged', icon: Layers },
+            { key: 'recent', label: 'Recent', icon: History },
+            { key: 'shortest', label: 'Shortest', icon: Clock },
+            { key: 'random', label: 'Random', icon: Shuffle },
           ]"
           :key="opt.key"
           variant="outline"
           :aria-pressed="sort === opt.key"
           :class="SELECTED_SEGMENT"
-          @click="sort = opt.key as any"
+          :disabled="opt.key === 'recent' && filter === 'todo'"
+          :title="
+            opt.key === 'recent' && filter === 'todo'
+              ? 'Not started recordings have no activity to sort by'
+              : undefined
+          "
+          @click="sortChoice = opt.key as any"
         >
           <component :is="opt.icon" class="size-3.5" />
           {{ opt.label }}
