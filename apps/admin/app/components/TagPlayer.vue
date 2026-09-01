@@ -45,7 +45,17 @@ defineExpose({ player });
 // every cut tags a fraction as much.
 function onKey(e: KeyboardEvent) {
   const t = e.target as HTMLElement;
-  if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+  // Fields you type into keep their keys. The timeline's seek surface is also
+  // an <input>, but type=range — and clicking the timeline to seek focuses it,
+  // so bailing on every input meant one seek killed every shortcut until the
+  // tagger clicked somewhere else. Range is the transport's own control; the
+  // handler below preventDefaults the arrows, so its native 1%-steps never
+  // fight the 10s/0.1s skips.
+  if (
+    t.tagName === 'TEXTAREA' ||
+    t.isContentEditable ||
+    (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'range')
+  )
     return;
   // Widgets that own the same keys. The speed dropdown answers to ↑ ↓ itself,
   // and the delete dialog to space — driving the transport from inside either

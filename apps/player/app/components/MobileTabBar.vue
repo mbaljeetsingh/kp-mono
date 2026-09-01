@@ -25,7 +25,10 @@ import {
   LogIn,
   LogOut,
   User,
+  Github,
+  Tags,
 } from 'lucide-vue-next';
+import { GITHUB_URL, CONTRIBUTE_URL } from '~/lib/links';
 import {
   Sheet,
   SheetContent,
@@ -138,7 +141,7 @@ const moreActive = computed(
           Kirtan Player
         </SheetTitle>
         <SheetDescription class="sr-only">
-          Saved shabads, theme, and your account.
+          Saved shabads, theme, your account, and ways to contribute.
         </SheetDescription>
       </SheetHeader>
 
@@ -231,6 +234,30 @@ const moreActive = computed(
             Sign in
           </button>
         </template>
+
+        <!-- The same two doors the desktop sidebar holds, since this sheet is
+             the phone's only equivalent of it. Contribute keeps its primary
+             colour — the ask — and GitHub stays a quiet meta row. New tabs so
+             following either never stops what is playing. -->
+        <Separator class="my-2" />
+        <a
+          :href="CONTRIBUTE_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-primary transition hover:bg-accent"
+        >
+          <Tags class="size-[18px] shrink-0" />
+          Contribute shabads
+        </a>
+        <a
+          :href="GITHUB_URL"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition hover:bg-accent"
+        >
+          <Github class="size-[18px] shrink-0" />
+          GitHub
+        </a>
       </div>
     </SheetContent>
   </Sheet>

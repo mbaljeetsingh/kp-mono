@@ -24,15 +24,16 @@ export async function useMyPermissions() {
       const { data } = await supabase.rpc('authorize', { requested });
       return data === true;
     };
-    const [review, publish, remove, manageUsers, requestScans] =
+    const [review, publish, remove, manageUsers, requestScans, markDone] =
       await Promise.all([
         ask('renditions.review'),
         ask('renditions.publish'),
         ask('renditions.delete'),
         ask('users.manage'),
         ask('scans.request'),
+        ask('tracks.mark_done'),
       ]);
-    return { review, publish, remove, manageUsers, requestScans };
+    return { review, publish, remove, manageUsers, requestScans, markDone };
   });
 
   return {
@@ -50,6 +51,12 @@ export async function useMyPermissions() {
      * a queued scan spends real runner time.
      */
     canRequestScans: computed(() => data.value?.requestScans === true),
+    /**
+     * Declare a recording fully tagged when its untagged remainder is not
+     * shabads. A review-side judgment: the mark hides the recording from
+     * every tagger's In progress shelf, so it is not part of tagging itself.
+     */
+    canMarkDone: computed(() => data.value?.markDone === true),
   };
 }
 
