@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Input } from '@/components/ui/input';
 import { SELECTED_SEGMENT } from '@/lib/segmented';
+import { DONE_SLACK_SECONDS, coverageOpen } from '@/lib/tagging';
 import { Clock, Layers, Sparkles, ListMusic } from 'lucide-vue-next';
 import {
   Empty,
@@ -88,9 +89,28 @@ const queuedIds = computed(() =>
 
 function applyShelf(query: any) {
   if (filter.value === 'todo') return query.eq('renditions', 0);
+  // "Done" demands coverage, not just a published row: two shabads published
+  // out of a 70-minute set is a recording somebody started, and it has to
+  // keep showing up where the next tagger looks for unfinished work. A
+  // tagger's mark that the rest is not shabads (tagged_done_at) overrides the
+  // coverage measure — announcements and simran are minutes no amount of
+  // tagging will ever cover. NULL untagged_seconds means the length is
+  // unknowable (no filename slot), and unknown reads as still-open — these
+  // two arms must stay exact complements of each other or a recording lands
+  // on both shelves, or on neither (see coverageOpen, the same predicate in
+  // TS).
   if (filter.value === 'started')
-    return query.gt('renditions', 0).eq('published', 0);
-  if (filter.value === 'done') return query.gt('published', 0);
+    return query
+      .gt('renditions', 0)
+      .or(
+        `published.eq.0,and(tagged_done_at.is.null,or(untagged_seconds.gt.${DONE_SLACK_SECONDS},untagged_seconds.is.null))`
+      );
+  if (filter.value === 'done')
+    return query
+      .gt('published', 0)
+      .or(
+        `untagged_seconds.lte.${DONE_SLACK_SECONDS},tagged_done_at.not.is.null`
+      );
   // Waiting on the scanner. Unlike the other shelves this is not a column on
   // the view — the queue is its own table — so it filters by the ids awaiting a
   // scan. An empty list needs no special case: PostgREST answers `in.()` with
@@ -190,7 +210,7 @@ watchDebounced(
 const SHELF_EMPTY: Record<string, [string, string]> = {
   todo: [
     'Every recording has been started',
-    'Nothing is untouched. Check "In progress" for recordings with shabads still waiting to be published.',
+    'Nothing is untouched. Check "In progress" for recordings with minutes left to tag or shabads waiting to be published.',
   ],
   queued: [
     'Nothing waiting on the scanner',
@@ -198,11 +218,11 @@ const SHELF_EMPTY: Record<string, [string, string]> = {
   ],
   started: [
     'Nothing in progress',
-    'No recording has shabads waiting. Start one from "Not started".',
+    'No recording has minutes left to tag or shabads waiting to publish. Start one from "Not started".',
   ],
   done: [
-    'Nothing published yet',
-    'Publish a shabad and the recording it came from shows up here.',
+    'Nothing done yet',
+    'A recording lands here once shabads are published and nothing sizeable is left untagged — or a tagger marks it fully tagged.',
   ],
   all: [
     'No recordings',
@@ -300,7 +320,7 @@ async function suggest(t: any) {
           { key: 'todo', label: 'Not started' },
           { key: 'queued', label: 'Queued' },
           { key: 'started', label: 'In progress' },
-          { key: 'done', label: 'Has published' },
+          { key: 'done', label: 'Done' },
           { key: 'all', label: 'All' },
         ]"
         :key="f.key"
@@ -391,6 +411,29 @@ async function suggest(t: any) {
         >
           <Sparkles class="size-3.5" /> Suggest again
         </Button>
+        <!-- The other half of "is it finished?": rows count published work,
+             this says how much of the recording the work covers. Amber like a
+             pending publish — both mean the same thing, someone has to come
+             back. -->
+        <span
+          v-if="
+            t.renditions &&
+            coverageOpen(t.untagged_seconds) &&
+            !t.tagged_done_at
+          "
+          class="hidden shrink-0 text-[11px] text-amber-400/80 sm:block"
+          :title="
+            t.untagged_seconds === null
+              ? 'This recording has no slot in its filename, so nothing can measure what is left — a tagger has to say when it is done'
+              : `Roughly ${Math.round(t.untagged_seconds / 60)} minutes have no tagged shabad yet`
+          "
+        >
+          {{
+            t.untagged_seconds === null
+              ? 'length unknown'
+              : `~${Math.round(t.untagged_seconds / 60)} min untagged`
+          }}
+        </span>
         <span
           v-if="t.renditions"
           class="shrink-0 rounded-full px-2 py-0.5 text-[11px]"

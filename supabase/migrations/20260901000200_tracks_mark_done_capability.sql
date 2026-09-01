@@ -1,0 +1,18 @@
+-- Marking a recording fully tagged becomes its own capability.
+--
+-- Not open to every contributor, although tagging itself is: the mark hides a
+-- recording from the In progress shelf for everyone, so a wrong or hasty one
+-- buries work other taggers would have finished. That is a review judgment —
+-- the same kind as deciding a rendition is fit to publish — so it gets the
+-- same treatment: a capability in the matrix, seeded to admin in the next
+-- migration.
+--
+-- And not reusing `renditions.review`: that permission is about renditions,
+-- and gating a tracks write on it would be the exact conflation the
+-- scans.request migration (20260826000000) records as having already cost the
+-- `trusted` role its publish button once.
+--
+-- Alone in its own migration because Postgres refuses to *use* an enum value
+-- in the transaction that adds it; the rows, grant and policy land in the
+-- next file.
+alter type app_permission add value if not exists 'tracks.mark_done';
