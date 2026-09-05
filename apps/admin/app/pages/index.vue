@@ -11,7 +11,14 @@ import {
 } from '@/components/ui/select';
 import { SELECTED_SEGMENT } from '@/lib/segmented';
 import { DONE_SLACK_SECONDS, coverageOpen } from '@/lib/tagging';
-import { Clock, History, Shuffle, Sparkles, ListMusic } from 'lucide-vue-next';
+import {
+  Clock,
+  History,
+  Hourglass,
+  Shuffle,
+  Sparkles,
+  ListMusic,
+} from 'lucide-vue-next';
 import {
   Empty,
   EmptyContent,
@@ -25,11 +32,11 @@ const supabase = useSupabaseClient();
 const route = useRoute();
 const router = useRouter();
 
-type Sort = 'recent' | 'shortest' | 'random';
+type Sort = 'recent' | 'shortest' | 'least' | 'random';
 type Filter = 'todo' | 'queued' | 'started' | 'done' | 'all';
 type Tree = 'all' | 'ragiwise' | 'puratan';
 
-const SORTS: Sort[] = ['recent', 'shortest', 'random'];
+const SORTS: Sort[] = ['recent', 'shortest', 'least', 'random'];
 const FILTERS: Filter[] = ['todo', 'queued', 'started', 'done', 'all'];
 const TREES: Tree[] = ['all', 'ragiwise', 'puratan'];
 
@@ -38,9 +45,9 @@ const TREES: Tree[] = ['all', 'ragiwise', 'puratan'];
  *
  * Tagging is a loop of open a recording, mark it, come back for the next one —
  * and coming back is the browser's Back button. Held in component state, the
- * selection dies when the route changes and Back lands everybody on
- * "Not started, shortest first" no matter which shelf they were working
- * through. Reading it from the query means the restored URL restores the view.
+ * selection dies when the route changes and Back lands everybody on the
+ * default "Not started" shelf no matter which one they were working through.
+ * Reading it from the query means the restored URL restores the view.
  */
 function fromQuery<T extends string>(
   key: string,
@@ -59,27 +66,81 @@ const debounced = refDebounced(q, 300);
 const filter = ref<Filter>(fromQuery('filter', FILTERS, 'todo'));
 
 /**
- * The tagger's explicit pick, or null for "whatever fits the shelf".
+ * Which sorts each shelf offers, and which it starts on.
  *
- * Each shelf answers a different question, so each gets the default that
- * matches it: Not started is about choosing new work, and shortest-first
- * offers what a volunteer can finish in one sitting; every other shelf is
- * about work already begun, where "what was I just doing?" is the question —
- * recent-first answers it. An explicit pick sticks across shelves until the
- * URL says otherwise.
+ * A shelf only offers an ordering that answers the question that shelf is
+ * about; the rest are dropped rather than shown dead, because a disabled
+ * control still has to explain itself and the only place it ever did was a
+ * tooltip no touchscreen shows.
+ *
+ * - Not started is choosing new work out of tens of thousands of untouched
+ *   recordings. Recent has nothing to read — last_activity_at is null right
+ *   across the shelf. Any *ordered* answer also hands every tagger the same
+ *   head of the same list, so they collide on the same few files while the
+ *   tail is never touched, and shortest-first buries puratan outright (no
+ *   slot, so est_seconds is null across that tree and nulls sort last).
+ *   Random — id order, see the list query — scatters both, so it leads.
+ * - In progress is work already begun. Recent answers "what was I doing?";
+ *   Least left answers "what can I finish?", and it is the only sort that
+ *   reads untagged_seconds, the same number the row shows as "~N min
+ *   untagged". Shortest would answer with total length, which is a different
+ *   question wearing the right label.
+ * - Queued and Done have exactly one useful order each, so they render no
+ *   control at all (see the template) rather than one button that is always
+ *   pressed.
+ * - All is the mixed pile and takes the general three. Least left is left off
+ *   it: untouched rows dominate, and for those untagged_seconds IS the full
+ *   length, which is Shortest again under another name.
+ *
+ * Each shelf's default must appear in its own list, or `sort` below falls
+ * through to an ordering with no button showing it.
+ */
+const SHELF_SORTS: Record<Filter, Sort[]> = {
+  todo: ['shortest', 'random'],
+  queued: ['recent'],
+  started: ['recent', 'least'],
+  done: ['recent'],
+  all: ['recent', 'shortest', 'random'],
+};
+const SHELF_DEFAULT_SORT: Record<Filter, Sort> = {
+  todo: 'random',
+  queued: 'recent',
+  started: 'recent',
+  done: 'recent',
+  all: 'recent',
+};
+
+/**
+ * The tagger's explicit pick, or null for "whatever fits the shelf". A pick
+ * sticks across shelves until the URL says otherwise — but only where the
+ * shelf offers it.
  */
 const sortChoice = ref<Sort | null>(
   SORTS.includes(route.query.sort as Sort) ? (route.query.sort as Sort) : null
 );
 const sort = computed<Sort>(() => {
-  const pick =
-    sortChoice.value ?? (filter.value === 'todo' ? 'shortest' : 'recent');
-  // Recent has nothing to say about untouched recordings, so on the todo
-  // shelf a carried-over Recent pick degrades to shortest — visibly, since
-  // aria-pressed follows this computed — instead of rendering an
-  // alphabetical list under a pressed Recent button.
-  return pick === 'recent' && filter.value === 'todo' ? 'shortest' : pick;
+  const pick = sortChoice.value;
+  // A pick the shelf does not offer falls back to that shelf's default. This
+  // has to live here and not in the buttons: the pick also arrives from a
+  // bookmarked ?sort=, and it carries over from a shelf that did offer it.
+  // Without it the list quietly sorts by something no visible button claims —
+  // Least left on Done, say, or Recent on a shelf with no activity at all.
+  return pick && SHELF_SORTS[filter.value].includes(pick)
+    ? pick
+    : SHELF_DEFAULT_SORT[filter.value];
 });
+
+/** Label and icon per sort, in one fixed order so the buttons a shelf does
+ *  offer never swap places with each other when shelves change. */
+const SORT_META: { key: Sort; label: string; icon: any }[] = [
+  { key: 'recent', label: 'Recent', icon: History },
+  { key: 'shortest', label: 'Shortest', icon: Clock },
+  { key: 'least', label: 'Least left', icon: Hourglass },
+  { key: 'random', label: 'Random', icon: Shuffle },
+];
+const sortOptions = computed(() =>
+  SORT_META.filter((o) => SHELF_SORTS[filter.value].includes(o.key))
+);
 
 // The source tree is a different kind of recording, not just a different
 // folder: puratan is one shabad per file and confirmable from its name, while
@@ -220,20 +281,32 @@ const list = useInfiniteList<any>(async (from, to) => {
     // duplicate and vanish between pages).
     query = query.order('id');
   } else {
-    query =
-      sort.value === 'shortest'
-        ? // Nulls last: puratan carries no slot, and an unknown length is a
-          // worse bet than a known short one.
-          query
-            .order('est_seconds', { ascending: true, nullsFirst: false })
-            .order('renditions', { ascending: true })
-        : // Recent: the newest human trace first — the shelf reads as "what
-          // was I just doing?". Untouched recordings have no trace and sort
-          // last.
-          query.order('last_activity_at', {
-            ascending: false,
-            nullsFirst: false,
-          });
+    if (sort.value === 'shortest') {
+      // Nulls last: puratan carries no slot, and an unknown length is a
+      // worse bet than a known short one.
+      query = query
+        .order('est_seconds', { ascending: true, nullsFirst: false })
+        .order('renditions', { ascending: true });
+    } else if (sort.value === 'least') {
+      // Least left: minutes still untagged, not the length of the whole
+      // recording — on a shelf of half-done work those are different
+      // questions, and this is the one a tagger looking for something
+      // finishable is asking. Nulls last for the same reason as above and
+      // then some: a null here is a recording nothing can measure, which the
+      // row labels "length unknown", and it can only be closed by a tagger
+      // saying so.
+      query = query.order('untagged_seconds', {
+        ascending: true,
+        nullsFirst: false,
+      });
+    } else {
+      // Recent: the newest human trace first — the shelf reads as "what was I
+      // just doing?". Untouched recordings have no trace and sort last.
+      query = query.order('last_activity_at', {
+        ascending: false,
+        nullsFirst: false,
+      });
+    }
     // Final tiebreakers. For ragiwise they only stabilise the paging; for
     // puratan — where est_seconds is null across the board — they ARE the
     // order, ragi by ragi then title, the same walk Publish & next takes.
@@ -448,28 +521,19 @@ async function suggest(t: any) {
         placeholder="Filter by artist, or search the filename…"
         class="min-w-56 flex-1 bg-card"
       />
-      <ButtonGroup aria-label="Sort recordings">
-        <!-- Recent is meaningless on Not started — everything there is
-             untouched, so it would be an alphabetical list wearing a pressed
-             Recent button. Disabled rather than hidden, so the control stays
-             put when shelves switch. -->
+      <!-- Which buttons a shelf offers is `sortOptions`. ButtonGroup rounds
+           its ends with :first-child/:last-child, so a dropped button leaves
+           no seam behind it — and a shelf with one useful order shows no
+           control at all, since a lone always-pressed button is a label
+           claiming to be a choice. The search field takes the width back. -->
+      <ButtonGroup v-if="sortOptions.length > 1" aria-label="Sort recordings">
         <Button
-          v-for="opt in [
-            { key: 'recent', label: 'Recent', icon: History },
-            { key: 'shortest', label: 'Shortest', icon: Clock },
-            { key: 'random', label: 'Random', icon: Shuffle },
-          ]"
+          v-for="opt in sortOptions"
           :key="opt.key"
           variant="outline"
           :aria-pressed="sort === opt.key"
           :class="SELECTED_SEGMENT"
-          :disabled="opt.key === 'recent' && filter === 'todo'"
-          :title="
-            opt.key === 'recent' && filter === 'todo'
-              ? 'Not started recordings have no activity to sort by'
-              : undefined
-          "
-          @click="sortChoice = opt.key as any"
+          @click="sortChoice = opt.key"
         >
           <component :is="opt.icon" class="size-3.5" />
           {{ opt.label }}
