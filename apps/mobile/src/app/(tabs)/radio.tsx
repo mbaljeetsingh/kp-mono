@@ -5,6 +5,7 @@
  * bandwidth — the archive hotlinks sgpc.net, which is the organisation that
  * recorded it, and this is a different arrangement that should be visible.
  */
+import { colors } from '@kp/tokens/colors';
 import { CHANNELS, DEFAULT_STATION, OTHER_GURDWARAS, stationPlayable, type Station } from '@kp/core';
 import { Radio } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -23,14 +24,14 @@ function StationCard({ station }: { station: Station }) {
   return (
     <Pressable
       onPress={() => (isCurrent ? playerActions.toggle() : playerActions.play(playable))}
-      className="mx-2 mb-2 flex-row items-center gap-3 rounded-xl border border-neutral-800 px-3 py-3 active:bg-neutral-900">
-      <Radio size={16} color={isCurrent ? '#fbbf24' : '#a3a3a3'} />
+      className="mx-2 mb-2 flex-row items-center gap-3 rounded-xl border border-border px-3 py-3 active:bg-card">
+      <Radio size={16} color={isCurrent ? colors.primary : colors.mutedForeground} />
       <View className="min-w-0 flex-1">
-        <Text numberOfLines={1} className="text-white">
+        <Text numberOfLines={1} className="text-foreground">
           {station.name}
         </Text>
         {station.place ? (
-          <Text numberOfLines={1} className="text-xs text-neutral-400">
+          <Text numberOfLines={1} className="text-xs text-muted-foreground">
             {station.place}
           </Text>
         ) : null}
@@ -39,9 +40,9 @@ function StationCard({ station }: { station: Station }) {
           "selected but not playing" is equally true of a station somebody
           deliberately stopped. */}
       {starting === playable.id ? (
-        <Text className="text-xs text-neutral-400">Connecting…</Text>
+        <Text className="text-xs text-muted-foreground">Connecting…</Text>
       ) : isCurrent && playing ? (
-        <Text className="text-xs font-medium text-amber-400">LIVE</Text>
+        <Text className="text-xs font-medium text-primary">LIVE</Text>
       ) : null}
     </Pressable>
   );
@@ -55,15 +56,15 @@ export default function RadioScreen() {
   ];
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-neutral-950">
+    <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={sections}
         keyExtractor={(s) => s.title || 'featured'}
         contentContainerClassName="pb-4"
         ListHeaderComponent={
           <View className="px-4 pb-2 pt-3">
-            <Text className="text-2xl font-semibold text-white">Radio</Text>
-            <Text className="text-sm text-neutral-400">
+            <Text className="text-2xl font-semibold text-foreground">Radio</Text>
+            <Text className="text-sm text-muted-foreground">
               Live darbars, and feeds this archive does not hold.
             </Text>
           </View>
@@ -71,7 +72,7 @@ export default function RadioScreen() {
         renderItem={({ item: section }) => (
           <View className="pt-2">
             {section.title ? (
-              <Text className="px-4 pb-2 text-sm font-medium text-white">{section.title}</Text>
+              <Text className="px-4 pb-2 text-sm font-medium text-foreground">{section.title}</Text>
             ) : null}
             {section.data.map((station) => (
               <StationCard key={station.id} station={station} />
@@ -79,7 +80,7 @@ export default function RadioScreen() {
           </View>
         )}
         ListFooterComponent={
-          <Text className="px-4 pt-4 text-xs text-neutral-500">
+          <Text className="px-4 pt-4 text-xs text-muted-foreground">
             Sri Harimandir Sahib is served by SGPC. Every other mount is relayed by SikhNet, on
             SikhNet's bandwidth.
           </Text>

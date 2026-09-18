@@ -4,6 +4,7 @@
  * Above the tab bar and outside every screen, so navigating never interrupts
  * playback. Tapping it opens the full player.
  */
+import { colors } from '@kp/tokens/colors';
 import { elapsedIn, progressPct, segmentTotal } from '@kp/core';
 import { useRouter } from 'expo-router';
 import { Pause, Play, SkipForward } from 'lucide-react-native';
@@ -26,9 +27,9 @@ export function MiniPlayer() {
   const pct = progressPct(current, position, duration);
 
   return (
-    <View className="border-t border-neutral-800 bg-neutral-900">
-      <View className="h-0.5 bg-neutral-800">
-        <View className="h-full bg-amber-400" style={{ width: `${pct}%` }} />
+    <View className="border-t border-border bg-card">
+      <View className="h-0.5 bg-muted">
+        <View className="h-full bg-primary" style={{ width: `${pct}%` }} />
       </View>
 
       <View className="flex-row items-center gap-3 px-3 py-2">
@@ -41,10 +42,10 @@ export function MiniPlayer() {
             size={40}
           />
           <View className="min-w-0 flex-1">
-            <Text numberOfLines={1} className="text-sm font-medium text-white">
+            <Text numberOfLines={1} className="text-sm font-medium text-foreground">
               {current.title}
             </Text>
-            <Text numberOfLines={1} className="text-xs text-neutral-400">
+            <Text numberOfLines={1} className="text-xs text-muted-foreground">
               {current.isLive
                 ? 'LIVE'
                 : `${Math.floor(elapsedIn(current, position) / 60)}:${String(
@@ -59,8 +60,8 @@ export function MiniPlayer() {
         <Pressable
           onPress={playerActions.toggle}
           accessibilityLabel={playing ? 'Pause' : 'Play'}
-          className="size-10 items-center justify-center rounded-full bg-amber-400">
-          {playing ? <Pause size={18} color="#0a0a0a" /> : <Play size={18} color="#0a0a0a" />}
+          className="size-10 items-center justify-center rounded-full bg-primary">
+          {playing ? <Pause size={18} color={colors.primaryForeground} /> : <Play size={18} color={colors.primaryForeground} />}
         </Pressable>
 
         <Pressable
@@ -68,7 +69,7 @@ export function MiniPlayer() {
           disabled={current.isLive}
           accessibilityLabel="Next"
           className="size-10 items-center justify-center">
-          <SkipForward size={18} color={current.isLive ? '#525252' : '#e5e5e5'} />
+          <SkipForward size={18} color={current.isLive ? colors.mutedForeground : colors.foreground} />
         </Pressable>
       </View>
     </View>

@@ -5,8 +5,9 @@
  * default one, a sibling of <Tabs>, or the BottomTabBar from expo-router's
  * internals.
  */
+import { colors } from '@kp/tokens/colors';
 import { Tabs } from 'expo-router';
-import { Disc3, Heart, Radio, Search, Users } from 'lucide-react-native';
+import { Disc3, Heart, ListMusic, Radio, Search, Users } from 'lucide-react-native';
 
 import { TabBar } from '~/components/TabBar';
 
@@ -18,7 +19,7 @@ export default function TabLayout() {
       tabBar={(props) => <TabBar {...(props as unknown as Parameters<typeof TabBar>[0])} />}
       screenOptions={{
         headerShown: false,
-        sceneStyle: { backgroundColor: '#0a0a0a' },
+        sceneStyle: { backgroundColor: colors.background },
       }}>
       <Tabs.Screen
         name="index"
@@ -53,6 +54,13 @@ export default function TabLayout() {
         options={{
           title: 'Saved',
           tabBarIcon: ({ color, size }) => <Heart color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="playlists"
+        options={{
+          title: 'Lists',
+          tabBarIcon: ({ color, size }) => <ListMusic color={color} size={size} />,
         }}
       />
     </Tabs>

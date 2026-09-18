@@ -1,8 +1,11 @@
+import { colors } from '@kp/tokens/colors';
 import '../global.css';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+
+import { SessionProvider } from '~/lib/session';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,8 +22,9 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
+      <SessionProvider>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0a0a0a' } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(tabs)" />
         {/* A sheet rather than a pushed screen: the full player is a layer over
             what you were browsing, not somewhere you navigated to. */}
@@ -28,7 +32,9 @@ export default function RootLayout() {
           name="now-playing"
           options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }}
         />
+        <Stack.Screen name="sign-in" options={{ presentation: 'formSheet' }} />
       </Stack>
+      </SessionProvider>
     </QueryClientProvider>
   );
 }

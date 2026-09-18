@@ -45,7 +45,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/Gurb_rg.ttf"
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

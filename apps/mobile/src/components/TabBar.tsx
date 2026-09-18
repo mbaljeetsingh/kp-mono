@@ -13,6 +13,7 @@
  * drawn from the props React Navigation already passes, which needs no import
  * at all.
  */
+import { colors } from '@kp/tokens/colors';
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,14 +55,14 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View className="border-t border-neutral-800 bg-neutral-900">
+    <View className="border-t border-border bg-card">
       <MiniPlayer />
 
       <View className="flex-row" style={{ paddingBottom: insets.bottom }}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key]!;
           const focused = state.index === index;
-          const color = focused ? '#fbbf24' : '#a3a3a3';
+          const color = focused ? colors.primary : colors.mutedForeground;
           const label =
             typeof options.title === 'string' ? options.title : route.name;
 

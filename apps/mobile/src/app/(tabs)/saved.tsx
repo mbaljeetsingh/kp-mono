@@ -4,20 +4,21 @@
  * Works signed out: favorites live on the device until there is an account to
  * move them into.
  */
-import { useFavorites } from '@kp/api';
+
 import { toPlayable, type Playable } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
-import { FlatList, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ShabadRow } from '~/components/ShabadRow';
+import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 export default function SavedScreen() {
-  // Signed-out for now on mobile: sign-in is a web flow today, and favorites
-  // work on the device either way.
-  const favorites = useFavorites(supabase, null);
+  const router = useRouter();
+  const { favorites, userId } = useSession();
   const currentId = usePlayer((s) => s.current?.id);
   const ids = favorites.ids;
 
@@ -42,15 +43,22 @@ export default function SavedScreen() {
   const items = query.data ?? [];
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-neutral-950">
+    <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
           <View className="px-3 pb-2 pt-3">
-            <Text className="text-2xl font-semibold text-white">Saved</Text>
-            <Text className="text-sm text-neutral-400">Saved on this device.</Text>
+            <Text className="text-2xl font-semibold text-foreground">Saved</Text>
+            <Text className="text-sm text-muted-foreground">
+              {userId ? 'Saved to your account.' : 'Saved on this device — sign in and they follow you.'}
+            </Text>
+            {!userId ? (
+              <Pressable onPress={() => router.push('/sign-in')} className="pt-2">
+                <Text className="text-sm text-primary">Sign in</Text>
+              </Pressable>
+            ) : null}
           </View>
         }
         renderItem={({ item, index }) => (
@@ -61,7 +69,7 @@ export default function SavedScreen() {
           />
         )}
         ListEmptyComponent={
-          <Text className="px-3 py-8 text-sm text-neutral-400">
+          <Text className="px-3 py-8 text-sm text-muted-foreground">
             Nothing saved yet. Open a shabad and tap the heart.
           </Text>
         }

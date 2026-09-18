@@ -29,14 +29,14 @@ export function ShabadRow({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-neutral-800">
+      className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted">
       <ArtTile name={item.artist ?? item.title} src={artistPhotoUrl(item.artistPhoto)} />
 
       <View className="min-w-0 flex-1">
-        <Text numberOfLines={1} className={isCurrent ? 'text-amber-400' : 'text-white'}>
+        <Text numberOfLines={1} className={isCurrent ? 'text-primary' : 'text-foreground'}>
           {item.title}
         </Text>
-        <Text numberOfLines={1} className="text-xs text-neutral-400">
+        <Text numberOfLines={1} className="text-xs text-muted-foreground">
           {item.subtitle ?? item.artist}
           {item.raag ? ` · ${item.raag}` : ''}
         </Text>
@@ -45,7 +45,7 @@ export function ShabadRow({
       {/* Zero means untagged — a whole file whose length nobody knows until it
           loads, so showing 0:00 would be a lie. */}
       {length > 0 ? (
-        <Text className="text-xs text-neutral-500">{clock(length)}</Text>
+        <Text className="text-xs text-muted-foreground">{clock(length)}</Text>
       ) : null}
     </Pressable>
   );

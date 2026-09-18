@@ -8,6 +8,7 @@
  * React Native has no CSS gradients, so this reads the stops rather than the
  * `linear-gradient` string the web uses. Same function, same colours.
  */
+import { colors } from '@kp/tokens/colors';
 import { artworkFor } from '@kp/core';
 import { Image } from 'expo-image';
 import { useEffect, useState } from 'react';
@@ -50,7 +51,7 @@ export function ArtTile({ name, src, size = 48, rounded = 8 }: Props) {
           contentFit="cover"
         />
       ) : (
-        <Text style={{ color: 'rgba(255,255,255,0.9)', fontWeight: '600', fontSize: size * 0.3 }}>
+        <Text style={{ color: colors.foreground, fontWeight: '600', fontSize: size * 0.3 }}>
           {art.initials}
         </Text>
       )}

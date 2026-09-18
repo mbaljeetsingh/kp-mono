@@ -1,3 +1,4 @@
+import { colors } from '@kp/tokens/colors';
 import { useSearch } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useState } from 'react';
@@ -19,23 +20,23 @@ export default function SearchScreen() {
   const ready = debounced.trim().length >= 2;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-neutral-950">
+    <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <View className="px-4 pb-2 pt-3">
-        <Text className="pb-3 text-2xl font-semibold text-white">Search</Text>
+        <Text className="pb-3 text-2xl font-semibold text-foreground">Search</Text>
         <TextInput
           value={term}
           onChangeText={setTerm}
           placeholder="Shabad or ragi…"
-          placeholderTextColor="#737373"
+          placeholderTextColor={colors.mutedForeground}
           autoCorrect={false}
-          className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 text-white"
+          className="rounded-lg border border-border bg-card px-4 py-3 text-foreground"
         />
       </View>
 
       {/* Said rather than left blank: a search box that does nothing for one
           character reads as broken. */}
       {!ready ? (
-        <Text className="px-4 py-2 text-sm text-neutral-400">
+        <Text className="px-4 py-2 text-sm text-muted-foreground">
           Type at least two characters.
         </Text>
       ) : (
@@ -56,7 +57,7 @@ export default function SearchScreen() {
           onEndReachedThreshold={0.6}
           ListEmptyComponent={
             query.isLoading ? null : (
-              <Text className="px-3 py-8 text-sm text-neutral-400">
+              <Text className="px-3 py-8 text-sm text-muted-foreground">
                 Nothing matches “{debounced.trim()}”.
               </Text>
             )

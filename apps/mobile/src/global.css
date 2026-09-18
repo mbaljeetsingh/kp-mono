@@ -1,18 +1,21 @@
 /*
- * NativeWind v5 is CSS-first: there is no tailwind.config.js. Theme values
- * live here, which is what lets web and mobile share one token source.
+ * NativeWind v5 is CSS-first: there is no tailwind.config.js, so the theme is
+ * whatever this file imports — which is the same palette the web apps use.
  */
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/preflight.css' layer(base);
 @import 'tailwindcss/utilities.css';
 @import 'nativewind/theme';
 
-:root {
-  --font-display:
-    Spline Sans, Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji,
-    Segoe UI Symbol, Noto Color Emoji;
-  --font-mono:
-    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-  --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
-  --font-serif: Georgia, 'Times New Roman', serif;
+/* The shared palette, applied to :root — see the note in tokens-native.css. */
+@import '@kp/tokens/tokens-native.css';
+
+/*
+ * GurbaniLipi, embedded by the expo-font config plugin.
+ *
+ * The family name is the one inside the TTF, not the @font-face alias the web
+ * declares — a native app loads the file, so it uses the font's own name.
+ */
+@utility font-gurmukhi {
+  font-family: 'GurbaniLipi';
 }

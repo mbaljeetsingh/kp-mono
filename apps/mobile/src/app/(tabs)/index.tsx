@@ -19,15 +19,15 @@ export default function ShabadsScreen() {
   const currentId = usePlayer((s) => s.current?.id);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-neutral-950">
+    <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={items}
         keyExtractor={(item: Playable) => item.id}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
           <View className="px-3 pb-2 pt-3">
-            <Text className="text-2xl font-semibold text-white">Kirtan Player</Text>
-            <Text className="text-sm text-neutral-400">
+            <Text className="text-2xl font-semibold text-foreground">Kirtan Player</Text>
+            <Text className="text-sm text-muted-foreground">
               Twenty years of kirtan from Sri Harmandir Sahib.
             </Text>
           </View>
@@ -47,12 +47,12 @@ export default function ShabadsScreen() {
         onEndReachedThreshold={0.6}
         ListEmptyComponent={
           query.isLoading ? null : (
-            <Text className="px-3 py-8 text-sm text-neutral-400">Nothing tagged yet.</Text>
+            <Text className="px-3 py-8 text-sm text-muted-foreground">Nothing tagged yet.</Text>
           )
         }
         ListFooterComponent={
           query.isFetchingNextPage ? (
-            <Text className="px-3 py-4 text-sm text-neutral-400">Loading…</Text>
+            <Text className="px-3 py-4 text-sm text-muted-foreground">Loading…</Text>
           ) : null
         }
       />

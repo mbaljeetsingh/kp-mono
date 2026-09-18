@@ -1,3 +1,4 @@
+import { colors } from '@kp/tokens/colors';
 import { useShabadsByArtist } from '@kp/api';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -16,7 +17,7 @@ export default function RagiScreen() {
   const currentId = usePlayer((s) => s.current?.id);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-neutral-950">
+    <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -24,10 +25,10 @@ export default function RagiScreen() {
         ListHeaderComponent={
           <View className="px-3 pb-2 pt-3">
             <Pressable onPress={() => router.back()} className="flex-row items-center gap-1 pb-2">
-              <ChevronLeft size={16} color="#a3a3a3" />
-              <Text className="text-sm text-neutral-400">Ragis</Text>
+              <ChevronLeft size={16} color={colors.mutedForeground} />
+              <Text className="text-sm text-muted-foreground">Ragis</Text>
             </Pressable>
-            <Text className="text-2xl font-semibold text-white">{name}</Text>
+            <Text className="text-2xl font-semibold text-foreground">{name}</Text>
           </View>
         }
         renderItem={({ item, index }) => (
@@ -43,7 +44,7 @@ export default function RagiScreen() {
         onEndReachedThreshold={0.6}
         ListEmptyComponent={
           query.isLoading ? null : (
-            <Text className="px-3 py-8 text-sm text-neutral-400">
+            <Text className="px-3 py-8 text-sm text-muted-foreground">
               Nothing tagged for this ragi yet.
             </Text>
           )

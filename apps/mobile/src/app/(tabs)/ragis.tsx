@@ -11,14 +11,14 @@ export default function RagisScreen() {
   const query = useArtists(supabase);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-neutral-950">
+    <SafeAreaView edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={query.data ?? []}
         keyExtractor={(a) => a.name}
         numColumns={3}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
-          <Text className="px-3 pb-2 pt-3 text-2xl font-semibold text-white">Ragis</Text>
+          <Text className="px-3 pb-2 pt-3 text-2xl font-semibold text-foreground">Ragis</Text>
         }
         renderItem={({ item }) => (
           <Pressable
@@ -30,14 +30,14 @@ export default function RagisScreen() {
               size={72}
               rounded={36}
             />
-            <Text numberOfLines={2} className="text-center text-xs text-white">
+            <Text numberOfLines={2} className="text-center text-xs text-foreground">
               {item.display_name ?? item.name}
             </Text>
           </Pressable>
         )}
         ListEmptyComponent={
           query.isLoading ? null : (
-            <Text className="px-3 py-8 text-sm text-neutral-400">No ragis yet.</Text>
+            <Text className="px-3 py-8 text-sm text-muted-foreground">No ragis yet.</Text>
           )
         }
       />
