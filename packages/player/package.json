@@ -1,0 +1,15 @@
+{
+  "name": "@kp/player",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kp/core": "workspace:*",
+    "zustand": "^5.0.15"
+  }
+}

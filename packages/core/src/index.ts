@@ -3,3 +3,4 @@ export * from './segment';
 export * from './timings';
 export * from './repeat';
 export * from './rows';
+export * from './queue';
