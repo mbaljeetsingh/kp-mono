@@ -31,6 +31,9 @@ export default function SearchScreen() {
           placeholder="Shabad or ragi…"
           placeholderTextColor={colors.mutedForeground}
           autoCorrect={false}
+          // A shabad name is not a sentence, and iOS would shift the first
+          // letter of every new query.
+          autoCapitalize="none"
           className="rounded-lg border border-border bg-card px-4 py-3 text-foreground"
         />
       </View>
