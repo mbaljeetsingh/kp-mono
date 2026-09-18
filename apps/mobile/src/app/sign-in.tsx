@@ -8,6 +8,7 @@
 import { signInWithPassword, signUp } from '@kp/api';
 import { colors } from '@kp/tokens/colors';
 import { useRouter } from 'expo-router';
+import { ChevronDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
@@ -51,7 +52,19 @@ export default function SignInScreen() {
 
   return (
     <Screen className="flex-1 bg-background">
-      <View className="gap-4 p-6">
+      {/* The same way out the full player has — a modal with no visible
+          dismiss leaves the drag gesture as the only exit, which is not
+          obvious and is unreachable to anyone who cannot make it. */}
+      <View className="flex-row px-2 pt-2">
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityLabel="Close"
+          className="size-10 items-center justify-center">
+          <ChevronDown size={22} color={colors.foreground} />
+        </Pressable>
+      </View>
+
+      <View className="gap-4 p-6 pt-2">
         <Text className="text-2xl font-semibold text-foreground">
           {mode === 'signin' ? 'Sign in' : 'Create an account'}
         </Text>

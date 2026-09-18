@@ -5,9 +5,12 @@
  * to the player is fifty subscriptions re-evaluated ten times a second.
  */
 import { segmentTotal, type Playable } from '@kp/core';
+import { colors } from '@kp/tokens/colors';
+import { Heart, MoreHorizontal } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { ArtTile } from '~/components/ArtTile';
+import { useSession } from '~/lib/session';
 import { artistPhotoUrl } from '~/lib/supabase';
 
 function clock(seconds: number): string {
@@ -19,12 +22,16 @@ export function ShabadRow({
   item,
   isCurrent,
   onPress,
+  onMore,
 }: {
   item: Playable;
   isCurrent: boolean;
   onPress: () => void;
+  onMore?: (item: Playable) => void;
 }) {
+  const { favorites } = useSession();
   const length = segmentTotal(item, 0);
+  const saved = favorites.has(item.id);
 
   return (
     <Pressable
@@ -46,6 +53,18 @@ export function ShabadRow({
           loads, so showing 0:00 would be a lie. */}
       {length > 0 ? (
         <Text className="text-xs text-muted-foreground">{clock(length)}</Text>
+      ) : null}
+
+      {saved ? <Heart size={14} color={colors.primary} fill={colors.primary} /> : null}
+
+      {onMore ? (
+        <Pressable
+          onPress={() => onMore(item)}
+          accessibilityLabel={`More for ${item.title}`}
+          hitSlop={8}
+          className="size-8 items-center justify-center">
+          <MoreHorizontal size={18} color={colors.mutedForeground} />
+        </Pressable>
       ) : null}
     </Pressable>
   );

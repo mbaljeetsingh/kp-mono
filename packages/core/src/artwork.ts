@@ -8,6 +8,8 @@
  * on every page and becomes recognisable at a glance.
  */
 
+import { oklchToHex } from './oklch';
+
 /**
  * FNV-1a — small, stable, and unlike a JS bitwise hash it distributes short
  * strings well, which matters when most names start with "Bhai ".
@@ -32,7 +34,13 @@ const HUES = [18, 32, 45, 8, 340, 268, 200, 165, 100, 55];
 export interface Artwork {
   /** The gradient, as a CSS value. Native reads the stops instead. */
   backgroundImage: string;
-  /** The three stops, for React Native's gradient components. */
+  /**
+   * The three stops as sRGB hex.
+   *
+   * Hex rather than `oklch()`, which is where these are authored: CSS
+   * understands oklch, React Native does not — and it treats a colour it cannot
+   * parse as no colour, so tiles rendered as bare initials on nothing.
+   */
   colors: [string, string, string];
   angle: number;
   /** Two initials, skipping the honorific that prefixes most artist names. */
@@ -57,9 +65,9 @@ export function artworkFor(name: string): Artwork {
   const angle = 115 + ((h >>> 16) % 60);
 
   const colors: [string, string, string] = [
-    `oklch(0.62 0.13 ${hue})`,
-    `oklch(0.45 0.10 ${hue2})`,
-    `oklch(0.32 0.07 ${hue2})`,
+    oklchToHex(0.62, 0.13, hue),
+    oklchToHex(0.45, 0.1, hue2),
+    oklchToHex(0.32, 0.07, hue2),
   ];
 
   return {

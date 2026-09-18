@@ -6,17 +6,20 @@
  */
 
 import { toPlayable, type Playable } from '@kp/core';
+import { signOut } from '@kp/api';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 export default function SavedScreen() {
+  const { onMore, sheet } = useShabadActions();
   const router = useRouter();
   const { favorites, userId } = useSession();
   const currentId = usePlayer((s) => s.current?.id);
@@ -58,7 +61,11 @@ export default function SavedScreen() {
               <Pressable onPress={() => router.push('/sign-in')} className="pt-2">
                 <Text className="text-sm text-primary">Sign in</Text>
               </Pressable>
-            ) : null}
+            ) : (
+              <Pressable onPress={() => void signOut(supabase)} className="pt-2">
+                <Text className="text-sm text-muted-foreground">Sign out</Text>
+              </Pressable>
+            )}
           </View>
         }
         renderItem={({ item, index }) => (
@@ -66,6 +73,7 @@ export default function SavedScreen() {
             item={item}
             isCurrent={item.id === currentId}
             onPress={() => playerActions.playList(items, index)}
+            onMore={onMore}
           />
         )}
         ListEmptyComponent={
@@ -74,6 +82,7 @@ export default function SavedScreen() {
           </Text>
         }
       />
+      {sheet}
     </Screen>
   );
 }

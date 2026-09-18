@@ -80,9 +80,11 @@ export function RootLayout() {
           {/* The player carries no editing UI: the archive grows in the
               workbench and the code grows on GitHub, so this is where it says so. */}
           <div className="mt-auto flex flex-col gap-2 border-t border-border pt-3">
+            {/* The one link here that asks something of the reader, rather
+                than just offering it — so it is the one that is not grey. */}
             <a
               href={CONTRIBUTE_URL}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10">
               <Users className="size-4" />
               Contribute
             </a>

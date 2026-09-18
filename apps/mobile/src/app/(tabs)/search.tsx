@@ -7,10 +7,12 @@ import { useDebounceValue } from 'usehooks-ts';
 
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 export default function SearchScreen() {
+  const { onMore, sheet } = useShabadActions();
   const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 250);
   const query = useSearch(supabase, debounced);
@@ -49,6 +51,7 @@ export default function SearchScreen() {
               item={item}
               isCurrent={item.id === currentId}
               onPress={() => playerActions.playList(items, index)}
+              onMore={onMore}
             />
           )}
           onEndReached={() => {
@@ -64,6 +67,7 @@ export default function SearchScreen() {
           }
         />
       )}
+      {sheet}
     </Screen>
   );
 }

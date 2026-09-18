@@ -6,10 +6,12 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 export default function PlaylistScreen() {
+  const { onMore, sheet } = useShabadActions();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const playlist = usePlaylist(supabase, id ?? '');
@@ -54,6 +56,7 @@ export default function PlaylistScreen() {
             item={item}
             isCurrent={item.id === currentId}
             onPress={() => playerActions.playList(rows, index)}
+            onMore={onMore}
           />
         )}
         ListEmptyComponent={
@@ -64,6 +67,7 @@ export default function PlaylistScreen() {
           )
         }
       />
+      {sheet}
     </Screen>
   );
 }

@@ -18,20 +18,12 @@ export function SeekBar() {
   const track = useRef<HTMLDivElement>(null);
 
   /**
-   * A broadcast has no timeline to scrub and no end to scrub towards — but it
-   * still has to occupy the same strip. A bare label collapsed the row and let
-   * the transport slide down and off-centre every time a station was playing.
+   * A broadcast has no timeline to scrub and no end to scrub towards, and it
+   * already says LIVE beside the title — a second badge here was the same word
+   * twice. The row still holds its height: without it the transport slides
+   * down and off-centre every time a station is playing.
    */
-  if (current?.isLive) {
-    return (
-      <div className="flex h-6 w-full items-center justify-center">
-        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-primary">
-          <span className="size-1.5 animate-pulse rounded-full bg-primary" />
-          LIVE
-        </span>
-      </div>
-    );
-  }
+  if (current?.isLive) return <div className="h-6 w-full" />;
 
   const pct = progressPct(current, position, duration);
 

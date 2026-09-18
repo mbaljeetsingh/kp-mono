@@ -6,10 +6,12 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 export default function RagiScreen() {
+  const { onMore, sheet } = useShabadActions();
   const router = useRouter();
   const { name } = useLocalSearchParams<{ name: string }>();
   const query = useShabadsByArtist(supabase, name ?? '');
@@ -36,6 +38,7 @@ export default function RagiScreen() {
             item={item}
             isCurrent={item.id === currentId}
             onPress={() => playerActions.playList(items, index)}
+            onMore={onMore}
           />
         )}
         onEndReached={() => {
@@ -50,6 +53,7 @@ export default function RagiScreen() {
           )
         }
       />
+      {sheet}
     </Screen>
   );
 }

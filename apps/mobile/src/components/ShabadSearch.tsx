@@ -38,7 +38,11 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
         placeholderTextColor={colors.mutedForeground}
         className={cn(
           'rounded-lg border border-border bg-card px-4 py-3 text-foreground',
-          gurbaniLipi && 'font-gurmukhi text-lg'
+          gurbaniLipi && 'text-lg',
+          // Only once there is something to render in it. React Native draws
+          // the placeholder in the field's own font, and GurbaniLipi maps ASCII
+          // to Gurmukhi glyphs — so an English hint came out as nonsense words.
+          gurbaniLipi && term.length > 0 && 'font-gurmukhi'
         )}
       />
 

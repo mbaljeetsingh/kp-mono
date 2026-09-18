@@ -32,6 +32,7 @@ export function PlayerBar() {
           {/* Tapping opens the sheet only where there is no side panel. On a
               wide screen the full player is already on screen, so a sheet over
               the top of it would be a second copy of the same thing. */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
@@ -57,16 +58,24 @@ export function PlayerBar() {
             <ChevronUp className="size-4 shrink-0 text-muted-foreground lg:hidden" />
           </button>
 
+            {/* Beside the thing it applies to, which is the title — on the far
+                right it read as part of the transport, and it is not: it says
+                something about this shabad, not about playback.
+                A broadcast is not something to save — there is no rendition
+                behind it. */}
+            {current.isLive ? null : (
+              <FavoriteButton id={current.id} name={current.title} className="hidden sm:flex" />
+            )}
+          </div>
+
           <div className="hidden flex-[2] flex-col items-center gap-1 sm:flex">
             <PlayerControls />
             <SeekBar />
           </div>
 
-          <div className="flex shrink-0 items-center gap-1">
-            {/* A broadcast is not something to save — there is no rendition behind it. */}
-            {current.isLive ? null : (
-              <FavoriteButton id={current.id} name={current.title} className="hidden sm:flex" />
-            )}
+          {/* Matches the left column's flex-1 so the transport in the middle is
+              centred on the bar rather than on whatever is left over. */}
+          <div className="flex shrink-0 items-center justify-end gap-1 sm:flex-1">
             {/* The phone keeps play and next on the bar; everything else is a
                 tap away in the sheet. Four icons beside a title at this width
                 left the title one character wide. */}

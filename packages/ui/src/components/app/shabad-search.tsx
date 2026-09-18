@@ -60,7 +60,13 @@ export function ShabadSearch({
             onChange={(e) => setTerm(e.target.value)}
             placeholder={placeholder}
             aria-label="Search BaniDB"
-            className={cn("pl-9 pr-8", gurbaniLipi && "font-gurmukhi text-lg")}
+            // The placeholder stays in the UI font: GurbaniLipi maps ASCII to
+            // Gurmukhi glyphs, so an English hint set in it renders as
+            // nonsense words rather than as a hint.
+            className={cn(
+              "pl-9 pr-8",
+              gurbaniLipi && "font-gurmukhi text-lg placeholder:font-sans placeholder:text-sm"
+            )}
           />
           {term ? (
             <Button

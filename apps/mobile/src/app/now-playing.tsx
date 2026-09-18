@@ -17,14 +17,25 @@ import {
   segmentTotal,
 } from '@kp/core';
 import { useRouter } from 'expo-router';
-import { ChevronDown, Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react-native';
+import {
+  ChevronDown,
+  Heart,
+  Pause,
+  Play,
+  Repeat,
+  Repeat1,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
 import { ArtTile } from '~/components/ArtTile';
+import { QueueList } from '~/components/QueueList';
 import { ShabadSearch } from '~/components/ShabadSearch';
+import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
 import { artistPhotoUrl } from '~/lib/supabase';
 
@@ -65,6 +76,8 @@ export default function NowPlayingScreen() {
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
 
   const [trackWidth, setTrackWidth] = useState(0);
+  const [tab, setTab] = useState<'lyrics' | 'queue'>('lyrics');
+  const { favorites } = useSession();
 
   /**
    * Follow the singing.
@@ -171,6 +184,40 @@ export default function NowPlayingScreen() {
             <Text className="text-xs font-medium text-primary">LIVE</Text>
           ) : null}
         </View>
+
+        {/* A broadcast is not something to save — there is no rendition behind it. */}
+        {current.isLive ? null : (
+          <Pressable
+            onPress={() => favorites.toggle(current.id)}
+            accessibilityLabel={
+              favorites.has(current.id) ? `Remove ${current.title} from saved` : `Save ${current.title}`
+            }
+            hitSlop={8}
+            className="size-10 items-center justify-center">
+            <Heart
+              size={20}
+              color={favorites.has(current.id) ? colors.primary : colors.mutedForeground}
+              fill={favorites.has(current.id) ? colors.primary : 'transparent'}
+            />
+          </Pressable>
+        )}
+      </View>
+
+      <View className="flex-row gap-2 px-4 pb-2">
+        {(['lyrics', 'queue'] as const).map((value) => (
+          <Pressable
+            key={value}
+            onPress={() => setTab(value)}
+            className={
+              tab === value
+                ? 'flex-1 items-center rounded-lg bg-muted py-2'
+                : 'flex-1 items-center rounded-lg py-2'
+            }>
+            <Text className={tab === value ? 'text-sm text-primary' : 'text-sm text-muted-foreground'}>
+              {value === 'lyrics' ? 'Read along' : 'Up next'}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       <ScrollView
@@ -182,6 +229,10 @@ export default function NowPlayingScreen() {
           viewportHeight.current = e.nativeEvent.layout.height;
         }}
         className="flex-1 px-4">
+        {tab === 'queue' ? (
+          <QueueList />
+        ) : (
+        <>
         {!shabadId ? (
           <View className="gap-3 py-4">
             <Text className="text-sm text-muted-foreground">
@@ -230,13 +281,16 @@ export default function NowPlayingScreen() {
             This rendition has no line timings yet — the highlight is the tagged line.
           </Text>
         ) : null}
+        </>
+        )}
       </ScrollView>
 
       <View className="gap-3 border-t border-border px-4 pb-4 pt-3">
+        {/* A broadcast has no timeline to scrub, and it already says LIVE beside
+            the title — a second badge here was the same word twice. The row
+            keeps its height so the transport does not jump. */}
         {current.isLive ? (
-          <View className="h-6 items-center justify-center">
-            <Text className="text-xs font-medium text-primary">LIVE</Text>
-          </View>
+          <View className="h-6" />
         ) : (
           <View className="gap-1">
             <Pressable
