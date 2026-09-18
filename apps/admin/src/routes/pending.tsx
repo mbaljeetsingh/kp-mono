@@ -9,8 +9,6 @@ import {
   deleteRendition,
   setRenditionStatus,
   usePending,
-  usePermissions,
-  useAuth,
   type PendingRendition,
 } from '@kp/api';
 import { Badge } from '@kp/ui/badge';
@@ -20,12 +18,12 @@ import { Link } from '@tanstack/react-router';
 import { Check, Play, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
 
 export function PendingRoute() {
-  const { session } = useAuth(supabase);
-  const { can } = usePermissions(supabase, Boolean(session));
+  const { session, can } = useSession();
   const query = usePending(supabase, Boolean(session));
   const queryClient = useQueryClient();
 

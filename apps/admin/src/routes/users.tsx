@@ -6,7 +6,7 @@
  * but hardcoding the role would silently hide this page from a reviewer the
  * moment somebody granted them the permission.
  */
-import { useAdminUsers, usePermissions, useSetTrust, useAuth } from '@kp/api';
+import { useAdminUsers, useSetTrust } from '@kp/api';
 import { TRUST_LADDER } from '@kp/shared/types';
 import { Badge } from '@kp/ui/badge';
 import { Input } from '@kp/ui/input';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { timeAgo } from '~/lib/utils';
 
@@ -26,8 +27,7 @@ const GRANTS: Record<string, string> = {
 };
 
 export function UsersRoute() {
-  const { session } = useAuth(supabase);
-  const { can } = usePermissions(supabase, Boolean(session));
+  const { session, can } = useSession();
   const query = useAdminUsers(supabase, can['users.manage']);
   const setTrust = useSetTrust(supabase);
 

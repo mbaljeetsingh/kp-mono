@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { draftSchema } from './admin';
+import { canPublishRendition, draftSchema } from './admin';
 
 const base = { track_id: 't1', name: 'Sorath Mahala 5', start_sec: 60, end_sec: 105 };
 
@@ -43,5 +43,36 @@ describe('draftSchema', () => {
   it('never carries a status — publishing is a separate act and permission', () => {
     const parsed = draftSchema.parse({ ...base, status: 'published' } as never);
     expect('status' in parsed).toBe(false);
+  });
+});
+
+describe('canPublishRendition', () => {
+  const reviewer = { review: true, publish: true };
+  const trusted = { review: false, publish: true };
+  const contributor = { review: false, publish: false };
+  const ME = 'user-1';
+
+  it('lets a reviewer publish anyone’s draft', () => {
+    expect(canPublishRendition({ status: 'draft', created_by: 'someone-else' }, reviewer, ME)).toBe(
+      true
+    );
+  });
+
+  it('lets publish-without-review promote only their own', () => {
+    expect(canPublishRendition({ status: 'draft', created_by: ME }, trusted, ME)).toBe(true);
+    expect(canPublishRendition({ status: 'draft', created_by: 'other' }, trusted, ME)).toBe(false);
+  });
+
+  it('offers nothing while the session is still loading', () => {
+    // Both sides undefined used to compare equal, so a trusted account saw a
+    // Publish button on every row for as long as the session took to land —
+    // the opposite of what the function documents.
+    expect(canPublishRendition({ status: 'draft' }, trusted, undefined)).toBe(false);
+    expect(canPublishRendition({ status: 'draft', created_by: null }, trusted, null)).toBe(false);
+  });
+
+  it('never offers it for something already published, or without the permission', () => {
+    expect(canPublishRendition({ status: 'published', created_by: ME }, reviewer, ME)).toBe(false);
+    expect(canPublishRendition({ status: 'draft', created_by: ME }, contributor, ME)).toBe(false);
   });
 });

@@ -113,7 +113,10 @@ export async function fetchQueuedScanIds(client: KpClient): Promise<string[]> {
   // request, ever — and a second query keeps the view SQL untouched. Without
   // scans.request, RLS returns nothing and the shelf is simply empty.
   const { data, error } = await client.from('scan_requests').select('track_id,done_at');
-  if (error) return [];
+  // RLS returning nothing is an empty list, not an error. A real error — a
+  // dropped request, a renamed column — used to look identical to it, and the
+  // Queued shelf just sat there empty with nothing to explain itself.
+  if (error) throw error;
   return ((data ?? []) as { track_id: string; done_at: string | null }[])
     .filter((r) => r.done_at === null)
     .map((r) => r.track_id);
@@ -393,7 +396,11 @@ export function canPublishRendition(
   userId: string | null | undefined
 ): boolean {
   if (!perms.publish || row.status === 'published') return false;
-  return perms.review || row.created_by === userId;
+  if (perms.review) return true;
+  // Both sides have to be a real id. `undefined === undefined` is true, and
+  // that is the loading state — the comment above promised no button and the
+  // comparison alone handed one out.
+  return Boolean(userId) && row.created_by === userId;
 }
 
 /** Everything a contributor has proposed and nobody has published yet. */
@@ -482,7 +489,7 @@ export async function getScanRequest(
     .select('track_id,done_at')
     .eq('track_id', trackId)
     .maybeSingle();
-  if (error) return null;
+  if (error) throw error;
   return (data as { done_at: string | null } | null) ?? null;
 }
 

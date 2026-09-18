@@ -165,11 +165,12 @@ export function SegmentEditor({
     <div className="flex flex-col gap-4 rounded-xl border border-border p-4">
       <div className="flex items-baseline justify-between">
         <h2 className="text-sm font-medium">{editing ? 'Edit segment' : 'New segment'}</h2>
-        {editing ? (
-          <Button variant="ghost" size="sm" onClick={onDone}>
-            Cancel
-          </Button>
-        ) : null}
+        {/* Shown for a new segment as well. It used to be gated on `editing`,
+            which is null while creating one — so opening the editor by mistake
+            left no way to close it but saving something. */}
+        <Button variant="ghost" size="sm" onClick={onDone}>
+          Cancel
+        </Button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

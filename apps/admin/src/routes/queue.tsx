@@ -16,8 +16,6 @@ import {
   SHELF_SORTS,
   useQueuedScanIds,
   useRecordings,
-  usePermissions,
-  useAuth,
   type Shelf,
   type Sort,
 } from '@kp/api';
@@ -28,6 +26,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useDebounceValue } from 'usehooks-ts';
 
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { clock, cn } from '~/lib/utils';
 
@@ -64,10 +63,15 @@ export function QueueRoute() {
     ? (search.sort as Sort)
     : SHELF_DEFAULT_SORT[shelf];
 
-  const [term, setTerm] = useDebounceValue(search.q ?? '', 300);
+  /*
+   * Fed from the URL, not from its own state. The whole point of this file is
+   * that Back returns a tagger to where they were, and an input holding its own
+   * copy of the term broke half of that: the results followed the URL back, the
+   * box kept showing what had been typed before.
+   */
+  const [term] = useDebounceValue(search.q ?? '', 300);
 
-  const { session } = useAuth(supabase);
-  const { can } = usePermissions(supabase, Boolean(session));
+  const { can } = useSession();
 
   const queued = useQueuedScanIds(supabase, shelf === 'queued');
 
@@ -152,11 +156,8 @@ export function QueueRoute() {
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
-          defaultValue={search.q ?? ''}
-          onChange={(e) => {
-            setTerm(e.target.value);
-            set({ q: e.target.value || undefined });
-          }}
+          value={search.q ?? ''}
+          onChange={(e) => set({ q: e.target.value || undefined })}
           placeholder="Ragi, or paste a filename…"
           aria-label="Search recordings"
           className="pl-9"

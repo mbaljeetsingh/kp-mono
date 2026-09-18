@@ -12,8 +12,6 @@ import {
   useRecording,
   useRenditions,
   useScanRequest,
-  usePermissions,
-  useAuth,
   type Rendition,
 } from '@kp/api';
 import { untaggedSeconds, coverageOpen, type TimelineSegment } from '@kp/core';
@@ -34,16 +32,28 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { SegmentEditor } from '~/components/SegmentEditor';
 import { Timeline } from '~/components/Timeline';
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
 
 /** Arrow-key nudge, and what the skip buttons move by. */
 const NUDGE_SECONDS = 15;
 
+/** Is this event coming out of a field somebody is writing in? */
+function isTyping(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el?.tagName) return false;
+  return (
+    el.tagName === 'INPUT' ||
+    el.tagName === 'TEXTAREA' ||
+    el.tagName === 'SELECT' ||
+    el.isContentEditable
+  );
+}
+
 export function TagRoute() {
   const { id } = useParams({ from: '/tag/$id' });
-  const { session } = useAuth(supabase);
-  const { can } = usePermissions(supabase, Boolean(session));
+  const { session, can } = useSession();
 
   const recording = useRecording(supabase, id);
   const renditions = useRenditions(supabase, id);
@@ -121,6 +131,16 @@ export function TagRoute() {
       className="flex flex-col gap-5 outline-none"
       tabIndex={-1}
       onKeyDown={(e) => {
+        /*
+         * Not while somebody is typing. The editor's fields sit inside this
+         * section, so a keydown in the name box bubbles here — and the space
+         * branch calls preventDefault, which meant a space never reached the
+         * input at all. Every shabad name is more than one word, so the
+         * workbench's primary field could not be filled in; the arrow keys
+         * scrubbed the recording instead of moving the caret.
+         */
+        if (isTyping(e.target)) return;
+
         if (e.key === 'ArrowRight') seek(position + NUDGE_SECONDS);
         if (e.key === 'ArrowLeft') seek(position - NUDGE_SECONDS);
         if (e.key === ' ') {

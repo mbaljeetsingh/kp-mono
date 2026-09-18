@@ -5,11 +5,12 @@
  * yet" render differently, and conflating them flashes the sign-in form at
  * every signed-in contributor on every load.
  */
-import { signOut, useAuth } from '@kp/api';
+import { signOut } from '@kp/api';
 import { Link, Outlet } from '@tanstack/react-router';
 import { ClipboardCheck, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react';
 
 import { SignIn } from '~/components/SignIn';
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 
 const NAV = [
@@ -20,7 +21,7 @@ const NAV = [
 ] as const;
 
 export function RootLayout() {
-  const { session, loading } = useAuth(supabase);
+  const { session, loading } = useSession();
 
   if (loading) {
     return (

@@ -5,17 +5,17 @@
  * because "why can't I publish?" is answered by this table, and a contributor
  * who can see the ladder can see what they are working towards.
  */
-import { usePermissions, useRolePermissions, useSetRolePermission, useAuth } from '@kp/api';
+import { useRolePermissions, useSetRolePermission } from '@kp/api';
 import { TRUST_LADDER } from '@kp/shared/types';
 import { Switch } from '@kp/ui/switch';
 import { Check, Minus } from 'lucide-react';
 
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { cn } from '~/lib/utils';
 
 export function PermissionsRoute() {
-  const { session } = useAuth(supabase);
-  const { can, loading } = usePermissions(supabase, Boolean(session));
+  const { session, can, permissionsLoading: loading } = useSession();
   const editable = can['users.manage'];
 
   const { all, granted } = useRolePermissions(supabase, Boolean(session));
