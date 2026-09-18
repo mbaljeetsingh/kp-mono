@@ -1,41 +1,24 @@
 /**
- * The tabs, with the transport pinned above them.
+ * The tabs.
  *
- * The mini player is rendered as part of the tab bar rather than inside a
- * screen: a screen-level bar unmounts on every tab change, which stops
- * playback, and a sibling of <Tabs> would sit underneath it.
+ * The bar itself is ours — see components/TabBar for why it cannot be the
+ * default one, a sibling of <Tabs>, or the BottomTabBar from expo-router's
+ * internals.
  */
-// expo-router bundles its own copy of bottom-tabs, and its types are not the
-// standalone package's — mixing them is a wall of "not assignable".
-import {
-  BottomTabBar,
-  type BottomTabBarProps,
-} from 'expo-router/build/react-navigation/bottom-tabs';
 import { Tabs } from 'expo-router';
 import { Disc3, Heart, Radio, Search, Users } from 'lucide-react-native';
-import { View } from 'react-native';
 
-import { MiniPlayer } from '~/components/MiniPlayer';
-
-function TabBar(props: BottomTabBarProps) {
-  return (
-    <View>
-      <MiniPlayer />
-      <BottomTabBar {...props} />
-    </View>
-  );
-}
+import { TabBar } from '~/components/TabBar';
 
 export default function TabLayout() {
   return (
     <Tabs
-      tabBar={TabBar}
+      // Cast because expo-router's bundled bottom-tabs types and the ones
+      // TabBar names structurally are nominally different — see TabBar.
+      tabBar={(props) => <TabBar {...(props as unknown as Parameters<typeof TabBar>[0])} />}
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: '#0a0a0a' },
-        tabBarStyle: { backgroundColor: '#171717', borderTopColor: '#262626' },
-        tabBarActiveTintColor: '#fbbf24',
-        tabBarInactiveTintColor: '#a3a3a3',
       }}>
       <Tabs.Screen
         name="index"
