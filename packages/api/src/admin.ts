@@ -416,3 +416,70 @@ export function usePending(client: KpClient, enabled: boolean) {
     enabled,
   });
 }
+
+/* ── Recording-level actions ──────────────────────────────────────────── */
+
+/**
+ * Mark a recording fully tagged, or undo it.
+ *
+ * Its own capability, not open to every contributor although tagging itself
+ * is: the mark hides a recording from the In progress shelf for everyone, so a
+ * wrong or hasty one buries work other taggers would have finished. That is a
+ * review judgment.
+ */
+export async function setTaggedDone(
+  client: KpClient,
+  trackId: string,
+  done: boolean
+): Promise<void> {
+  const { data, error } = await client
+    .from('tracks')
+    .update({ tagged_done_at: done ? new Date().toISOString() : null })
+    .eq('id', trackId)
+    // Same reason as the rendition writes: RLS filters a forbidden UPDATE out
+    // rather than rejecting it, so without asking for the row back a refusal
+    // looks exactly like success.
+    .select('id');
+  if (error) throw error;
+  if (!data?.length) throw new Error('Marking this recording is not permitted.');
+}
+
+/**
+ * Ask the scanner to suggest shabads for a recording.
+ *
+ * Its own capability too. A queued scan is not free — the nightly workflow
+ * budgets roughly thirty CPU-minutes per broadcast on a runner, three a night —
+ * and this button is the only thing rationing it.
+ */
+export async function requestScan(client: KpClient, trackId: string): Promise<void> {
+  const { data, error } = await client
+    .from('scan_requests')
+    .upsert({ track_id: trackId }, { onConflict: 'track_id', ignoreDuplicates: true })
+    .select('track_id');
+  if (error) throw error;
+  // An ignored duplicate comes back empty and is not a failure: the recording
+  // is already in the queue, which is what the tagger wanted.
+  void data;
+}
+
+/** This recording's place in the scan queue, if it has one. */
+export async function getScanRequest(
+  client: KpClient,
+  trackId: string
+): Promise<{ done_at: string | null } | null> {
+  const { data, error } = await client
+    .from('scan_requests')
+    .select('track_id,done_at')
+    .eq('track_id', trackId)
+    .maybeSingle();
+  if (error) return null;
+  return (data as { done_at: string | null } | null) ?? null;
+}
+
+export function useScanRequest(client: KpClient, trackId: string) {
+  return useQuery({
+    queryKey: ['scan-request', trackId],
+    queryFn: () => getScanRequest(client, trackId),
+    enabled: trackId.length > 0,
+  });
+}

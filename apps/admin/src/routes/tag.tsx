@@ -7,8 +7,11 @@
  * and that is exactly the behaviour a tagger needs turned off.
  */
 import {
+  requestScan,
+  setTaggedDone,
   useRecording,
   useRenditions,
+  useScanRequest,
   usePermissions,
   useAuth,
   type Rendition,
@@ -16,7 +19,8 @@ import {
 import { untaggedSeconds, coverageOpen, type TimelineSegment } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { Link, useParams } from '@tanstack/react-router';
-import { ChevronLeft, Pause, Play, Plus, SkipBack, SkipForward } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { CheckCheck, ChevronLeft, Pause, Play, Plus, ScanLine, SkipBack, SkipForward } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { SegmentEditor } from '~/components/SegmentEditor';
@@ -34,6 +38,9 @@ export function TagRoute() {
 
   const recording = useRecording(supabase, id);
   const renditions = useRenditions(supabase, id);
+  const scan = useScanRequest(supabase, id);
+  const queryClient = useQueryClient();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const audio = useRef<HTMLAudioElement | null>(null);
   const [position, setPosition] = useState(0);
@@ -240,6 +247,59 @@ export function TagRoute() {
               New segment from {clock(position)}
             </Button>
           )}
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+            {can['tracks.mark_done'] ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  void setTaggedDone(supabase, id, !recording.data?.tagged_done_at)
+                    .then(() => {
+                      void queryClient.invalidateQueries({ queryKey: ['recording', id] });
+                      void queryClient.invalidateQueries({ queryKey: ['recordings'] });
+                    })
+                    .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
+                }>
+                <CheckCheck />
+                {recording.data?.tagged_done_at ? 'Unmark fully tagged' : 'Mark fully tagged'}
+              </Button>
+            ) : null}
+
+            {can['scans.request'] ? (
+              scan.data ? (
+                <span className="text-xs text-muted-foreground">
+                  {scan.data.done_at ? 'Scanned' : 'Queued for scanning'}
+                </span>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    void requestScan(supabase, id)
+                      .then(() => queryClient.invalidateQueries({ queryKey: ['scan-request', id] }))
+                      .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
+                  }>
+                  <ScanLine />
+                  Suggest shabads
+                </Button>
+              )
+            ) : null}
+
+            {recording.data?.tagged_done_at ? (
+              <span className="text-xs text-muted-foreground">
+                {/* Said out loud: the mark hides this recording from In progress
+                    for every tagger, not just this one. */}
+                Marked fully tagged — hidden from the In progress shelf.
+              </span>
+            ) : null}
+          </div>
+
+          {actionError ? (
+            <p role="alert" className="text-sm text-destructive">
+              {actionError}
+            </p>
+          ) : null}
 
           {/* Shown rather than hidden: a tagger who cannot publish should know
               that is a trust level, not a broken button. */}
