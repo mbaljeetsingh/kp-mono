@@ -9,8 +9,8 @@ import { toPlayable, type Playable } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -43,7 +43,7 @@ export default function SavedScreen() {
   const items = query.data ?? [];
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -74,6 +74,6 @@ export default function SavedScreen() {
           </Text>
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

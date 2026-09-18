@@ -3,8 +3,8 @@ import { useShabadsByArtist } from '@kp/api';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
@@ -17,7 +17,7 @@ export default function RagiScreen() {
   const currentId = usePlayer((s) => s.current?.id);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -50,6 +50,6 @@ export default function RagiScreen() {
           )
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

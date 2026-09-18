@@ -10,8 +10,8 @@ import { colors } from '@kp/tokens/colors';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { supabase } from '~/lib/supabase';
 
 export default function SignInScreen() {
@@ -50,7 +50,7 @@ export default function SignInScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <Screen className="flex-1 bg-background">
       <View className="gap-4 p-6">
         <Text className="text-2xl font-semibold text-foreground">
           {mode === 'signin' ? 'Sign in' : 'Create an account'}
@@ -109,6 +109,6 @@ export default function SignInScreen() {
           </Text>
         </Pressable>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }

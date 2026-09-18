@@ -3,9 +3,9 @@ import { useSearch } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useState } from 'react';
 import { FlatList, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDebounceValue } from 'usehooks-ts';
 
+import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
@@ -20,7 +20,7 @@ export default function SearchScreen() {
   const ready = debounced.trim().length >= 2;
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <View className="px-4 pb-2 pt-3">
         <Text className="pb-3 text-2xl font-semibold text-foreground">Search</Text>
         <TextInput
@@ -64,6 +64,6 @@ export default function SearchScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }

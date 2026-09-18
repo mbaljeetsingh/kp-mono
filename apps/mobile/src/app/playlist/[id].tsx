@@ -3,8 +3,8 @@ import { colors } from '@kp/tokens/colors';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Play } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
@@ -19,7 +19,7 @@ export default function PlaylistScreen() {
   const rows = items.data ?? [];
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={rows}
         keyExtractor={(item) => item.id}
@@ -64,6 +64,6 @@ export default function PlaylistScreen() {
           )
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

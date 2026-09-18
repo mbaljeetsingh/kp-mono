@@ -7,8 +7,8 @@
 import { useShabads } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { FlatList, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
@@ -19,7 +19,7 @@ export default function ShabadsScreen() {
   const currentId = usePlayer((s) => s.current?.id);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={items}
         keyExtractor={(item: Playable) => item.id}
@@ -56,6 +56,6 @@ export default function ShabadsScreen() {
           ) : null
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

@@ -11,9 +11,9 @@ import { useRouter } from 'expo-router';
 import { ListMusic, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@kp/tokens/colors';
 
+import { Screen } from '~/components/Screen';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 
@@ -28,7 +28,7 @@ export default function PlaylistsScreen() {
 
   if (!userId) {
     return (
-      <SafeAreaView edges={['top']} className="flex-1 bg-background">
+      <Screen edges={['top']} className="flex-1 bg-background">
         <View className="gap-3 p-6">
           <Text className="text-2xl font-semibold text-foreground">Playlists</Text>
           <Text className="text-sm text-muted-foreground">
@@ -41,12 +41,12 @@ export default function PlaylistsScreen() {
             <Text className="font-medium text-primary-foreground">Sign in</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={query.data ?? []}
         keyExtractor={(p) => p.id}
@@ -127,6 +127,6 @@ export default function PlaylistsScreen() {
           )
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

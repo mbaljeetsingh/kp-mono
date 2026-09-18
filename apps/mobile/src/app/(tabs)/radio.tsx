@@ -9,8 +9,8 @@ import { colors } from '@kp/tokens/colors';
 import { CHANNELS, DEFAULT_STATION, OTHER_GURDWARAS, stationPlayable, type Station } from '@kp/core';
 import { Radio } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { playerActions, usePlayer } from '~/lib/player';
 
 function StationCard({ station }: { station: Station }) {
@@ -56,7 +56,7 @@ export default function RadioScreen() {
   ];
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={sections}
         keyExtractor={(s) => s.title || 'featured'}
@@ -86,6 +86,6 @@ export default function RadioScreen() {
           </Text>
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

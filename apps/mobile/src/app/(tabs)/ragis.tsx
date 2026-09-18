@@ -1,8 +1,8 @@
 import { useArtists } from '@kp/api';
 import { useRouter } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { ArtTile } from '~/components/ArtTile';
 import { artistPhotoUrl, supabase } from '~/lib/supabase';
 
@@ -11,7 +11,7 @@ export default function RagisScreen() {
   const query = useArtists(supabase);
 
   return (
-    <SafeAreaView edges={['top']} className="flex-1 bg-background">
+    <Screen edges={['top']} className="flex-1 bg-background">
       <FlatList
         data={query.data ?? []}
         keyExtractor={(a) => a.name}
@@ -41,6 +41,6 @@ export default function RagisScreen() {
           )
         }
       />
-    </SafeAreaView>
+    </Screen>
   );
 }

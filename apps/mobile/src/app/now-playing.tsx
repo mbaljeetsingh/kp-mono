@@ -18,10 +18,10 @@ import {
 } from '@kp/core';
 import { useRouter } from 'expo-router';
 import { ChevronDown, Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
 import { ArtTile } from '~/components/ArtTile';
 import { ShabadSearch } from '~/components/ShabadSearch';
@@ -51,7 +51,11 @@ export default function NowPlayingScreen() {
    * exactly when somebody most wants it.
    */
   const [lookedUp, setLookedUp] = useState<number | null>(null);
-  useEffect(() => setLookedUp(null), [current?.id]);
+  useEffect(() => {
+    setLookedUp(null);
+    lineTops.current = {};
+    scrolledTo.current = null;
+  }, [current?.id]);
 
   const shabadId = current?.shabadId ?? lookedUp;
   const query = useShabadText(BANIDB_BASE, shabadId);
@@ -62,11 +66,76 @@ export default function NowPlayingScreen() {
 
   const [trackWidth, setTrackWidth] = useState(0);
 
+  /**
+   * Follow the singing.
+   *
+   * React Native has no scrollIntoView, so each line reports its own offset on
+   * layout and the scroll is aimed at the one being sung. Offsets are held in a
+   * ref rather than state — they arrive one per line during layout, and storing
+   * them in state would re-render the whole shabad once per line.
+   */
+  const scroller = useRef<ScrollView>(null);
+  const lineTops = useRef<Record<number, number>>({});
+  const viewportHeight = useRef(0);
+
+  /**
+   * The panel is the reader's once they drag it. Somebody who scrolled down to
+   * read a later translation must not be yanked back every time the singing
+   * advances; following resumes after a pause.
+   */
+  const READER_HOLD_MS = 8000;
+  const draggedAt = useRef(0);
+
+  // Falls back to the tagger's anchor when nothing is being sung, so opening
+  // mid-alaap still lands on the refrain rather than the top of the shabad.
+  const anchorId = lit ?? current?.mainVerseId ?? null;
+
+  /**
+   * Scroll the sung line into the middle.
+   *
+   * Attempted from two places on purpose. The effect covers the anchor
+   * changing while the shabad is already laid out; `rememberLine` covers the
+   * opposite order, which is the common one — on open, the anchor is known
+   * before a single line has reported its offset, so an effect that only ran
+   * once found nothing and never tried again. `scrolledTo` keeps the two from
+   * fighting over the same line.
+   */
+  const scrolledTo = useRef<number | null>(null);
+
+  const scrollToAnchor = useCallback((verseId: number | null) => {
+    if (verseId == null || scrolledTo.current === verseId) return;
+    const top = lineTops.current[verseId];
+    if (top == null) return;
+    // The panel is the reader's for a while after they drag it: somebody who
+    // scrolled down to read a later translation must not be yanked back every
+    // time the singing advances.
+    if (Date.now() - draggedAt.current < READER_HOLD_MS) return;
+
+    scrolledTo.current = verseId;
+    scroller.current?.scrollTo({
+      y: Math.max(0, top - viewportHeight.current / 2),
+      animated: true,
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollToAnchor(anchorId);
+  }, [anchorId, scrollToAnchor]);
+
+  const rememberLine = useCallback(
+    (verseId: number, y: number) => {
+      lineTops.current[verseId] = y;
+      // The layout that finally makes the opening scroll possible.
+      if (verseId === anchorId) scrollToAnchor(verseId);
+    },
+    [anchorId, scrollToAnchor]
+  );
+
   if (!current) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-background">
+      <Screen className="flex-1 items-center justify-center bg-background">
         <Text className="text-muted-foreground">Nothing playing.</Text>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -74,7 +143,7 @@ export default function NowPlayingScreen() {
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
   return (
-    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }} className="bg-background">
+    <Screen edges={['top', 'bottom']} className="bg-background">
       <View className="flex-row items-center px-2 pt-2">
         <Pressable
           onPress={() => router.back()}
@@ -104,10 +173,15 @@ export default function NowPlayingScreen() {
         </View>
       </View>
 
-      {/* Explicit flex: a collapsed scroll area put the transport directly
-          under the header and clipped the read-along entirely. `min-h-0` is a
-          web idea and does nothing here. */}
-      <ScrollView style={{ flex: 1 }} className="px-4">
+      <ScrollView
+        ref={scroller}
+        onScrollBeginDrag={() => {
+          draggedAt.current = Date.now();
+        }}
+        onLayout={(e) => {
+          viewportHeight.current = e.nativeEvent.layout.height;
+        }}
+        className="flex-1 px-4">
         {!shabadId ? (
           <View className="gap-3 py-4">
             <Text className="text-sm text-muted-foreground">
@@ -132,7 +206,9 @@ export default function NowPlayingScreen() {
 
         <View className="gap-3 pb-4">
           {lines.map((line) => (
-            <View key={line.verseId}>
+            <View
+              key={line.verseId}
+              onLayout={(e) => rememberLine(line.verseId, e.nativeEvent.layout.y)}>
               <Text
                 className={
                   line.verseId === lit ? 'text-base text-primary' : 'text-base text-muted-foreground'
@@ -221,6 +297,6 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
