@@ -116,6 +116,13 @@ export function SegmentEditor({
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ['renditions', trackId] });
     void queryClient.invalidateQueries({ queryKey: ['recordings'] });
+    /*
+     * The review queue too. Everything this form does — propose, publish,
+     * unpublish, delete — changes what is waiting there, and without this the
+     * page that exists to show proposals kept a five-minute-stale count: save a
+     * draft, open Review, and the thing you just proposed was not in it.
+     */
+    void queryClient.invalidateQueries({ queryKey: ['pending'] });
   }
 
   async function run(work: () => Promise<unknown>) {
