@@ -14,12 +14,16 @@ import {
   type Draft,
   type Rendition,
 } from '@kp/api';
-import { overlapping, type TimelineSegment } from '@kp/core';
+import { overlapping, prettyShabadName, type TimelineSegment } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { Input } from '@kp/ui/input';
 import { Label } from '@kp/ui/label';
+import { ShabadSearch } from '@kp/ui/app/shabad-search';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+
+import { BANIDB_BASE } from '~/lib/links';
 
 import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
@@ -60,16 +64,32 @@ export function SegmentEditor({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  /**
+   * The linked shabad.
+   *
+   * Optional and additive, but it is the tag worth investing in: once set, raag,
+   * ang, author and the lyrics all come from BaniDB for free, and the aligner
+   * can give this rendition per-line timings.
+   */
+  const [shabadId, setShabadId] = useState<number | null>(null);
+  const [mainVerseId, setMainVerseId] = useState<number | null>(null);
+  const [linkedLine, setLinkedLine] = useState<string>('');
+  const [searching, setSearching] = useState(false);
+
   // Reload the form whenever the target changes — including to null, which is
   // "start a new one" and must not inherit the last segment's name.
   useEffect(() => {
     setError(null);
+    setSearching(false);
+    setLinkedLine('');
     if (editing) {
       setName(editing.name);
       setRaag(editing.raag ?? '');
       setArtist(editing.artist ?? '');
       setStart(Number(editing.start_sec));
       setEnd(Number(editing.end_sec));
+      setShabadId(editing.shabad_id ?? null);
+      setMainVerseId(editing.main_verse_id ?? null);
       return;
     }
     setName('');
@@ -77,6 +97,8 @@ export function SegmentEditor({
     setArtist('');
     setStart(position);
     setEnd(position);
+    setShabadId(null);
+    setMainVerseId(null);
     // `position` is deliberately absent from the deps: re-running on every
     // 100ms tick would drag the boundaries along with playback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,6 +134,8 @@ export function SegmentEditor({
       end_sec: Number(end.toFixed(2)),
       raag: raag.trim() || null,
       artist: artist.trim() || null,
+      shabad_id: shabadId,
+      main_verse_id: mainVerseId,
     };
   }
 
@@ -163,6 +187,56 @@ export function SegmentEditor({
           onNudge={(by) => setEnd((v) => Math.max(0, v + by))}
           onSeek={() => onSeek(end)}
         />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label>Shabad</Label>
+        {shabadId ? (
+          <div className="flex items-center gap-2 rounded-lg bg-accent/50 px-3 py-2">
+            <Link2 className="size-4 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1 truncate text-sm">
+              {linkedLine || `Shabad ${shabadId}`}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Unlink this shabad"
+              onClick={() => {
+                setShabadId(null);
+                setMainVerseId(null);
+                setLinkedLine('');
+              }}>
+              <X />
+            </Button>
+          </div>
+        ) : searching ? (
+          <ShabadSearch
+            base={BANIDB_BASE}
+            onSelect={(pick) => {
+              setShabadId(pick.shabadId);
+              // The line they searched for and clicked is the anchor: people
+              // recognise a rendition by its rahao, not by the shabad's first
+              // line, and that click is a stronger signal than any heuristic.
+              setMainVerseId(pick.verseId);
+              setLinkedLine(pick.firstLine);
+              // Only fills an empty field — never overwrite a name somebody
+              // already typed.
+              if (!name.trim() && pick.transliteration) {
+                setName(prettyShabadName(pick.transliteration));
+              }
+              setSearching(false);
+            }}
+          />
+        ) : (
+          <Button variant="outline" size="sm" className="self-start" onClick={() => setSearching(true)}>
+            <Link2 />
+            Link a shabad
+          </Button>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Optional, and the tag worth investing in: raag, ang, author and the lyrics all follow
+          from it, and the aligner can then time each line.
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
