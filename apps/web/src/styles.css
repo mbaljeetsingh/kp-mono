@@ -1,0 +1,4 @@
+@import 'tailwindcss';
+/* The token source both apps share. Mobile imports the same file through
+   NativeWind v5, which is why Tailwind 4 on both sides was worth the RC. */
+@import '@kp/tokens/theme.css';

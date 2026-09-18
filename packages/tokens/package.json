@@ -1,0 +1,9 @@
+{
+  "name": "@kp/tokens",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./theme.css": "./theme.css",
+    "./brand/*": "./brand/*"
+  }
+}
