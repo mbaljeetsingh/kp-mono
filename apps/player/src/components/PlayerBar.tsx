@@ -29,11 +29,14 @@ export function PlayerBar() {
     <>
       <footer className="border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3">
+          {/* Tapping opens the sheet only where there is no side panel. On a
+              wide screen the full player is already on screen, so a sheet over
+              the top of it would be a second copy of the same thing. */}
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
             aria-label="Open the full player"
-            className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            className="flex min-w-0 flex-1 items-center gap-3 text-left lg:pointer-events-none">
             <ArtTile
               name={current.artist ?? current.title}
               src={artistPhotoUrl(current.artistPhoto)}
@@ -46,7 +49,7 @@ export function PlayerBar() {
               </span>
               {current.isLive ? <LiveBadge /> : null}
             </span>
-            <ChevronUp className="size-4 shrink-0 text-muted-foreground sm:hidden" />
+            <ChevronUp className="size-4 shrink-0 text-muted-foreground lg:hidden" />
           </button>
 
           <div className="hidden flex-[2] flex-col items-center gap-1 sm:flex">

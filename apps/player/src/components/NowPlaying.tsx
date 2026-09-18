@@ -31,7 +31,15 @@ import { artistPhotoUrl } from '~/lib/supabase';
  * On a phone the bar is covered by the sheet, so there the sheet has to carry
  * them.
  */
-function Body({ onClose, transport = true }: { onClose?: () => void; transport?: boolean }) {
+function Body({
+  onClose,
+  transport = true,
+  header = true,
+}: {
+  onClose?: () => void;
+  transport?: boolean;
+  header?: boolean;
+}) {
   const current = usePlayer((s) => s.current);
   if (!current) return null;
 
@@ -41,6 +49,7 @@ function Body({ onClose, transport = true }: { onClose?: () => void; transport?:
           transport is pinned below the scrolling text for the same reason every
           music app puts it there: the bottom third of a phone is where a thumb
           already rests, and anything higher needs a second hand. */}
+      {header ? (
       <div className="flex items-center gap-3 px-4 pb-3">
         <ArtTile
           name={current.artist ?? current.title}
@@ -66,6 +75,7 @@ function Body({ onClose, transport = true }: { onClose?: () => void; transport?:
         {/* A broadcast is not something to save — there is no rendition behind it. */}
         {current.isLive ? null : <FavoriteButton id={current.id} name={current.title} />}
       </div>
+      ) : null}
 
       <Tabs defaultValue="lyrics" className="flex min-h-0 flex-1 flex-col">
         <TabsList className="mx-4 self-start">
@@ -126,7 +136,10 @@ export function NowPlayingSheet({
 export function NowPlayingPanel() {
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-border py-4 lg:flex">
-      <Body transport={false} />
+      {/* No header and no transport: the bar directly below already carries
+          the artwork, the title, the artist and every control, and repeating
+          them an inch apart is just noise. The panel is the tabs. */}
+      <Body transport={false} header={false} />
     </aside>
   );
 }
