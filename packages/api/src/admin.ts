@@ -213,14 +213,74 @@ export async function setRenditionStatus(
   id: string,
   status: 'draft' | 'published'
 ): Promise<void> {
-  const { error } = await client
+  const { data, error } = await client
     .from('renditions')
     .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id);
+    .eq('id', id)
+    // `select('id')` is what makes a refused write visible. RLS *filters* rows
+    // out of an UPDATE rather than rejecting it, so without asking for the
+    // changed row back a forbidden publish returns no error and looks exactly
+    // like a successful one — the button would report success and the shabad
+    // would never appear in the player.
+    .select('id');
   if (error) throw error;
+  if (!data?.length) {
+    throw new Error('That change was not permitted — your trust level may not allow it.');
+  }
 }
 
 export async function deleteRendition(client: KpClient, id: string): Promise<void> {
-  const { error } = await client.from('renditions').delete().eq('id', id);
+  // Same as the status change: a DELETE the policy filters out succeeds with
+  // nothing deleted.
+  const { data, error } = await client.from('renditions').delete().eq('id', id).select('id');
   if (error) throw error;
+  if (!data?.length) {
+    throw new Error('That delete was not permitted.');
+  }
+}
+
+
+/**
+ * Whether this row can be promoted to published by this account.
+ *
+ * Reviewers can do it to anything. Publish-without-review can only do it to
+ * their own unpublished work, and only once: the UPDATE policy stops matching
+ * the row the moment it goes published, which is why those accounts get a
+ * one-way button where a reviewer gets a two-state control.
+ */
+export function canPublishRendition(
+  row: { status: string; created_by?: string | null },
+  perms: { review: boolean; publish: boolean },
+  // Undefined as well as null: "we do not know who you are yet" must fall
+  // through to the same answer as "you are nobody" — no button.
+  userId: string | null | undefined
+): boolean {
+  if (!perms.publish || row.status === 'published') return false;
+  return perms.review || row.created_by === userId;
+}
+
+/** Everything a contributor has proposed and nobody has published yet. */
+export interface PendingRendition extends Rendition {
+  created_by: string | null;
+  created_at: string;
+  tracks: { artist_dir: string | null; date: string | null; url: string; raw_filename: string | null } | null;
+}
+
+export async function fetchPending(client: KpClient): Promise<PendingRendition[]> {
+  const { data, error } = await client
+    .from('renditions')
+    .select('*, tracks(artist_dir, date, url, raw_filename)')
+    .neq('status', 'published')
+    .order('created_at', { ascending: true })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []) as PendingRendition[];
+}
+
+export function usePending(client: KpClient, enabled: boolean) {
+  return useQuery({
+    queryKey: ['pending'],
+    queryFn: () => fetchPending(client),
+    enabled,
+  });
 }

@@ -7,13 +7,14 @@
  */
 import { signOut, useAuth } from '@kp/api';
 import { Link, Outlet } from '@tanstack/react-router';
-import { ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react';
+import { ClipboardCheck, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react';
 
 import { SignIn } from '~/components/SignIn';
 import { supabase } from '~/lib/supabase';
 
 const NAV = [
   { to: '/', label: 'Queue', icon: ListChecks },
+  { to: '/pending', label: 'Review', icon: ClipboardCheck },
   { to: '/users', label: 'Users', icon: Users },
   { to: '/permissions', label: 'Permissions', icon: ShieldCheck },
 ] as const;

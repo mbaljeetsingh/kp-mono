@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
 
+import { PendingRoute } from '~/routes/pending';
 import { PermissionsRoute } from '~/routes/permissions';
 import { QueueRoute } from '~/routes/queue';
 import { RootLayout } from '~/routes/root';
@@ -18,6 +19,11 @@ const tagRoute = createRoute({
   path: '/tag/$id',
   component: TagRoute,
 });
+const pendingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/pending',
+  component: PendingRoute,
+});
 const usersRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/users',
@@ -30,7 +36,7 @@ const permissionsRoute = createRoute({
 });
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([queueRoute, tagRoute, usersRoute, permissionsRoute]),
+  routeTree: rootRoute.addChildren([queueRoute, tagRoute, pendingRoute, usersRoute, permissionsRoute]),
 });
 
 declare module '@tanstack/react-router' {
