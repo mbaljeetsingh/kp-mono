@@ -33,30 +33,33 @@ export function PlayerBar() {
               wide screen the full player is already on screen, so a sheet over
               the top of it would be a second copy of the same thing. */}
           <div className="flex min-w-0 flex-1 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
-            aria-label="Open the full player"
-            className="flex min-w-0 flex-1 items-center gap-3 text-left lg:pointer-events-none">
-            <ArtTile
-              name={current.artist ?? current.title}
-              src={artistPhotoUrl(current.artistPhoto)}
-              className="size-10 text-lg"
-            />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{current.title}</span>
-              {/* Inline with the subtitle, not under it: on its own line the
+            <button
+              type="button"
+              onClick={() => setSheetOpen(true)}
+              aria-label="Open the full player"
+              className="flex min-w-0 flex-1 items-center gap-3 text-left lg:pointer-events-none"
+            >
+              <ArtTile
+                name={current.artist ?? current.title}
+                src={artistPhotoUrl(current.artistPhoto)}
+                className="size-10 text-lg"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">
+                  {current.title}
+                </span>
+                {/* Inline with the subtitle, not under it: on its own line the
                   badge wrapped below the transport and pushed the whole strip
                   out of alignment whenever a station was playing. */}
-              <span className="flex min-w-0 items-center gap-2">
-                {current.isLive ? <LiveBadge /> : null}
-                <span className="truncate text-xs text-muted-foreground">
-                  {current.subtitle ?? current.artist}
+                <span className="flex min-w-0 items-center gap-2">
+                  {current.isLive ? <LiveBadge /> : null}
+                  <span className="truncate text-xs text-muted-foreground">
+                    {current.subtitle ?? current.artist}
+                  </span>
                 </span>
               </span>
-            </span>
-            <ChevronUp className="size-4 shrink-0 text-muted-foreground lg:hidden" />
-          </button>
+              <ChevronUp className="size-4 shrink-0 text-muted-foreground lg:hidden" />
+            </button>
 
             {/* Beside the thing it applies to, which is the title — on the far
                 right it read as part of the transport, and it is not: it says
@@ -64,11 +67,18 @@ export function PlayerBar() {
                 A broadcast is not something to save — there is no rendition
                 behind it. */}
             {current.isLive ? null : (
-              <FavoriteButton id={current.id} name={current.title} className="hidden sm:flex" />
+              <FavoriteButton
+                id={current.id}
+                name={current.title}
+                className="hidden sm:flex"
+              />
             )}
           </div>
 
-          <div className="hidden flex-[2] flex-col items-center gap-1 sm:flex">
+          {/* The height is the column's, not the seek bar's — a live feed draws
+              no scrubber, and the controls centre in the space instead of
+              riding at the top of an empty one. */}
+          <div className="hidden min-h-16 flex-[2] flex-col items-center justify-center gap-1 sm:flex">
             <PlayerControls />
             <SeekBar />
           </div>

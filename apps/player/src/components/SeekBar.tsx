@@ -5,7 +5,12 @@
  * component that genuinely needs 10Hz, and it should be the only thing paying
  * for it.
  */
-import { progressPct, seekTargetForPct, elapsedIn, segmentTotal } from '@kp/core';
+import {
+  progressPct,
+  seekTargetForPct,
+  elapsedIn,
+  segmentTotal,
+} from '@kp/core';
 import { useRef } from 'react';
 
 import { playerActions, usePlayer } from '~/lib/player';
@@ -19,11 +24,12 @@ export function SeekBar() {
 
   /**
    * A broadcast has no timeline to scrub and no end to scrub towards, and it
-   * already says LIVE beside the title — a second badge here was the same word
-   * twice. The row still holds its height: without it the transport slides
-   * down and off-centre every time a station is playing.
+   * already says LIVE beside the title. Nothing is drawn rather than an inert
+   * track: a greyed-out bar still claims there is a length to be part-way
+   * through. The transport's column holds the height instead, so the bar does
+   * not change size when a station starts.
    */
-  if (current?.isLive) return <div className="h-6 w-full" />;
+  if (current?.isLive) return null;
 
   const pct = progressPct(current, position, duration);
 
@@ -53,9 +59,13 @@ export function SeekBar() {
           // Five seconds, the same nudge the arrow keys give everywhere else.
           if (e.key === 'ArrowRight') playerActions.seek(position + 5);
           if (e.key === 'ArrowLeft') playerActions.seek(position - 5);
-        }}>
+        }}
+      >
         <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${pct}%` }}
+          />
         </div>
       </div>
       <span className="w-10 shrink-0 text-xs tabular-nums text-muted-foreground">

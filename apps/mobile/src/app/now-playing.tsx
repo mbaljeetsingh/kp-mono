@@ -28,7 +28,13 @@ import {
   SkipForward,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  type LayoutChangeEvent,
+} from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
@@ -40,7 +46,6 @@ import { playerActions, usePlayer } from '~/lib/player';
 import { artistPhotoUrl } from '~/lib/supabase';
 
 /** BaniDB, direct on native: there is no browser origin to be blocked by CORS. */
-
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -161,7 +166,8 @@ export default function NowPlayingScreen() {
         <Pressable
           onPress={() => router.back()}
           accessibilityLabel="Close"
-          className="size-10 items-center justify-center">
+          className="size-10 items-center justify-center"
+        >
           <ChevronDown size={22} color={colors.foreground} />
         </Pressable>
       </View>
@@ -190,13 +196,20 @@ export default function NowPlayingScreen() {
           <Pressable
             onPress={() => favorites.toggle(current.id)}
             accessibilityLabel={
-              favorites.has(current.id) ? `Remove ${current.title} from saved` : `Save ${current.title}`
+              favorites.has(current.id)
+                ? `Remove ${current.title} from saved`
+                : `Save ${current.title}`
             }
             hitSlop={8}
-            className="size-10 items-center justify-center">
+            className="size-10 items-center justify-center"
+          >
             <Heart
               size={20}
-              color={favorites.has(current.id) ? colors.primary : colors.mutedForeground}
+              color={
+                favorites.has(current.id)
+                  ? colors.primary
+                  : colors.mutedForeground
+              }
               fill={favorites.has(current.id) ? colors.primary : 'transparent'}
             />
           </Pressable>
@@ -212,8 +225,15 @@ export default function NowPlayingScreen() {
               tab === value
                 ? 'flex-1 items-center rounded-lg bg-muted py-2'
                 : 'flex-1 items-center rounded-lg py-2'
-            }>
-            <Text className={tab === value ? 'text-sm text-primary' : 'text-sm text-muted-foreground'}>
+            }
+          >
+            <Text
+              className={
+                tab === value
+                  ? 'text-sm text-primary'
+                  : 'text-sm text-muted-foreground'
+              }
+            >
               {value === 'lyrics' ? 'Read along' : 'Up next'}
             </Text>
           </Pressable>
@@ -228,82 +248,101 @@ export default function NowPlayingScreen() {
         onLayout={(e) => {
           viewportHeight.current = e.nativeEvent.layout.height;
         }}
-        className="flex-1 px-4">
+        className="flex-1 px-4"
+      >
         {tab === 'queue' ? (
           <QueueList />
         ) : (
-        <>
-        {!shabadId ? (
-          <View className="gap-3 py-4">
-            <Text className="text-sm text-muted-foreground">
-              {current.isLive
-                ? 'Nothing is tagged on a live broadcast — search for the line you are hearing.'
-                : 'No shabad linked to this rendition yet — search for the line you are hearing.'}
-            </Text>
-            <ShabadSearch onSelect={setLookedUp} />
-          </View>
-        ) : null}
-
-        {/* A looked-up shabad is the listener's guess, not a tag. */}
-        {!current.shabadId && lookedUp ? (
-          <Text className="pb-2 text-xs text-muted-foreground">
-            You looked this up — it is not tagged to this recording.
-          </Text>
-        ) : null}
-
-        {query.isLoading ? (
-          <Text className="py-6 text-center text-sm text-muted-foreground">Loading the shabad…</Text>
-        ) : null}
-
-        <View className="gap-3 pb-4">
-          {lines.map((line) => (
-            <View
-              key={line.verseId}
-              onLayout={(e) => rememberLine(line.verseId, e.nativeEvent.layout.y)}>
-              <Text
-                className={
-                  line.verseId === lit ? 'text-base text-primary' : 'text-base text-muted-foreground'
-                }>
-                {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
-              </Text>
-              {line.translation?.en?.bdb ? (
-                <Text className="pt-0.5 text-xs text-muted-foreground">
-                  {line.translation.en.bdb}
+          <>
+            {!shabadId ? (
+              <View className="gap-3 py-4">
+                <Text className="text-sm text-muted-foreground">
+                  {current.isLive
+                    ? 'Nothing is tagged on a live broadcast — search for the line you are hearing.'
+                    : 'No shabad linked to this rendition yet — search for the line you are hearing.'}
                 </Text>
-              ) : null}
-            </View>
-          ))}
-        </View>
+                <ShabadSearch onSelect={setLookedUp} />
+              </View>
+            ) : null}
 
-        {/* Said once, at the foot, so nobody reads a static highlight as a bug. */}
-        {lines.length && !isAligned(current) ? (
-          <Text className="pb-6 text-center text-xs text-muted-foreground">
-            This rendition has no line timings yet — the highlight is the tagged line.
-          </Text>
-        ) : null}
-        </>
+            {/* A looked-up shabad is the listener's guess, not a tag. */}
+            {!current.shabadId && lookedUp ? (
+              <Text className="pb-2 text-xs text-muted-foreground">
+                You looked this up — it is not tagged to this recording.
+              </Text>
+            ) : null}
+
+            {query.isLoading ? (
+              <Text className="py-6 text-center text-sm text-muted-foreground">
+                Loading the shabad…
+              </Text>
+            ) : null}
+
+            <View className="gap-3 pb-4">
+              {lines.map((line) => (
+                <View
+                  key={line.verseId}
+                  onLayout={(e) =>
+                    rememberLine(line.verseId, e.nativeEvent.layout.y)
+                  }
+                >
+                  <Text
+                    className={
+                      line.verseId === lit
+                        ? 'text-base text-primary'
+                        : 'text-base text-muted-foreground'
+                    }
+                  >
+                    {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
+                  </Text>
+                  {line.translation?.en?.bdb ? (
+                    <Text className="pt-0.5 text-xs text-muted-foreground">
+                      {line.translation.en.bdb}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+
+            {/* Said once, at the foot, so nobody reads a static highlight as a bug. */}
+            {lines.length && !isAligned(current) ? (
+              <Text className="pb-6 text-center text-xs text-muted-foreground">
+                This rendition has no line timings yet — the highlight is the
+                tagged line.
+              </Text>
+            ) : null}
+          </>
         )}
       </ScrollView>
 
       <View className="gap-3 border-t border-border px-4 pb-4 pt-3">
         {/* A broadcast has no timeline to scrub, and it already says LIVE beside
-            the title — a second badge here was the same word twice. The row
-            keeps its height so the transport does not jump. */}
-        {current.isLive ? (
-          <View className="h-6" />
-        ) : (
+            the title. Nothing is drawn rather than an inert track: a greyed-out
+            bar still claims there is a length to be part-way through. */}
+        {current.isLive ? null : (
           <View className="gap-1">
             <Pressable
-              onLayout={(e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width)}
+              onLayout={(e: LayoutChangeEvent) =>
+                setTrackWidth(e.nativeEvent.layout.width)
+              }
               onPress={(e) => {
                 if (!trackWidth) return;
-                const ratio = Math.min(1, Math.max(0, e.nativeEvent.locationX / trackWidth));
-                playerActions.seek(seekTargetForPct(current, ratio * 100, duration));
+                const ratio = Math.min(
+                  1,
+                  Math.max(0, e.nativeEvent.locationX / trackWidth)
+                );
+                playerActions.seek(
+                  seekTargetForPct(current, ratio * 100, duration)
+                );
               }}
               accessibilityLabel="Seek"
-              className="h-6 justify-center">
+              className="h-6 justify-center"
+            >
               <View className="h-1 overflow-hidden rounded-full bg-muted">
-                <View className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                <View
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${pct}%` }}
+                />
               </View>
             </Pressable>
             <View className="flex-row justify-between">
@@ -322,23 +361,40 @@ export default function NowPlayingScreen() {
             onPress={playerActions.previous}
             disabled={current.isLive}
             accessibilityLabel="Previous"
-            className="size-12 items-center justify-center">
-            <SkipBack size={22} color={current.isLive ? colors.mutedForeground : colors.foreground} />
+            className="size-12 items-center justify-center"
+          >
+            <SkipBack
+              size={22}
+              color={
+                current.isLive ? colors.mutedForeground : colors.foreground
+              }
+            />
           </Pressable>
 
           <Pressable
             onPress={playerActions.toggle}
             accessibilityLabel={playing ? 'Pause' : 'Play'}
-            className="size-16 items-center justify-center rounded-full bg-primary">
-            {playing ? <Pause size={26} color={colors.primaryForeground} /> : <Play size={26} color={colors.primaryForeground} />}
+            className="size-16 items-center justify-center rounded-full bg-primary"
+          >
+            {playing ? (
+              <Pause size={26} color={colors.primaryForeground} />
+            ) : (
+              <Play size={26} color={colors.primaryForeground} />
+            )}
           </Pressable>
 
           <Pressable
             onPress={playerActions.next}
             disabled={current.isLive}
             accessibilityLabel="Next"
-            className="size-12 items-center justify-center">
-            <SkipForward size={22} color={current.isLive ? colors.mutedForeground : colors.foreground} />
+            className="size-12 items-center justify-center"
+          >
+            <SkipForward
+              size={22}
+              color={
+                current.isLive ? colors.mutedForeground : colors.foreground
+              }
+            />
           </Pressable>
 
           <Pressable
@@ -346,8 +402,12 @@ export default function NowPlayingScreen() {
             // The name states what is on, not what a press would do — a cycle
             // of three has no single "would do".
             accessibilityLabel={REPEAT_LABELS[repeat]}
-            className="size-12 items-center justify-center">
-            <RepeatIcon size={20} color={repeat === 'off' ? colors.mutedForeground : colors.primary} />
+            className="size-12 items-center justify-center"
+          >
+            <RepeatIcon
+              size={20}
+              color={repeat === 'off' ? colors.mutedForeground : colors.primary}
+            />
           </Pressable>
         </View>
       </View>
