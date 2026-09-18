@@ -57,6 +57,16 @@ export function Timeline({
 }: Props) {
   const bar = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
+  /**
+   * What the pointer is over, as a fraction of the axis.
+   *
+   * Tracked from the seek surface rather than from the bands themselves: the
+   * paint layer is `pointer-events-none` so that a click anywhere on the axis
+   * seeks, which also means a band can never receive a hover — the `title` that
+   * used to sit on them could not fire at all. Reading the position here gets
+   * the label out of a 2px band as easily as a wide one.
+   */
+  const [hover, setHover] = useState<{ at: number; ratio: number } | null>(null);
 
   useEffect(() => {
     const node = bar.current;
@@ -139,6 +149,14 @@ export function Timeline({
   const playPct = pct(position) ?? 0;
   const gaps = untaggedGaps(segments, duration);
 
+  /*
+   * Last match wins, matching what the eye sees: bands are painted in order, so
+   * where two overlap the one drawn on top is the one being pointed at.
+   */
+  const hovered = hover
+    ? [...segments].reverse().find((s) => hover.at >= s.start && hover.at <= s.end)
+    : undefined;
+
   /** A span as CSS, with a floor so a 20-second shabad in a 90-minute set is
    *  still visible rather than a sub-pixel sliver. */
   const span = (from: number, to: number) => ({
@@ -168,6 +186,13 @@ export function Timeline({
           aria-label="Seek"
           aria-valuetext={clock(position)}
           onChange={(e) => onSeek((duration * Number(e.target.value)) / 100)}
+          onPointerMove={(e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            if (!box.width) return;
+            const ratio = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width));
+            setHover({ at: ratio * duration, ratio });
+          }}
+          onPointerLeave={() => setHover(null)}
           className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0"
         />
 
@@ -178,7 +203,6 @@ export function Timeline({
           {segments.map((s) => (
             <div
               key={s.id}
-              title={`${s.name} · ${clock(s.start)}–${clock(s.end)}`}
               style={span(s.start, s.end)}
               className={cn(
                 'absolute inset-y-0 flex items-center overflow-hidden rounded-sm px-1.5',
@@ -221,6 +245,34 @@ export function Timeline({
         >
           <span className="absolute -top-px -left-[3px] size-[7px] rounded-full bg-foreground" />
         </div>
+
+        {/*
+         * The readout. Above the axis rather than inside a band, because a
+         * band narrow enough to truncate its name is also too narrow to hold a
+         * tooltip — and the whole reason to hover is that the label was cut.
+         * Clamped to the bar so it cannot hang off either end, and
+         * pointer-events-none so it never steals the drag it is describing.
+         */}
+        {hover ? (
+          <div
+            className="pointer-events-none absolute -top-8 z-40 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-[11px] text-popover-foreground shadow-md"
+            style={{ left: `${Math.min(88, Math.max(12, hover.ratio * 100))}%` }}
+          >
+            {hovered ? (
+              <>
+                <span className={hovered.published ? 'text-emerald-300' : 'text-amber-300'}>
+                  {hovered.name}
+                </span>
+                <span className="text-muted-foreground">
+                  {' · '}
+                  {clock(hovered.start)}–{clock(hovered.end)}
+                </span>
+              </>
+            ) : (
+              <span className="tabular-nums text-muted-foreground">{clock(hover.at)}</span>
+            )}
+          </div>
+        ) : null}
 
         {/* Handles last, and the only layer that takes pointer events besides
             the seek surface — a drag must never fall through to a seek. */}
