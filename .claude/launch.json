@@ -2,11 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web",
+      "name": "player",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
         "--filter",
-        "@kp/web",
+        "@kp/player",
         "dev"
       ],
       "port": 3000
@@ -16,7 +16,7 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": [
         "--filter",
-        "@kp/admin-react",
+        "@kp/admin",
         "dev"
       ],
       "port": 3001

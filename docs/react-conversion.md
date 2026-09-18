@@ -20,7 +20,7 @@ learn the stack on a project worth caring about, taken with the cost understood.
 ```
 apps/
   mobile/   Expo SDK 57 · Expo Router · expo-audio · NativeWind v5
-  web/      Vite · React · TanStack Router · Tailwind 4 · shadcn/ui   (player)
+  player/   Vite · React · TanStack Router · Tailwind 4 · shadcn/ui
   admin/    Vite · React · TanStack Router · Tailwind 4 · shadcn/ui   (workbench)
 packages/
   core/     segment model, row mapper, repeat, timings — no framework
@@ -101,13 +101,28 @@ TypeScript.
    device. Everything downstream assumes it.
 3. `packages/player` and `packages/api` — factored out once the native side's
    shape is known rather than guessed at.
-4. `apps/web` — the React player, reusing 1–3.
+4. `apps/player` — the React player, reusing 1–3.
 5. `apps/admin` — last. No mobile surface, no reference implementation pressure.
 
-The Nuxt apps keep serving production until 4 and 5 land. Work happens on
-`react-conversion`; `netlify-ignore.sh` and `turbo.json` both name `layers/ui`
-and `shared-theme/`, which disappear in this conversion — update them with the
-cutover or both sites quietly stop deploying.
+## Cutover
+
+Done on `react-conversion`. The Nuxt apps, `layers/ui`, `shared-theme/` and the
+root `components.json` are deleted; the React apps took their names. The root
+`package.json` had a pile of runtime dependencies that existed only because the
+shadcn-vue CLI installs component deps at the root — all gone, so the root holds
+tooling again.
+
+`netlify-ignore.sh` and `turbo.json` both named `layers/ui` and `shared-theme/`,
+and neither fails loudly when wrong: a stale path list means a site quietly
+stops deploying. Both are updated. `turbo-ignore` is now a genuine option for
+that script, since the gap that blocked it — tokens living outside every
+workspace glob — is closed by `packages/tokens`.
+
+**Netlify needs changing by hand.** Each site's build command and publish
+directory live in the Netlify dashboard, not in `netlify.toml`, and they still
+point at a Nuxt SSR build. Both sites now want a Vite SPA: build
+`pnpm build:player` / `pnpm build:admin`, publish `apps/<app>/dist`, with an
+SPA redirect so client-side routes resolve.
 
 ## Testing
 

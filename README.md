@@ -12,13 +12,27 @@ See [docs/BRD.md](docs/BRD.md), [docs/PRD.md](docs/PRD.md), and
 
 ```
 apps/player/       public listening app — account optional (favorites, playlists)
-apps/admin/        tagging workbench — auth required (SPA)
+apps/admin/        tagging workbench — auth required
+apps/mobile/       Expo app — the reason any of this is native (background audio)
+
+packages/core/     the playback and tagging model: segments, queue, read-along,
+                   coverage. Plain TypeScript, no framework, and the only place
+                   those rules exist.
+packages/playback/ player store + the audio driver seam (expo-audio | <audio>)
+packages/api/      Supabase client, Zod schemas, TanStack Query hooks
+packages/ui/       shadcn/ui, shared by player and admin
+packages/tokens/   theme and brand marks, shared by web and mobile
+packages/shared/   types, stations, ragas
+
 packages/crawler/  crawls sgpc.net → JSON → Postgres. Runs on cron, not in an app.
 packages/aligner/  Python: suggests shabads from audio, writes line timings.
                    Same shape as the crawler — cron or by hand, never in an app.
-packages/shared/   shared types
 supabase/          migrations
 ```
+
+The frontends are React: Vite + TanStack Router on the web, Expo on mobile.
+They were Nuxt until [docs/react-conversion.md](docs/react-conversion.md),
+which records what moved and why.
 
 ## Running locally
 
@@ -26,7 +40,7 @@ supabase/          migrations
 pnpm install
 npx supabase start                              # Postgres + Auth + Studio
 pnpm --filter @kp/player dev                    # → :3000
-pnpm --filter @kp/admin  dev --port 3001        # → :3001
+pnpm --filter @kp/admin  dev                    # → :3001
 ```
 
 That is the whole first run: a committed seed (`supabase/seed.sql`, issue #27)

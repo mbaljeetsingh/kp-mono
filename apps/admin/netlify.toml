@@ -1,2 +1,10 @@
 [build]
   ignore = "bash scripts/netlify-ignore.sh admin"
+
+# TanStack Router routes client-side, so every path has to reach index.html.
+# Without this a reload on /search — or any link someone shared — is a 404
+# from Netlify before the app ever loads.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
