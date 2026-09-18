@@ -1,9 +1,9 @@
 {
-  "name": "@kp/web",
+  "name": "@kp/admin-react",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 3001",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"

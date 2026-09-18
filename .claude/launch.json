@@ -4,8 +4,22 @@
     {
       "name": "web",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@kp/web", "dev"],
+      "runtimeArgs": [
+        "--filter",
+        "@kp/web",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@kp/admin-react",
+        "dev"
+      ],
+      "port": 3001
     }
   ]
 }

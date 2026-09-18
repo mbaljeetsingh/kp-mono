@@ -1,0 +1,23 @@
+{
+  "name": "@kp/ui",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/components/ui/*.tsx",
+    "./lib/utils": "./src/lib/utils.ts"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cn": "^0.3.0",
+    "lucide-react": "^0.548.0",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.6.7",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.6.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

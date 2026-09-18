@@ -1,4 +1,5 @@
 import { useSearch as useSearchQuery } from '@kp/api';
+import { Input } from '@kp/ui/input';
 import { useState } from 'react';
 
 import { ShabadList } from '~/components/ShabadList';
@@ -14,14 +15,13 @@ export function SearchRoute() {
     <section className="flex flex-col gap-4">
       <h1 className="text-2xl font-semibold">Search</h1>
 
-      <input
+      <Input
         type="search"
         value={term}
         autoFocus
         onChange={(e) => setTerm(e.target.value)}
         placeholder="Shabad or ragi…"
         aria-label="Search shabads and ragis"
-        className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
       />
 
       {/* Said rather than left blank: a search box that does nothing for one

@@ -27,7 +27,7 @@ packages/
   playback/ Zustand store + audio drivers (expo-audio | HTMLAudio)
   api/      Supabase client, TanStack Query hooks, Zod schemas
   shared/   types, stations, ragas — already existed
-  ui/       shadcn/ui            (web + admin)
+  ui/       shadcn/ui — the React original layers/ui was ported from
   ui-native/  React Native Reusables  (mobile)
   tokens/   design tokens as plain TS → Tailwind config per app
 ```
@@ -41,6 +41,25 @@ trade for a data-dense admin workbench that is keyboard-driven.
 
 Everything else can, and `packages/` is where it goes. The rule: if it does not
 render, it does not belong in an app.
+
+## Components
+
+`layers/ui` holds 61 shadcn-vue components, and shadcn-vue is a port of
+shadcn/ui — so the React apps start from the original rather than from hand-
+written markup. Same component names, same props, same classes, which is what
+keeps the Vue and React surfaces recognisable as one product while the Nuxt
+apps are still serving production.
+
+`packages/ui` is the shared copy for web and admin. Its components import
+relative paths rather than a `@/` alias, so consuming apps need no alias
+config of their own; each app's stylesheet adds `@source` for the package, or
+Tailwind scans only the app and strips every class the components use.
+
+Supabase UI's auth blocks were evaluated and their shape adopted, not their
+code: the block ships a `lib/supabase/client.ts` reading `NEXT_PUBLIC_`
+variables and pulls in a Next-only path helper, and `@kp/api`'s client factory
+exists precisely so Vite and Expo can each supply their own config. The
+primitives underneath are the same shadcn ones either way.
 
 ## Decisions
 

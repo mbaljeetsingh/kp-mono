@@ -4,3 +4,4 @@ export * from './timings';
 export * from './repeat';
 export * from './rows';
 export * from './queue';
+export * from './tagging';

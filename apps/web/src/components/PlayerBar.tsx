@@ -5,6 +5,7 @@
  * interrupt playback or reset the queue.
  */
 import { REPEAT_LABELS } from '@kp/core';
+import { Button } from '@kp/ui/button';
 import { Link } from '@tanstack/react-router';
 import { Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react';
 
@@ -39,49 +40,49 @@ export function PlayerBar() {
 
         <div className="flex flex-[2] flex-col items-center gap-1">
           <div className="flex items-center gap-1">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               aria-label="Previous"
               // A broadcast has no previous — there is nothing behind live.
               disabled={current.isLive}
               onClick={playerActions.previous}
-              className="rounded-full p-2 text-muted-foreground hover:text-foreground disabled:opacity-30">
-              <SkipBack className="size-4" />
-            </button>
-            <button
-              type="button"
+              className="rounded-full">
+              <SkipBack />
+            </Button>
+            <Button
+              size="icon"
               aria-label={playing ? 'Pause' : 'Play'}
               onClick={playerActions.toggle}
-              className="rounded-full bg-primary p-2.5 text-primary-foreground hover:opacity-90">
-              {playing ? <Pause className="size-5" /> : <Play className="size-5" />}
-            </button>
-            <button
-              type="button"
+              className="rounded-full">
+              {playing ? <Pause /> : <Play />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               aria-label="Next"
               disabled={current.isLive}
               onClick={playerActions.next}
-              className="rounded-full p-2 text-muted-foreground hover:text-foreground disabled:opacity-30">
-              <SkipForward className="size-4" />
-            </button>
+              className="rounded-full">
+              <SkipForward />
+            </Button>
           </div>
           <SeekBar />
         </div>
 
         <div className="flex flex-1 justify-end">
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon"
             // The name states what is on, not what a press would do — a cycle
             // of three has no single "would do", and aria-pressed would
             // describe a tri-state control as a toggle.
             aria-label={REPEAT_LABELS[repeat]}
             title={REPEAT_LABELS[repeat]}
             onClick={playerActions.cycleRepeat}
-            className={cn(
-              'rounded-full p-2 hover:text-foreground',
-              repeat === 'off' ? 'text-muted-foreground' : 'text-primary'
-            )}>
-            <RepeatIcon className="size-4" />
-          </button>
+            className={cn('rounded-full', repeat !== 'off' && 'text-primary')}>
+            <RepeatIcon />
+          </Button>
         </div>
       </div>
     </footer>

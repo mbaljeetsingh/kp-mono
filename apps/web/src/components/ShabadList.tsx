@@ -5,6 +5,7 @@
  * shelf holds two store subscriptions rather than a hundred.
  */
 import type { Playable } from '@kp/core';
+import { Button } from '@kp/ui/button';
 
 import { ShabadRow } from '~/components/ShabadRow';
 import { usePlayer } from '~/lib/player';
@@ -39,12 +40,9 @@ export function ShabadList({ items, loading, onLoadMore, hasMore, empty }: Props
       {loading ? <p className="px-3 py-4 text-sm text-muted-foreground">Loading…</p> : null}
 
       {hasMore && !loading ? (
-        <button
-          type="button"
-          onClick={onLoadMore}
-          className="mx-3 mt-2 rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent/50">
+        <Button variant="outline" onClick={onLoadMore} className="mx-3 mt-2">
           Show more
-        </button>
+        </Button>
       ) : null}
     </div>
   );
