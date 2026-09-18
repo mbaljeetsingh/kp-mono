@@ -46,3 +46,21 @@ export function signInWithPassword(client: KpClient, email: string, password: st
 export function signOut(client: KpClient) {
   return client.auth.signOut();
 }
+
+/**
+ * Create an account.
+ *
+ * Returns whether the account still needs an email confirmation. With
+ * confirmations off (the local default) signup returns a session and the auth
+ * listener signs them straight in; with them on, `session` is null, and saying
+ * so is the difference between "check your email" and an app that looks broken.
+ */
+export async function signUp(
+  client: KpClient,
+  email: string,
+  password: string
+): Promise<{ error?: string; confirm?: boolean }> {
+  const { data, error } = await client.auth.signUp({ email, password });
+  if (error) return { error: error.message };
+  return { confirm: !data.session };
+}

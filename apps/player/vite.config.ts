@@ -7,6 +7,10 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
+    // @kp/ui takes React as a peer, and Vite's optimizer can hand it a second
+    // copy — which surfaces as "Invalid hook call" with nothing obviously
+    // wrong in the component that throws.
+    dedupe: ['react', 'react-dom'],
     alias: {
       '~': fileURLToPath(new URL('./src', import.meta.url)),
     },

@@ -16,3 +16,15 @@ if (!url || !key) {
 }
 
 export const supabase = createKpClient({ url, key });
+
+/**
+ * Public URL for an artist photo.
+ *
+ * Photos are seeded as storage paths only — the images are not in git — so a
+ * missing one is the normal case and the caller falls back to a gradient tile
+ * rather than a broken image.
+ */
+export function artistPhotoUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  return supabase.storage.from('artist-photos').getPublicUrl(path).data.publicUrl;
+}

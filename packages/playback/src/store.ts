@@ -54,6 +54,8 @@ export interface PlayerState {
   onStatus(status: DriverStatus): void;
 
   play(item: Playable, replaceQueue?: boolean): void;
+  /** Load a whole shelf as the queue and start at one of its rows. */
+  playList(items: Playable[], index: number): void;
   playAt(index: number): void;
   toggle(): void;
   next(): void;
@@ -202,6 +204,16 @@ export function createPlayerStore({ storage }: PlayerStoreOptions) {
         const items = [...get().items, item];
         set({ items });
         start(item, items.length - 1);
+      },
+
+      playList(items, index) {
+        const item = items[index];
+        if (!item) return;
+        // The queue becomes the shelf, which is what makes one tap on a list
+        // play a shabad and line up what follows — without this the queue holds
+        // a single row and playback stops dead at its end.
+        set({ items });
+        start(item, index);
       },
 
       playAt(index) {

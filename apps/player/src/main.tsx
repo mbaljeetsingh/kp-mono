@@ -4,6 +4,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { router } from '~/router';
+import { SessionProvider } from '~/lib/session';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -24,7 +25,9 @@ if (!root) throw new Error('#root is missing from index.html');
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <SessionProvider>
+        <RouterProvider router={router} />
+      </SessionProvider>
     </QueryClientProvider>
   </StrictMode>
 );

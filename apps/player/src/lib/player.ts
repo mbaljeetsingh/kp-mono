@@ -53,6 +53,8 @@ export const playerActions = {
     playerStore.getState().addToQueue(...args),
   cycleRepeat: () => playerStore.getState().cycleRepeat(),
   playAt: (index: number) => playerStore.getState().playAt(index),
+  playList: (...args: Parameters<PlayerState['playList']>) =>
+    playerStore.getState().playList(...args),
   removeAt: (index: number) => playerStore.getState().removeAt(index),
   clearQueue: () => playerStore.getState().clearQueue(),
 };
