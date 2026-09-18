@@ -36,7 +36,8 @@ export function ShabadRow({
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted">
+      className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
+    >
       <ArtTile name={item.artist ?? item.title} src={artistPhotoUrl(item.artistPhoto)} />
 
       <View className="min-w-0 flex-1">
@@ -51,9 +52,7 @@ export function ShabadRow({
 
       {/* Zero means untagged — a whole file whose length nobody knows until it
           loads, so showing 0:00 would be a lie. */}
-      {length > 0 ? (
-        <Text className="text-xs text-muted-foreground">{clock(length)}</Text>
-      ) : null}
+      {length > 0 ? <Text className="text-xs text-muted-foreground">{clock(length)}</Text> : null}
 
       {saved ? <Heart size={14} color={colors.primary} fill={colors.primary} /> : null}
 
@@ -62,7 +61,8 @@ export function ShabadRow({
           onPress={() => onMore(item)}
           accessibilityLabel={`More for ${item.title}`}
           hitSlop={8}
-          className="size-8 items-center justify-center">
+          className="size-8 items-center justify-center"
+        >
           <MoreHorizontal size={18} color={colors.mutedForeground} />
         </Pressable>
       ) : null}

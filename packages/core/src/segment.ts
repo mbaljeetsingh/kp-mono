@@ -50,11 +50,7 @@ export function segmentTotal(item: Playable | null, duration: number): number {
  * draws a progress line several screens wide and leaves the page pannable
  * sideways.
  */
-export function progressPct(
-  item: Playable | null,
-  position: number,
-  duration: number
-): number {
+export function progressPct(item: Playable | null, position: number, duration: number): number {
   const start = segmentStart(item);
   const end = segmentEnd(item, duration);
   if (!end || end <= start) return 0;
@@ -70,11 +66,7 @@ export function progressPct(
  * dragging to the far right of a scrubber would skip the shabad rather than
  * park at the end of it.
  */
-export function seekTargetForPct(
-  item: Playable | null,
-  pct: number,
-  duration: number
-): number {
+export function seekTargetForPct(item: Playable | null, pct: number, duration: number): number {
   const start = segmentStart(item);
   const end = segmentEnd(item, duration);
   const to = start + ((end - start) * pct) / 100;
@@ -115,10 +107,7 @@ export function shouldRememberResume(
 }
 
 /** Where playback should begin: the segment's own start, else a saved resume. */
-export function startPositionFor(
-  item: Playable | null,
-  resume?: number
-): number {
+export function startPositionFor(item: Playable | null, resume?: number): number {
   return item?.startSec ?? resume ?? 0;
 }
 

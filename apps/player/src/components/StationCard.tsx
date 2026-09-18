@@ -29,7 +29,8 @@ export function StationCard({ station, featured }: { station: Station; featured?
         'flex items-center gap-3 rounded-xl border border-border px-3 py-3 text-left hover:bg-accent/50',
         featured && 'bg-accent/30',
         isCurrent && 'border-primary/50 bg-accent/60'
-      )}>
+      )}
+    >
       <Radio className={cn('size-4 shrink-0', isCurrent && 'text-primary')} />
 
       <span className="min-w-0 flex-1">

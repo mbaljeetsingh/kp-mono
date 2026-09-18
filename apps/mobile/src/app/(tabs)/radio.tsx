@@ -6,7 +6,13 @@
  * recorded it, and this is a different arrangement that should be visible.
  */
 import { colors } from '@kp/tokens/colors';
-import { CHANNELS, DEFAULT_STATION, OTHER_GURDWARAS, stationPlayable, type Station } from '@kp/core';
+import {
+  CHANNELS,
+  DEFAULT_STATION,
+  OTHER_GURDWARAS,
+  stationPlayable,
+  type Station,
+} from '@kp/core';
 import { Radio } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
@@ -24,7 +30,8 @@ function StationCard({ station }: { station: Station }) {
   return (
     <Pressable
       onPress={() => (isCurrent ? playerActions.toggle() : playerActions.play(playable))}
-      className="mx-2 mb-2 flex-row items-center gap-3 rounded-xl border border-border px-3 py-3 active:bg-card">
+      className="mx-2 mb-2 flex-row items-center gap-3 rounded-xl border border-border px-3 py-3 active:bg-card"
+    >
       <Radio size={16} color={isCurrent ? colors.primary : colors.mutedForeground} />
       <View className="min-w-0 flex-1">
         <Text numberOfLines={1} className="text-foreground">

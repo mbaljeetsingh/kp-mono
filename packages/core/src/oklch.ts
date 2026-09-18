@@ -19,9 +19,7 @@ function toHexPair(value: number): string {
 
 /** Linear-light channel to sRGB, the usual piecewise transfer curve. */
 function gamma(channel: number): number {
-  return channel <= 0.0031308
-    ? 12.92 * channel
-    : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055;
+  return channel <= 0.0031308 ? 12.92 * channel : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055;
 }
 
 export function oklchToHex(lightness: number, chroma: number, hueDeg: number): string {

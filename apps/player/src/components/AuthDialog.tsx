@@ -8,13 +8,7 @@
  */
 import { signInWithPassword, signUp } from '@kp/api';
 import { Button } from '@kp/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@kp/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@kp/ui/dialog';
 import { Input } from '@kp/ui/input';
 import { Label } from '@kp/ui/label';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -117,7 +111,8 @@ export function AuthDialog() {
             onClick={() => {
               setMode(mode === 'signin' ? 'signup' : 'signin');
               setMessage('');
-            }}>
+            }}
+          >
             {mode === 'signin'
               ? 'No account yet? Create one.'
               : 'Already have an account? Sign in.'}

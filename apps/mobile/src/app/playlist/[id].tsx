@@ -44,7 +44,8 @@ export default function PlaylistScreen() {
               {rows.length ? (
                 <Pressable
                   onPress={() => playerActions.playList(rows, 0)}
-                  className="size-11 items-center justify-center rounded-full bg-primary active:opacity-80">
+                  className="size-11 items-center justify-center rounded-full bg-primary active:opacity-80"
+                >
                   <Play size={20} color={colors.primaryForeground} />
                 </Pressable>
               ) : null}

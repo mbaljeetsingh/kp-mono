@@ -49,8 +49,9 @@ describe('toPlayable', () => {
   });
 
   it('accepts timings only as an array', () => {
-    expect(toPlayable({ ...base, line_timings: [{ verse_id: 1, start: 0, end: 2 }] }).lineTimings)
-      .toHaveLength(1);
+    expect(
+      toPlayable({ ...base, line_timings: [{ verse_id: 1, start: 0, end: 2 }] }).lineTimings
+    ).toHaveLength(1);
     expect(toPlayable({ ...base, line_timings: '[]' }).lineTimings).toBeNull();
     expect(toPlayable({ ...base, line_timings: null }).lineTimings).toBeNull();
     expect(toPlayable(base).lineTimings).toBeNull();

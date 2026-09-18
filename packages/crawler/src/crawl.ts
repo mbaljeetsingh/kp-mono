@@ -31,8 +31,7 @@ const SAMPLE = process.argv.includes('--sample');
 /** Seed anyway when a whole tree came back empty — see the guard in main(). */
 const ALLOW_PARTIAL = process.argv.includes('--allow-partial');
 
-const UA =
-  'kirtan-player-crawler/0.1 (archive indexer; contact: baljeet@underlings.com)';
+const UA = 'kirtan-player-crawler/0.1 (archive indexer; contact: baljeet@underlings.com)';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -93,16 +92,7 @@ async function get(url, attempt = 0) {
   }
 }
 
-function makeTrack({
-  tree,
-  url,
-  artistDir,
-  rawFilename,
-  sizeBytes,
-  modifiedAt,
-  now,
-  dir,
-}) {
+function makeTrack({ tree, url, artistDir, rawFilename, sizeBytes, modifiedAt, now, dir }) {
   const p = parseFilename(rawFilename, tree);
   const flags = [...p.flags];
 
@@ -226,9 +216,7 @@ async function crawlDayTree(now) {
     );
   }
 
-  let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) =>
-    /^\d{4}$/.test(d)
-  );
+  let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) => /^\d{4}$/.test(d));
   if (SAMPLE) years = years.slice(-2);
   console.log(`[daywise] ${years.length} years`);
 
@@ -357,9 +345,7 @@ async function main() {
   );
   console.log(`→ ${target}`);
   if (SAMPLE) {
-    console.log(
-      'sample crawl — the seeder will refuse this file. Run without --sample to seed.'
-    );
+    console.log('sample crawl — the seeder will refuse this file. Run without --sample to seed.');
   }
 }
 

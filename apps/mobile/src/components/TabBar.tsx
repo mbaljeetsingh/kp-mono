@@ -42,11 +42,9 @@ interface TabBarProps {
     }
   >;
   navigation: {
-    emit: (event: {
-      type: 'tabPress';
-      target: string;
-      canPreventDefault: true;
-    }) => { defaultPrevented: boolean };
+    emit: (event: { type: 'tabPress'; target: string; canPreventDefault: true }) => {
+      defaultPrevented: boolean;
+    };
     navigate: (name: string, params?: object) => void;
   };
 }
@@ -63,8 +61,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
           const { options } = descriptors[route.key]!;
           const focused = state.index === index;
           const color = focused ? colors.primary : colors.mutedForeground;
-          const label =
-            typeof options.title === 'string' ? options.title : route.name;
+          const label = typeof options.title === 'string' ? options.title : route.name;
 
           return (
             <Pressable
@@ -85,7 +82,8 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
                   navigation.navigate(route.name, route.params);
                 }
               }}
-              className="flex-1 items-center gap-0.5 py-2 active:opacity-70">
+              className="flex-1 items-center gap-0.5 py-2 active:opacity-70"
+            >
               {options.tabBarIcon?.({ focused, color, size: 22 })}
               <Text style={{ color }} className="text-[10px]">
                 {label}

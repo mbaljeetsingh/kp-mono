@@ -110,7 +110,5 @@ export function overlapping(
   range: { start: number; end: number },
   ignoreId?: string
 ): TimelineSegment[] {
-  return segments.filter(
-    (s) => s.id !== ignoreId && s.start < range.end && range.start < s.end
-  );
+  return segments.filter((s) => s.id !== ignoreId && s.start < range.end && range.start < s.end);
 }

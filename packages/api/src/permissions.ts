@@ -30,9 +30,7 @@ export type Permission = (typeof PERMISSIONS)[number];
 
 export type PermissionMap = Record<Permission, boolean>;
 
-const NONE: PermissionMap = Object.fromEntries(
-  PERMISSIONS.map((p) => [p, false])
-) as PermissionMap;
+const NONE: PermissionMap = Object.fromEntries(PERMISSIONS.map((p) => [p, false])) as PermissionMap;
 
 export async function fetchPermissions(client: KpClient): Promise<PermissionMap> {
   const answers = await Promise.all(

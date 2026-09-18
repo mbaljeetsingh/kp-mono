@@ -54,21 +54,21 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
             className={cn(
               'rounded-md px-3 py-1.5',
               lang === type.key ? 'bg-primary/20' : 'bg-muted'
-            )}>
+            )}
+          >
             <Text
               className={cn(
                 'text-xs',
                 lang === type.key ? 'text-primary' : 'text-muted-foreground'
-              )}>
+              )}
+            >
               {type.label}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      {query.isLoading ? (
-        <Text className="text-sm text-muted-foreground">Searching…</Text>
-      ) : null}
+      {query.isLoading ? <Text className="text-sm text-muted-foreground">Searching…</Text> : null}
       {query.isError ? (
         <Text className="text-sm text-muted-foreground">Could not reach BaniDB.</Text>
       ) : null}
@@ -81,13 +81,12 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
           <Pressable
             key={hit.verseId}
             onPress={() => onSelect(hit.shabadId)}
-            className="rounded-lg px-2 py-2 active:bg-accent">
+            className="rounded-lg px-2 py-2 active:bg-accent"
+          >
             <Text className="text-base text-foreground">
               {hit.verse?.unicode ?? hit.verse?.gurmukhi}
             </Text>
-            <Text className="text-xs text-muted-foreground">
-              {hit.transliteration?.english}
-            </Text>
+            <Text className="text-xs text-muted-foreground">{hit.transliteration?.english}</Text>
           </Pressable>
         ))}
       </View>

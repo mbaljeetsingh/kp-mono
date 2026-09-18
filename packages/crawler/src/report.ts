@@ -26,8 +26,7 @@ function confidence(flags: string[]): 'high' | 'medium' | 'low' {
   return parseFlags.length ? 'medium' : 'high';
 }
 
-const pct = (n: number, d: number) =>
-  d ? `${((n / d) * 100).toFixed(1)}%` : '—';
+const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '—');
 const gb = (n: number) => `${(n / 1024 ** 3).toFixed(1)} GB`;
 
 function tally<T>(xs: T[], key: (x: T) => string | null) {
@@ -82,12 +81,9 @@ for (const k of ['high', 'medium', 'low']) {
 }
 const flagCounts = tally(tracks, () => null);
 const allFlags = new Map<string, number>();
-for (const t of tracks)
-  for (const f of t.flags) allFlags.set(f, (allFlags.get(f) ?? 0) + 1);
+for (const t of tracks) for (const f of t.flags) allFlags.set(f, (allFlags.get(f) ?? 0) + 1);
 for (const [f, n] of [...allFlags].sort((a, b) => b[1] - a[1])) {
-  console.log(
-    `  ${f.padEnd(16)}${String(n).padStart(6)}  ${pct(n, tracks.length)}`
-  );
+  console.log(`  ${f.padEnd(16)}${String(n).padStart(6)}  ${pct(n, tracks.length)}`);
 }
 
 // ── artists ──────────────────────────────────────────────────────────────
@@ -95,9 +91,7 @@ console.log('\nARTISTS');
 const rArtists = tally(ragiwise, (t) => t.artistDir);
 const pArtists = tally(puratan, (t) => t.artistDir);
 console.log(`  ragiwise          ${rArtists.size}`);
-console.log(
-  `  puratan           ${pArtists.size}  (separate roster, no "Bhai " prefix)`
-);
+console.log(`  puratan           ${pArtists.size}  (separate roster, no "Bhai " prefix)`);
 console.log('  top 10 by track count:');
 for (const [a, n] of [...rArtists].sort((x, y) => y[1] - x[1]).slice(0, 10)) {
   console.log(`    ${String(n).padStart(5)}  ${a}`);

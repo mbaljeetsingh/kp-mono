@@ -10,9 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"]
       },
       "bundleIdentifier": "com.anonymous.kirtan-player"
     },
@@ -49,9 +47,7 @@
       [
         "expo-font",
         {
-          "fonts": [
-            "./assets/fonts/Gurb_rg.ttf"
-          ]
+          "fonts": ["./assets/fonts/Gurb_rg.ttf"]
         }
       ]
     ],

@@ -44,15 +44,13 @@ export function Timeline({ segments, duration, position, onSeek }: Props) {
         onPointerDown={(e) => {
           const box = e.currentTarget.getBoundingClientRect();
           onSeek(((e.clientX - box.left) / box.width) * duration);
-        }}>
+        }}
+      >
         {segments.map((s) => (
           <div
             key={s.id}
             title={`${s.name} · ${clock(s.start)}–${clock(s.end)}`}
-            className={cn(
-              'absolute inset-y-0',
-              s.published ? 'bg-primary/70' : 'bg-primary/30'
-            )}
+            className={cn('absolute inset-y-0', s.published ? 'bg-primary/70' : 'bg-primary/30')}
             style={{ left: pct(s.start), width: pct(s.end - s.start) }}
           />
         ))}
@@ -76,7 +74,8 @@ export function Timeline({ segments, duration, position, onSeek }: Props) {
                 key={`${g.start}-${g.end}`}
                 type="button"
                 onClick={() => onSeek(g.start)}
-                className="rounded-md border border-border px-2 py-1 text-xs tabular-nums text-muted-foreground hover:bg-accent/50 hover:text-foreground">
+                className="rounded-md border border-border px-2 py-1 text-xs tabular-nums text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              >
                 {clock(g.start)}–{clock(g.end)}
                 <span className="ml-1 opacity-60">({clock(g.end - g.start)})</span>
               </button>

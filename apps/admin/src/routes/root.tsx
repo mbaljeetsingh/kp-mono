@@ -47,7 +47,8 @@ export function RootLayout() {
             search={{}}
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             activeProps={{ className: 'bg-accent text-foreground' }}
-            activeOptions={{ exact: to === '/' }}>
+            activeOptions={{ exact: to === '/' }}
+          >
             <Icon className="size-4" />
             {label}
           </Link>
@@ -58,7 +59,8 @@ export function RootLayout() {
           <button
             type="button"
             onClick={() => void signOut(supabase)}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground">
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+          >
             <LogOut className="size-4" />
             Sign out
           </button>

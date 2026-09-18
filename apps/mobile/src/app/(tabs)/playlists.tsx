@@ -32,12 +32,12 @@ export default function PlaylistsScreen() {
         <View className="gap-3 p-6">
           <Text className="text-2xl font-semibold text-foreground">Playlists</Text>
           <Text className="text-sm text-muted-foreground">
-            Playlists need an account. A collection you spent time on should not live on one
-            device.
+            Playlists need an account. A collection you spent time on should not live on one device.
           </Text>
           <Pressable
             onPress={() => router.push('/sign-in')}
-            className="items-center rounded-lg bg-primary py-3 active:opacity-80">
+            className="items-center rounded-lg bg-primary py-3 active:opacity-80"
+          >
             <Text className="font-medium text-primary-foreground">Sign in</Text>
           </Pressable>
         </View>
@@ -58,7 +58,8 @@ export default function PlaylistsScreen() {
               <Pressable
                 onPress={() => setCreating((v) => !v)}
                 accessibilityLabel="New playlist"
-                className="size-9 items-center justify-center rounded-full bg-muted active:opacity-70">
+                className="size-9 items-center justify-center rounded-full bg-muted active:opacity-70"
+              >
                 <Plus size={18} color={colors.foreground} />
               </Pressable>
             </View>
@@ -84,7 +85,8 @@ export default function PlaylistsScreen() {
                       })
                       .catch(() => Alert.alert('Could not create that playlist'))
                   }
-                  className="items-center rounded-lg bg-primary py-3 active:opacity-80">
+                  className="items-center rounded-lg bg-primary py-3 active:opacity-80"
+                >
                   <Text className="font-medium text-primary-foreground">Create</Text>
                 </Pressable>
               </View>
@@ -105,7 +107,8 @@ export default function PlaylistsScreen() {
                 },
               ])
             }
-            className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-accent">
+            className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-accent"
+          >
             <View className="size-10 items-center justify-center rounded-md bg-muted">
               <ListMusic size={16} color={colors.mutedForeground} />
             </View>

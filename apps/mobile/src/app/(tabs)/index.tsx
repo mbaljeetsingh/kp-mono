@@ -55,14 +55,16 @@ export default function ShabadsScreen() {
             <Pressable
               disabled={shuffle.isPending}
               onPress={() => shuffle.mutate()}
-              className="flex-row items-center justify-center gap-2 rounded-xl border border-border py-3 active:bg-accent">
+              className="flex-row items-center justify-center gap-2 rounded-xl border border-border py-3 active:bg-accent"
+            >
               <Shuffle size={16} color={colors.foreground} />
               <Text className="text-foreground">Shuffle the archive</Text>
             </Pressable>
 
             <Pressable
               onPress={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
-              className="flex-row items-center gap-3 rounded-xl border border-border px-3 py-3 active:bg-accent">
+              className="flex-row items-center gap-3 rounded-xl border border-border px-3 py-3 active:bg-accent"
+            >
               <Radio size={18} color={colors.primary} />
               <View className="min-w-0 flex-1">
                 <Text numberOfLines={1} className="text-foreground">

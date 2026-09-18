@@ -164,9 +164,7 @@ export function SegmentEditor({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-border p-4">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-medium">
-          {editing ? 'Edit segment' : 'New segment'}
-        </h2>
+        <h2 className="text-sm font-medium">{editing ? 'Edit segment' : 'New segment'}</h2>
         {editing ? (
           <Button variant="ghost" size="sm" onClick={onDone}>
             Cancel
@@ -207,7 +205,8 @@ export function SegmentEditor({
                 setShabadId(null);
                 setMainVerseId(null);
                 setLinkedLine('');
-              }}>
+              }}
+            >
               <X />
             </Button>
           </div>
@@ -230,22 +229,23 @@ export function SegmentEditor({
             }}
           />
         ) : (
-          <Button variant="outline" size="sm" className="self-start" onClick={() => setSearching(true)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="self-start"
+            onClick={() => setSearching(true)}
+          >
             <Link2 />
             Link a shabad
           </Button>
         )}
         {shabadId ? (
-          <ShabadDisplay
-            shabadId={shabadId}
-            mainVerseId={mainVerseId}
-            onPick={setMainVerseId}
-          />
+          <ShabadDisplay shabadId={shabadId} mainVerseId={mainVerseId} onPick={setMainVerseId} />
         ) : null}
 
         <p className="text-xs text-muted-foreground">
-          Optional, and the tag worth investing in: raag, ang, author and the lyrics all follow
-          from it, and the aligner can then time each line.
+          Optional, and the tag worth investing in: raag, ang, author and the lyrics all follow from
+          it, and the aligner can then time each line.
         </p>
       </div>
 
@@ -312,7 +312,8 @@ export function SegmentEditor({
           <Button
             variant="secondary"
             disabled={busy || !ordered || !name.trim()}
-            onClick={saveAndPublish}>
+            onClick={saveAndPublish}
+          >
             Save and publish
           </Button>
         ) : null}
@@ -321,7 +322,8 @@ export function SegmentEditor({
           <Button
             variant="outline"
             disabled={busy}
-            onClick={() => run(() => setRenditionStatus(supabase, editing.id, 'draft'))}>
+            onClick={() => run(() => setRenditionStatus(supabase, editing.id, 'draft'))}
+          >
             Unpublish
           </Button>
         ) : null}
@@ -336,16 +338,15 @@ export function SegmentEditor({
               if (confirm(`Delete “${editing.name}”? This cannot be undone.`)) {
                 void run(() => deleteRendition(supabase, editing.id));
               }
-            }}>
+            }}
+          >
             Delete
           </Button>
         ) : null}
       </div>
 
       {!can.propose ? (
-        <p className="text-xs text-muted-foreground">
-          Your account cannot create segments yet.
-        </p>
+        <p className="text-xs text-muted-foreground">Your account cannot create segments yet.</p>
       ) : null}
     </div>
   );
@@ -371,17 +372,28 @@ function Boundary({
         <Button variant="outline" size="sm" onClick={onMark}>
           Mark here
         </Button>
-        <Button variant="ghost" size="sm" aria-label={`${label} back a second`} onClick={() => onNudge(-NUDGE)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`${label} back a second`}
+          onClick={() => onNudge(-NUDGE)}
+        >
           −1s
         </Button>
-        <Button variant="ghost" size="sm" aria-label={`${label} forward a second`} onClick={() => onNudge(NUDGE)}>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`${label} forward a second`}
+          onClick={() => onNudge(NUDGE)}
+        >
           +1s
         </Button>
         <button
           type="button"
           onClick={onSeek}
           title={`Jump to ${clock(value)}`}
-          className="ml-auto rounded-md px-2 py-1 text-sm tabular-nums text-muted-foreground hover:text-foreground">
+          className="ml-auto rounded-md px-2 py-1 text-sm tabular-nums text-muted-foreground hover:text-foreground"
+        >
           {clock(value)}
         </button>
       </div>

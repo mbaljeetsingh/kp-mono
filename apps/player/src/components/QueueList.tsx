@@ -55,7 +55,8 @@ export function QueueList({ className }: { className?: string }) {
           variant="ghost"
           size="sm"
           onClick={playerActions.clearQueue}
-          className="mt-1 self-start text-muted-foreground">
+          className="mt-1 self-start text-muted-foreground"
+        >
           Clear queue
         </Button>
       </div>
@@ -80,9 +81,7 @@ export function QueueList({ className }: { className?: string }) {
       ) : null}
 
       {!suggestions.isLoading && !(suggestions.data ?? []).length ? (
-        <p className="px-1 py-4 text-sm text-muted-foreground">
-          Nothing published yet to suggest.
-        </p>
+        <p className="px-1 py-4 text-sm text-muted-foreground">Nothing published yet to suggest.</p>
       ) : null}
     </div>
   );
@@ -113,7 +112,8 @@ function Row({
         size="icon-sm"
         aria-label={`Play ${item.title}`}
         onClick={onPlay}
-        className="opacity-0 group-hover:opacity-100">
+        className="opacity-0 group-hover:opacity-100"
+      >
         <Play />
       </Button>
       {onRemove ? (
@@ -122,7 +122,8 @@ function Row({
           size="icon-sm"
           aria-label={`Remove ${item.title} from the queue`}
           onClick={onRemove}
-          className="opacity-0 group-hover:opacity-100">
+          className="opacity-0 group-hover:opacity-100"
+        >
           <X />
         </Button>
       ) : null}

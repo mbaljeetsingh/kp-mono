@@ -1,5 +1,5 @@
 /* Keyframes used by shadcn-vue components (accordion, dialog, dropdown). */
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 /*
  * `dark:` follows the class, not the operating system.
@@ -25,9 +25,7 @@
  */
 
 /* The palette lives in tokens.css — shared with the Expo app. */
-@import "./tokens.css";
-
-
+@import './tokens.css';
 
 /*
  * Body carries the text colour, not just the app shell.

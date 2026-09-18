@@ -23,12 +23,7 @@ export type SourceTree = 'ragiwise' | 'puratan' | 'daywise';
  * account, and it deliberately holds no capabilities at all — absence of every
  * grant IS the block.
  */
-export type TrustLevel =
-  | 'blocked'
-  | 'contributor'
-  | 'trusted'
-  | 'reviewer'
-  | 'admin';
+export type TrustLevel = 'blocked' | 'contributor' | 'trusted' | 'reviewer' | 'admin';
 
 /**
  * The rungs a person can actually be moved between, in ladder order.
@@ -127,12 +122,7 @@ export interface Segment {
 }
 
 export type SegmentStatus =
-  | 'draft'
-  | 'segmented'
-  | 'shabad-linked'
-  | 'music-tagged'
-  | 'reviewed'
-  | 'published';
+  'draft' | 'segmented' | 'shabad-linked' | 'music-tagged' | 'reviewed' | 'published';
 
 /**
  * A live audio broadcast — a gurdwara's darbar, or a programmed 24-hour feed.

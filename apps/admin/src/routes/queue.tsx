@@ -10,10 +10,7 @@
  * selection dies when the route changes and Back lands everybody on the default
  * shelf no matter which one they were working through.
  */
-import {
-  coverageOpen,
-  DONE_SLACK_SECONDS,
-} from '@kp/core';
+import { coverageOpen, DONE_SLACK_SECONDS } from '@kp/core';
 import {
   SHELF_DEFAULT_SORT,
   SHELF_SORTS,
@@ -107,7 +104,8 @@ export function QueueRoute() {
               className={cn(
                 'rounded-md px-3 py-1.5 text-sm',
                 shelf === s.id ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
-              )}>
+              )}
+            >
               {s.label}
             </button>
           ))}
@@ -123,7 +121,8 @@ export function QueueRoute() {
               className={cn(
                 'rounded-md px-3 py-1.5 text-sm',
                 tree === t.id ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
-              )}>
+              )}
+            >
               {t.label}
             </button>
           ))}
@@ -141,7 +140,8 @@ export function QueueRoute() {
               className={cn(
                 'rounded-md px-3 py-1.5 text-sm',
                 sort === s ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
-              )}>
+              )}
+            >
               {SORT_LABELS[s]}
             </button>
           ))}
@@ -163,14 +163,11 @@ export function QueueRoute() {
         />
       </div>
 
-      {query.isError ? (
-        <p className="text-sm text-destructive">Could not load the queue.</p>
-      ) : null}
+      {query.isError ? <p className="text-sm text-destructive">Could not load the queue.</p> : null}
 
       {shelf === 'queued' && !can['scans.request'] ? (
         <p className="text-xs text-muted-foreground">
-          Scan requests need a permission your account does not have, so this shelf will be
-          empty.
+          Scan requests need a permission your account does not have, so this shelf will be empty.
         </p>
       ) : null}
 
@@ -185,7 +182,8 @@ export function QueueRoute() {
               // Carried so the Back link on the tag page returns the tagger to
               // the shelf they were working through.
               search={(prev) => prev}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50">
+              className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50"
+            >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{r.title ?? r.raw_filename ?? r.id}</p>
                 <p className="truncate text-xs text-muted-foreground">
@@ -236,7 +234,8 @@ export function QueueRoute() {
           <Button
             variant="outline"
             onClick={() => void query.fetchNextPage()}
-            className="mx-3 mt-2">
+            className="mx-3 mt-2"
+          >
             Show more
           </Button>
         ) : null}
@@ -244,8 +243,8 @@ export function QueueRoute() {
 
       <p className="text-xs text-muted-foreground">
         A recording counts as done once it is published and has under{' '}
-        {Math.round(DONE_SLACK_SECONDS / 60)} minutes untagged — recordings open with
-        announcements and trail off, and no amount of tagging covers those.
+        {Math.round(DONE_SLACK_SECONDS / 60)} minutes untagged — recordings open with announcements
+        and trail off, and no amount of tagging covers those.
       </p>
     </section>
   );

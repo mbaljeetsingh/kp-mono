@@ -23,18 +23,23 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-      <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-        <Stack.Screen name="(tabs)" />
-        {/* A modal rather than a pushed screen: the full player is a layer over
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          {/* A modal rather than a pushed screen: the full player is a layer over
             what you were browsing, not somewhere you navigated to.
             
             `modal`, not `formSheet`: a form sheet with detents does not give its
             content a resolved height, so flex:1 came out as zero — the scroll
             area collapsed and the transport sat directly under the header. */}
-        <Stack.Screen name="now-playing" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
-      </Stack>
+          <Stack.Screen name="now-playing" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
+        </Stack>
       </SessionProvider>
     </QueryClientProvider>
   );

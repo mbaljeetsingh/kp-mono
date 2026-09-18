@@ -20,7 +20,8 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.background },
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

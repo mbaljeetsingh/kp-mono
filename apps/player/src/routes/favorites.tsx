@@ -60,7 +60,8 @@ export function FavoritesRoute() {
         <button
           type="button"
           onClick={prompt}
-          className="self-start text-sm text-primary hover:underline">
+          className="self-start text-sm text-primary hover:underline"
+        >
           Sign in to keep these
         </button>
       ) : null}

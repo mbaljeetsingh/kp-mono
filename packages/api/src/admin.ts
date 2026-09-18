@@ -240,10 +240,16 @@ export async function getRecording(client: KpClient, id: string): Promise<Record
 
 export function useRecordings(client: KpClient, filters: RecordingFilters) {
   return useInfiniteQuery({
-    queryKey: ['recordings', filters.shelf, filters.sort, filters.tree, filters.search,
+    queryKey: [
+      'recordings',
+      filters.shelf,
+      filters.sort,
+      filters.tree,
+      filters.search,
       // Only the Queued shelf depends on the ids, and keying every shelf on them
       // would refetch the whole queue whenever a scan finishes.
-      filters.shelf === 'queued' ? filters.queuedIds.length : 0],
+      filters.shelf === 'queued' ? filters.queuedIds.length : 0,
+    ],
     queryFn: ({ pageParam }) => listRecordings(client, filters, pageParam as number),
     initialPageParam: 0,
     getNextPageParam: (last, all) => (last.hasMore ? all.length * PAGE_SIZE : undefined),
@@ -371,7 +377,6 @@ export async function deleteRendition(client: KpClient, id: string): Promise<voi
   }
 }
 
-
 /**
  * Whether this row can be promoted to published by this account.
  *
@@ -395,7 +400,12 @@ export function canPublishRendition(
 export interface PendingRendition extends Rendition {
   created_by: string | null;
   created_at: string;
-  tracks: { artist_dir: string | null; date: string | null; url: string; raw_filename: string | null } | null;
+  tracks: {
+    artist_dir: string | null;
+    date: string | null;
+    url: string;
+    raw_filename: string | null;
+  } | null;
 }
 
 export async function fetchPending(client: KpClient): Promise<PendingRendition[]> {

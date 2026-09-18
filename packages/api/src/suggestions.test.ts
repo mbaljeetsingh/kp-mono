@@ -48,10 +48,7 @@ describe('fetchSuggestionGroups', () => {
     // `station:<slug>` is not a uuid. Sent as one it failed the whole query,
     // and Up next on a live broadcast claimed there was nothing to suggest.
     const { client, notFilters } = fakeClient();
-    const groups = await fetchSuggestionGroups(
-      client,
-      stationPlayable(DEFAULT_STATION)
-    );
+    const groups = await fetchSuggestionGroups(client, stationPlayable(DEFAULT_STATION));
 
     expect(notFilters.every((f) => !f.includes('station:'))).toBe(true);
     expect(groups).toHaveLength(1);
@@ -60,10 +57,7 @@ describe('fetchSuggestionGroups', () => {
 
   it('skips the related groups for a broadcast, which relates to nothing', async () => {
     const { client } = fakeClient();
-    const groups = await fetchSuggestionGroups(
-      client,
-      stationPlayable(DEFAULT_STATION)
-    );
+    const groups = await fetchSuggestionGroups(client, stationPlayable(DEFAULT_STATION));
 
     // A station's "artist" is the gurdwara's name — no rendition is by it.
     expect(groups.map((g) => g.label)).toEqual(['Recently added']);

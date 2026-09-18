@@ -80,7 +80,13 @@ const permissionsRoute = createRoute({
 });
 
 export const router = createRouter({
-  routeTree: rootRoute.addChildren([queueRoute, tagRoute, pendingRoute, usersRoute, permissionsRoute]),
+  routeTree: rootRoute.addChildren([
+    queueRoute,
+    tagRoute,
+    pendingRoute,
+    usersRoute,
+    permissionsRoute,
+  ]),
 });
 
 declare module '@tanstack/react-router' {

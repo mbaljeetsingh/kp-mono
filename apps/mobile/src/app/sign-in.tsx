@@ -59,7 +59,8 @@ export default function SignInScreen() {
         <Pressable
           onPress={() => router.back()}
           accessibilityLabel="Close"
-          className="size-10 items-center justify-center">
+          className="size-10 items-center justify-center"
+        >
           <ChevronDown size={22} color={colors.foreground} />
         </Pressable>
       </View>
@@ -108,13 +109,19 @@ export default function SignInScreen() {
         <Pressable
           onPress={submit}
           disabled={busy}
-          className="items-center rounded-lg bg-primary py-3 active:opacity-80">
+          className="items-center rounded-lg bg-primary py-3 active:opacity-80"
+        >
           <Text className="font-medium text-primary-foreground">
             {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
           </Text>
         </Pressable>
 
-        <Pressable onPress={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setMessage(''); }}>
+        <Pressable
+          onPress={() => {
+            setMode(mode === 'signin' ? 'signup' : 'signin');
+            setMessage('');
+          }}
+        >
           <Text className="text-center text-xs text-muted-foreground">
             {mode === 'signin'
               ? 'No account yet? Create one.'

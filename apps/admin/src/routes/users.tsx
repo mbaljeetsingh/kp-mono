@@ -10,13 +10,7 @@ import { useAdminUsers, usePermissions, useSetTrust, useAuth } from '@kp/api';
 import { TRUST_LADDER } from '@kp/shared/types';
 import { Badge } from '@kp/ui/badge';
 import { Input } from '@kp/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@kp/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@kp/ui/select';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 
@@ -42,9 +36,7 @@ export function UsersRoute() {
 
   if (!can['users.manage']) {
     return (
-      <p className="text-sm text-muted-foreground">
-        You do not have permission to manage users.
-      </p>
+      <p className="text-sm text-muted-foreground">You do not have permission to manage users.</p>
     );
   }
 
@@ -55,19 +47,15 @@ export function UsersRoute() {
     if (level !== 'all' && p.trust !== level) return false;
     const q = term.trim().toLowerCase();
     if (!q) return true;
-    return (
-      p.email.toLowerCase().includes(q) ||
-      (p.display_name ?? '').toLowerCase().includes(q)
-    );
+    return p.email.toLowerCase().includes(q) || (p.display_name ?? '').toLowerCase().includes(q);
   });
 
   return (
     <section className="flex flex-col gap-4">
       <header>
         <h1 className="text-2xl font-semibold">
-          Users <span className="text-base font-normal text-muted-foreground">
-            ({people.length})
-          </span>
+          Users{' '}
+          <span className="text-base font-normal text-muted-foreground">({people.length})</span>
         </h1>
         <p className="text-sm text-muted-foreground">
           The ladder gates publishing, not participation.
@@ -112,7 +100,8 @@ export function UsersRoute() {
         {people.map((person) => (
           <div
             key={person.id}
-            className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50">
+            className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50"
+          >
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm">{person.display_name ?? person.email}</p>
               <p className="truncate text-xs text-muted-foreground">
@@ -136,12 +125,12 @@ export function UsersRoute() {
               // set_trust refuses a self-change, so the control says so rather
               // than offering an action the server will reject.
               disabled={person.id === session?.user.id || setTrust.isPending}
-              onValueChange={(v) =>
-                setTrust.mutate({ target: person.id, level: String(v) })
-              }>
+              onValueChange={(v) => setTrust.mutate({ target: person.id, level: String(v) })}
+            >
               <SelectTrigger
                 className="w-36 shrink-0"
-                aria-label={`Trust level for ${person.email}`}>
+                aria-label={`Trust level for ${person.email}`}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

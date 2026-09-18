@@ -38,7 +38,10 @@ ${themeInline}
 );
 
 const camel = (name) =>
-  name.split('-').map((w, i) => (i ? w[0].toUpperCase() + w.slice(1) : w)).join('');
+  name
+    .split('-')
+    .map((w, i) => (i ? w[0].toUpperCase() + w.slice(1) : w))
+    .join('');
 
 const pairs = [...darkBody.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g)];
 

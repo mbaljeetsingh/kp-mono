@@ -40,7 +40,8 @@ export function RagisRoute() {
             key={artist.name}
             to="/ragis/$name"
             params={{ name: artist.name }}
-            className="flex flex-col items-center gap-2 rounded-xl p-3 text-center hover:bg-accent/50">
+            className="flex flex-col items-center gap-2 rounded-xl p-3 text-center hover:bg-accent/50"
+          >
             <ArtTile
               name={artist.display_name ?? artist.name}
               src={artistPhotoUrl(artist.photo_path)}

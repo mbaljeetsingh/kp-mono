@@ -31,10 +31,9 @@ const storage = {
 
 export const playerStore = createPlayerStore({ storage });
 
-
-playerStore.getState().attach(
-  createWebAudioDriver((status) => playerStore.getState().onStatus(status))
-);
+playerStore
+  .getState()
+  .attach(createWebAudioDriver((status) => playerStore.getState().onStatus(status)));
 
 // Restore the queue on load. Never auto-plays — see the store.
 void playerStore.getState().hydrate();

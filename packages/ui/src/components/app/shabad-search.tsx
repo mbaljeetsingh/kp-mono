@@ -65,8 +65,7 @@ export function ShabadSearch({
             // nonsense words rather than as a hint.
             className={cn(
               'pl-9 pr-8',
-              gurbaniLipi &&
-                'font-gurmukhi text-lg placeholder:font-sans placeholder:text-sm'
+              gurbaniLipi && 'font-gurmukhi text-lg placeholder:font-sans placeholder:text-sm'
             )}
           />
           {term ? (
@@ -82,9 +81,7 @@ export function ShabadSearch({
           ) : null}
         </div>
 
-        {gurbaniLipi ? (
-          <GurmukhiKeyboard value={term} onChange={setTerm} />
-        ) : null}
+        {gurbaniLipi ? <GurmukhiKeyboard value={term} onChange={setTerm} /> : null}
       </div>
 
       <div className="flex gap-1">
@@ -106,15 +103,11 @@ export function ShabadSearch({
       ) : null}
 
       {query.isError ? (
-        <p className="px-1 py-2 text-sm text-muted-foreground">
-          Could not reach BaniDB.
-        </p>
+        <p className="px-1 py-2 text-sm text-muted-foreground">Could not reach BaniDB.</p>
       ) : null}
 
       {!query.isLoading && term.trim().length >= 2 && !hits.length ? (
-        <p className="px-1 py-2 text-sm text-muted-foreground">
-          Nothing matches.
-        </p>
+        <p className="px-1 py-2 text-sm text-muted-foreground">Nothing matches.</p>
       ) : null}
 
       <div className="flex flex-col gap-0.5">
@@ -135,17 +128,11 @@ export function ShabadSearch({
             }
             className="rounded-lg px-2 py-2 text-left hover:bg-accent/50"
           >
-            <p className="text-sm">
-              {hit.verse?.unicode ?? hit.verse?.gurmukhi}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {hit.transliteration?.english}
-            </p>
+            <p className="text-sm">{hit.verse?.unicode ?? hit.verse?.gurmukhi}</p>
+            <p className="text-xs text-muted-foreground">{hit.transliteration?.english}</p>
             {hit.writer?.english || hit.raag?.english ? (
               <p className="text-[11px] text-muted-foreground/70">
-                {[hit.writer?.english, hit.raag?.english]
-                  .filter(Boolean)
-                  .join(' · ')}
+                {[hit.writer?.english, hit.raag?.english].filter(Boolean).join(' · ')}
               </p>
             ) : null}
           </button>

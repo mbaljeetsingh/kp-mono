@@ -34,9 +34,7 @@ export async function searchBaniDb(
   term: string,
   searchType: number
 ): Promise<BaniDbHit[]> {
-  const res = await fetch(
-    `${base}/search/${encodeURIComponent(term)}?searchtype=${searchType}`
-  );
+  const res = await fetch(`${base}/search/${encodeURIComponent(term)}?searchtype=${searchType}`);
   if (!res.ok) throw new Error(`BaniDB returned ${res.status}`);
   const json = (await res.json()) as { verses?: BaniDbHit[] };
   // Twelve is enough to recognise the line without turning the panel into a

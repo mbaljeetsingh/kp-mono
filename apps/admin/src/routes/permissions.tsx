@@ -5,12 +5,7 @@
  * because "why can't I publish?" is answered by this table, and a contributor
  * who can see the ladder can see what they are working towards.
  */
-import {
-  usePermissions,
-  useRolePermissions,
-  useSetRolePermission,
-  useAuth,
-} from '@kp/api';
+import { usePermissions, useRolePermissions, useSetRolePermission, useAuth } from '@kp/api';
 import { TRUST_LADDER } from '@kp/shared/types';
 import { Switch } from '@kp/ui/switch';
 import { Check, Minus } from 'lucide-react';
@@ -40,9 +35,7 @@ export function PermissionsRoute() {
         </p>
       </header>
 
-      {loading || all.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : null}
+      {loading || all.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
 
       {setPermission.isError ? (
         <p role="alert" className="text-sm text-destructive">
@@ -102,7 +95,10 @@ export function PermissionsRoute() {
                           )}
                         />
                       ) : (
-                        <Minus aria-label="not granted" className="mx-auto size-4 text-muted-foreground/40" />
+                        <Minus
+                          aria-label="not granted"
+                          className="mx-auto size-4 text-muted-foreground/40"
+                        />
                       )}
                     </td>
                   );

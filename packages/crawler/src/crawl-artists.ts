@@ -151,11 +151,7 @@ async function main() {
 
   await writeFile(
     join(OUT, 'artists.json'),
-    JSON.stringify(
-      { fetchedAt: new Date().toISOString(), manifest, errors },
-      null,
-      2
-    )
+    JSON.stringify({ fetchedAt: new Date().toISOString(), manifest, errors }, null, 2)
   );
 
   const total = manifest.reduce((sum, m) => sum + m.bytes, 0);

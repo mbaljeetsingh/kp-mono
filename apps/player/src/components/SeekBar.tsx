@@ -5,12 +5,7 @@
  * component that genuinely needs 10Hz, and it should be the only thing paying
  * for it.
  */
-import {
-  progressPct,
-  seekTargetForPct,
-  elapsedIn,
-  segmentTotal,
-} from '@kp/core';
+import { progressPct, seekTargetForPct, elapsedIn, segmentTotal } from '@kp/core';
 import { useRef } from 'react';
 
 import { playerActions, usePlayer } from '~/lib/player';
@@ -62,10 +57,7 @@ export function SeekBar() {
         }}
       >
         <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary"
-            style={{ width: `${pct}%` }}
-          />
+          <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
         </div>
       </div>
       <span className="w-10 shrink-0 text-xs tabular-nums text-muted-foreground">

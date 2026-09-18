@@ -19,20 +19,14 @@ const BUCKET = 'artist-photos';
 const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54521';
 const KEY = process.env.SUPABASE_SERVICE_KEY;
 if (!KEY) {
-  console.error(
-    'SUPABASE_SERVICE_KEY is required. Get the local one from `npx supabase status`.'
-  );
+  console.error('SUPABASE_SERVICE_KEY is required. Get the local one from `npx supabase status`.');
   process.exit(1);
 }
 
 const client = createClient(URL_, KEY, { auth: { persistSession: false } });
 
-const { manifest, errors } = JSON.parse(
-  await readFile(join(OUT, 'artists.json'), 'utf8')
-);
-console.log(
-  `${manifest.length} photos to upload (${errors.length} had no image on SGPC)`
-);
+const { manifest, errors } = JSON.parse(await readFile(join(OUT, 'artists.json'), 'utf8'));
+console.log(`${manifest.length} photos to upload (${errors.length} had no image on SGPC)`);
 
 // Public bucket: these are publicity photos already published on sgpc.net, and
 // serving them through a signed URL would mean a round trip per artist tile.
@@ -57,8 +51,7 @@ for (const item of manifest) {
   // regardless so the tiles still rendered, but the bucket then held objects
   // whose Content-Type contradicted their contents, which is the sort of thing
   // a CDN or an <img> preload eventually takes literally.
-  const contentType =
-    bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg' : 'image/png';
+  const contentType = bytes[0] === 0xff && bytes[1] === 0xd8 ? 'image/jpeg' : 'image/png';
   const { error: uploadError } = await client.storage
     .from(BUCKET)
     .upload(item.file, bytes, { contentType, upsert: true });

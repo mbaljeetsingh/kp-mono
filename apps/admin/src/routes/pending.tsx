@@ -68,7 +68,8 @@ export function PendingRoute() {
     <section className="flex flex-col gap-4">
       <header>
         <h1 className="text-2xl font-semibold">
-          Review <span className="text-base font-normal text-muted-foreground">({rows.length})</span>
+          Review{' '}
+          <span className="text-base font-normal text-muted-foreground">({rows.length})</span>
         </h1>
         <p className="text-sm text-muted-foreground">
           Proposed segments, oldest first. Nothing here is in the player yet.
@@ -101,7 +102,8 @@ export function PendingRoute() {
           return (
             <div
               key={row.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50">
+              className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50"
+            >
               <div className="min-w-0 flex-1">
                 <Link
                   to="/tag/$id"
@@ -109,7 +111,8 @@ export function PendingRoute() {
                   // From review there is no shelf to preserve — the tagger
                   // arrived from a different list entirely.
                   search={{}}
-                  className="truncate text-sm hover:underline">
+                  className="truncate text-sm hover:underline"
+                >
                   {row.name}
                 </Link>
                 <p className="truncate text-xs text-muted-foreground">
@@ -128,7 +131,8 @@ export function PendingRoute() {
                 variant="ghost"
                 size="icon-sm"
                 aria-label={`Preview ${row.name}`}
-                onClick={() => preview(row)}>
+                onClick={() => preview(row)}
+              >
                 <Play />
               </Button>
 
@@ -136,7 +140,10 @@ export function PendingRoute() {
                 <Button
                   size="sm"
                   disabled={busy === row.id}
-                  onClick={() => void run(row.id, () => setRenditionStatus(supabase, row.id, 'published'))}>
+                  onClick={() =>
+                    void run(row.id, () => setRenditionStatus(supabase, row.id, 'published'))
+                  }
+                >
                   <Check />
                   Publish
                 </Button>
@@ -154,7 +161,8 @@ export function PendingRoute() {
                     if (window.confirm(`Reject “${row.name}”? This deletes the draft.`)) {
                       void run(row.id, () => deleteRendition(supabase, row.id));
                     }
-                  }}>
+                  }}
+                >
                   <Trash2 />
                 </Button>
               ) : null}

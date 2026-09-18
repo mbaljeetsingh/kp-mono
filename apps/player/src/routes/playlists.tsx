@@ -69,15 +69,13 @@ export function PlaylistsRoute() {
         {lists.map((playlist) => (
           <div
             key={playlist.id}
-            className="group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50">
+            className="group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50"
+          >
             <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-accent">
               <ListMusic className="size-4 text-muted-foreground" />
             </div>
 
-            <Link
-              to="/playlists/$id"
-              params={{ id: playlist.id }}
-              className="min-w-0 flex-1">
+            <Link to="/playlists/$id" params={{ id: playlist.id }} className="min-w-0 flex-1">
               <p className="truncate text-sm">{playlist.name}</p>
               <p className="text-xs text-muted-foreground">
                 {playlist.count} {playlist.count === 1 ? 'shabad' : 'shabads'}
@@ -87,12 +85,9 @@ export function PlaylistsRoute() {
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`More for ${playlist.name}`}
-                  />
-                }>
+                  <Button variant="ghost" size="icon-sm" aria-label={`More for ${playlist.name}`} />
+                }
+              >
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -104,7 +99,8 @@ export function PlaylistsRoute() {
                         .mutateAsync({ id: playlist.id, name })
                         .catch(() => toast.error('Could not rename'));
                     }
-                  }}>
+                  }}
+                >
                   Rename
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -116,7 +112,8 @@ export function PlaylistsRoute() {
                         .mutateAsync(playlist.id)
                         .catch(() => toast.error('Could not delete'));
                     }
-                  }}>
+                  }}
+                >
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>

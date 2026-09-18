@@ -55,11 +55,10 @@ export function ShabadDisplay({
             className={cn(
               'h-auto justify-start whitespace-normal px-2 py-1.5 text-left',
               picked && 'bg-primary/15 text-primary'
-            )}>
+            )}
+          >
             <span className="flex flex-col gap-0.5">
-              <span className="text-sm">
-                {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
-              </span>
+              <span className="text-sm">{line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}</span>
               {line.translation?.en?.bdb ? (
                 <span className="text-xs text-muted-foreground">{line.translation.en.bdb}</span>
               ) : null}

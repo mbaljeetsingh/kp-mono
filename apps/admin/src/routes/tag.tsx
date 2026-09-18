@@ -20,7 +20,16 @@ import { untaggedSeconds, coverageOpen, type TimelineSegment } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { Link, useParams } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { CheckCheck, ChevronLeft, Pause, Play, Plus, ScanLine, SkipBack, SkipForward } from 'lucide-react';
+import {
+  CheckCheck,
+  ChevronLeft,
+  Pause,
+  Play,
+  Plus,
+  ScanLine,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { SegmentEditor } from '~/components/SegmentEditor';
@@ -118,11 +127,13 @@ export function TagRoute() {
           e.preventDefault();
           playing ? audio.current?.pause() : void audio.current?.play();
         }
-      }}>
+      }}
+    >
       <Link
         to="/"
         search={(prev) => prev}
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ChevronLeft className="size-4" />
         Queue
       </Link>
@@ -142,33 +153,31 @@ export function TagRoute() {
             </p>
           </header>
 
-          <Timeline
-            segments={segments}
-            duration={duration}
-            position={position}
-            onSeek={seek}
-          />
+          <Timeline segments={segments} duration={duration} position={position} onSeek={seek} />
 
           <div className="flex items-center gap-2">
             <button
               type="button"
               aria-label={`Back ${NUDGE_SECONDS} seconds`}
               onClick={() => seek(position - NUDGE_SECONDS)}
-              className="rounded-full p-2 text-muted-foreground hover:text-foreground">
+              className="rounded-full p-2 text-muted-foreground hover:text-foreground"
+            >
               <SkipBack className="size-4" />
             </button>
             <button
               type="button"
               aria-label={playing ? 'Pause' : 'Play'}
               onClick={() => (playing ? audio.current?.pause() : void audio.current?.play())}
-              className="rounded-full bg-primary p-2.5 text-primary-foreground hover:opacity-90">
+              className="rounded-full bg-primary p-2.5 text-primary-foreground hover:opacity-90"
+            >
               {playing ? <Pause className="size-5" /> : <Play className="size-5" />}
             </button>
             <button
               type="button"
               aria-label={`Forward ${NUDGE_SECONDS} seconds`}
               onClick={() => seek(position + NUDGE_SECONDS)}
-              className="rounded-full p-2 text-muted-foreground hover:text-foreground">
+              className="rounded-full p-2 text-muted-foreground hover:text-foreground"
+            >
               <SkipForward className="size-4" />
             </button>
 
@@ -199,11 +208,13 @@ export function TagRoute() {
                 {(renditions.data ?? []).map((r) => (
                   <div
                     key={r.id}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-accent/50">
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-accent/50"
+                  >
                     <button
                       type="button"
                       onClick={() => seek(Number(r.start_sec))}
-                      className="min-w-0 flex-1 truncate text-left text-sm">
+                      className="min-w-0 flex-1 truncate text-left text-sm"
+                    >
                       {r.name}
                     </button>
                     <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
@@ -242,7 +253,8 @@ export function TagRoute() {
               variant="outline"
               disabled={!can['renditions.propose']}
               onClick={() => setEditing('new')}
-              className="self-start">
+              className="self-start"
+            >
               <Plus />
               New segment from {clock(position)}
             </Button>
@@ -260,7 +272,8 @@ export function TagRoute() {
                       void queryClient.invalidateQueries({ queryKey: ['recordings'] });
                     })
                     .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
-                }>
+                }
+              >
                 <CheckCheck />
                 {recording.data?.tagged_done_at ? 'Unmark fully tagged' : 'Mark fully tagged'}
               </Button>
@@ -279,7 +292,8 @@ export function TagRoute() {
                     void requestScan(supabase, id)
                       .then(() => queryClient.invalidateQueries({ queryKey: ['scan-request', id] }))
                       .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
-                  }>
+                  }
+                >
                   <ScanLine />
                   Suggest shabads
                 </Button>

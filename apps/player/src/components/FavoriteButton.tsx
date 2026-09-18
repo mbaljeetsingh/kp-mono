@@ -12,7 +12,15 @@ import { Heart } from 'lucide-react';
 import { useSession } from '~/lib/session';
 import { cn } from '~/lib/utils';
 
-export function FavoriteButton({ id, name, className }: { id: string; name: string; className?: string }) {
+export function FavoriteButton({
+  id,
+  name,
+  className,
+}: {
+  id: string;
+  name: string;
+  className?: string;
+}) {
   const { favorites } = useSession();
   const saved = favorites.has(id);
 
@@ -23,7 +31,8 @@ export function FavoriteButton({ id, name, className }: { id: string; name: stri
       aria-pressed={saved}
       aria-label={saved ? `Remove ${name} from saved` : `Save ${name}`}
       onClick={() => favorites.toggle(id)}
-      className={cn('rounded-full', saved && 'text-primary', className)}>
+      className={cn('rounded-full', saved && 'text-primary', className)}
+    >
       <Heart className={saved ? 'fill-current' : undefined} />
     </Button>
   );

@@ -21,10 +21,7 @@ export function lineAt(
  * Aligned renditions follow the singing; everything else — most of the archive
  * — keeps holding the one line the tagger pinned.
  */
-export function highlightVerseId(
-  item: Playable | null,
-  position: number
-): number | null {
+export function highlightVerseId(item: Playable | null, position: number): number | null {
   const timings = item?.lineTimings;
   if (!timings?.length) return item?.mainVerseId ?? null;
   return lineAt(timings, position)?.verse_id ?? null;

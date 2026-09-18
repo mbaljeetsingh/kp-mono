@@ -23,7 +23,8 @@ export default function RagisScreen() {
         renderItem={({ item }) => (
           <Pressable
             onPress={() => router.push({ pathname: '/ragi/[name]', params: { name: item.name } })}
-            className="flex-1 items-center gap-2 p-3 active:opacity-70">
+            className="flex-1 items-center gap-2 p-3 active:opacity-70"
+          >
             <ArtTile
               name={item.display_name ?? item.name}
               src={artistPhotoUrl(item.photo_path)}

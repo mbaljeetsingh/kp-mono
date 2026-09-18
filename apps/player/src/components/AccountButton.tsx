@@ -43,7 +43,8 @@ export function AccountButton() {
       <DropdownMenuTrigger
         render={
           <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account" />
-        }>
+        }
+      >
         <Avatar className="size-7">
           <AvatarFallback className="text-xs">{initial}</AvatarFallback>
         </Avatar>

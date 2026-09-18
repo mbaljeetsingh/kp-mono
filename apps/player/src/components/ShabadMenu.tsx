@@ -33,9 +33,8 @@ export function ShabadMenu({ item }: { item: Playable }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon-sm" aria-label={`More for ${item.title}`} />
-        }>
+        render={<Button variant="ghost" size="icon-sm" aria-label={`More for ${item.title}`} />}
+      >
         <MoreHorizontal />
       </DropdownMenuTrigger>
 
@@ -69,18 +68,16 @@ export function ShabadMenu({ item }: { item: Playable }) {
                     .mutateAsync({ playlistId: playlist.id, renditionId: item.id })
                     .then((inserted) =>
                       toast.success(
-                        inserted
-                          ? `Added to ${playlist.name}`
-                          : `Already in ${playlist.name}`
+                        inserted ? `Added to ${playlist.name}` : `Already in ${playlist.name}`
                       )
                     )
                     .catch(() => toast.error('Could not add to that playlist'));
-                }}>
+                }}
+              >
                 {playlist.name}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuItem
-              onSelect={() => openNewPlaylist({ id: item.id, name: item.title })}>
+            <DropdownMenuItem onSelect={() => openNewPlaylist({ id: item.id, name: item.title })}>
               <Plus />
               New playlist…
             </DropdownMenuItem>

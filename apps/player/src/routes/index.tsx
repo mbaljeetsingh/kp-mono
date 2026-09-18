@@ -77,10 +77,7 @@ export function HomeRoute() {
               This is the one for arriving with nothing in mind — which for
               kirtan is not the unusual case — and it sits beside the search box
               because that is exactly where somebody stalls with nothing to type. */}
-          <Button
-            variant="outline"
-            disabled={shuffle.isPending}
-            onClick={() => shuffle.mutate()}>
+          <Button variant="outline" disabled={shuffle.isPending} onClick={() => shuffle.mutate()}>
             <Shuffle />
             <span className="hidden sm:inline">Shuffle</span>
           </Button>
@@ -105,12 +102,11 @@ export function HomeRoute() {
             <button
               type="button"
               onClick={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
-              className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-left hover:bg-accent/50">
+              className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-left hover:bg-accent/50"
+            >
               <Radio className="size-5 shrink-0 text-primary" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">
-                  {DEFAULT_STATION.name}
-                </span>
+                <span className="block truncate text-sm font-medium">{DEFAULT_STATION.name}</span>
                 <span className="block truncate text-xs text-muted-foreground">
                   Live now · {DEFAULT_STATION.place}
                 </span>
@@ -118,7 +114,8 @@ export function HomeRoute() {
               <Link
                 to="/radio"
                 onClick={(e) => e.stopPropagation()}
-                className="shrink-0 text-xs text-muted-foreground hover:text-foreground">
+                className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+              >
                 All stations
               </Link>
             </button>

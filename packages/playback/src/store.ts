@@ -92,7 +92,12 @@ export function createPlayerStore({ storage }: PlayerStoreOptions) {
 
     /** Load an item and start it. The one place `driver.load` is called. */
     function start(item: Playable, index: number) {
-      set({ current: item, index, starting: item.id, position: startPositionFor(item, resume[item.id]) });
+      set({
+        current: item,
+        index,
+        starting: item.id,
+        position: startPositionFor(item, resume[item.id]),
+      });
       driver?.load(item.url, startPositionFor(item, resume[item.id]));
       driver?.play();
       persistQueue();

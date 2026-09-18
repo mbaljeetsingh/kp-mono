@@ -38,8 +38,7 @@ export function RadioRoute() {
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">Channels</h2>
         <p className="text-xs text-muted-foreground">
-          Programmed feeds — katha, simran, the unbroken reading. Nothing here overlaps the
-          archive.
+          Programmed feeds — katha, simran, the unbroken reading. Nothing here overlaps the archive.
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
           {CHANNELS.map((station) => (

@@ -43,7 +43,8 @@ export function PlayerControls({
           disabled={isLive}
           aria-label="Previous"
           onClick={playerActions.previous}
-          className="rounded-full">
+          className="rounded-full"
+        >
           <SkipBack />
         </Button>
       )}
@@ -52,7 +53,8 @@ export function PlayerControls({
         size={big ? 'icon-lg' : 'icon'}
         aria-label={playing ? 'Pause' : 'Play'}
         onClick={playerActions.toggle}
-        className={cn('rounded-full', big && 'size-12')}>
+        className={cn('rounded-full', big && 'size-12')}
+      >
         {playing ? <Pause /> : <Play />}
       </Button>
 
@@ -64,7 +66,8 @@ export function PlayerControls({
         // Not the store's `next`: at the end of a queue that is a dead button,
         // and this is where suggestions become reachable.
         onClick={() => void skipToNext()}
-        className="rounded-full">
+        className="rounded-full"
+      >
         <SkipForward />
       </Button>
 
@@ -78,7 +81,8 @@ export function PlayerControls({
           aria-label={REPEAT_LABELS[repeat]}
           title={REPEAT_LABELS[repeat]}
           onClick={playerActions.cycleRepeat}
-          className={cn('rounded-full', repeat !== 'off' && 'text-primary')}>
+          className={cn('rounded-full', repeat !== 'off' && 'text-primary')}
+        >
           <RepeatIcon />
         </Button>
       )}

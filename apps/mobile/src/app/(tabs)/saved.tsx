@@ -55,7 +55,9 @@ export default function SavedScreen() {
           <View className="px-3 pb-2 pt-3">
             <Text className="text-2xl font-semibold text-foreground">Saved</Text>
             <Text className="text-sm text-muted-foreground">
-              {userId ? 'Saved to your account.' : 'Saved on this device — sign in and they follow you.'}
+              {userId
+                ? 'Saved to your account.'
+                : 'Saved on this device — sign in and they follow you.'}
             </Text>
             {!userId ? (
               <Pressable onPress={() => router.push('/sign-in')} className="pt-2">

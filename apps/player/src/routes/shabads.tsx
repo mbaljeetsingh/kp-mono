@@ -16,9 +16,7 @@ export function ShabadsRoute() {
     <section className="flex flex-col gap-4">
       <header>
         <h1 className="text-2xl font-semibold">All shabads</h1>
-        <p className="text-sm text-muted-foreground">
-          Every published rendition, newest first.
-        </p>
+        <p className="text-sm text-muted-foreground">Every published rendition, newest first.</p>
       </header>
 
       <ShabadList

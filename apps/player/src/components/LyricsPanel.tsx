@@ -97,7 +97,8 @@ export function LyricsPanel({ className }: { className?: string }) {
       ref={panel}
       onWheel={markReaderIntent}
       onTouchMove={markReaderIntent}
-      className={cn('overflow-y-auto px-4 py-3', className)}>
+      className={cn('overflow-y-auto px-4 py-3', className)}
+    >
       {/* A looked-up shabad is the listener's guess, not a tag — labelled so
           nobody reads it as something the archive asserts. */}
       {!current?.shabadId && lookedUp ? (
@@ -109,7 +110,8 @@ export function LyricsPanel({ className }: { className?: string }) {
             variant="ghost"
             size="icon-sm"
             aria-label="Clear the looked-up shabad"
-            onClick={() => setLookedUp(null)}>
+            onClick={() => setLookedUp(null)}
+          >
             <X />
           </Button>
         </div>
@@ -135,7 +137,8 @@ export function LyricsPanel({ className }: { className?: string }) {
               className={cn(
                 'text-base leading-relaxed transition-colors',
                 isLit ? 'text-primary' : 'text-muted-foreground'
-              )}>
+              )}
+            >
               {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
               {line.translation?.en?.bdb ? (
                 <span className="mt-0.5 block text-xs text-muted-foreground/70">

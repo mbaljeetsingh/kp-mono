@@ -18,9 +18,7 @@ import type { AudioDriver, DriverStatus } from '@kp/playback';
  */
 const UPDATE_INTERVAL_MS = 100;
 
-export function createNativeAudioDriver(
-  onStatus: (status: DriverStatus) => void
-): AudioDriver {
+export function createNativeAudioDriver(onStatus: (status: DriverStatus) => void): AudioDriver {
   let player: AudioPlayer | null = null;
 
   // `doNotMix` is required alongside setActiveForLockScreen — the lock screen

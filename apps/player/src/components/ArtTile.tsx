@@ -39,7 +39,8 @@ export function ArtTile({ name, src, className, rounded = 'md' }: Props) {
         rounded === 'full' ? 'rounded-full' : rounded === 'lg' ? 'rounded-lg' : 'rounded-md',
         className
       )}
-      style={showPhoto ? undefined : { backgroundImage: art.backgroundImage }}>
+      style={showPhoto ? undefined : { backgroundImage: art.backgroundImage }}
+    >
       {showPhoto ? (
         <img
           src={src!}
@@ -51,7 +52,8 @@ export function ArtTile({ name, src, className, rounded = 'md' }: Props) {
       ) : (
         <span
           aria-hidden
-          className="select-none text-[0.7em] font-semibold tracking-wide text-white/90">
+          className="select-none text-[0.7em] font-semibold tracking-wide text-white/90"
+        >
           {art.initials}
         </span>
       )}

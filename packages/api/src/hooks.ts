@@ -75,4 +75,3 @@ export function useArtists(client: KpClient): UseQueryResult<Artist[]> {
     staleTime: 1000 * 60 * 60,
   });
 }
-

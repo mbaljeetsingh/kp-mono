@@ -4,21 +4,13 @@
     {
       "name": "player",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--filter",
-        "@kp/player",
-        "dev:port"
-      ],
+      "runtimeArgs": ["--filter", "@kp/player", "dev:port"],
       "port": 3000
     },
     {
       "name": "admin",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--filter",
-        "@kp/admin",
-        "dev:port"
-      ],
+      "runtimeArgs": ["--filter", "@kp/admin", "dev:port"],
       "port": 3001
     }
   ]

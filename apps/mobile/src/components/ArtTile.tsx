@@ -53,7 +53,8 @@ export function ArtTile({ name, src, size = 48, rounded = 8 }: Props) {
         height: size,
         borderRadius: rounded,
         overflow: 'hidden',
-      }}>
+      }}
+    >
       {showPhoto ? (
         <Image
           source={{ uri: src! }}
@@ -67,13 +68,15 @@ export function ArtTile({ name, src, size = 48, rounded = 8 }: Props) {
           locations={[0, 0.55, 1]}
           start={start}
           end={end}
-          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+        >
           <Text
             style={{
               color: 'rgba(255,255,255,0.9)',
               fontWeight: '600',
               fontSize: size * 0.3,
-            }}>
+            }}
+          >
             {art.initials}
           </Text>
         </LinearGradient>

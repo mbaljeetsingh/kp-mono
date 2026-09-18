@@ -57,7 +57,8 @@ export function RootLayout() {
               to={to}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               activeProps={{ className: 'bg-accent text-foreground' }}
-              activeOptions={{ exact: to === '/' }}>
+              activeOptions={{ exact: to === '/' }}
+            >
               <Icon className="size-4" />
               {label}
             </Link>
@@ -71,7 +72,8 @@ export function RootLayout() {
               key={to}
               to={to}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              activeProps={{ className: 'bg-accent text-foreground' }}>
+              activeProps={{ className: 'bg-accent text-foreground' }}
+            >
               <Icon className="size-4" />
               {label}
             </Link>
@@ -84,13 +86,15 @@ export function RootLayout() {
                 than just offering it — so it is the one that is not grey. */}
             <a
               href={CONTRIBUTE_URL}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10">
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+            >
               <Users className="size-4" />
               Contribute
             </a>
             <a
               href={GITHUB_URL}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            >
               <Github className="size-4" />
               Source
             </a>
@@ -124,7 +128,8 @@ export function RootLayout() {
             to={to}
             className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-muted-foreground"
             activeProps={{ className: 'text-primary' }}
-            activeOptions={{ exact: to === '/' }}>
+            activeOptions={{ exact: to === '/' }}
+          >
             <Icon className="size-4" />
             {label}
           </Link>

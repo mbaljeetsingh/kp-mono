@@ -30,7 +30,8 @@ export function ThemeToggle() {
     <DropdownMenu>
       {/* Base UI composes through `render`, not Radix's `asChild`. */}
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="icon" aria-label={`Theme: ${choice}`} />}>
+        render={<Button variant="ghost" size="icon" aria-label={`Theme: ${choice}`} />}
+      >
         <Icon />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">

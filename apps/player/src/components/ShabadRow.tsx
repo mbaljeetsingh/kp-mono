@@ -33,7 +33,8 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
       className={cn(
         'group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50',
         isCurrent && 'bg-accent/60'
-      )}>
+      )}
+    >
       <div className="group/art relative shrink-0">
         <ArtTile
           name={item.artist ?? item.title}
@@ -56,7 +57,8 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
           className={cn(
             'absolute inset-0 size-10 rounded-md bg-black/45 text-white opacity-0 hover:bg-black/60 focus-visible:opacity-100 group-hover:opacity-100',
             isCurrent && 'opacity-100'
-          )}>
+          )}
+        >
           {isCurrent && playing ? <Pause /> : <Play />}
         </Button>
       </div>
@@ -72,9 +74,7 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
       {/* Zero means untagged — a whole file whose length nobody knows until it
           loads, so showing 0:00 would be a lie. */}
       {length > 0 ? (
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-          {clock(length)}
-        </span>
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{clock(length)}</span>
       ) : null}
 
       <FavoriteButton

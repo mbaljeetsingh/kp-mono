@@ -14,7 +14,8 @@ export function RagiRoute() {
     <section className="flex flex-col gap-4">
       <Link
         to="/ragis"
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ChevronLeft className="size-4" />
         Ragis
       </Link>

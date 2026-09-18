@@ -44,8 +44,8 @@ export function SignIn() {
             <CardTitle>Contribute</CardTitle>
           </div>
           <CardDescription>
-            Sign in to tag recordings. Anyone with an account can contribute — the trust
-            ladder gates publishing, not participation.
+            Sign in to tag recordings. Anyone with an account can contribute — the trust ladder
+            gates publishing, not participation.
           </CardDescription>
         </CardHeader>
 

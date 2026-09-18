@@ -50,31 +50,32 @@ function Body({
           music app puts it there: the bottom third of a phone is where a thumb
           already rests, and anything higher needs a second hand. */}
       {header ? (
-      <div className="flex items-center gap-3 px-4 pb-3">
-        <ArtTile
-          name={current.artist ?? current.title}
-          src={artistPhotoUrl(current.artistPhoto)}
-          rounded="lg"
-          className="size-14 text-2xl"
-        />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{current.title}</p>
-          {current.artist ? (
-            <Link
-              to="/ragis/$name"
-              params={{ name: current.artist }}
-              onClick={onClose}
-              className="truncate text-sm text-muted-foreground hover:text-foreground">
-              {current.subtitle ?? current.artist}
-            </Link>
-          ) : (
-            <p className="truncate text-sm text-muted-foreground">{current.subtitle}</p>
-          )}
-          {current.isLive ? <LiveBadge /> : null}
+        <div className="flex items-center gap-3 px-4 pb-3">
+          <ArtTile
+            name={current.artist ?? current.title}
+            src={artistPhotoUrl(current.artistPhoto)}
+            rounded="lg"
+            className="size-14 text-2xl"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{current.title}</p>
+            {current.artist ? (
+              <Link
+                to="/ragis/$name"
+                params={{ name: current.artist }}
+                onClick={onClose}
+                className="truncate text-sm text-muted-foreground hover:text-foreground"
+              >
+                {current.subtitle ?? current.artist}
+              </Link>
+            ) : (
+              <p className="truncate text-sm text-muted-foreground">{current.subtitle}</p>
+            )}
+            {current.isLive ? <LiveBadge /> : null}
+          </div>
+          {/* A broadcast is not something to save — there is no rendition behind it. */}
+          {current.isLive ? null : <FavoriteButton id={current.id} name={current.title} />}
         </div>
-        {/* A broadcast is not something to save — there is no rendition behind it. */}
-        {current.isLive ? null : <FavoriteButton id={current.id} name={current.title} />}
-      </div>
       ) : null}
 
       <Tabs defaultValue="lyrics" className="flex min-h-0 flex-1 flex-col">
@@ -118,13 +119,15 @@ export function NowPlayingSheet({
           its own header and the transport off the top. */}
       <SheetContent
         side="bottom"
-        className="flex h-[92dvh] flex-col gap-4 overflow-hidden p-0 pt-3 data-[side=bottom]:h-[92dvh]">
+        className="flex h-[92dvh] flex-col gap-4 overflow-hidden p-0 pt-3 data-[side=bottom]:h-[92dvh]"
+      >
         <SheetHeader className="flex-row items-center px-4 py-0">
           <Button
             variant="ghost"
             size="icon"
             aria-label="Close"
-            onClick={() => onOpenChange(false)}>
+            onClick={() => onOpenChange(false)}
+          >
             <ChevronDown />
           </Button>
           <SheetTitle className="sr-only">Now playing</SheetTitle>

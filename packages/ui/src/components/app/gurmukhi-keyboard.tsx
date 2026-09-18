@@ -7,35 +7,67 @@
  * knows the line but not that ੜ lives on `V` can click it once and learn where
  * it is.
  */
-import { Keyboard } from "lucide-react"
+import { Keyboard } from 'lucide-react';
 
-import { Button } from "../ui/button"
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover"
-import { cn } from "../../lib/utils"
+import { Button } from '../ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { cn } from '../../lib/utils';
 
-const BACKSPACE = "⇐"
+const BACKSPACE = '⇐';
 
 /**
  * Blanks hold the grid's shape — the rows are laid out the way the letters
  * group, so the last row is short and the gaps are part of the layout.
  */
 const KEYS: string[] = [
-  "a", "A", "e", "s", "h",
-  "q", "Q", "d", "D", "n",
-  "k", "K", "g", "G", "|",
-  "p", "P", "b", "B", "m",
-  "c", "C", "j", "J", "\\",
-  "X", "r", "l", "v", "V",
-  "t", "T", "f", "F", "x",
-  "", "", "", "", BACKSPACE,
-]
+  'a',
+  'A',
+  'e',
+  's',
+  'h',
+  'q',
+  'Q',
+  'd',
+  'D',
+  'n',
+  'k',
+  'K',
+  'g',
+  'G',
+  '|',
+  'p',
+  'P',
+  'b',
+  'B',
+  'm',
+  'c',
+  'C',
+  'j',
+  'J',
+  '\\',
+  'X',
+  'r',
+  'l',
+  'v',
+  'V',
+  't',
+  'T',
+  'f',
+  'F',
+  'x',
+  '',
+  '',
+  '',
+  '',
+  BACKSPACE,
+];
 
 export function GurmukhiKeyboard({
   value,
   onChange,
 }: {
-  value: string
-  onChange: (next: string) => void
+  value: string;
+  onChange: (next: string) => void;
 }) {
   return (
     <Popover>
@@ -60,11 +92,12 @@ export function GurmukhiKeyboard({
                 key={i}
                 variant="secondary"
                 size="sm"
-                className={cn("w-full px-0", key === BACKSPACE ? "text-xs" : "font-gurmukhi text-lg")}
-                aria-label={key === BACKSPACE ? "Backspace" : `Type ${key}`}
-                onClick={() =>
-                  onChange(key === BACKSPACE ? value.slice(0, -1) : `${value}${key}`)
-                }
+                className={cn(
+                  'w-full px-0',
+                  key === BACKSPACE ? 'text-xs' : 'font-gurmukhi text-lg'
+                )}
+                aria-label={key === BACKSPACE ? 'Backspace' : `Type ${key}`}
+                onClick={() => onChange(key === BACKSPACE ? value.slice(0, -1) : `${value}${key}`)}
               >
                 {key}
               </Button>
@@ -80,5 +113,5 @@ export function GurmukhiKeyboard({
         </p>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

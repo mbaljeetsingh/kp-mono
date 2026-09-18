@@ -9,13 +9,7 @@
  */
 import { usePlaylistMutations } from '@kp/api';
 import { Button } from '@kp/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@kp/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@kp/ui/dialog';
 import { Input } from '@kp/ui/input';
 import { Label } from '@kp/ui/label';
 import { useEffect, useState, type FormEvent } from 'react';
