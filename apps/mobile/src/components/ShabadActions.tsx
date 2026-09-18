@@ -9,6 +9,7 @@
 import { usePlaylistMutations, usePlaylists } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { colors } from '@kp/tokens/colors';
+import { useRouter } from 'expo-router';
 import { Heart, ListPlus, Plus, X } from 'lucide-react-native';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
@@ -25,7 +26,8 @@ export function ShabadActions({
   open: boolean;
   onClose: () => void;
 }) {
-  const { favorites, userId, prompt } = useSession();
+  const router = useRouter();
+  const { favorites, userId } = useSession();
   const playlists = usePlaylists(supabase, Boolean(userId));
   const { addItem } = usePlaylistMutations(supabase, userId);
 
@@ -45,7 +47,8 @@ export function ShabadActions({
             <Pressable
               onPress={onClose}
               accessibilityLabel="Close"
-              className="size-9 items-center justify-center">
+              className="size-9 items-center justify-center"
+            >
               <X size={18} color={colors.mutedForeground} />
             </Pressable>
           </View>
@@ -55,7 +58,8 @@ export function ShabadActions({
               favorites.toggle(item.id);
               onClose();
             }}
-            className="flex-row items-center gap-3 px-4 py-3 active:bg-accent">
+            className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+          >
             <Heart
               size={18}
               color={saved ? colors.primary : colors.foreground}
@@ -69,7 +73,8 @@ export function ShabadActions({
               playerActions.addToQueue(item);
               onClose();
             }}
-            className="flex-row items-center gap-3 px-4 py-3 active:bg-accent">
+            className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+          >
             <ListPlus size={18} color={colors.foreground} />
             <Text className="text-foreground">Add to queue</Text>
           </Pressable>
@@ -82,9 +87,13 @@ export function ShabadActions({
             <Pressable
               onPress={() => {
                 onClose();
-                prompt();
+                // The route, not the session's `prompt()`. That flag opens the
+                // web app's AuthDialog; nothing on this side renders it, so
+                // this button closed the sheet and did nothing at all.
+                router.push('/sign-in');
               }}
-              className="px-4 py-3 active:bg-accent">
+              className="px-4 py-3 active:bg-accent"
+            >
               <Text className="text-primary">Sign in to use playlists</Text>
             </Pressable>
           ) : (
@@ -94,7 +103,10 @@ export function ShabadActions({
                   key={playlist.id}
                   onPress={() => {
                     void addItem
-                      .mutateAsync({ playlistId: playlist.id, renditionId: item.id })
+                      .mutateAsync({
+                        playlistId: playlist.id,
+                        renditionId: item.id,
+                      })
                       .then((inserted) =>
                         Alert.alert(
                           inserted ? `Added to ${playlist.name}` : `Already in ${playlist.name}`
@@ -103,7 +115,8 @@ export function ShabadActions({
                       .catch(() => Alert.alert('Could not add to that playlist'));
                     onClose();
                   }}
-                  className="flex-row items-center gap-3 px-4 py-3 active:bg-accent">
+                  className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+                >
                   <Plus size={18} color={colors.mutedForeground} />
                   <Text className="text-foreground">{playlist.name}</Text>
                 </Pressable>

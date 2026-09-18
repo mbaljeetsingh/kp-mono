@@ -5,13 +5,14 @@
  * playback. Tapping it opens the full player.
  */
 import { colors } from '@kp/tokens/colors';
-import { elapsedIn, progressPct, segmentTotal } from '@kp/core';
+import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
 import { useRouter } from 'expo-router';
 import { Pause, Play, SkipForward } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { ArtTile } from '~/components/ArtTile';
 import { playerActions, usePlayer } from '~/lib/player';
+import { skipToNext } from '~/lib/skip';
 import { artistPhotoUrl } from '~/lib/supabase';
 
 export function MiniPlayer() {
@@ -35,7 +36,8 @@ export function MiniPlayer() {
       <View className="flex-row items-center gap-3 px-3 py-2">
         <Pressable
           onPress={() => router.push('/now-playing')}
-          className="min-w-0 flex-1 flex-row items-center gap-3">
+          className="min-w-0 flex-1 flex-row items-center gap-3"
+        >
           <ArtTile
             name={current.artist ?? current.title}
             src={artistPhotoUrl(current.artistPhoto)}
@@ -48,11 +50,9 @@ export function MiniPlayer() {
             <Text numberOfLines={1} className="text-xs text-muted-foreground">
               {current.isLive
                 ? 'LIVE'
-                : `${Math.floor(elapsedIn(current, position) / 60)}:${String(
-                    Math.floor(elapsedIn(current, position) % 60)
-                  ).padStart(2, '0')} / ${Math.floor(segmentTotal(current, duration) / 60)}:${String(
-                    Math.floor(segmentTotal(current, duration) % 60)
-                  ).padStart(2, '0')}`}
+                : `${clock(elapsedIn(current, position))} / ${clock(
+                    segmentTotal(current, duration)
+                  )}`}
             </Text>
           </View>
         </Pressable>
@@ -60,16 +60,25 @@ export function MiniPlayer() {
         <Pressable
           onPress={playerActions.toggle}
           accessibilityLabel={playing ? 'Pause' : 'Play'}
-          className="size-10 items-center justify-center rounded-full bg-primary">
-          {playing ? <Pause size={18} color={colors.primaryForeground} /> : <Play size={18} color={colors.primaryForeground} />}
+          className="size-10 items-center justify-center rounded-full bg-primary"
+        >
+          {playing ? (
+            <Pause size={18} color={colors.primaryForeground} />
+          ) : (
+            <Play size={18} color={colors.primaryForeground} />
+          )}
         </Pressable>
 
         <Pressable
-          onPress={playerActions.next}
+          onPress={() => void skipToNext()}
           disabled={current.isLive}
           accessibilityLabel="Next"
-          className="size-10 items-center justify-center">
-          <SkipForward size={18} color={current.isLive ? colors.mutedForeground : colors.foreground} />
+          className="size-10 items-center justify-center"
+        >
+          <SkipForward
+            size={18}
+            color={current.isLive ? colors.mutedForeground : colors.foreground}
+          />
         </Pressable>
       </View>
     </View>

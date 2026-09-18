@@ -8,6 +8,7 @@
 import { colors } from '@kp/tokens/colors';
 import { useShabadText } from '@kp/api';
 import {
+  clock,
   elapsedIn,
   highlightVerseId,
   isAligned,
@@ -28,13 +29,7 @@ import {
   SkipForward,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  type LayoutChangeEvent,
-} from 'react-native';
+import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
@@ -43,14 +38,10 @@ import { QueueList } from '~/components/QueueList';
 import { ShabadSearch } from '~/components/ShabadSearch';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
+import { skipToNext } from '~/lib/skip';
 import { artistPhotoUrl } from '~/lib/supabase';
 
 /** BaniDB, direct on native: there is no browser origin to be blocked by CORS. */
-
-function clock(seconds: number): string {
-  const s = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
 
 export default function NowPlayingScreen() {
   const router = useRouter();
@@ -186,9 +177,7 @@ export default function NowPlayingScreen() {
           <Text numberOfLines={1} className="text-sm text-muted-foreground">
             {current.subtitle ?? current.artist}
           </Text>
-          {current.isLive ? (
-            <Text className="text-xs font-medium text-primary">LIVE</Text>
-          ) : null}
+          {current.isLive ? <Text className="text-xs font-medium text-primary">LIVE</Text> : null}
         </View>
 
         {/* A broadcast is not something to save — there is no rendition behind it. */}
@@ -205,11 +194,7 @@ export default function NowPlayingScreen() {
           >
             <Heart
               size={20}
-              color={
-                favorites.has(current.id)
-                  ? colors.primary
-                  : colors.mutedForeground
-              }
+              color={favorites.has(current.id) ? colors.primary : colors.mutedForeground}
               fill={favorites.has(current.id) ? colors.primary : 'transparent'}
             />
           </Pressable>
@@ -228,11 +213,7 @@ export default function NowPlayingScreen() {
             }
           >
             <Text
-              className={
-                tab === value
-                  ? 'text-sm text-primary'
-                  : 'text-sm text-muted-foreground'
-              }
+              className={tab === value ? 'text-sm text-primary' : 'text-sm text-muted-foreground'}
             >
               {value === 'lyrics' ? 'Read along' : 'Up next'}
             </Text>
@@ -282,9 +263,7 @@ export default function NowPlayingScreen() {
               {lines.map((line) => (
                 <View
                   key={line.verseId}
-                  onLayout={(e) =>
-                    rememberLine(line.verseId, e.nativeEvent.layout.y)
-                  }
+                  onLayout={(e) => rememberLine(line.verseId, e.nativeEvent.layout.y)}
                 >
                   <Text
                     className={
@@ -307,8 +286,7 @@ export default function NowPlayingScreen() {
             {/* Said once, at the foot, so nobody reads a static highlight as a bug. */}
             {lines.length && !isAligned(current) ? (
               <Text className="pb-6 text-center text-xs text-muted-foreground">
-                This rendition has no line timings yet — the highlight is the
-                tagged line.
+                This rendition has no line timings yet — the highlight is the tagged line.
               </Text>
             ) : null}
           </>
@@ -322,27 +300,17 @@ export default function NowPlayingScreen() {
         {current.isLive ? null : (
           <View className="gap-1">
             <Pressable
-              onLayout={(e: LayoutChangeEvent) =>
-                setTrackWidth(e.nativeEvent.layout.width)
-              }
+              onLayout={(e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width)}
               onPress={(e) => {
                 if (!trackWidth) return;
-                const ratio = Math.min(
-                  1,
-                  Math.max(0, e.nativeEvent.locationX / trackWidth)
-                );
-                playerActions.seek(
-                  seekTargetForPct(current, ratio * 100, duration)
-                );
+                const ratio = Math.min(1, Math.max(0, e.nativeEvent.locationX / trackWidth));
+                playerActions.seek(seekTargetForPct(current, ratio * 100, duration));
               }}
               accessibilityLabel="Seek"
               className="h-6 justify-center"
             >
               <View className="h-1 overflow-hidden rounded-full bg-muted">
-                <View
-                  className="h-full rounded-full bg-primary"
-                  style={{ width: `${pct}%` }}
-                />
+                <View className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
               </View>
             </Pressable>
             <View className="flex-row justify-between">
@@ -365,9 +333,7 @@ export default function NowPlayingScreen() {
           >
             <SkipBack
               size={22}
-              color={
-                current.isLive ? colors.mutedForeground : colors.foreground
-              }
+              color={current.isLive ? colors.mutedForeground : colors.foreground}
             />
           </Pressable>
 
@@ -384,16 +350,14 @@ export default function NowPlayingScreen() {
           </Pressable>
 
           <Pressable
-            onPress={playerActions.next}
+            onPress={() => void skipToNext()}
             disabled={current.isLive}
             accessibilityLabel="Next"
             className="size-12 items-center justify-center"
           >
             <SkipForward
               size={22}
-              color={
-                current.isLive ? colors.mutedForeground : colors.foreground
-              }
+              color={current.isLive ? colors.mutedForeground : colors.foreground}
             />
           </Pressable>
 

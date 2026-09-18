@@ -29,7 +29,10 @@ const SHABAD_COLUMNS =
 /** Every shabad query lands here, so parsing and paging are defined once. */
 function toPage(data: unknown[] | null): Page<Playable> {
   const { rows } = parseRows(shabadRowSchema, data ?? []);
-  return { items: rows.map(toPlayable), hasMore: (data?.length ?? 0) >= PAGE_SIZE };
+  return {
+    items: rows.map(toPlayable),
+    hasMore: (data?.length ?? 0) >= PAGE_SIZE,
+  };
 }
 
 function shabads(client: KpClient, from: number) {
@@ -40,7 +43,9 @@ function shabads(client: KpClient, from: number) {
 }
 
 export async function listShabads(client: KpClient, from = 0): Promise<Page<Playable>> {
-  const { data, error } = await shabads(client, from).order('created_at', { ascending: false });
+  const { data, error } = await shabads(client, from).order('created_at', {
+    ascending: false,
+  });
   if (error) throw error;
   return toPage(data);
 }
@@ -60,15 +65,34 @@ export async function shabadsByArtist(
 /**
  * Title or artist, case-insensitive.
  *
- * `%` and `_` are escaped: PostgREST passes the pattern through to ILIKE, so a
- * listener searching for a literal underscore would otherwise match anything.
+ * Two levels of escaping, both load-bearing:
+ *
+ * `%` and `_` are ILIKE wildcards — a listener searching for a literal
+ * underscore would otherwise match anything.
+ *
+ * The pattern is then double-quoted, because `or=(...)` is a comma-separated
+ * list in PostgREST's own grammar. An unquoted comma in the term ended the
+ * filter early and the request came back 400 — so searching for "jag,jivan",
+ * or any name with a comma in it, failed outright rather than finding nothing.
+ * Inside the quotes only `"` and `\` need escaping.
  */
+export function ilikePattern(term: string): string {
+  const escaped = term
+    // ILIKE's own metacharacters, backslash included — it is the escape char.
+    .replace(/[\\%_]/g, (c) => `\\${c}`)
+    // Then the quoting layer, which doubles every backslash the line above
+    // added. PostgREST unescapes them back to one on the way in, so ILIKE
+    // still sees `\%` and matches a literal percent sign.
+    .replace(/["\\]/g, (c) => `\\${c}`);
+  return `"%${escaped}%"`;
+}
+
 export async function searchShabads(
   client: KpClient,
   term: string,
   from = 0
 ): Promise<Page<Playable>> {
-  const like = `%${term.replace(/[%_]/g, (c) => `\\${c}`)}%`;
+  const like = ilikePattern(term);
   const { data, error } = await shabads(client, from).or(
     `name.ilike.${like},artist_display.ilike.${like}`
   );

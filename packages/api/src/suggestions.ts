@@ -55,7 +55,11 @@ export async function fetchSuggestionGroups(
       data: unknown[] | null;
       error: unknown;
     };
-    if (error) return;
+    // Thrown, not swallowed. A silent `return` here made a failed query
+    // indistinguishable from an empty archive, which is exactly how a station
+    // id in a uuid filter went unnoticed: Up next said there was nothing
+    // published to suggest while every request was coming back 400.
+    if (error) throw error;
 
     const { rows } = parseRows(shabadRowSchema, data ?? []);
     if (!rows.length) return;
@@ -85,7 +89,9 @@ export async function fetchSuggestionGroups(
   // published under them yet — which, this early in the archive, is most of them.
   if (!groups.length) {
     await take('Recently added', (q) =>
-      (q as never as { order: Function }).order('created_at', { ascending: false })
+      (q as never as { order: Function }).order('created_at', {
+        ascending: false,
+      })
     );
   }
 

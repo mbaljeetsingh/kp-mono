@@ -121,3 +121,15 @@ export function startPositionFor(
 ): number {
   return item?.startSec ?? resume ?? 0;
 }
+
+/**
+ * Seconds as m:ss — the transport's clock, on every surface.
+ *
+ * Here rather than in each app's `utils`: it was written out four times over,
+ * and a format three apps show side by side is exactly the thing that should
+ * not be able to drift.
+ */
+export function clock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}

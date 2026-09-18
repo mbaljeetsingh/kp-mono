@@ -81,7 +81,10 @@ export async function createPlaylist(client: KpClient, userId: string, name: str
     .select('id, name, created_at')
     .single();
   if (error) throw error;
-  return { ...(data as { id: string; name: string; created_at: string | null }), count: 0 };
+  return {
+    ...(data as { id: string; name: string; created_at: string | null }),
+    count: 0,
+  };
 }
 
 export async function renamePlaylist(client: KpClient, id: string, name: string) {
@@ -168,8 +171,7 @@ export function usePlaylistMutations(client: KpClient, userId: string | null) {
       onSuccess: invalidate,
     }),
     rename: useMutation({
-      mutationFn: ({ id, name }: { id: string; name: string }) =>
-        renamePlaylist(client, id, name),
+      mutationFn: ({ id, name }: { id: string; name: string }) => renamePlaylist(client, id, name),
       onSuccess: invalidate,
     }),
     remove: useMutation({
@@ -179,7 +181,15 @@ export function usePlaylistMutations(client: KpClient, userId: string | null) {
     addItem: useMutation({
       mutationFn: ({ playlistId, renditionId }: { playlistId: string; renditionId: string }) =>
         addPlaylistItem(client, playlistId, renditionId),
-      onSuccess: invalidate,
+      // Both, like removeItem: the list page reads the count and the playlist
+      // page reads the rows. Invalidating only the list left a shabad added
+      // from the sheet missing from the playlist open behind it until reload.
+      onSuccess: (_data, vars) => {
+        void invalidate();
+        void queryClient.invalidateQueries({
+          queryKey: [...keys.playlists.one(vars.playlistId), 'items'],
+        });
+      },
     }),
     removeItem: useMutation({
       mutationFn: ({ playlistId, renditionId }: { playlistId: string; renditionId: string }) =>

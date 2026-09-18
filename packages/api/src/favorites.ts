@@ -17,23 +17,54 @@ import { keys } from './keys';
 
 const LOCAL_KEY = 'kp:favorites';
 
-function readLocal(): string[] {
+/**
+ * Where a signed-out listener's list is kept.
+ *
+ * Injected rather than assumed, the same way the player store takes its
+ * storage: React Native has no `localStorage`, and reaching for the global
+ * there threw on every read and write. Wrapped in try/catch it threw silently,
+ * so saves lived in React state and died with the app — while the Saved screen
+ * said they were kept on the device.
+ *
+ * Async because AsyncStorage is. Nothing here is awaited on a render path: the
+ * first read lands in an effect and writes are fire-and-forget, so `has` stays
+ * synchronous and a heart never lags the tap that pressed it.
+ */
+export interface FavoritesStorage {
+  getItem(key: string): Promise<string | null>;
+  setItem(key: string, value: string): Promise<void>;
+}
+
+/** The browser's, for the two web apps. Private mode throws rather than returning null. */
+export const webFavoritesStorage: FavoritesStorage = {
+  async getItem(key) {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  async setItem(key, value) {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* a listener who blocked storage still gets a working player */
+    }
+  },
+};
+
+async function readLocal(storage: FavoritesStorage): Promise<string[]> {
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    const raw = await storage.getItem(LOCAL_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
-    // Private mode and blocked site data both throw rather than return null.
     return [];
   }
 }
 
-function writeLocal(ids: string[]) {
-  try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(ids));
-  } catch {
-    /* a listener who blocked storage still gets a working player */
-  }
+function writeLocal(storage: FavoritesStorage, ids: string[]) {
+  void storage.setItem(LOCAL_KEY, JSON.stringify(ids));
 }
 
 /**
@@ -48,8 +79,12 @@ function writeLocal(ids: string[]) {
  * insert accepted. Anything less and a failure here deletes a guest's years of
  * saves instead of retrying on the next sign-in.
  */
-export async function migrateLocalFavorites(client: KpClient, userId: string): Promise<void> {
-  const local = readLocal();
+export async function migrateLocalFavorites(
+  client: KpClient,
+  userId: string,
+  storage: FavoritesStorage = webFavoritesStorage
+): Promise<void> {
+  const local = await readLocal(storage);
   if (!local.length) return;
 
   // Batched: this filter is a query string, and a long-standing guest's list is
@@ -62,16 +97,14 @@ export async function migrateLocalFavorites(client: KpClient, userId: string): P
   const live = lookups.flatMap((r) => (r.data ?? []) as { id: string }[]).map((r) => r.id);
 
   if (live.length) {
-    const { error } = await client
-      .from('favorites')
-      .upsert(
-        live.map((id) => ({ user_id: userId, rendition_id: id })),
-        { onConflict: 'user_id,rendition_id', ignoreDuplicates: true }
-      );
+    const { error } = await client.from('favorites').upsert(
+      live.map((id) => ({ user_id: userId, rendition_id: id })),
+      { onConflict: 'user_id,rendition_id', ignoreDuplicates: true }
+    );
     if (error) return;
   }
 
-  writeLocal([]);
+  writeLocal(storage, []);
 }
 
 export interface Favorites {
@@ -80,13 +113,25 @@ export interface Favorites {
   toggle: (id: string) => void;
 }
 
-export function useFavorites(client: KpClient, userId: string | null): Favorites {
+export function useFavorites(
+  client: KpClient,
+  userId: string | null,
+  storage: FavoritesStorage = webFavoritesStorage
+): Favorites {
   const queryClient = useQueryClient();
   const [localIds, setLocalIds] = useState<string[]>([]);
 
-  // Read after mount, not during render: storage is per-browser and reading it
+  // Read after mount, not during render: storage is per-device and reading it
   // while rendering makes the first paint depend on it.
-  useEffect(() => setLocalIds(readLocal()), []);
+  useEffect(() => {
+    let live = true;
+    void readLocal(storage).then((ids) => {
+      if (live) setLocalIds(ids);
+    });
+    return () => {
+      live = false;
+    };
+  }, [storage]);
 
   const remote = useQuery({
     queryKey: keys.favorites.all,
@@ -110,9 +155,9 @@ export function useFavorites(client: KpClient, userId: string | null): Favorites
   useEffect(() => {
     if (!userId || migrated.current === userId) return;
     migrated.current = userId;
-    void migrateLocalFavorites(client, userId)
-      .then(() => {
-        setLocalIds(readLocal());
+    void migrateLocalFavorites(client, userId, storage)
+      .then(async () => {
+        setLocalIds(await readLocal(storage));
         return queryClient.invalidateQueries({ queryKey: keys.favorites.all });
       })
       .catch(() => {
@@ -120,7 +165,7 @@ export function useFavorites(client: KpClient, userId: string | null): Favorites
         // the marker lets the next sign-in try again.
         migrated.current = null;
       });
-  }, [client, userId, queryClient]);
+  }, [client, userId, queryClient, storage]);
 
   const ids = useMemo(
     () => (userId ? (remote.data ?? []) : localIds),
@@ -141,10 +186,8 @@ export function useFavorites(client: KpClient, userId: string | null): Favorites
     (id: string) => {
       if (!userId) {
         setLocalIds((current) => {
-          const next = current.includes(id)
-            ? current.filter((x) => x !== id)
-            : [...current, id];
-          writeLocal(next);
+          const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+          writeLocal(storage, next);
           return next;
         });
         return;
@@ -164,11 +207,7 @@ export function useFavorites(client: KpClient, userId: string | null): Favorites
         .then(() =>
           adding
             ? client.from('favorites').insert({ user_id: userId, rendition_id: id })
-            : client
-                .from('favorites')
-                .delete()
-                .eq('user_id', userId)
-                .eq('rendition_id', id)
+            : client.from('favorites').delete().eq('user_id', userId).eq('rendition_id', id)
         )
         .then(({ error }) => {
           // The optimistic list is a guess once the write fails; take the
@@ -183,8 +222,11 @@ export function useFavorites(client: KpClient, userId: string | null): Favorites
 
       writes.current.set(id, write);
     },
-    [client, ids, queryClient, userId]
+    [client, ids, queryClient, storage, userId]
   );
 
-  return { ids, has, toggle };
+  // Memoised: both apps hold this in a context value, and a fresh object every
+  // render defeats the useMemo around it — re-rendering every consumer of the
+  // session for a list that did not change.
+  return useMemo(() => ({ ids, has, toggle }), [ids, has, toggle]);
 }
