@@ -28,7 +28,8 @@
   "devDependencies": {
     "prettier": "^3.9.6",
     "supabase": "^2.113.0",
-    "turbo": "^2.10.8"
+    "turbo": "^2.10.8",
+    "vitest": "^5.0.1"
   },
   "dependencies": {
     "@lucide/vue": "^1.28.0",
@@ -44,5 +45,10 @@
     "vue-input-otp": "^0.3.2",
     "vue-sonner": "^2.0.9",
     "zod": "^3.25.76"
+  },
+  "pnpm": {
+    "overrides": {
+      "lightningcss": "1.30.1"
+    }
   }
 }

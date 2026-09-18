@@ -1,0 +1,16 @@
+{
+  "name": "@kp/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./segment": "./src/segment.ts",
+    "./timings": "./src/timings.ts",
+    "./repeat": "./src/repeat.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}
