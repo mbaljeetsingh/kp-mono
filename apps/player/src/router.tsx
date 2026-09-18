@@ -20,6 +20,7 @@ import { RagiRoute } from '~/routes/ragi';
 import { RagisRoute } from '~/routes/ragis';
 import { RootLayout } from '~/routes/root';
 import { SearchRoute } from '~/routes/search';
+import { ShabadsRoute } from '~/routes/shabads';
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -27,6 +28,11 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: HomeRoute,
+});
+const shabadsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/shabads',
+  component: ShabadsRoute,
 });
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -66,6 +72,7 @@ const playlistRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
+  shabadsRoute,
   searchRoute,
   ragisRoute,
   ragiRoute,

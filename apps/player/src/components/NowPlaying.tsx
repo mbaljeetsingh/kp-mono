@@ -22,13 +22,26 @@ import { SeekBar } from '~/components/SeekBar';
 import { usePlayer } from '~/lib/player';
 import { artistPhotoUrl } from '~/lib/supabase';
 
-function Body({ onClose }: { onClose?: () => void }) {
+/**
+ * `transport` is false for the desktop panel.
+ *
+ * The bar along the bottom of the window already owns play, skip and the
+ * scrubber, and the panel sits directly above it — rendering them again put two
+ * identical transports on screen, one of them within an inch of the other.
+ * On a phone the bar is covered by the sheet, so there the sheet has to carry
+ * them.
+ */
+function Body({ onClose, transport = true }: { onClose?: () => void; transport?: boolean }) {
   const current = usePlayer((s) => s.current);
   if (!current) return null;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="flex items-center gap-3 px-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* What you scan sits at the top; what you touch sits at the bottom. The
+          transport is pinned below the scrolling text for the same reason every
+          music app puts it there: the bottom third of a phone is where a thumb
+          already rests, and anything higher needs a second hand. */}
+      <div className="flex items-center gap-3 px-4 pb-3">
         <ArtTile
           name={current.artist ?? current.title}
           src={artistPhotoUrl(current.artistPhoto)}
@@ -54,14 +67,6 @@ function Body({ onClose }: { onClose?: () => void }) {
         {current.isLive ? null : <FavoriteButton id={current.id} name={current.title} />}
       </div>
 
-      <div className="px-4">
-        <SeekBar />
-      </div>
-
-      <div className="flex justify-center px-4">
-        <PlayerControls size="lg" />
-      </div>
-
       <Tabs defaultValue="lyrics" className="flex min-h-0 flex-1 flex-col">
         <TabsList className="mx-4 self-start">
           <TabsTrigger value="lyrics">Read along</TabsTrigger>
@@ -74,6 +79,13 @@ function Body({ onClose }: { onClose?: () => void }) {
           <QueueList />
         </TabsContent>
       </Tabs>
+
+      {transport ? (
+        <div className="flex shrink-0 flex-col items-center gap-2 border-t border-border px-4 pb-5 pt-3">
+          <SeekBar />
+          <PlayerControls size="lg" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -114,7 +126,7 @@ export function NowPlayingSheet({
 export function NowPlayingPanel() {
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-border py-4 lg:flex">
-      <Body />
+      <Body transport={false} />
     </aside>
   );
 }

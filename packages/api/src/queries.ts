@@ -81,3 +81,35 @@ export async function listArtists(client: KpClient): Promise<Artist[]> {
   if (error) throw error;
   return parseRows(artistSchema, (data as unknown[]) ?? []).rows;
 }
+
+/**
+ * A random handful of the archive.
+ *
+ * The randomness is the database's: PostgREST has no `order=random()` to send,
+ * and the client-side substitutes are either N round trips or a contiguous
+ * window, which is not a sample.
+ */
+export async function randomShabads(client: KpClient, n: number): Promise<Playable[]> {
+  const { data, error } = await client.rpc('random_shabads', { n });
+  if (error) throw error;
+  return parseRows(shabadRowSchema, (data as unknown[]) ?? []).rows.map(toPlayable);
+}
+
+/**
+ * The newest published shabads.
+ *
+ * A shelf, not the archive. Home once scrolled forever in pages of fifty, so
+ * "recently added" grew into every shabad there has ever been and the page had
+ * no bottom — while the question it actually answers is "what is new since I
+ * was last here", which twenty rows covers. The endless list belongs on
+ * /shabads, which is one link away.
+ */
+export async function recentShabads(client: KpClient, limit: number): Promise<Playable[]> {
+  const { data, error } = await client
+    .from('shabads')
+    .select(SHABAD_COLUMNS)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return parseRows(shabadRowSchema, data ?? []).rows.map(toPlayable);
+}
