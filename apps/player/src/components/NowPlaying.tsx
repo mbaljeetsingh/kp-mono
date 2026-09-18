@@ -78,7 +78,10 @@ function Body({
       ) : null}
 
       <Tabs defaultValue="lyrics" className="flex min-h-0 flex-1 flex-col">
-        <TabsList className="mx-4 self-start">
+        {/* Full width with equal halves: two tabs hugging the left edge leave
+            a stripe of dead space beside them, and a wider target is easier to
+            hit on a phone. */}
+        <TabsList className="mx-4 grid grid-cols-2">
           <TabsTrigger value="lyrics">Read along</TabsTrigger>
           <TabsTrigger value="queue">Up next</TabsTrigger>
         </TabsList>
