@@ -35,7 +35,7 @@ export function RootLayout() {
   return (
     <div className="flex min-h-dvh bg-background text-foreground">
       <nav className="flex w-52 shrink-0 flex-col gap-1 border-r border-border p-4">
-        <Link to="/" className="mb-4 flex items-center gap-2">
+        <Link to="/" search={{}} className="mb-4 flex items-center gap-2">
           <img src="/brand/logo-badge-dark.svg" alt="" className="size-7" />
           <span className="text-sm font-semibold">Contribute</span>
         </Link>
@@ -44,6 +44,7 @@ export function RootLayout() {
           <Link
             key={to}
             to={to}
+            search={{}}
             className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
             activeProps={{ className: 'bg-accent text-foreground' }}
             activeOptions={{ exact: to === '/' }}>

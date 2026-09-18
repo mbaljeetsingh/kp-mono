@@ -44,10 +44,15 @@ export function PlayerBar() {
             />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium">{current.title}</span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {current.subtitle ?? current.artist}
+              {/* Inline with the subtitle, not under it: on its own line the
+                  badge wrapped below the transport and pushed the whole strip
+                  out of alignment whenever a station was playing. */}
+              <span className="flex min-w-0 items-center gap-2">
+                {current.isLive ? <LiveBadge /> : null}
+                <span className="truncate text-xs text-muted-foreground">
+                  {current.subtitle ?? current.artist}
+                </span>
               </span>
-              {current.isLive ? <LiveBadge /> : null}
             </span>
             <ChevronUp className="size-4 shrink-0 text-muted-foreground lg:hidden" />
           </button>

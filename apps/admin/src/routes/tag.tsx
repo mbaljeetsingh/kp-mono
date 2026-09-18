@@ -114,6 +114,7 @@ export function TagRoute() {
       }}>
       <Link
         to="/"
+        search={(prev) => prev}
         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ChevronLeft className="size-4" />
         Queue

@@ -5,6 +5,7 @@
  * player reads published renditions through `shabads`, the workbench reads raw
  * recordings and every draft on them, published or not.
  */
+import { DONE_SLACK_SECONDS } from '@kp/core';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 
@@ -28,6 +29,11 @@ export const recordingSchema = z.object({
   est_seconds: z.number().nullish(),
   renditions: z.number(),
   published: z.number(),
+  /** Null when the length is unknowable — no filename slot, which is all of puratan. */
+  untagged_seconds: z.number().nullish(),
+  /** A tagger's mark that the rest is not shabads. Overrides the coverage measure. */
+  tagged_done_at: z.string().nullish(),
+  last_activity_at: z.string().nullish(),
 });
 
 export const renditionSchema = z.object({
@@ -47,16 +53,92 @@ export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
 
 /** Which shelf of the queue. Each is a different question about coverage. */
-export type Shelf = 'todo' | 'progress' | 'done';
+export type Shelf = 'todo' | 'queued' | 'started' | 'done' | 'all';
+
+/** How a shelf is ordered. */
+export type Sort = 'recent' | 'shortest' | 'least' | 'random';
+
+/**
+ * Each shelf offers only the sorts it can answer, and its default must appear
+ * in its own list or the ordering has no button showing it.
+ */
+export const SHELF_SORTS: Record<Shelf, Sort[]> = {
+  todo: ['shortest', 'random'],
+  queued: ['recent'],
+  started: ['recent', 'least'],
+  done: ['recent'],
+  all: ['recent', 'shortest', 'random'],
+};
+
+export const SHELF_DEFAULT_SORT: Record<Shelf, Sort> = {
+  todo: 'random',
+  queued: 'recent',
+  started: 'recent',
+  done: 'recent',
+  all: 'recent',
+};
+
+/**
+ * Ids the Queued shelf will ask for at once.
+ *
+ * ~19 bytes each in the query string, so this stays far inside the 8 KB a proxy
+ * will usually carry. Capped because the queue is only self-limiting while the
+ * scanner is healthy: every id it stamps leaves the queue, so a scanner failing
+ * on every track — which is what a missing ffmpeg did — lets requests pile up
+ * until the URL is too long to send, and the shelf then breaks exactly when
+ * somebody opens it to ask why.
+ */
+export const QUEUED_SHELF_MAX = 200;
 
 const RECORDING_COLUMNS =
   'id,url,tree,title,artist_dir,artist_photo,date,raw_filename,' +
-  'slot_start_sec,slot_end_sec,est_seconds,renditions,published';
+  'slot_start_sec,slot_end_sec,est_seconds,renditions,published,' +
+  'untagged_seconds,tagged_done_at,last_activity_at';
+
+/**
+ * Escape a term for a PostgREST `or` list.
+ *
+ * Commas and parentheses delimit the list, so they have to go — and they become
+ * wildcards rather than spaces, because a space is a character the filename
+ * would then have to match in that exact position. Real filenames are full of
+ * parentheses ("(5.35pm to 6.10pm)"), so pasting one in has to keep working.
+ */
+export function escapeFilterValue(term: string): string {
+  return `%${term.replace(/[(),]/g, '%')}%`;
+}
+
+/** Tracks with a scan requested and not yet finished — the Queued shelf. */
+export async function fetchQueuedScanIds(client: KpClient): Promise<string[]> {
+  // Fetched rather than joined into the view: the table is small — one row per
+  // request, ever — and a second query keeps the view SQL untouched. Without
+  // scans.request, RLS returns nothing and the shelf is simply empty.
+  const { data, error } = await client.from('scan_requests').select('track_id,done_at');
+  if (error) return [];
+  return ((data ?? []) as { track_id: string; done_at: string | null }[])
+    .filter((r) => r.done_at === null)
+    .map((r) => r.track_id);
+}
+
+export function useQueuedScanIds(client: KpClient, enabled: boolean) {
+  return useQuery({
+    queryKey: ['scan-requests'],
+    queryFn: () => fetchQueuedScanIds(client),
+    enabled,
+  });
+}
+
+export interface RecordingFilters {
+  shelf: Shelf;
+  sort: Sort;
+  tree: string | null;
+  search: string;
+  /** From `useQueuedScanIds` — only the Queued shelf reads it. */
+  queuedIds: string[];
+}
 
 export async function listRecordings(
   client: KpClient,
-  shelf: Shelf,
-  tree: string | null,
+  filters: RecordingFilters,
   from = 0
 ): Promise<{ items: Recording[]; hasMore: boolean }> {
   let query = client
@@ -64,23 +146,70 @@ export async function listRecordings(
     .select(RECORDING_COLUMNS)
     .range(from, from + PAGE_SIZE - 1);
 
-  if (tree) query = query.eq('tree', tree);
+  if (filters.tree) query = query.eq('tree', filters.tree);
 
-  // Todo is untouched, in-progress has drafts, done has published work. The
-  // counts come from the view, which deliberately runs as owner so another
-  // contributor's drafts are visible — otherwise two people segment the same
-  // recording.
-  if (shelf === 'todo') query = query.eq('renditions', 0);
-  if (shelf === 'progress') query = query.gt('renditions', 0).eq('published', 0);
-  if (shelf === 'done') query = query.gt('published', 0);
+  /*
+   * The two coverage arms must stay exact complements of each other, or a
+   * recording lands on both shelves or on neither.
+   *
+   * "Done" demands coverage, not just a published row: two shabads out of a
+   * 70-minute set is a recording somebody *started*, and it has to keep showing
+   * up where the next tagger looks for unfinished work. A tagger's mark that the
+   * rest is not shabads (tagged_done_at) overrides the coverage measure —
+   * announcements and simran are minutes no amount of tagging will ever cover.
+   * NULL untagged_seconds means the length is unknowable, and unknown reads as
+   * still-open. Same predicate as coverageOpen() in @kp/core.
+   */
+  if (filters.shelf === 'todo') {
+    query = query.eq('renditions', 0);
+  } else if (filters.shelf === 'started') {
+    query = query
+      .gt('renditions', 0)
+      .or(
+        `published.eq.0,and(tagged_done_at.is.null,or(untagged_seconds.gt.${DONE_SLACK_SECONDS},untagged_seconds.is.null))`
+      );
+  } else if (filters.shelf === 'done') {
+    query = query
+      .gt('published', 0)
+      .or(`untagged_seconds.lte.${DONE_SLACK_SECONDS},tagged_done_at.not.is.null`);
+  } else if (filters.shelf === 'queued') {
+    // Not a column on the view — the queue is its own table — so it filters by
+    // the ids awaiting a scan. An empty list needs no special case: PostgREST
+    // answers `in.()` with no rows, which is the right answer for an empty
+    // queue.
+    query = query.in('id', filters.queuedIds.slice(0, QUEUED_SHELF_MAX));
+  }
 
-  // Shortest first: a recording that finishes in one sitting is what keeps a
-  // volunteer coming back. Nulls last — an unknown length is a worse bet than
-  // a known short one.
-  const { data, error } = await query.order('est_seconds', {
-    ascending: true,
-    nullsFirst: false,
-  });
+  /*
+   * The filename as well as the artist: `title` is null for almost every
+   * recording, so the filename is the only place the date and the slot
+   * ("5.35pm to 6.10pm") are written — and that is how a tagger looks for the
+   * one recording somebody asked them about.
+   */
+  const term = filters.search.trim();
+  if (term.length > 1) {
+    const v = escapeFilterValue(term);
+    query = query.or(`artist_dir.ilike.${v},raw_filename.ilike.${v},title.ilike.${v}`);
+  }
+
+  if (filters.sort === 'shortest') {
+    // Shortest first is what lets somebody finish a recording in one sitting,
+    // which is what keeps a volunteer coming back. Nulls last — an unknown
+    // length is a worse bet than a known short one.
+    query = query.order('est_seconds', { ascending: true, nullsFirst: false });
+  } else if (filters.sort === 'least') {
+    query = query.order('untagged_seconds', { ascending: true, nullsFirst: false });
+  } else if (filters.sort === 'random') {
+    // Without this the same finished recordings sit at the top of the Todo
+    // shelf forever and two taggers arriving on the same day get handed the
+    // same work. `id` is a sha1 of the URL, so ordering by it is arbitrary but
+    // stable — a page boundary cannot shuffle underneath a scroll.
+    query = query.order('id', { ascending: true });
+  } else {
+    query = query.order('last_activity_at', { ascending: false, nullsFirst: false });
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
 
   const { rows } = parseRows(recordingSchema, data ?? []);
@@ -109,10 +238,13 @@ export async function getRecording(client: KpClient, id: string): Promise<Record
   return parsed.success ? parsed.data : null;
 }
 
-export function useRecordings(client: KpClient, shelf: Shelf, tree: string | null) {
+export function useRecordings(client: KpClient, filters: RecordingFilters) {
   return useInfiniteQuery({
-    queryKey: ['recordings', shelf, tree],
-    queryFn: ({ pageParam }) => listRecordings(client, shelf, tree, pageParam as number),
+    queryKey: ['recordings', filters.shelf, filters.sort, filters.tree, filters.search,
+      // Only the Queued shelf depends on the ids, and keying every shelf on them
+      // would refetch the whole queue whenever a scan finishes.
+      filters.shelf === 'queued' ? filters.queuedIds.length : 0],
+    queryFn: ({ pageParam }) => listRecordings(client, filters, pageParam as number),
     initialPageParam: 0,
     getNextPageParam: (last, all) => (last.hasMore ? all.length * PAGE_SIZE : undefined),
   });

@@ -106,6 +106,9 @@ export function PendingRoute() {
                 <Link
                   to="/tag/$id"
                   params={{ id: row.track_id }}
+                  // From review there is no shelf to preserve — the tagger
+                  // arrived from a different list entirely.
+                  search={{}}
                   className="truncate text-sm hover:underline">
                   {row.name}
                 </Link>
