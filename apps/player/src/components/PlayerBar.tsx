@@ -67,11 +67,11 @@ export function PlayerBar() {
             {current.isLive ? null : (
               <FavoriteButton id={current.id} name={current.title} className="hidden sm:flex" />
             )}
-            {/* The phone keeps only play/pause on the bar; everything else is a
-                tap away in the sheet, and four icons at this width is a row of
-                targets too small to hit. */}
+            {/* The phone keeps play and next on the bar; everything else is a
+                tap away in the sheet. Four icons beside a title at this width
+                left the title one character wide. */}
             <div className="sm:hidden">
-              <PlayerControls />
+              <PlayerControls compact />
             </div>
           </div>
         </div>
