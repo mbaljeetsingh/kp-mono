@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { KpClient } from './client';
 
 export const PERMISSIONS = [
+  'renditions.propose',
   'renditions.review',
   'renditions.publish',
   'renditions.delete',

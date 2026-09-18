@@ -129,3 +129,98 @@ export function useRenditions(client: KpClient, trackId: string) {
     enabled: trackId.length > 0,
   });
 }
+
+/* ── Writing ──────────────────────────────────────────────────────────── */
+
+/**
+ * What a contributor actually fills in.
+ *
+ * `name` is the only required tag, and deliberately so: typing what you hear
+ * needs no Gurbani literacy, which is what keeps the highest-volume task open
+ * to anyone. Everything else is additive.
+ */
+export const draftSchema = z
+  .object({
+    track_id: z.string().min(1),
+    name: z.string().trim().min(1, 'Give the shabad a name'),
+    start_sec: z.number().min(0),
+    end_sec: z.number(),
+    shabad_id: z.number().nullish(),
+    main_verse_id: z.number().nullish(),
+    raag: z.string().trim().nullish(),
+    artist: z.string().trim().nullish(),
+  })
+  // Mirrors the `rendition_ordered` check constraint, so a bad range is caught
+  // in the form rather than coming back as a Postgres error nobody can read.
+  .refine((d) => d.end_sec > d.start_sec, {
+    message: 'The end must come after the start',
+    path: ['end_sec'],
+  });
+
+export type Draft = z.infer<typeof draftSchema>;
+
+/**
+ * Create a rendition.
+ *
+ * `created_by` is set here because RLS insists on it: the insert policy checks
+ * `created_by = auth.uid()`, so omitting it is not a missing default — it is a
+ * rejected row.
+ *
+ * `status` is never passed. A new rendition is a draft; publishing is a
+ * separate act needing a separate permission, and conflating them is how a
+ * contributor would accidentally push unreviewed work into the player.
+ */
+export async function createRendition(
+  client: KpClient,
+  draft: Draft,
+  userId: string
+): Promise<Rendition> {
+  const parsed = draftSchema.parse(draft);
+  const { data, error } = await client
+    .from('renditions')
+    .insert({ ...parsed, created_by: userId })
+    .select('id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,artist')
+    .single();
+  if (error) throw error;
+  return renditionSchema.parse(data);
+}
+
+export async function updateRendition(
+  client: KpClient,
+  id: string,
+  draft: Draft
+): Promise<Rendition> {
+  const parsed = draftSchema.parse(draft);
+  const { data, error } = await client
+    .from('renditions')
+    .update({ ...parsed, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,artist')
+    .single();
+  if (error) throw error;
+  return renditionSchema.parse(data);
+}
+
+/**
+ * Publish or unpublish.
+ *
+ * Its own function rather than a field on the update, because it is its own
+ * permission and its own decision — and because unpublishing is how a bad tag
+ * gets pulled out of the player without deleting the work behind it.
+ */
+export async function setRenditionStatus(
+  client: KpClient,
+  id: string,
+  status: 'draft' | 'published'
+): Promise<void> {
+  const { error } = await client
+    .from('renditions')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteRendition(client: KpClient, id: string): Promise<void> {
+  const { error } = await client.from('renditions').delete().eq('id', id);
+  if (error) throw error;
+}

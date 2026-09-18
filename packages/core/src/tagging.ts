@@ -93,3 +93,24 @@ export function untaggedSeconds(segments: TimelineSegment[], duration: number): 
 
   return Math.max(0, duration - covered);
 }
+
+/**
+ * Segments this range would overlap.
+ *
+ * The database does not forbid overlap, and it should not — a rendition can
+ * legitimately contain another, and re-cutting boundaries means transient
+ * overlap is normal. But an *accidental* overlap is the common mistake when
+ * marking a boundary by ear, so the workbench warns rather than the schema
+ * refusing.
+ *
+ * `ignoreId` is the segment being edited, which always overlaps itself.
+ */
+export function overlapping(
+  segments: TimelineSegment[],
+  range: { start: number; end: number },
+  ignoreId?: string
+): TimelineSegment[] {
+  return segments.filter(
+    (s) => s.id !== ignoreId && s.start < range.end && range.start < s.end
+  );
+}

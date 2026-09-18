@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   coverageOpen,
+  overlapping,
   untaggedGaps,
   untaggedSeconds,
   type TimelineSegment,
@@ -80,5 +81,31 @@ describe('untaggedSeconds', () => {
 
   it('never goes negative when segments run past the stated duration', () => {
     expect(untaggedSeconds([seg('a', 0, 700)], 600)).toBe(0);
+  });
+});
+
+describe('overlapping', () => {
+  const segments = [seg('a', 0, 100), seg('b', 200, 300)];
+
+  it('finds a range that runs into an existing segment', () => {
+    expect(overlapping(segments, { start: 50, end: 150 }).map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('allows a range that sits cleanly in a gap', () => {
+    expect(overlapping(segments, { start: 100, end: 200 })).toEqual([]);
+  });
+
+  it('treats touching boundaries as clear, not overlapping', () => {
+    // One shabad ending exactly where the next begins is the normal case, not
+    // a mistake worth warning about.
+    expect(overlapping(segments, { start: 300, end: 400 })).toEqual([]);
+  });
+
+  it('ignores the segment being edited, which always overlaps itself', () => {
+    expect(overlapping(segments, { start: 0, end: 100 }, 'a')).toEqual([]);
+  });
+
+  it('reports every segment a long range swallows', () => {
+    expect(overlapping(segments, { start: 0, end: 500 }).map((s) => s.id)).toEqual(['a', 'b']);
   });
 });

@@ -6,12 +6,20 @@
  * what the store is for — the store plays *segments* and stops at their ends,
  * and that is exactly the behaviour a tagger needs turned off.
  */
-import { useRecording, useRenditions, usePermissions, useAuth } from '@kp/api';
+import {
+  useRecording,
+  useRenditions,
+  usePermissions,
+  useAuth,
+  type Rendition,
+} from '@kp/api';
 import { untaggedSeconds, coverageOpen, type TimelineSegment } from '@kp/core';
+import { Button } from '@kp/ui/button';
 import { Link, useParams } from '@tanstack/react-router';
-import { ChevronLeft, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronLeft, Pause, Play, Plus, SkipBack, SkipForward } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { SegmentEditor } from '~/components/SegmentEditor';
 import { Timeline } from '~/components/Timeline';
 import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
@@ -31,6 +39,14 @@ export function TagRoute() {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
+
+  /**
+   * `null` means no editor open; a Rendition means revising that one; `'new'`
+   * means creating. Three states rather than two booleans, because "editing
+   * nothing" and "editing a new thing" are genuinely different and a pair of
+   * flags lets them both be true.
+   */
+  const [editing, setEditing] = useState<Rendition | 'new' | null>(null);
 
   const url = recording.data?.url;
 
@@ -168,28 +184,61 @@ export function TagRoute() {
 
             {segments.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-                Nothing tagged yet. Play through and mark where a shabad starts and ends.
+                Nothing tagged yet. Play through, then mark where a shabad starts and ends.
               </p>
             ) : (
               <div className="flex flex-col gap-0.5">
-                {segments.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => seek(s.start)}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-accent/50">
-                    <span className="min-w-0 flex-1 truncate text-sm">{s.name}</span>
+                {(renditions.data ?? []).map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 hover:bg-accent/50">
+                    <button
+                      type="button"
+                      onClick={() => seek(Number(r.start_sec))}
+                      className="min-w-0 flex-1 truncate text-left text-sm">
+                      {r.name}
+                    </button>
                     <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground">
-                      {s.published ? 'published' : 'draft'}
+                      {r.status}
                     </span>
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {clock(s.start)}–{clock(s.end)}
+                      {clock(Number(r.start_sec))}–{clock(Number(r.end_sec))}
                     </span>
-                  </button>
+                    <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+                      Edit
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
+
+          {editing ? (
+            <SegmentEditor
+              trackId={id}
+              userId={session?.user.id ?? ''}
+              position={position}
+              segments={segments}
+              editing={editing === 'new' ? null : editing}
+              can={{
+                propose: can['renditions.propose'],
+                publish: can['renditions.publish'],
+                remove: can['renditions.delete'],
+                review: can['renditions.review'],
+              }}
+              onDone={() => setEditing(null)}
+              onSeek={seek}
+            />
+          ) : (
+            <Button
+              variant="outline"
+              disabled={!can['renditions.propose']}
+              onClick={() => setEditing('new')}
+              className="self-start">
+              <Plus />
+              New segment from {clock(position)}
+            </Button>
+          )}
 
           {/* Shown rather than hidden: a tagger who cannot publish should know
               that is a trust level, not a broken button. */}
