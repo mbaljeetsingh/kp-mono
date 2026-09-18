@@ -13,11 +13,13 @@ import { Toaster } from '@kp/ui/sonner';
 import { Disc3, Github, Heart, ListMusic, Radio, Search, Users } from 'lucide-react';
 
 import { AccountButton } from '~/components/AccountButton';
+import { NowPlayingPanel } from '~/components/NowPlaying';
 import { AuthDialog } from '~/components/AuthDialog';
 import { NewPlaylistDialog } from '~/components/NewPlaylistDialog';
 import { PlayerBar } from '~/components/PlayerBar';
 import { ThemeToggle } from '~/components/ThemeToggle';
 import { CONTRIBUTE_URL, GITHUB_URL } from '~/lib/links';
+import { usePlayerKeys } from '~/lib/keys';
 import { useSession } from '~/lib/session';
 
 const MAIN = [
@@ -37,6 +39,7 @@ const TABS = [...MAIN.slice(0, 3), LIBRARY[0]] as const;
 
 export function RootLayout() {
   const { newPlaylistOpen, setNewPlaylistOpen } = useSession();
+  usePlayerKeys();
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -105,6 +108,11 @@ export function RootLayout() {
             <Outlet />
           </div>
         </main>
+
+        {/* Wide screens get the full player beside the list rather than behind
+            a sheet — there is room, and hiding it would be a phone habit
+            imported onto a desktop. */}
+        <NowPlayingPanel />
       </div>
 
       <nav className="flex border-t border-border sm:hidden">

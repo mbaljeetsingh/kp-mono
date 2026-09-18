@@ -7,7 +7,7 @@
       "runtimeArgs": [
         "--filter",
         "@kp/player",
-        "dev"
+        "dev:port"
       ],
       "port": 3000
     },
@@ -17,7 +17,7 @@
       "runtimeArgs": [
         "--filter",
         "@kp/admin",
-        "dev"
+        "dev:port"
       ],
       "port": 3001
     }

@@ -31,6 +31,7 @@ const storage = {
 
 export const playerStore = createPlayerStore({ storage });
 
+
 playerStore.getState().attach(
   createWebAudioDriver((status) => playerStore.getState().onStatus(status))
 );

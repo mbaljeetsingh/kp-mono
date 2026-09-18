@@ -15,6 +15,19 @@ export default defineConfig({
       '~': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  optimizeDeps: {
+    /*
+     * @kp/ui is a linked workspace package, so Vite treats it as source and
+     * does NOT pre-bundle it — but it *does* pre-bundle the app's own React.
+     * Its imports then resolve to the raw copy in node_modules while the app
+     * uses the optimized one, and two module instances of React is "Invalid
+     * hook call" with nothing wrong in the component that throws.
+     *
+     * The `a > b` form is Vite's way of naming a nested dependency of a linked
+     * package so it lands in the same pre-bundle.
+     */
+    include: ['react', 'react-dom', 'react/jsx-runtime', '@kp/ui > @base-ui/react'],
+  },
   server: {
     port: 3001,
     proxy: {

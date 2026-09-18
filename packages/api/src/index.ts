@@ -8,3 +8,5 @@ export * from './permissions';
 export * from './admin';
 export * from './playlists';
 export * from './favorites';
+export * from './shabad-text';
+export * from './suggestions';

@@ -2,89 +2,74 @@
  * The persistent transport.
  *
  * Never unmounts — it sits outside the router outlet, so navigating does not
- * interrupt playback or reset the queue.
+ * interrupt playback or reset the queue. On a phone the whole strip opens the
+ * full player, which is the gesture people already expect from every other
+ * music app; the controls stop that from firing so a tap on Play is a play.
  */
-import { REPEAT_LABELS } from '@kp/core';
-import { Button } from '@kp/ui/button';
-import { Link } from '@tanstack/react-router';
-import { Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react';
+import { ChevronUp } from 'lucide-react';
+import { useState } from 'react';
 
+import { ArtTile } from '~/components/ArtTile';
+import { FavoriteButton } from '~/components/FavoriteButton';
+import { LiveBadge } from '~/components/LiveBadge';
+import { NowPlayingSheet } from '~/components/NowPlaying';
+import { PlayerControls } from '~/components/PlayerControls';
 import { SeekBar } from '~/components/SeekBar';
-import { playerActions, usePlayer } from '~/lib/player';
-import { cn } from '~/lib/utils';
+import { usePlayer } from '~/lib/player';
+import { artistPhotoUrl } from '~/lib/supabase';
 
 export function PlayerBar() {
   const current = usePlayer((s) => s.current);
-  const playing = usePlayer((s) => s.playing);
-  const repeat = usePlayer((s) => s.repeat);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // Nothing loaded means no bar at all, rather than a dead strip of controls.
   if (!current) return null;
 
-  const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
-
   return (
-    <footer className="border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{current.title}</p>
-          {current.artist ? (
-            <Link
-              to="/ragis/$name"
-              params={{ name: current.artist }}
-              className="truncate text-xs text-muted-foreground hover:text-foreground">
-              {current.subtitle ?? current.artist}
-            </Link>
-          ) : null}
-        </div>
+    <>
+      <footer className="border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2 sm:gap-4 sm:px-4 sm:py-3">
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            aria-label="Open the full player"
+            className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <ArtTile
+              name={current.artist ?? current.title}
+              src={artistPhotoUrl(current.artistPhoto)}
+              className="size-10 text-lg"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{current.title}</span>
+              <span className="block truncate text-xs text-muted-foreground">
+                {current.subtitle ?? current.artist}
+              </span>
+              {current.isLive ? <LiveBadge /> : null}
+            </span>
+            <ChevronUp className="size-4 shrink-0 text-muted-foreground sm:hidden" />
+          </button>
 
-        <div className="flex flex-[2] flex-col items-center gap-1">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Previous"
-              // A broadcast has no previous — there is nothing behind live.
-              disabled={current.isLive}
-              onClick={playerActions.previous}
-              className="rounded-full">
-              <SkipBack />
-            </Button>
-            <Button
-              size="icon"
-              aria-label={playing ? 'Pause' : 'Play'}
-              onClick={playerActions.toggle}
-              className="rounded-full">
-              {playing ? <Pause /> : <Play />}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Next"
-              disabled={current.isLive}
-              onClick={playerActions.next}
-              className="rounded-full">
-              <SkipForward />
-            </Button>
+          <div className="hidden flex-[2] flex-col items-center gap-1 sm:flex">
+            <PlayerControls />
+            <SeekBar />
           </div>
-          <SeekBar />
-        </div>
 
-        <div className="flex flex-1 justify-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            // The name states what is on, not what a press would do — a cycle
-            // of three has no single "would do", and aria-pressed would
-            // describe a tri-state control as a toggle.
-            aria-label={REPEAT_LABELS[repeat]}
-            title={REPEAT_LABELS[repeat]}
-            onClick={playerActions.cycleRepeat}
-            className={cn('rounded-full', repeat !== 'off' && 'text-primary')}>
-            <RepeatIcon />
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            {/* A broadcast is not something to save — there is no rendition behind it. */}
+            {current.isLive ? null : (
+              <FavoriteButton id={current.id} name={current.title} className="hidden sm:flex" />
+            )}
+            {/* The phone keeps only play/pause on the bar; everything else is a
+                tap away in the sheet, and four icons at this width is a row of
+                targets too small to hit. */}
+            <div className="sm:hidden">
+              <PlayerControls />
+            </div>
+          </div>
         </div>
-      </div>
-    </footer>
+      </footer>
+
+      <NowPlayingSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+    </>
   );
 }

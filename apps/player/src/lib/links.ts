@@ -11,3 +11,12 @@
  */
 export const GITHUB_URL = 'https://github.com/mbaljeetsingh/kp-mono';
 export const CONTRIBUTE_URL = 'https://contribute.kirtanplayer.beejaysoft.com/';
+
+/**
+ * BaniDB, through the dev proxy.
+ *
+ * Same-origin in dev as well as production: BaniDB caches its allow-origin
+ * header across ports, so a direct call from :3000 gets a response cached for
+ * another origin and is blocked. See the proxy in vite.config.ts.
+ */
+export const BANIDB_BASE = '/banidb';
