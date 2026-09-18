@@ -8,3 +8,4 @@ export * from './tagging';
 export * from './batch';
 export * from './artwork';
 export * from './stations';
+export * from './shabad-name';

@@ -10,3 +10,4 @@ export * from './playlists';
 export * from './favorites';
 export * from './shabad-text';
 export * from './suggestions';
+export * from './banidb';

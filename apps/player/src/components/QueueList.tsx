@@ -28,9 +28,14 @@ export function QueueList({ className }: { className?: string }) {
   const suggestions = useQuery({
     queryKey: ['suggestions', current?.id],
     queryFn: () => fetchSuggestionGroups(supabase, current),
-    // Only asked for when the queue has nothing — otherwise this is a request
-    // for a panel nobody is looking at.
-    enabled: queued.length === 0 && Boolean(current) && !current?.isLive,
+    /*
+     * Asked for whenever the queue has nothing, including while a station is
+     * playing. A broadcast has no artist or raag to relate to, so the groups
+     * fall through to "Recently added" — but Up next should never be a blank
+     * panel, and a listener on the radio is exactly who might want somewhere
+     * to go next.
+     */
+    enabled: queued.length === 0,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -70,8 +75,14 @@ export function QueueList({ className }: { className?: string }) {
         </div>
       ))}
 
+      {suggestions.isLoading ? (
+        <p className="px-1 py-4 text-sm text-muted-foreground">Loading…</p>
+      ) : null}
+
       {!suggestions.isLoading && !(suggestions.data ?? []).length ? (
-        <p className="px-1 py-4 text-sm text-muted-foreground">Nothing queued.</p>
+        <p className="px-1 py-4 text-sm text-muted-foreground">
+          Nothing published yet to suggest.
+        </p>
       ) : null}
     </div>
   );

@@ -17,9 +17,20 @@ export function SeekBar() {
   const duration = usePlayer((s) => s.duration);
   const track = useRef<HTMLDivElement>(null);
 
-  // A broadcast has no timeline to scrub and no end to scrub towards.
+  /**
+   * A broadcast has no timeline to scrub and no end to scrub towards — but it
+   * still has to occupy the same strip. A bare label collapsed the row and let
+   * the transport slide down and off-centre every time a station was playing.
+   */
   if (current?.isLive) {
-    return <div className="text-xs font-medium tracking-wide text-primary">LIVE</div>;
+    return (
+      <div className="flex h-6 w-full items-center justify-center">
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-primary">
+          <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+          LIVE
+        </span>
+      </div>
+    );
   }
 
   const pct = progressPct(current, position, duration);

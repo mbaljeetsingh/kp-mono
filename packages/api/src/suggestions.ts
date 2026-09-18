@@ -56,7 +56,9 @@ export async function fetchSuggestionGroups(
     groups.push({ label, items: rows.map(toPlayable) });
   }
 
-  if (current?.artist) {
+  // A broadcast relates to nothing in the archive, so it skips straight to the
+  // fallback rather than searching for renditions by a station's name.
+  if (current?.artist && !current.isLive) {
     await take(`More from ${current.subtitle ?? current.artist}`, (q) =>
       (q as never as { eq: Function })
         .eq('artist', current.artist)
@@ -64,7 +66,7 @@ export async function fetchSuggestionGroups(
     );
   }
 
-  if (current?.raag) {
+  if (current?.raag && !current.isLive) {
     await take(`More in ${current.raag}`, (q) =>
       (q as never as { eq: Function })
         .eq('raag', current.raag)

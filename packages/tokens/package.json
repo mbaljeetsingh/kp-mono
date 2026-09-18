@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     "./theme.css": "./theme.css",
-    "./brand/*": "./brand/*"
+    "./brand/*": "./brand/*",
+    "./fonts/*": "./fonts/*"
   }
 }

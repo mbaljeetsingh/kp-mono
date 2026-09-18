@@ -34,11 +34,17 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
         'group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent/50',
         isCurrent && 'bg-accent/60'
       )}>
-      <div className="relative shrink-0">
+      <div className="group/art relative shrink-0">
         <ArtTile
           name={item.artist ?? item.title}
           src={artistPhotoUrl(item.artistPhoto)}
-          className="size-10 text-lg"
+          className={cn(
+            'size-10 text-lg',
+            // The play overlay covers this tile on hover; initials showing
+            // through it read as a mistake rather than a hover state.
+            '[&>span]:transition-opacity group-hover:[&>span]:opacity-0',
+            isCurrent && '[&>span]:opacity-0'
+          )}
         />
         <Button
           variant="ghost"
