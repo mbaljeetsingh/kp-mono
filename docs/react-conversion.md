@@ -24,7 +24,7 @@ apps/
   admin/    Vite · React · TanStack Router · Tailwind 4 · shadcn/ui   (workbench)
 packages/
   core/     segment model, row mapper, repeat, timings — no framework
-  player/   Zustand store + audio drivers (expo-audio | HTMLAudio)
+  playback/ Zustand store + audio drivers (expo-audio | HTMLAudio)
   api/      Supabase client, TanStack Query hooks, Zod schemas
   shared/   types, stations, ragas — already existed
   ui/       shadcn/ui            (web + admin)

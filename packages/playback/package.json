@@ -1,5 +1,5 @@
 {
-  "name": "@kp/player",
+  "name": "@kp/playback",
   "private": true,
   "type": "module",
   "exports": {

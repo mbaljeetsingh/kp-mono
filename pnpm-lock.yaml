@@ -335,6 +335,21 @@ importers:
         specifier: ^4.1.18
         version: 4.3.3
 
+  packages/api:
+    dependencies:
+      '@kp/core':
+        specifier: workspace:*
+        version: link:../core
+      '@supabase/supabase-js':
+        specifier: ^2.111.0
+        version: 2.111.0
+      '@tanstack/react-query':
+        specifier: ^5.103.1
+        version: 5.103.1(react@19.2.3)
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+
   packages/core: {}
 
   packages/crawler:
@@ -349,6 +364,15 @@ importers:
       '@types/pg':
         specifier: ^8.20.3
         version: 8.20.3
+
+  packages/playback:
+    dependencies:
+      '@kp/core':
+        specifier: workspace:*
+        version: link:../core
+      zustand:
+        specifier: ^5.0.15
+        version: 5.0.15(@types/react@19.2.18)(react@19.2.3)
 
   packages/shared: {}
 
