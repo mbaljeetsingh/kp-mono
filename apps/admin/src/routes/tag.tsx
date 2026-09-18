@@ -14,40 +14,40 @@ import {
   useScanRequest,
   type Rendition,
 } from '@kp/api';
-import { untaggedSeconds, coverageOpen, type TimelineSegment } from '@kp/core';
+import { clock, untaggedSeconds, coverageOpen, type TimelineSegment } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { Link, useParams } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import {
-  CheckCheck,
-  ChevronLeft,
-  Pause,
-  Play,
-  Plus,
-  ScanLine,
-  SkipBack,
-  SkipForward,
-} from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCheck, ChevronLeft, Pause, Play, Plus, Repeat, ScanLine } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { SegmentEditor } from '~/components/SegmentEditor';
 import { Timeline } from '~/components/Timeline';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
-import { clock } from '~/lib/utils';
+import { SKIP_COARSE, SKIP_FINE, SPEEDS, useTagPlayer } from '~/lib/use-tag-player';
 
-/** Arrow-key nudge, and what the skip buttons move by. */
-const NUDGE_SECONDS = 15;
-
-/** Is this event coming out of a field somebody is writing in? */
-function isTyping(target: EventTarget | null): boolean {
+/**
+ * Should this keystroke belong to the page or to what has focus?
+ *
+ * Fields you type into keep their keys — without this the space branch's
+ * preventDefault meant a space never reached the segment name, and every shabad
+ * name is more than one word. The timeline's seek surface is also an <input>,
+ * but type=range, and clicking the timeline focuses it — bailing on every input
+ * meant one seek killed every shortcut until you clicked somewhere else. Range
+ * is the transport's own control, and the handler preventDefaults the arrows so
+ * its native 1% steps never fight the 10s skips.
+ */
+function ownsTheKeys(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el?.tagName) return false;
+  if (el.tagName === 'TEXTAREA' || el.isContentEditable || el.tagName === 'SELECT') return true;
+  if (el.tagName === 'INPUT' && (el as HTMLInputElement).type !== 'range') return true;
+  // Widgets that answer to the same keys themselves — driving the transport
+  // from inside a dropdown or a dialog means both things happen at once.
   return (
-    el.tagName === 'INPUT' ||
-    el.tagName === 'TEXTAREA' ||
-    el.tagName === 'SELECT' ||
-    el.isContentEditable
+    typeof el.closest === 'function' &&
+    el.closest('[role="combobox"],[role="listbox"],[role="menu"],[role="dialog"]') !== null
   );
 }
 
@@ -61,10 +61,8 @@ export function TagRoute() {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const audio = useRef<HTMLAudioElement | null>(null);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  const player = useTagPlayer(recording.data?.url);
+  const { position, duration } = player;
 
   /**
    * `null` means no editor open; a Rendition means revising that one; `'new'`
@@ -74,36 +72,17 @@ export function TagRoute() {
    */
   const [editing, setEditing] = useState<Rendition | 'new' | null>(null);
 
-  const url = recording.data?.url;
-
-  useEffect(() => {
-    if (!url) return;
-    // Created rather than rendered so a re-render cannot restart the file the
-    // tagger is halfway through. crossOrigin stays unset — sgpc.net sends no
-    // Access-Control-Allow-Origin, and requiring one fails every track.
-    const el = new Audio(url);
-    el.preload = 'metadata';
-    audio.current = el;
-
-    const tick = () => setPosition(el.currentTime);
-    const meta = () => setDuration(Number.isFinite(el.duration) ? el.duration : 0);
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-
-    el.addEventListener('timeupdate', tick);
-    el.addEventListener('loadedmetadata', meta);
-    el.addEventListener('play', onPlay);
-    el.addEventListener('pause', onPause);
-
-    return () => {
-      el.pause();
-      el.removeEventListener('timeupdate', tick);
-      el.removeEventListener('loadedmetadata', meta);
-      el.removeEventListener('play', onPlay);
-      el.removeEventListener('pause', onPause);
-      audio.current = null;
-    };
-  }, [url]);
+  /*
+   * The cut being marked lives here, not in the editor.
+   *
+   * The timeline has to draw it — a boundary marked by ear means nothing until
+   * you can see where it landed among the segments already saved — and the
+   * editor and the timeline both have to be able to move it. One owner above
+   * both is the only arrangement where dragging a handle and pressing +1s are
+   * the same edit.
+   */
+  const [start, setStart] = useState<number | null>(null);
+  const [end, setEnd] = useState<number | null>(null);
 
   const segments: TimelineSegment[] = useMemo(
     () =>
@@ -117,38 +96,87 @@ export function TagRoute() {
     [renditions.data]
   );
 
-  function seek(seconds: number) {
-    const el = audio.current;
-    if (!el) return;
-    el.currentTime = Math.min(Math.max(0, seconds), duration || seconds);
-    setPosition(el.currentTime);
-  }
+  /** Load the form's boundaries whenever the target changes. */
+  useEffect(() => {
+    if (editing === null) {
+      setStart(null);
+      setEnd(null);
+      return;
+    }
+    if (editing === 'new') return; // openEditor seeds these from the playhead
+    setStart(Number(editing.start_sec));
+    setEnd(Number(editing.end_sec));
+  }, [editing]);
+
+  const openNew = useCallback(() => {
+    // Both at the playhead: the start is where you are, and the end is marked
+    // when you get there. An end that defaulted to the duration would draw a
+    // band across the rest of the recording the moment the editor opened.
+    setStart(position);
+    setEnd(position);
+    setEditing('new');
+  }, [position]);
+
+  const markStart = useCallback(() => {
+    setStart(position);
+    setEditing((e) => e ?? 'new');
+  }, [position]);
+
+  const markEnd = useCallback(() => {
+    setEnd(position);
+    setEditing((e) => e ?? 'new');
+  }, [position]);
+
+  /*
+   * On the window, not on a wrapper: the page's own section has to be clicked
+   * before it can receive a keystroke, so half the shortcuts did nothing until
+   * you happened to click the background. Hands stay on the keyboard — a tagger
+   * who reaches for the mouse between every cut tags a fraction as much.
+   */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (ownsTheKeys(e.target)) return;
+      const fine = e.shiftKey;
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          player.toggle();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          player.skip(fine ? -SKIP_FINE : -SKIP_COARSE);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          player.skip(fine ? SKIP_FINE : SKIP_COARSE);
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          player.cycleSpeed(1);
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          player.cycleSpeed(-1);
+          break;
+        // Brackets, as every editor that trims media uses them.
+        case '[':
+          e.preventDefault();
+          markStart();
+          break;
+        case ']':
+          e.preventDefault();
+          markEnd();
+          break;
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [player, markStart, markEnd]);
 
   const untagged = duration ? untaggedSeconds(segments, duration) : null;
 
   return (
-    <section
-      className="flex flex-col gap-5 outline-none"
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        /*
-         * Not while somebody is typing. The editor's fields sit inside this
-         * section, so a keydown in the name box bubbles here — and the space
-         * branch calls preventDefault, which meant a space never reached the
-         * input at all. Every shabad name is more than one word, so the
-         * workbench's primary field could not be filled in; the arrow keys
-         * scrubbed the recording instead of moving the caret.
-         */
-        if (isTyping(e.target)) return;
-
-        if (e.key === 'ArrowRight') seek(position + NUDGE_SECONDS);
-        if (e.key === 'ArrowLeft') seek(position - NUDGE_SECONDS);
-        if (e.key === ' ') {
-          e.preventDefault();
-          playing ? audio.current?.pause() : void audio.current?.play();
-        }
-      }}
-    >
+    <section className="flex flex-col gap-5">
       <Link
         to="/"
         search={(prev) => prev}
@@ -173,37 +201,102 @@ export function TagRoute() {
             </p>
           </header>
 
-          <Timeline segments={segments} duration={duration} position={position} onSeek={seek} />
+          <div className="flex flex-col gap-2.5 rounded-xl border border-border p-3">
+            {/* One row on a real screen. On a phone the fixed-width clocks left
+                the axis 185px wide — one ruler tick and unreadable segment
+                labels — so the timeline claims its own full-width line and the
+                clocks share the first. */}
+            <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
+              <Button
+                size="icon-sm"
+                onClick={player.toggle}
+                title={player.playing ? 'Pause (space)' : 'Play (space)'}
+                aria-label={player.playing ? 'Pause' : 'Play'}
+                className="mt-0.5 shrink-0 rounded-full"
+              >
+                {player.playing ? (
+                  <Pause className="fill-current" />
+                ) : (
+                  <Play className="fill-current" />
+                )}
+              </Button>
+              <span className="mt-2.5 w-14 shrink-0 text-xs tabular-nums text-muted-foreground">
+                {clock(position)}
+              </span>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label={`Back ${NUDGE_SECONDS} seconds`}
-              onClick={() => seek(position - NUDGE_SECONDS)}
-              className="rounded-full p-2 text-muted-foreground hover:text-foreground"
-            >
-              <SkipBack className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={playing ? 'Pause' : 'Play'}
-              onClick={() => (playing ? audio.current?.pause() : void audio.current?.play())}
-              className="rounded-full bg-primary p-2.5 text-primary-foreground hover:opacity-90"
-            >
-              {playing ? <Pause className="size-5" /> : <Play className="size-5" />}
-            </button>
-            <button
-              type="button"
-              aria-label={`Forward ${NUDGE_SECONDS} seconds`}
-              onClick={() => seek(position + NUDGE_SECONDS)}
-              className="rounded-full p-2 text-muted-foreground hover:text-foreground"
-            >
-              <SkipForward className="size-4" />
-            </button>
+              <div className="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+                <Timeline
+                  segments={segments}
+                  duration={duration}
+                  position={position}
+                  start={start}
+                  end={end}
+                  editingId={editing && editing !== 'new' ? editing.id : null}
+                  onSeek={player.seek}
+                  onChangeStart={setStart}
+                  onChangeEnd={setEnd}
+                  onAudition={player.auditionBoundary}
+                />
+              </div>
 
-            <span className="ml-2 text-xs tabular-nums text-muted-foreground">
-              {clock(position)} / {clock(duration)}
-            </span>
+              <span className="mt-2.5 ml-auto w-12 shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:ml-0">
+                {clock(duration)}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Speed is a setting you pick once and forget, not a control you
+                  work: six always-visible buttons spent a third of the transport
+                  saying so. The arrow keys still cycle it, which is how it
+                  actually gets changed mid-listen. */}
+              <select
+                value={player.speed}
+                onChange={(e) => player.setSpeed(Number(e.target.value))}
+                aria-label="Playback speed"
+                title="Playback speed (↑ ↓)"
+                className="h-7 rounded-md border border-border bg-background px-2 text-[11px] text-foreground"
+              >
+                {SPEEDS.map((rate) => (
+                  <option key={rate} value={rate}>
+                    {rate}×
+                  </option>
+                ))}
+              </select>
+
+              {/* Looping is a mode with no other way out, so its exit is always
+                  visible while it is on rather than living in a menu. */}
+              {player.loop ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={player.stopLoop}
+                  title="Stop looping"
+                  className="h-7 text-xs text-amber-400"
+                >
+                  <Repeat className="size-3.5" />
+                  Looping
+                </Button>
+              ) : null}
+
+              <Button variant="outline" size="sm" onClick={markStart} className="h-7 text-xs">
+                Mark start
+              </Button>
+              <Button variant="outline" size="sm" onClick={markEnd} className="h-7 text-xs">
+                Mark end
+              </Button>
+
+              {/* The skip buttons that used to sit here did exactly what the
+                  arrow keys do, so the keys are the control now and this is no
+                  longer a footnote: it is the only place that says how to move
+                  through a recording. */}
+              <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">
+                <span className="text-foreground/70">space</span> play ·{' '}
+                <span className="text-foreground/70">← →</span> 10s ·{' '}
+                <span className="text-foreground/70">shift+← →</span> 0.1s ·{' '}
+                <span className="text-foreground/70">↑ ↓</span> speed ·{' '}
+                <span className="text-foreground/70">[ ]</span> mark start/end
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -232,7 +325,7 @@ export function TagRoute() {
                   >
                     <button
                       type="button"
-                      onClick={() => seek(Number(r.start_sec))}
+                      onClick={() => player.seek(Number(r.start_sec))}
                       className="min-w-0 flex-1 truncate text-left text-sm"
                     >
                       {r.name}
@@ -259,6 +352,11 @@ export function TagRoute() {
               position={position}
               segments={segments}
               editing={editing === 'new' ? null : editing}
+              start={start ?? 0}
+              end={end ?? 0}
+              onChangeStart={setStart}
+              onChangeEnd={setEnd}
+              onAudition={player.auditionBoundary}
               can={{
                 propose: can['renditions.propose'],
                 publish: can['renditions.publish'],
@@ -266,13 +364,13 @@ export function TagRoute() {
                 review: can['renditions.review'],
               }}
               onDone={() => setEditing(null)}
-              onSeek={seek}
+              onSeek={player.seek}
             />
           ) : (
             <Button
               variant="outline"
               disabled={!can['renditions.propose']}
-              onClick={() => setEditing('new')}
+              onClick={openNew}
               className="self-start"
             >
               <Plus />

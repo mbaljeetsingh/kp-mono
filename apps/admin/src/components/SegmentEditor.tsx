@@ -22,13 +22,14 @@ import { ShabadSearch } from '@kp/ui/app/shabad-search';
 
 import { ShabadDisplay } from '~/components/ShabadDisplay';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link2, X } from 'lucide-react';
+import { Headphones, Link2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { BANIDB_BASE } from '~/lib/links';
 
 import { supabase } from '~/lib/supabase';
-import { clock } from '~/lib/utils';
+import { clock } from '@kp/core';
+import { MIN_LENGTH } from '~/lib/use-tag-player';
 
 interface Props {
   trackId: string;
@@ -38,6 +39,17 @@ interface Props {
   segments: TimelineSegment[];
   /** The segment being revised, or null to create a new one. */
   editing: Rendition | null;
+  /**
+   * The boundaries, owned by the page rather than by this form: the timeline
+   * draws them live, and a handle dragged there and a +1s pressed here have to
+   * be the same edit.
+   */
+  start: number;
+  end: number;
+  onChangeStart: (seconds: number) => void;
+  onChangeEnd: (seconds: number) => void;
+  /** Hear a boundary right after moving it — the only way to check a cut. */
+  onAudition: (seconds: number) => void;
   can: { propose: boolean; publish: boolean; remove: boolean; review: boolean };
   onDone: () => void;
   onSeek: (seconds: number) => void;
@@ -52,6 +64,11 @@ export function SegmentEditor({
   position,
   segments,
   editing,
+  start,
+  end,
+  onChangeStart,
+  onChangeEnd,
+  onAudition,
   can,
   onDone,
   onSeek,
@@ -61,8 +78,6 @@ export function SegmentEditor({
   const [name, setName] = useState('');
   const [raag, setRaag] = useState('');
   const [artist, setArtist] = useState('');
-  const [start, setStart] = useState(0);
-  const [end, setEnd] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -78,32 +93,21 @@ export function SegmentEditor({
   const [linkedLine, setLinkedLine] = useState<string>('');
   const [searching, setSearching] = useState(false);
 
-  // Reload the form whenever the target changes — including to null, which is
-  // "start a new one" and must not inherit the last segment's name.
+  /*
+   * Reload the form whenever the target changes — including to null, which is
+   * "start a new one" and must not inherit the last segment's name. The
+   * boundaries are not reset here: the page owns them, and it has already
+   * seeded them from the playhead or from the row being revised.
+   */
   useEffect(() => {
     setError(null);
     setSearching(false);
     setLinkedLine('');
-    if (editing) {
-      setName(editing.name);
-      setRaag(editing.raag ?? '');
-      setArtist(editing.artist ?? '');
-      setStart(Number(editing.start_sec));
-      setEnd(Number(editing.end_sec));
-      setShabadId(editing.shabad_id ?? null);
-      setMainVerseId(editing.main_verse_id ?? null);
-      return;
-    }
-    setName('');
-    setRaag('');
-    setArtist('');
-    setStart(position);
-    setEnd(position);
-    setShabadId(null);
-    setMainVerseId(null);
-    // `position` is deliberately absent from the deps: re-running on every
-    // 100ms tick would drag the boundaries along with playback.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setName(editing?.name ?? '');
+    setRaag(editing?.raag ?? '');
+    setArtist(editing?.artist ?? '');
+    setShabadId(editing?.shabad_id ?? null);
+    setMainVerseId(editing?.main_verse_id ?? null);
   }, [editing]);
 
   const clashes = overlapping(segments, { start, end }, editing?.id);
@@ -177,16 +181,20 @@ export function SegmentEditor({
         <Boundary
           label="Start"
           value={start}
-          onMark={() => setStart(position)}
-          onNudge={(by) => setStart((v) => Math.max(0, v + by))}
+          onMark={() => onChangeStart(position)}
+          // Clamped against the other end, the same as a drag on the timeline —
+          // nudging past it would write a range the database rejects at save.
+          onNudge={(by) => onChangeStart(Math.min(Math.max(0, start + by), end - MIN_LENGTH))}
           onSeek={() => onSeek(start)}
+          onAudition={() => onAudition(start)}
         />
         <Boundary
           label="End"
           value={end}
-          onMark={() => setEnd(position)}
-          onNudge={(by) => setEnd((v) => Math.max(0, v + by))}
+          onMark={() => onChangeEnd(position)}
+          onNudge={(by) => onChangeEnd(Math.max(start + MIN_LENGTH, end + by))}
           onSeek={() => onSeek(end)}
+          onAudition={() => onAudition(end)}
         />
       </div>
 
@@ -359,12 +367,14 @@ function Boundary({
   onMark,
   onNudge,
   onSeek,
+  onAudition,
 }: {
   label: string;
   value: number;
   onMark: () => void;
   onNudge: (by: number) => void;
   onSeek: () => void;
+  onAudition: () => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -388,6 +398,17 @@ function Boundary({
           onClick={() => onNudge(NUDGE)}
         >
           +1s
+        </Button>
+        {/* Looping a few seconds either side is the only way to tell whether a
+            cut actually falls in the gap rather than over a word. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`Listen across the ${label.toLowerCase()}`}
+          title={`Listen across the ${label.toLowerCase()}`}
+          onClick={onAudition}
+        >
+          <Headphones />
         </Button>
         <button
           type="button"

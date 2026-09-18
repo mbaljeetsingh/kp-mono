@@ -34,8 +34,17 @@ export function RootLayout() {
   if (!session) return <SignIn />;
 
   return (
-    <div className="flex min-h-dvh bg-background text-foreground">
-      <nav className="flex w-52 shrink-0 flex-col gap-1 border-r border-border p-4">
+    /*
+     * `h-dvh`, not `min-h-dvh` — the player's shell already had this and the
+     * workbench did not. Without a fixed height nothing constrains <main>, so
+     * its overflow-y-auto never engages and the document scrolls instead: the
+     * sidebar stretched to the height of the whole queue (3018px on a full
+     * shelf) and `mt-auto` pushed the account footer to the bottom of *that*,
+     * two thousand pixels below the fold. Email and Sign out were on every
+     * page, just never on screen unless the list was short.
+     */
+    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
+      <nav className="flex w-52 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border p-4">
         <Link to="/" search={{}} className="mb-4 flex items-center gap-2">
           <img src="/brand/logo-badge-dark.svg" alt="" className="size-7" />
           <span className="text-sm font-semibold">Contribute</span>
