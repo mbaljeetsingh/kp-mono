@@ -74,7 +74,7 @@ export default function NowPlayingScreen() {
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
   return (
-    <SafeAreaView edges={['bottom']} className="flex-1 bg-background">
+    <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1 }} className="bg-background">
       <View className="flex-row items-center px-2 pt-2">
         <Pressable
           onPress={() => router.back()}
@@ -104,7 +104,10 @@ export default function NowPlayingScreen() {
         </View>
       </View>
 
-      <ScrollView className="min-h-0 flex-1 px-4">
+      {/* Explicit flex: a collapsed scroll area put the transport directly
+          under the header and clipped the read-along entirely. `min-h-0` is a
+          web idea and does nothing here. */}
+      <ScrollView style={{ flex: 1 }} className="px-4">
         {!shabadId ? (
           <View className="gap-3 py-4">
             <Text className="text-sm text-muted-foreground">
