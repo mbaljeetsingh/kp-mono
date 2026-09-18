@@ -19,6 +19,8 @@ import { Button } from '@kp/ui/button';
 import { Input } from '@kp/ui/input';
 import { Label } from '@kp/ui/label';
 import { ShabadSearch } from '@kp/ui/app/shabad-search';
+
+import { ShabadDisplay } from '~/components/ShabadDisplay';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -233,6 +235,14 @@ export function SegmentEditor({
             Link a shabad
           </Button>
         )}
+        {shabadId ? (
+          <ShabadDisplay
+            shabadId={shabadId}
+            mainVerseId={mainVerseId}
+            onPick={setMainVerseId}
+          />
+        ) : null}
+
         <p className="text-xs text-muted-foreground">
           Optional, and the tag worth investing in: raag, ang, author and the lyrics all follow
           from it, and the aligner can then time each line.
