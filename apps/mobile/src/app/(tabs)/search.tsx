@@ -1,0 +1,68 @@
+import { useSearch } from '@kp/api';
+import type { Playable } from '@kp/core';
+import { useState } from 'react';
+import { FlatList, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDebounceValue } from 'usehooks-ts';
+
+import { ShabadRow } from '~/components/ShabadRow';
+import { playerActions, usePlayer } from '~/lib/player';
+import { supabase } from '~/lib/supabase';
+
+export default function SearchScreen() {
+  const [term, setTerm] = useState('');
+  const [debounced] = useDebounceValue(term, 250);
+  const query = useSearch(supabase, debounced);
+  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
+  const currentId = usePlayer((s) => s.current?.id);
+
+  const ready = debounced.trim().length >= 2;
+
+  return (
+    <SafeAreaView edges={['top']} className="flex-1 bg-neutral-950">
+      <View className="px-4 pb-2 pt-3">
+        <Text className="pb-3 text-2xl font-semibold text-white">Search</Text>
+        <TextInput
+          value={term}
+          onChangeText={setTerm}
+          placeholder="Shabad or ragi…"
+          placeholderTextColor="#737373"
+          autoCorrect={false}
+          className="rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 text-white"
+        />
+      </View>
+
+      {/* Said rather than left blank: a search box that does nothing for one
+          character reads as broken. */}
+      {!ready ? (
+        <Text className="px-4 py-2 text-sm text-neutral-400">
+          Type at least two characters.
+        </Text>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item: Playable) => item.id}
+          contentContainerClassName="px-2 pb-4"
+          renderItem={({ item, index }) => (
+            <ShabadRow
+              item={item}
+              isCurrent={item.id === currentId}
+              onPress={() => playerActions.playList(items, index)}
+            />
+          )}
+          onEndReached={() => {
+            if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
+          }}
+          onEndReachedThreshold={0.6}
+          ListEmptyComponent={
+            query.isLoading ? null : (
+              <Text className="px-3 py-8 text-sm text-neutral-400">
+                Nothing matches “{debounced.trim()}”.
+              </Text>
+            )
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+}

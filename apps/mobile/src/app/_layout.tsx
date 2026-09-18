@@ -1,20 +1,34 @@
 import '../global.css';
 
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // The catalogue is written by a weekly crawler, so refetching on every
+      // focus is a round trip for data that has not moved.
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5,
+      retry: 1,
+    },
+  },
+});
 
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <StatusBar style="light" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0a0a0a' } }}>
+        <Stack.Screen name="(tabs)" />
+        {/* A sheet rather than a pushed screen: the full player is a layer over
+            what you were browsing, not somewhere you navigated to. */}
+        <Stack.Screen
+          name="now-playing"
+          options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95] }}
+        />
+      </Stack>
+    </QueryClientProvider>
   );
 }
