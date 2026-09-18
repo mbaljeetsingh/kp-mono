@@ -28,9 +28,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, 'node_modules'),
 ];
 
-// Without this Metro walks up past the app and can resolve a second copy of
-// React from the root — two Reacts in one bundle is a white screen with a
-// hooks error and no obvious cause.
-config.resolver.disableHierarchicalLookup = true;
+// Hierarchical lookup stays ON. It is usually disabled in an npm/yarn monorepo
+// to stop a second React resolving from the root, but pnpm already isolates
+// every package — and turning it off breaks transitive resolution instead:
+// reanimated's own `semver` lives inside its .pnpm directory, and without the
+// upward walk Metro cannot find it ("Unable to resolve module
+// semver/functions/satisfies").
 
 module.exports = withNativewind(config);
