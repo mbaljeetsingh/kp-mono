@@ -11,6 +11,10 @@
       "cache": false,
       "persistent": true
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "build": {
       "dependsOn": ["^build"],
       // .env is gitignored, so it is absent from the default input hash, and

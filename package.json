@@ -10,6 +10,7 @@
     "build": "turbo build",
     "build:player": "turbo build --filter=@kp/player",
     "build:admin": "turbo build --filter=@kp/admin",
+    "test": "turbo test",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
