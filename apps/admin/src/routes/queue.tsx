@@ -96,60 +96,70 @@ export function QueueRoute() {
         </p>
       </header>
 
-      <div className="flex flex-wrap gap-2">
-        <div className="flex flex-wrap gap-1 rounded-lg border border-border p-1">
-          {SHELVES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              title={s.hint}
-              aria-pressed={shelf === s.id}
-              onClick={() => set({ shelf: s.id, sort: SHELF_DEFAULT_SORT[s.id] })}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-sm',
-                shelf === s.id ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
+      {/*
+       * The shelves are the page, so they are the only control drawn at full
+       * weight: which work you pick up is the decision this screen exists for,
+       * and it is re-made every time a tagger comes back for the next
+       * recording. Tree and order are set once and forgotten — as a third
+       * matching row of pill buttons they claimed the same attention as the
+       * thing you actually work.
+       */}
+      <div className="flex flex-wrap gap-1 rounded-lg border border-border p-1">
+        {SHELVES.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            title={s.hint}
+            aria-pressed={shelf === s.id}
+            onClick={() => set({ shelf: s.id, sort: SHELF_DEFAULT_SORT[s.id] })}
+            className={cn(
+              'rounded-md px-3 py-1.5 text-sm',
+              shelf === s.id ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
+            )}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="flex gap-1 rounded-lg border border-border p-1">
-          {TREES.map((t) => (
-            <button
-              key={t.label}
-              type="button"
-              aria-pressed={tree === t.id}
-              onClick={() => set({ tree: t.id ?? undefined })}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-sm',
-                tree === t.id ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+        <label className="flex items-center gap-1.5">
+          Archive
+          <select
+            value={tree ?? 'all'}
+            onChange={(e) => set({ tree: e.target.value === 'all' ? undefined : e.target.value })}
+            className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+          >
+            {TREES.map((t) => (
+              <option key={t.label} value={t.id ?? 'all'}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        {/* Only the sorts this shelf can answer — "least left" is meaningless
-            on a shelf where nothing is tagged. */}
-        <div className="flex gap-1 rounded-lg border border-border p-1">
-          {SHELF_SORTS[shelf].map((s) => (
-            <button
-              key={s}
-              type="button"
-              aria-pressed={sort === s}
-              onClick={() => set({ sort: s })}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-sm',
-                sort === s ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
-              )}
+        {/*
+         * Only the orders this shelf can answer — "least left" is meaningless
+         * where nothing is tagged — and nothing at all where it can answer
+         * only one. Queued and Done have a single order, so the control was a
+         * box around one button that was already chosen and did nothing.
+         */}
+        {SHELF_SORTS[shelf].length > 1 ? (
+          <label className="flex items-center gap-1.5">
+            Order
+            <select
+              value={sort}
+              onChange={(e) => set({ sort: e.target.value as Sort })}
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
             >
-              {SORT_LABELS[s]}
-            </button>
-          ))}
-        </div>
+              {SHELF_SORTS[shelf].map((s) => (
+                <option key={s} value={s}>
+                  {SORT_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </div>
 
       <div className="relative">
