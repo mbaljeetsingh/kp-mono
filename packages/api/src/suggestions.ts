@@ -29,7 +29,14 @@ export async function fetchSuggestionGroups(
   client: KpClient,
   current: Playable | null
 ): Promise<SuggestionGroup[]> {
-  const seen = new Set<string>(current ? [current.id] : []);
+  /*
+   * A station's id is not a rendition uuid — it is `station:<slug>` — so there
+   * is nothing in this table for it to exclude. Passing it anyway put a
+   * non-uuid in the `not in` list, Postgres rejected the whole query, and every
+   * group came back empty: Up next on a live broadcast said there was nothing
+   * published to suggest while the archive was full of it.
+   */
+  const seen = new Set<string>(current && !current.isLive ? [current.id] : []);
   const groups: SuggestionGroup[] = [];
 
   /** One query, minus anything an earlier group already offered. */
