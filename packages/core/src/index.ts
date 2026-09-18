@@ -5,3 +5,6 @@ export * from './repeat';
 export * from './rows';
 export * from './queue';
 export * from './tagging';
+export * from './batch';
+export * from './artwork';
+export * from './stations';

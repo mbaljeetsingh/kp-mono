@@ -7,10 +7,15 @@
     "./segment": "./src/segment.ts",
     "./timings": "./src/timings.ts",
     "./repeat": "./src/repeat.ts",
-    "./types": "./src/types.ts"
+    "./types": "./src/types.ts",
+    "./stations": "./src/stations.ts",
+    "./artwork": "./src/artwork.ts"
   },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@kp/shared": "workspace:*"
   }
 }

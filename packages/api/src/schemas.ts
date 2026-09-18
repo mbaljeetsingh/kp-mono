@@ -48,15 +48,8 @@ export const artistSchema = z.object({
   photo_path: z.string().nullish(),
 });
 
-export const playlistSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  created_at: z.string().nullish(),
-});
-
 export type ShabadRow = z.infer<typeof shabadRowSchema>;
 export type Artist = z.infer<typeof artistSchema>;
-export type Playlist = z.infer<typeof playlistSchema>;
 
 /**
  * Parse a list, dropping rows that do not fit rather than failing the page.

@@ -6,3 +6,5 @@ export * from './hooks';
 export * from './auth';
 export * from './permissions';
 export * from './admin';
+export * from './playlists';
+export * from './favorites';

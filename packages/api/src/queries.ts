@@ -8,14 +8,7 @@
 import { toPlayable, type Playable } from '@kp/core';
 
 import type { KpClient } from './client';
-import {
-  artistSchema,
-  parseRows,
-  playlistSchema,
-  shabadRowSchema,
-  type Artist,
-  type Playlist,
-} from './schemas';
+import { artistSchema, parseRows, shabadRowSchema, type Artist } from './schemas';
 
 /** Rows per page. The archive is far too large to fetch whole. */
 export const PAGE_SIZE = 50;
@@ -87,29 +80,4 @@ export async function listArtists(client: KpClient): Promise<Artist[]> {
   const { data, error } = await client.rpc('artist_directory');
   if (error) throw error;
   return parseRows(artistSchema, (data as unknown[]) ?? []).rows;
-}
-
-export async function listPlaylists(client: KpClient): Promise<Playlist[]> {
-  const { data, error } = await client
-    .from('playlists')
-    .select('id,name,created_at')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return parseRows(playlistSchema, data ?? []).rows;
-}
-
-/**
- * Favorite rendition ids, newest first.
- *
- * Ids rather than rows: the same list has to work signed out, where favorites
- * live on the device and there is nothing to join against — and it is what
- * lets a guest's list migrate into an account as a straight insert.
- */
-export async function listFavoriteIds(client: KpClient): Promise<string[]> {
-  const { data, error } = await client
-    .from('favorites')
-    .select('rendition_id,created_at')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return ((data ?? []) as { rendition_id: string }[]).map((r) => r.rendition_id);
 }

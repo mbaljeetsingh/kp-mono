@@ -17,15 +17,13 @@ import type { KpClient } from './client';
 import { keys } from './keys';
 import {
   listArtists,
-  listFavoriteIds,
-  listPlaylists,
   listShabads,
   searchShabads,
   shabadsByArtist,
   PAGE_SIZE,
   type Page,
 } from './queries';
-import type { Artist, Playlist } from './schemas';
+import type { Artist } from './schemas';
 
 /** Pages are addressed by row offset, which is what `.range()` wants. */
 function pageParams() {
@@ -78,18 +76,3 @@ export function useArtists(client: KpClient): UseQueryResult<Artist[]> {
   });
 }
 
-export function usePlaylists(client: KpClient, enabled = true): UseQueryResult<Playlist[]> {
-  return useQuery({
-    queryKey: keys.playlists.all,
-    queryFn: () => listPlaylists(client),
-    enabled,
-  });
-}
-
-export function useFavoriteIds(client: KpClient, enabled = true): UseQueryResult<string[]> {
-  return useQuery({
-    queryKey: keys.favorites.all,
-    queryFn: () => listFavoriteIds(client),
-    enabled,
-  });
-}
