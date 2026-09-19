@@ -7,16 +7,7 @@
  */
 import { colors } from '@kp/tokens/colors';
 import { useShabadText } from '@kp/api';
-import {
-  clock,
-  elapsedIn,
-  highlightVerseId,
-  isAligned,
-  progressPct,
-  REPEAT_LABELS,
-  seekTargetForPct,
-  segmentTotal,
-} from '@kp/core';
+import { clock, highlightVerseId, isAligned, REPEAT_LABELS } from '@kp/core';
 import { useRouter } from 'expo-router';
 import {
   ChevronDown,
@@ -29,12 +20,13 @@ import {
   SkipForward,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
 import { ArtTile } from '~/components/ArtTile';
 import { QueueList } from '~/components/QueueList';
+import { SeekBar } from '~/components/SeekBar';
 import { ShabadSearch } from '~/components/ShabadSearch';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -71,7 +63,6 @@ export default function NowPlayingScreen() {
   // nothing — there is nothing aligning it to this audio.
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
 
-  const [trackWidth, setTrackWidth] = useState(0);
   const [tab, setTab] = useState<'lyrics' | 'queue'>('lyrics');
   const { favorites } = useSession();
 
@@ -148,7 +139,6 @@ export default function NowPlayingScreen() {
     );
   }
 
-  const pct = progressPct(current, position, duration);
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
 
   return (
@@ -297,31 +287,11 @@ export default function NowPlayingScreen() {
         {/* A broadcast has no timeline to scrub, and it already says LIVE beside
             the title. Nothing is drawn rather than an inert track: a greyed-out
             bar still claims there is a length to be part-way through. */}
+        {/* A broadcast has no timeline to scrub, and it already says LIVE beside
+            the title. Nothing is drawn rather than an inert track: a greyed-out
+            bar still claims there is a length to be part-way through. */}
         {current.isLive ? null : (
-          <View className="gap-1">
-            <Pressable
-              onLayout={(e: LayoutChangeEvent) => setTrackWidth(e.nativeEvent.layout.width)}
-              onPress={(e) => {
-                if (!trackWidth) return;
-                const ratio = Math.min(1, Math.max(0, e.nativeEvent.locationX / trackWidth));
-                playerActions.seek(seekTargetForPct(current, ratio * 100, duration));
-              }}
-              accessibilityLabel="Seek"
-              className="h-6 justify-center"
-            >
-              <View className="h-1 overflow-hidden rounded-full bg-muted">
-                <View className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
-              </View>
-            </Pressable>
-            <View className="flex-row justify-between">
-              <Text className="text-xs text-muted-foreground">
-                {clock(elapsedIn(current, position))}
-              </Text>
-              <Text className="text-xs text-muted-foreground">
-                {clock(segmentTotal(current, duration))}
-              </Text>
-            </View>
-          </View>
+          <SeekBar current={current} position={position} duration={duration} />
         )}
 
         <View className="flex-row items-center justify-center gap-4">
