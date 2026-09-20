@@ -29,7 +29,7 @@ import {
 } from '@kp/core';
 import { createStore } from 'zustand/vanilla';
 
-import type { AudioDriver, DriverStatus, PlayerStorage } from './driver';
+import type { AudioDriver, DriverStatus, NowPlaying, PlayerStorage } from './driver';
 
 const QUEUE_KEY = 'kp:queue';
 const REPEAT_KEY = 'kp:repeat';
@@ -69,9 +69,18 @@ export interface PlayerState {
 
 export interface PlayerStoreOptions {
   storage: PlayerStorage;
+  /**
+   * Where a rendition's artwork actually lives.
+   *
+   * Taken as a function because the store has no business knowing about
+   * Supabase storage paths, and the two apps resolve them differently. Omitted,
+   * the lock screen simply shows no art — which is what it did before any of
+   * this existed.
+   */
+  artworkUrl?: (item: Playable) => string | undefined;
 }
 
-export function createPlayerStore({ storage }: PlayerStoreOptions) {
+export function createPlayerStore({ storage, artworkUrl }: PlayerStoreOptions) {
   let driver: AudioDriver | null = null;
   let resume: Record<string, number> = {};
 
@@ -90,6 +99,16 @@ export function createPlayerStore({ storage }: PlayerStoreOptions) {
       void storage.setItem(QUEUE_KEY, JSON.stringify({ items, index: s.index }));
     }
 
+    /** What the operating system should show while this item plays. */
+    function nowPlaying(item: Playable): NowPlaying {
+      return {
+        title: item.title,
+        artist: item.subtitle ?? item.artist,
+        artworkUrl: artworkUrl?.(item),
+        isLive: item.isLive,
+      };
+    }
+
     /** Load an item and start it. The one place `driver.load` is called. */
     function start(item: Playable, index: number) {
       set({
@@ -98,7 +117,7 @@ export function createPlayerStore({ storage }: PlayerStoreOptions) {
         starting: item.id,
         position: startPositionFor(item, resume[item.id]),
       });
-      driver?.load(item.url, startPositionFor(item, resume[item.id]));
+      driver?.load(item.url, startPositionFor(item, resume[item.id]), nowPlaying(item));
       driver?.play();
       persistQueue();
     }
@@ -178,7 +197,13 @@ export function createPlayerStore({ storage }: PlayerStoreOptions) {
           repeat: parseRepeatMode(rawRepeat),
           position: current ? startPositionFor(current, resume[current.id]) : 0,
         });
-        if (current) driver?.load(current.url, startPositionFor(current, resume[current.id]));
+        if (current) {
+          driver?.load(
+            current.url,
+            startPositionFor(current, resume[current.id]),
+            nowPlaying(current)
+          );
+        }
       },
 
       onStatus({ position, duration, playing }) {

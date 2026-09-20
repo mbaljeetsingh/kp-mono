@@ -11,11 +11,30 @@
  */
 export interface AudioDriver {
   /** Point at a URL and begin at `startAt` seconds on the file's clock. */
-  load(url: string, startAt: number): void;
+  load(url: string, startAt: number, nowPlaying?: NowPlaying): void;
   play(): void;
   pause(): void;
   /** Absolute seconds into the file, not into the segment. */
   seek(seconds: number): void;
+}
+
+/**
+ * What the operating system shows while this is playing.
+ *
+ * Both platforms want the same four facts and neither can derive them from a
+ * URL, so the store passes them down with the load. iOS puts them on the lock
+ * screen and in Control Center; the web hands them to the Media Session API,
+ * which is what fills the macOS Now Playing widget and makes the keyboard's
+ * media keys work.
+ *
+ * `isLive` is not decoration: a broadcast has no length to scrub, and saying so
+ * is what stops the lock screen drawing a progress bar that can never fill.
+ */
+export interface NowPlaying {
+  title: string;
+  artist?: string;
+  artworkUrl?: string;
+  isLive?: boolean;
 }
 
 /**

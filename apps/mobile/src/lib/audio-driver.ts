@@ -7,7 +7,7 @@
  * being in the foreground at all.
  */
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import type { AudioDriver, DriverStatus } from '@kp/playback';
+import type { AudioDriver, DriverStatus, NowPlaying } from '@kp/playback';
 
 /**
  * 100ms rather than expo-audio's 500ms default.
@@ -37,13 +37,32 @@ export function createNativeAudioDriver(onStatus: (status: DriverStatus) => void
   }
 
   return {
-    load(url, startAt) {
+    load(url, startAt, nowPlaying) {
       release();
       player = createAudioPlayer({ uri: url }, { updateInterval: UPDATE_INTERVAL_MS });
 
-      // Without this Android stops background playback after about three
-      // minutes. It is also what puts the title on the lock screen.
-      player.setActiveForLockScreen(true);
+      /*
+       * Without this Android stops background playback after about three
+       * minutes. The metadata is what actually fills the lock screen and
+       * Control Center — passing none, as this did, left them showing the
+       * app's name and nothing else.
+       *
+       * `isLiveStream` hides the duration, the scrub bar and the seek controls,
+       * and a tagged shabad wants that as much as a broadcast does. The lock
+       * screen reads the *file's* clock, and a file here is a 70-minute set: a
+       * six-minute shabad would show a 94-minute bar, and dragging it would
+       * land in a different shabad entirely. Hiding it is the honest answer
+       * until expo-audio can be told a segment's own bounds.
+       */
+      player.setActiveForLockScreen(
+        true,
+        nowPlaying && {
+          title: nowPlaying.title,
+          artist: nowPlaying.artist,
+          artworkUrl: nowPlaying.artworkUrl,
+        },
+        { isLiveStream: true }
+      );
 
       player.addListener('playbackStatusUpdate', (status) => {
         onStatus({

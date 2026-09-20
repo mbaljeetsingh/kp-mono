@@ -10,6 +10,7 @@ import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createWebAudioDriver } from './audio-driver';
+import { artistPhotoUrl } from './supabase';
 
 const storage = {
   async getItem(key: string) {
@@ -29,7 +30,11 @@ const storage = {
   },
 };
 
-export const playerStore = createPlayerStore({ storage });
+export const playerStore = createPlayerStore({
+  storage,
+  // The lock screen wants a URL, and only the app knows where artwork lives.
+  artworkUrl: (item) => artistPhotoUrl(item.artistPhoto) ?? undefined,
+});
 
 playerStore
   .getState()

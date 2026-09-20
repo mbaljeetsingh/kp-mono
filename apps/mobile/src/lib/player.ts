@@ -9,11 +9,16 @@ import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
 import { migrateFromAsyncStorage, storage } from './storage';
+import { artistPhotoUrl } from './supabase';
 
 /** Everything the store keeps. Listed so the one-time migration can carry it. */
 const KEYS = ['kp:queue', 'kp:repeat', 'kp:resume'];
 
-export const playerStore = createPlayerStore({ storage });
+export const playerStore = createPlayerStore({
+  storage,
+  // The lock screen wants a URL, and only the app knows where artwork lives.
+  artworkUrl: (item) => artistPhotoUrl(item.artistPhoto) ?? undefined,
+});
 
 playerStore
   .getState()

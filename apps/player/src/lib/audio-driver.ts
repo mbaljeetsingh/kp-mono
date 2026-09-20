@@ -6,7 +6,7 @@
  * mobile app implements the same four methods over expo-audio; everything
  * above this line is shared.
  */
-import type { AudioDriver, DriverStatus } from '@kp/playback';
+import type { AudioDriver, DriverStatus, NowPlaying } from '@kp/playback';
 
 /**
  * How often to report position.
@@ -59,8 +59,38 @@ export function createWebAudioDriver(onStatus: (status: DriverStatus) => void): 
   // a restored-but-unplayed item would read 0:00 until playback started.
   el.addEventListener('loadedmetadata', report);
 
+  /**
+   * The browser's half of what the phone puts on the lock screen.
+   *
+   * Media Session is what fills macOS's Now Playing widget, the Windows volume
+   * flyout and Android's notification, and it is what makes the keyboard's
+   * play/pause key reach this tab rather than whatever else is making noise.
+   * Guarded because Safari on older iOS and every non-browser environment lack
+   * it, and a missing widget must not stop the audio.
+   */
+  function announce(nowPlaying?: NowPlaying) {
+    if (!('mediaSession' in navigator) || !nowPlaying) return;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: nowPlaying.title,
+        artist: nowPlaying.artist,
+        artwork: nowPlaying.artworkUrl ? [{ src: nowPlaying.artworkUrl }] : [],
+      });
+      /*
+       * The same reasoning as the lock screen: a segment is a byte range of a
+       * 70-minute file, so the element's own duration is the wrong number to
+       * publish and seeking against it would leave the shabad. Clearing the
+       * position state hides the scrubber rather than showing a misleading one.
+       */
+      navigator.mediaSession.setPositionState?.(undefined);
+    } catch {
+      /* an unsupported artwork type must not take the track down with it */
+    }
+  }
+
   return {
-    load(url, startAt) {
+    load(url, startAt, nowPlaying) {
+      announce(nowPlaying);
       el.src = url;
       // Assigning src resets the clock, so the seek has to follow it — and it
       // only lands once the browser knows the file is seekable.
