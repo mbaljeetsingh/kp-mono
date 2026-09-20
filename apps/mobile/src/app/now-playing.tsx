@@ -29,6 +29,7 @@ import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
 import { ArtTile } from '~/components/ArtTile';
 import { QueueList } from '~/components/QueueList';
+import { ReadAlongLine } from '~/components/ReadAlongLine';
 import { SeekBar } from '~/components/SeekBar';
 import { ShabadSearch } from '~/components/ShabadSearch';
 import { useSession } from '~/lib/session';
@@ -256,27 +257,15 @@ export default function NowPlayingScreen() {
               </Text>
             ) : null}
 
-            <View className="gap-3 pb-4">
+            <View className="gap-1.5 pb-4">
               {lines.map((line) => (
-                <View
+                <ReadAlongLine
                   key={line.verseId}
+                  gurmukhi={line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
+                  translation={line.translation?.en?.bdb}
+                  lit={line.verseId === lit}
                   onLayout={(e) => rememberLine(line.verseId, e.nativeEvent.layout.y)}
-                >
-                  <Text
-                    className={
-                      line.verseId === lit
-                        ? 'text-base text-primary'
-                        : 'text-base text-muted-foreground'
-                    }
-                  >
-                    {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
-                  </Text>
-                  {line.translation?.en?.bdb ? (
-                    <Text className="pt-0.5 text-xs text-muted-foreground">
-                      {line.translation.en.bdb}
-                    </Text>
-                  ) : null}
-                </View>
+                />
               ))}
             </View>
 

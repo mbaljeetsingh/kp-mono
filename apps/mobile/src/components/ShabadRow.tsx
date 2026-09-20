@@ -10,6 +10,7 @@ import { Heart, MoreHorizontal } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { ArtTile } from '~/components/ArtTile';
+import { PressableScale } from '~/components/PressableScale';
 import { useSession } from '~/lib/session';
 import { artistPhotoUrl } from '~/lib/supabase';
 
@@ -34,8 +35,10 @@ export function ShabadRow({
   const saved = favorites.has(item.id);
 
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
+      // A whole row, so it moves less than a button would.
+      scaleTo={0.985}
       className="flex-row items-center gap-3 rounded-lg px-3 py-2 active:bg-muted"
     >
       <ArtTile name={item.artist ?? item.title} src={artistPhotoUrl(item.artistPhoto)} />
@@ -66,6 +69,6 @@ export function ShabadRow({
           <MoreHorizontal size={18} color={colors.mutedForeground} />
         </Pressable>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }

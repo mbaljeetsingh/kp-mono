@@ -18,6 +18,7 @@ import { Pause, Play, SkipForward } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { ArtTile } from '~/components/ArtTile';
+import { PressableScale } from '~/components/PressableScale';
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
 import { artistPhotoUrl } from '~/lib/supabase';
@@ -64,9 +65,10 @@ export function MiniPlayer() {
           </View>
         </Pressable>
 
-        <Pressable
+        <PressableScale
           onPress={playerActions.toggle}
           accessibilityLabel={playing ? 'Pause' : 'Play'}
+          scaleTo={0.9}
           className="size-9 items-center justify-center rounded-full bg-primary"
         >
           {playing ? (
@@ -74,10 +76,11 @@ export function MiniPlayer() {
           ) : (
             <Play size={18} color={colors.primaryForeground} />
           )}
-        </Pressable>
+        </PressableScale>
 
-        <Pressable
+        <PressableScale
           onPress={() => void skipToNext()}
+          scaleTo={0.9}
           disabled={current.isLive}
           accessibilityLabel="Next"
           className="size-9 items-center justify-center"
@@ -86,7 +89,7 @@ export function MiniPlayer() {
             size={18}
             color={current.isLive ? colors.mutedForeground : colors.foreground}
           />
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   );
