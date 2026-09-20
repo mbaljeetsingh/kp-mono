@@ -7,33 +7,11 @@
  * shabad.
  */
 import { useAuth, useFavorites, type Favorites, type FavoritesStorage } from '@kp/api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
+import { storage } from '~/lib/storage';
 import { supabase } from '~/lib/supabase';
-
-/**
- * React Native has no `localStorage`, so the shared hook is handed the device's
- * own store — the same one the player queue uses. Module-level, because a new
- * object each render would re-read the list on every render.
- */
-const favoritesStorage: FavoritesStorage = {
-  async getItem(key) {
-    try {
-      return await AsyncStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  async setItem(key, value) {
-    try {
-      await AsyncStorage.setItem(key, value);
-    } catch {
-      /* a device with storage trouble still gets a working player */
-    }
-  },
-};
 
 interface SessionValue {
   session: Session | null;
@@ -47,7 +25,7 @@ const Ctx = createContext<SessionValue | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth(supabase);
   const userId = session?.user.id ?? null;
-  const favorites = useFavorites(supabase, userId, favoritesStorage);
+  const favorites = useFavorites(supabase, userId, storage);
 
   /*
    * No sign-in prompt flag here, unlike the web's provider. Sign-in on a phone

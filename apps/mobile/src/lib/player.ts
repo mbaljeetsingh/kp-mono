@@ -5,36 +5,27 @@
  * so any component reading the whole store re-renders at 10Hz forever.
  */
 import { createPlayerStore, type PlayerState } from '@kp/playback';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
+import { migrateFromAsyncStorage, storage } from './storage';
 
-export const playerStore = createPlayerStore({
-  storage: {
-    async getItem(key) {
-      try {
-        return await AsyncStorage.getItem(key);
-      } catch {
-        return null;
-      }
-    },
-    async setItem(key, value) {
-      try {
-        await AsyncStorage.setItem(key, value);
-      } catch {
-        /* a device with storage trouble still gets a working player */
-      }
-    },
-  },
-});
+/** Everything the store keeps. Listed so the one-time migration can carry it. */
+const KEYS = ['kp:queue', 'kp:repeat', 'kp:resume'];
+
+export const playerStore = createPlayerStore({ storage });
 
 playerStore
   .getState()
   .attach(createNativeAudioDriver((status) => playerStore.getState().onStatus(status)));
 
-// Restore the queue on launch. Never auto-plays — see the store.
-void playerStore.getState().hydrate();
+/*
+ * Carry any AsyncStorage data over before reading, then restore the queue.
+ * Never auto-plays — see the store.
+ */
+void migrateFromAsyncStorage([...KEYS, 'kp:favorites']).then(() =>
+  playerStore.getState().hydrate()
+);
 
 export function usePlayer<T>(selector: (state: PlayerState) => T): T {
   return useStore(playerStore, selector);

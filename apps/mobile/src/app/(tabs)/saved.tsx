@@ -59,6 +59,13 @@ export default function SavedScreen() {
                 ? 'Saved to your account.'
                 : 'Saved on this device — sign in and they follow you.'}
             </Text>
+            {/* Playlists lost their tab when the bar went native — iOS shows
+                five and hides the rest behind "More", and Saved is the better
+                of the two to keep. This is how they are reached now. */}
+            <Pressable onPress={() => router.push('/playlists')} className="pt-2">
+              <Text className="text-sm text-primary">Playlists</Text>
+            </Pressable>
+
             {!userId ? (
               <Pressable onPress={() => router.push('/sign-in')} className="pt-2">
                 <Text className="text-sm text-primary">Sign in</Text>

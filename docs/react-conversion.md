@@ -27,8 +27,8 @@ packages/
   playback/ Zustand store + audio drivers (expo-audio | HTMLAudio)
   api/      Supabase client, TanStack Query hooks, Zod schemas
   shared/   types, stations, ragas — already existed
-  ui/       shadcn/ui — the React original layers/ui was ported from
-  ui-native/  React Native Reusables  (mobile)
+  ui/       shadcn/ui on Base UI — the React original layers/ui was ported from
+  ui-native/ React Native Reusables — the same model for the phone, on NativeWind
   tokens/   design tokens as plain TS → Tailwind config per app
 ```
 
@@ -38,6 +38,14 @@ Components cannot. One renders DOM, the other renders native views, and no
 amount of structure changes that — React Native Web and Tamagui would, at the
 cost of the whole web app inheriting RN's component vocabulary, which is a bad
 trade for a data-dense admin workbench that is keyboard-driven.
+
+What is shared instead is the _vocabulary_: `packages/ui` and
+`packages/ui-native` are both shadcn, and both style themselves from the same
+CSS variables in `packages/tokens`. So `bg-primary` means one colour in a Vite
+build and in Metro, and a component has a twin on the other side rather than a
+translation. The duplication that remains is about four components — ArtTile,
+ShabadRow, QueueList and the shabad search — against roughly four thousand
+lines of logic that genuinely are shared.
 
 Everything else can, and `packages/` is where it goes. The rule: if it does not
 render, it does not belong in an app.

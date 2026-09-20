@@ -123,7 +123,7 @@ export function ShabadActions({
               ))}
               {!(playlists.data ?? []).length ? (
                 <Text className="px-4 py-3 text-sm text-muted-foreground">
-                  No playlists yet — make one on the Lists tab.
+                  No playlists yet — make one from Saved.
                 </Text>
               ) : null}
             </ScrollView>
