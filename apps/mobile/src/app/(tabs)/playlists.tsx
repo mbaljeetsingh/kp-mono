@@ -10,8 +10,10 @@ import { usePlaylistMutations, usePlaylists } from '@kp/api';
 import { useRouter } from 'expo-router';
 import { ListMusic, Plus } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { colors } from '@kp/tokens/colors';
+
+import { Input } from '@kp/ui-native/input';
 
 import { Screen } from '~/components/Screen';
 import { useSession } from '~/lib/session';
@@ -66,13 +68,13 @@ export default function PlaylistsScreen() {
 
             {creating ? (
               <View className="gap-2">
-                <TextInput
+                <Input
                   value={name}
                   onChangeText={setName}
                   autoFocus
                   placeholder="Morning kirtan"
                   placeholderTextColor={colors.mutedForeground}
-                  className="rounded-lg border border-border bg-card px-4 py-3 text-foreground"
+                  className="h-12"
                 />
                 <Pressable
                   disabled={!name.trim() || create.isPending}

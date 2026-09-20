@@ -12,7 +12,9 @@ import { colors } from '@kp/tokens/colors';
 import { useRouter } from 'expo-router';
 import { ChevronDown } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
+
+import { Input } from '@kp/ui-native/input';
 
 import { Screen } from '~/components/Screen';
 import { supabase } from '~/lib/supabase';
@@ -77,7 +79,7 @@ export default function SignInScreen() {
 
         <View className="gap-2">
           <Text className="text-sm text-foreground">Email</Text>
-          <TextInput
+          <Input
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -85,20 +87,20 @@ export default function SignInScreen() {
             keyboardType="email-address"
             textContentType="emailAddress"
             placeholderTextColor={colors.mutedForeground}
-            className="rounded-lg border border-border bg-card px-4 py-3 text-foreground"
+            className="h-12"
           />
         </View>
 
         <View className="gap-2">
           <Text className="text-sm text-foreground">Password</Text>
-          <TextInput
+          <Input
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             autoCapitalize="none"
             textContentType={mode === 'signin' ? 'password' : 'newPassword'}
             placeholderTextColor={colors.mutedForeground}
-            className="rounded-lg border border-border bg-card px-4 py-3 text-foreground"
+            className="h-12"
           />
         </View>
 

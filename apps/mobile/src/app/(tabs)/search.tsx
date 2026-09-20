@@ -2,8 +2,10 @@ import { colors } from '@kp/tokens/colors';
 import { useSearch } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useState } from 'react';
-import { FlatList, Text, TextInput, View } from 'react-native';
+import { FlatList, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
+
+import { Input } from '@kp/ui-native/input';
 
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
@@ -25,7 +27,7 @@ export default function SearchScreen() {
     <Screen edges={['top']} className="flex-1 bg-background">
       <View className="px-4 pb-2 pt-3">
         <Text className="pb-3 text-2xl font-semibold text-foreground">Search</Text>
-        <TextInput
+        <Input
           value={term}
           onChangeText={setTerm}
           placeholder="Shabad or ragi…"
@@ -34,7 +36,7 @@ export default function SearchScreen() {
           // A shabad name is not a sentence, and iOS would shift the first
           // letter of every new query.
           autoCapitalize="none"
-          className="rounded-lg border border-border bg-card px-4 py-3 text-foreground"
+          className="h-12"
         />
       </View>
 

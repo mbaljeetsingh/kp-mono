@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@kp/tokens": "workspace:*",
+    "@rn-primitives/avatar": "^1.5.2",
+    "@rn-primitives/separator": "^1.5.2",
     "@rn-primitives/slot": "^1.5.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

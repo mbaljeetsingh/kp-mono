@@ -22,6 +22,9 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Badge } from '@kp/ui-native/badge';
+import { Text as UIText } from '@kp/ui-native/text';
+
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
 import { ArtTile } from '~/components/ArtTile';
@@ -167,7 +170,11 @@ export default function NowPlayingScreen() {
           <Text numberOfLines={1} className="text-sm text-muted-foreground">
             {current.subtitle ?? current.artist}
           </Text>
-          {current.isLive ? <Text className="text-xs font-medium text-primary">LIVE</Text> : null}
+          {current.isLive ? (
+            <Badge variant="secondary" className="self-start">
+              <UIText className="text-primary">LIVE</UIText>
+            </Badge>
+          ) : null}
         </View>
 
         {/* A broadcast is not something to save — there is no rendition behind it. */}

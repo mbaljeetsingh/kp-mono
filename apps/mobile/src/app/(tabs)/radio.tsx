@@ -16,6 +16,9 @@ import {
 import { Radio } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { Badge } from '@kp/ui-native/badge';
+import { Text as UIText } from '@kp/ui-native/text';
+
 import { Screen } from '~/components/Screen';
 import { playerActions, usePlayer } from '~/lib/player';
 
@@ -49,7 +52,9 @@ function StationCard({ station }: { station: Station }) {
       {starting === playable.id ? (
         <Text className="text-xs text-muted-foreground">Connecting…</Text>
       ) : isCurrent && playing ? (
-        <Text className="text-xs font-medium text-primary">LIVE</Text>
+        <Badge variant="secondary">
+          <UIText className="text-primary">LIVE</UIText>
+        </Badge>
       ) : null}
     </Pressable>
   );
