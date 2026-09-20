@@ -8,11 +8,8 @@ import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
-import { migrateFromAsyncStorage, storage } from './storage';
+import { storage } from './storage';
 import { artistPhotoUrl } from './supabase';
-
-/** Everything the store keeps. Listed so the one-time migration can carry it. */
-const KEYS = ['kp:queue', 'kp:repeat', 'kp:resume'];
 
 export const playerStore = createPlayerStore({
   storage,
@@ -24,13 +21,10 @@ playerStore
   .getState()
   .attach(createNativeAudioDriver((status) => playerStore.getState().onStatus(status)));
 
-/*
- * Carry any AsyncStorage data over before reading, then restore the queue.
- * Never auto-plays — see the store.
- */
-void migrateFromAsyncStorage([...KEYS, 'kp:favorites']).then(() =>
-  playerStore.getState().hydrate()
-);
+// Restore the queue on launch. Never auto-plays — see the store. The storage
+// module carries anything AsyncStorage held across before answering a read, so
+// there is no ordering to arrange here.
+void playerStore.getState().hydrate();
 
 export function usePlayer<T>(selector: (state: PlayerState) => T): T {
   return useStore(playerStore, selector);

@@ -57,12 +57,23 @@ export function useTagPlayer(src: string | undefined): TagPlayer {
   const [speed, setSpeedState] = useState(1);
   const [loop, setLoop] = useState<{ start: number; end: number } | null>(null);
 
-  // Read inside the timeupdate handler, which is attached once — state read
-  // through a ref so the listener never goes stale.
+  /*
+   * Read inside the timeupdate handler, which is attached once — mirrored into
+   * refs so the listener never goes stale.
+   *
+   * Mirrored in an effect rather than during render: a render React throws away
+   * still runs its body, so assigning here would publish a value from a render
+   * that never happened. It has not bitten yet, but a ref written during render
+   * is the kind of thing that only misbehaves once concurrent features are on.
+   */
   const loopRef = useRef(loop);
-  loopRef.current = loop;
   const durationRef = useRef(0);
-  durationRef.current = duration;
+  useEffect(() => {
+    loopRef.current = loop;
+  }, [loop]);
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
 
   useEffect(() => {
     if (!src) return;

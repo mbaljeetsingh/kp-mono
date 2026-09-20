@@ -42,10 +42,13 @@ export function SeekBar({
   const [dragging, setDragging] = useState<number | null>(null);
   // Read on release, where the event's own coordinates are already gone if the
   // finger left the track.
-  const latest = useRef(0);
+  const latest = useRef<number | null>(null);
 
   const ratioAt = (e: GestureResponderEvent) => {
-    if (!width) return 0;
+    // Before onLayout there is no scale to measure against. Returning 0 without
+    // recording it kept whatever the last gesture left behind, so a release in
+    // that window seeked to a position nobody asked for.
+    if (!width) return null;
     const r = Math.min(1, Math.max(0, e.nativeEvent.locationX / width));
     latest.current = r;
     return r;
@@ -68,7 +71,9 @@ export function SeekBar({
         onResponderGrant={(e) => setDragging(ratioAt(e))}
         onResponderMove={(e) => setDragging(ratioAt(e))}
         onResponderRelease={() => {
-          playerActions.seek(seekTargetForPct(current, latest.current * 100, duration));
+          if (latest.current != null) {
+            playerActions.seek(seekTargetForPct(current, latest.current * 100, duration));
+          }
           setDragging(null);
         }}
         onResponderTerminate={() => setDragging(null)}
