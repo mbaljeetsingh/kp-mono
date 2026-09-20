@@ -12,21 +12,18 @@
   "dependencies": {
     "@kp/api": "workspace:*",
     "@kp/core": "workspace:*",
-    "@kp/playback": "workspace:*",
     "@kp/shared": "workspace:*",
     "@kp/tokens": "workspace:*",
     "@kp/ui": "workspace:*",
     "@supabase/supabase-js": "^2.111.0",
     "@tanstack/react-query": "^5.103.1",
     "@tanstack/react-router": "^1.170.38",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.548.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "tailwind-merge": "^3.6.0",
-    "usehooks-ts": "^3.1.1",
-    "zustand": "^5.0.15"
+    "usehooks-ts": "^3.1.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",

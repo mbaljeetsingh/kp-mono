@@ -1,0 +1,49 @@
+# Everything that can fail without anyone noticing.
+#
+# The three workflows beside this one are cron jobs — they crawl, scan and
+# align. Until now nothing ran on a push at all, so 139 tests, five typecheck
+# projects and two builds existed and were enforced only by whoever remembered.
+#
+# One job rather than four in parallel: the whole thing takes about two minutes,
+# and turbo's cache means a second run over untouched packages is nearly free.
+# Four jobs would each pay the install cost to save less than the install costs.
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch makes the first one irrelevant. Cancel it
+# rather than queue behind it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Formatting first: it is the fastest to run and the least interesting to
+      # argue about in review.
+      - run: pnpm format:check
+
+      # Typecheck before test. A type error explains itself; the test failure it
+      # causes usually does not.
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      # Last, because it is the slowest and a broken build is nearly always a
+      # symptom of something the three steps above already caught.
+      - run: pnpm build
