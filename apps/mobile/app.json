@@ -12,7 +12,7 @@
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       },
-      "bundleIdentifier": "com.anonymous.kirtan-player"
+      "bundleIdentifier": "com.beejaysoft.kirtanplayer"
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +27,8 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-      ]
+      ],
+      "package": "com.beejaysoft.kirtanplayer"
     },
     "web": {
       "output": "static",
@@ -54,6 +55,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "beejaysoft",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ee34d48a-acd7-4987-95dc-a619920f900e"
+      }
     }
   }
 }

@@ -1,0 +1,35 @@
+# Saving a shabad has to outlive the process.
+#
+# This is the flow that would have caught the worst bug in the project. Favourites
+# were written through the `localStorage` global, which React Native does not have.
+# Wrapped in a try/catch it failed silently, so the heart filled, the Saved tab
+# listed it, and everything looked right — until the app was killed, at which point
+# a listener's entire saved list was gone. Nothing in 139 unit tests could see it,
+# because the bug lived in the gap between the app and the device.
+#
+# The assertion that matters is the one after the second launch.
+appId: com.anonymous.kirtan-player
+---
+- launchApp:
+    clearState: true
+
+# Save the first shabad from its row menu.
+- assertVisible: 'Recently tagged'
+- tapOn:
+    id: 'More for .*'
+    index: 0
+- assertVisible: 'Save'
+- tapOn: 'Save'
+
+- tapOn: 'Saved'
+- assertVisible:
+    text: 'Nothing saved yet.*'
+    visible: false
+
+# Relaunch without clearing state — this is the whole point of the flow.
+- launchApp:
+    clearState: false
+- tapOn: 'Saved'
+- assertVisible:
+    text: 'Nothing saved yet.*'
+    visible: false

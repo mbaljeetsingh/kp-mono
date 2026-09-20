@@ -1,0 +1,36 @@
+# Next has to go somewhere, even from a queue of one.
+#
+# Playing a single result from search leaves the queue holding one item, so the
+# store's own `next()` returns "stop" and the button does nothing. The web player
+# solved this by routing Next through `skipToNext`, which fetches suggestions when
+# there is nowhere to go — and the phone went without that for a whole branch.
+# Up next listed four shabads while the control beside it could not reach any of
+# them.
+#
+# The bug is invisible unless the queue is exactly one long, which is why it needs
+# a flow rather than an eye.
+appId: com.anonymous.kirtan-player
+---
+- launchApp:
+    clearState: true
+
+- tapOn: 'Search'
+- tapOn: 'Shabad or ragi…'
+- inputText: 'maul'
+
+# One result, so playing it makes a queue of one.
+- assertVisible: 'Mauli Dharati Maulia Akas'
+- tapOn: 'Mauli Dharati Maulia Akas'
+- assertVisible:
+    id: 'Pause'
+
+- tapOn:
+    id: 'Next'
+
+# Something else is playing. If Next were still the store's own, the transport
+# would have stopped here and there would be no pause control at all.
+- assertVisible:
+    id: 'Pause'
+- assertVisible:
+    text: 'Mauli Dharati Maulia Akas'
+    visible: false

@@ -1,0 +1,30 @@
+# Every route to sign-in has to arrive somewhere.
+#
+# The action sheet's "Sign in to use playlists" called the session's `prompt()`,
+# which sets a flag the *web* app's AuthDialog reads. Nothing on the phone renders
+# one, so the sheet closed and nothing happened — a dead button on the only path
+# from a shabad to an account. It type-checked perfectly.
+#
+# A flow catches it because a flow has to see the next screen.
+appId: com.anonymous.kirtan-player
+---
+- launchApp:
+    clearState: true
+
+# From the row menu, signed out.
+- assertVisible: 'Recently tagged'
+- tapOn:
+    id: 'More for .*'
+    index: 0
+- assertVisible: 'Sign in to use playlists'
+- tapOn: 'Sign in to use playlists'
+- assertVisible: 'Listening never needs an account.*'
+- tapOn:
+    id: 'Close|Dismiss'
+    optional: true
+- back
+
+# And from Saved, which is the other way in.
+- tapOn: 'Saved'
+- tapOn: 'Sign in'
+- assertVisible: 'Listening never needs an account.*'
