@@ -6,6 +6,8 @@
  * than implying a gate.
  */
 import { signInWithPassword, signUp } from '@kp/api';
+import { Button } from '@kp/ui-native/button';
+import { Text as UIText } from '@kp/ui-native/text';
 import { colors } from '@kp/tokens/colors';
 import { useRouter } from 'expo-router';
 import { ChevronDown } from 'lucide-react-native';
@@ -106,15 +108,16 @@ export default function SignInScreen() {
           </Text>
         ) : null}
 
-        <Pressable
-          onPress={submit}
-          disabled={busy}
-          className="items-center rounded-lg bg-primary py-3 active:opacity-80"
-        >
-          <Text className="font-medium text-primary-foreground">
-            {busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}
-          </Text>
-        </Pressable>
+        {/* The first React Native Reusables component in the app. Same shadcn
+            model the web side uses, and it reads the same tokens — which is
+            what makes it worth a package rather than another hand-rolled
+            Pressable. */}
+        <Button onPress={submit} disabled={busy} size="lg">
+          {/* Its own Text, not React Native's: Button publishes the right text
+              colour and weight through TextClassContext, and only this one
+              reads it. */}
+          <UIText>{busy ? 'Working…' : mode === 'signin' ? 'Sign in' : 'Create account'}</UIText>
+        </Button>
 
         <Pressable
           onPress={() => {

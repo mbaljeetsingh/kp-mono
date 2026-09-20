@@ -11,6 +11,13 @@
 @import '@kp/tokens/tokens-native.css';
 
 /*
+ * Tailwind only scans this app by default, so every class inside @kp/ui-native
+ * would be stripped from the build and the React Native Reusables components
+ * would render unstyled. The web app declares the same thing for @kp/ui.
+ */
+@source '../../../packages/ui-native/src';
+
+/*
  * GurbaniLipi, embedded by the expo-font config plugin.
  *
  * The family name is the one inside the TTF, not the @font-face alias the web
