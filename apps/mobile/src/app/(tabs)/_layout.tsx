@@ -44,6 +44,11 @@ export default function TabLayout() {
     <NativeTabs
       // Without this the bar is the system blue. Everything else about it —
       // blur, haptics, the press behaviour — is UIKit's and better left alone.
+      // Yes — iOS 26 shrinks the bar as you scroll down a list and brings it
+      // back on the way up, which is what Apple Music does. `automatic` is the
+      // default and leaves the decision to UIKit; naming it means the archive
+      // gets the screen while you are reading it.
+      minimizeBehavior="onScrollDown"
       tintColor={colors.primary}
       iconColor={{ default: colors.mutedForeground, selected: colors.primary }}
       labelStyle={{ color: colors.mutedForeground }}

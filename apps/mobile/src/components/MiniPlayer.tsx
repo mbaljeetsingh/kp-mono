@@ -1,11 +1,18 @@
 /**
  * The persistent transport.
  *
- * Above the tab bar and outside every screen, so navigating never interrupts
+ * Lives in NativeTabs.BottomAccessory — the slot iOS 26 puts above the tab
+ * bar — so it is outside every screen and navigating never interrupts
  * playback. Tapping it opens the full player.
+ *
+ * No border, no background and no progress bar: the accessory is a floating
+ * pill iOS draws and blurs itself, and a full-width bar's furniture fights
+ * that shape. The line this used to carry had both ends swallowed by the
+ * pill's corners; the elapsed time beneath the title says the same thing, and
+ * the real scrubber is one tap away.
  */
 import { colors } from '@kp/tokens/colors';
-import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
+import { clock, elapsedIn, segmentTotal } from '@kp/core';
 import { useRouter } from 'expo-router';
 import { Pause, Play, SkipForward } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
@@ -25,15 +32,15 @@ export function MiniPlayer() {
   // Nothing loaded means no bar at all, rather than a dead strip of controls.
   if (!current) return null;
 
-  const pct = progressPct(current, position, duration);
-
   return (
-    <View className="border-t border-border bg-card">
-      <View className="h-0.5 bg-muted">
-        <View className="h-full bg-primary" style={{ width: `${pct}%` }} />
-      </View>
-
-      <View className="flex-row items-center gap-3 px-3 py-2">
+    /*
+     * No border and no background: this sits in NativeTabs.BottomAccessory,
+     * which is a floating pill iOS draws and blurs itself. The full-width bar
+     * this used to be brought a top border that had nothing to divide and a
+     * progress line whose ends disappeared into the pill's corners.
+     */
+    <View className="px-4 py-2">
+      <View className="flex-row items-center gap-3">
         <Pressable
           onPress={() => router.push('/now-playing')}
           className="min-w-0 flex-1 flex-row items-center gap-3"
@@ -41,7 +48,7 @@ export function MiniPlayer() {
           <ArtTile
             name={current.artist ?? current.title}
             src={artistPhotoUrl(current.artistPhoto)}
-            size={40}
+            size={36}
           />
           <View className="min-w-0 flex-1">
             <Text numberOfLines={1} className="text-sm font-medium text-foreground">
@@ -60,7 +67,7 @@ export function MiniPlayer() {
         <Pressable
           onPress={playerActions.toggle}
           accessibilityLabel={playing ? 'Pause' : 'Play'}
-          className="size-10 items-center justify-center rounded-full bg-primary"
+          className="size-9 items-center justify-center rounded-full bg-primary"
         >
           {playing ? (
             <Pause size={18} color={colors.primaryForeground} />
@@ -73,7 +80,7 @@ export function MiniPlayer() {
           onPress={() => void skipToNext()}
           disabled={current.isLive}
           accessibilityLabel="Next"
-          className="size-10 items-center justify-center"
+          className="size-9 items-center justify-center"
         >
           <SkipForward
             size={18}
