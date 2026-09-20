@@ -31,8 +31,8 @@ supabase/          migrations
 ```
 
 The frontends are React: Vite + TanStack Router on the web, Expo on mobile.
-They were Nuxt until [docs/react-conversion.md](docs/react-conversion.md),
-which records what moved and why.
+[docs/architecture.md](docs/architecture.md) records the shape and the
+decisions behind it — what is shared, what deliberately is not, and why.
 
 ## Running locally
 
@@ -42,6 +42,18 @@ npx supabase start                              # Postgres + Auth + Studio
 pnpm --filter @kp/player dev                    # → :3000
 pnpm --filter @kp/admin  dev                    # → :3001
 ```
+
+The phone needs a native build rather than a dev server, because the whole
+point of it is background audio:
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env    # then fill in the two values
+pnpm --filter @kp/mobile ios                    # builds and opens the simulator
+```
+
+After the first build, `npx expo start` in `apps/mobile` is enough — only a
+native dependency needs building again. `apps/mobile/.maestro/` holds end-to-end
+flows; run one with `maestro test apps/mobile/.maestro/<flow>.yaml`.
 
 That is the whole first run: a committed seed (`supabase/seed.sql`, issue #27)
 is applied automatically after migrations, so a fresh clone gets a working
