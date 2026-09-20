@@ -1,10 +1,16 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "jsx": "react-jsx",
+    "strict": true,
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] }
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "types": ["react", "react-native"]
   },
-  "include": ["src"]
+  "include": ["src", "nativewind-env.d.ts"]
 }

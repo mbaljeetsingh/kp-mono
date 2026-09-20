@@ -1,7 +1,11 @@
 import { TextClassContext } from './text';
 import { cn } from '../../lib/utils';
 import type { LucideIcon, LucideProps } from 'lucide-react-native';
-import { cssInterop } from 'nativewind';
+// NativeWind v5's replacement for v4's `cssInterop`, which no longer exists in
+// either package. The shape of the mapping is the same; the difference is that
+// `styled` returns a wrapped component rather than mutating the one passed in,
+// so the result has to be what gets exported.
+import { styled } from 'nativewind';
 import * as React from 'react';
 
 type IconProps = LucideProps & {
@@ -12,7 +16,7 @@ function IconImpl({ as: IconComponent, ...props }: IconProps) {
   return <IconComponent {...props} />;
 }
 
-cssInterop(IconImpl, {
+const StyledIcon = styled(IconImpl, {
   className: {
     target: 'style',
     nativeStyleToProp: {
@@ -45,7 +49,7 @@ cssInterop(IconImpl, {
 function Icon({ as: IconComponent, className, size = 14, ...props }: IconProps) {
   const textClass = React.useContext(TextClassContext);
   return (
-    <IconImpl
+    <StyledIcon
       as={IconComponent}
       className={cn('text-foreground', textClass, className)}
       size={size}
