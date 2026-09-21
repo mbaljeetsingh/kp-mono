@@ -15,6 +15,25 @@
   publish = "apps/admin/dist"
   ignore = "bash scripts/netlify-ignore.sh admin"
 
+# BaniDB, proxied same-origin — and it must come before the SPA catch-all,
+# because Netlify takes the first rule that matches.
+#
+# The code calls a relative `/banidb`, which only the Vite dev server was
+# rewriting (`server.proxy`). In production the catch-all below answered it
+# instead: every lookup got index.html with a 200, so `res.ok` was true and
+# `res.json()` failed on "<!doctype html>". The read-along reported "Could not
+# reach BaniDB" while BaniDB was perfectly reachable.
+#
+# Same-origin rather than calling api.banidb.com directly, for the reason in
+# vite.config.ts: BaniDB caches its allow-origin header across origins, so a
+# direct browser call can receive a response cached for somebody else and be
+# blocked. The Nuxt app proxied it server-side; a static SPA has to do it here.
+[[redirects]]
+  from = "/banidb/*"
+  to = "https://api.banidb.com/v2/:splat"
+  status = 200
+  force = true
+
 # TanStack Router routes client-side, so every path has to reach index.html.
 # Without this a reload on /search — or any link someone shared — is a 404
 # from Netlify before the app ever loads.
