@@ -1,0 +1,28 @@
+/*
+ * NativeWind v5 is CSS-first: there is no tailwind.config.js, so the theme is
+ * whatever this file imports — which is the same palette the web apps use.
+ */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css';
+@import 'nativewind/theme';
+
+/* The shared palette, applied to :root — see the note in tokens-native.css. */
+@import '@kp/tokens/tokens-native.css';
+
+/*
+ * Tailwind only scans this app by default, so every class inside @kp/ui-native
+ * would be stripped from the build and the React Native Reusables components
+ * would render unstyled. The web app declares the same thing for @kp/ui.
+ */
+@source '../../../packages/ui-native/src';
+
+/*
+ * GurbaniLipi, embedded by the expo-font config plugin.
+ *
+ * The family name is the one inside the TTF, not the @font-face alias the web
+ * declares — a native app loads the file, so it uses the font's own name.
+ */
+@utility font-gurmukhi {
+  font-family: 'GurbaniLipi';
+}

@@ -32,7 +32,7 @@ jobs:
       run:
         working-directory: packages/aligner
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v5
         with:
           # Without this every night re-downloads the same 1-2 GB of wheels

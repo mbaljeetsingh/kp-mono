@@ -8,11 +8,13 @@
 # Two sites share this repo; without this every push rebuilds both.
 #
 # The path list below is a hand-maintained copy of a graph that already exists
-# in pnpm's workspace deps and each app's nuxt `extends`. A new edge — an app
-# importing a new packages/* — must be mirrored here or that site's deploys go
-# silently stale. `npx turbo-ignore @kp/player` would derive it from the real
-# graph instead; it is not a drop-in yet because shared-theme/ sits outside
-# every workspace glob (see turbo.json's globalDependencies for the same gap).
+# in pnpm's workspace deps. A new edge — an app importing a new packages/* —
+# must be mirrored here or that site's deploys go silently stale.
+#
+# `npx turbo-ignore @kp/player` would derive it from the real graph instead,
+# and is now a genuine option: the gap that blocked it was shared-theme/ living
+# outside every workspace glob, and the tokens have since moved into
+# packages/tokens. Worth switching to the next time this list is wrong.
 
 set -u
 
@@ -45,9 +47,12 @@ COMMON=(
 # only would silently stop deploying the other.
 PATHS=(
   "apps/$APP/"
+  "packages/api/"
+  "packages/core/"
+  "packages/playback/"
   "packages/shared/"
-  "layers/ui/"
-  "shared-theme/"
+  "packages/tokens/"
+  "packages/ui/"
 )
 
 # No usable cached ref → build (don't skip).

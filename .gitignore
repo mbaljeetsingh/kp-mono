@@ -7,3 +7,5 @@ packages/crawler/out
 .worktree-setup-done
 dist
 .netlify
+.expo
+expo-env.d.ts

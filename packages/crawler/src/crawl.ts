@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { parseListing } from './listings.ts';
 import { parseFilename, artistsDisagree } from './parse-filename.ts';
 import { stableId, sha1 } from './track-id.ts';
+import type { SourceTree } from '@kp/shared/types';
 
 const ROOT = 'https://sgpc.net';
 const TREES = {
@@ -31,17 +32,16 @@ const SAMPLE = process.argv.includes('--sample');
 /** Seed anyway when a whole tree came back empty — see the guard in main(). */
 const ALLOW_PARTIAL = process.argv.includes('--allow-partial');
 
-const UA =
-  'kirtan-player-crawler/0.1 (archive indexer; contact: baljeet@underlings.com)';
+const UA = 'kirtan-player-crawler/0.1 (archive indexer; contact: baljeet@underlings.com)';
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let requestCount = 0;
-const errors = [];
+const errors: { url: string; message: string }[] = [];
 
 /** decodeURIComponent throws on a malformed %-sequence; one bad filename must
  *  not discard an entire crawl, which writes nothing to disk until the end. */
-function safeDecode(value) {
+function safeDecode(value: string): string {
   try {
     return decodeURIComponent(value);
   } catch {
@@ -62,10 +62,10 @@ function safeDecode(value) {
  * its one chance spent.
  */
 const RETRYABLE = new Set([403, 408, 425, 429]);
-const isRetryable = (status) => RETRYABLE.has(status) || status >= 500;
+const isRetryable = (status: number) => RETRYABLE.has(status) || status >= 500;
 
 /** Rate-limited GET with retry. Cloudflare 429/403 is the failure to survive. */
-async function get(url, attempt = 0) {
+async function get(url: string, attempt = 0): Promise<string | null> {
   await sleep(RATE_MS);
   requestCount++;
   try {
@@ -88,9 +88,22 @@ async function get(url, attempt = 0) {
       await sleep(10_000 * 2 ** attempt);
       return get(url, attempt + 1);
     }
-    errors.push({ url, message: String(err?.message ?? err) });
+    errors.push({ url, message: err instanceof Error ? err.message : String(err) });
     return null;
   }
+}
+
+interface TrackInput {
+  tree: SourceTree;
+  url: string;
+  artistDir: string | null;
+  rawFilename: string;
+  sizeBytes: number | null;
+  modifiedAt: string | null;
+  /** ISO timestamp the run started; the same value for every track in it. */
+  now: string;
+  /** Daywise only — see TrackIdParts. Absent for the artist trees. */
+  dir?: string;
 }
 
 function makeTrack({
@@ -102,7 +115,7 @@ function makeTrack({
   modifiedAt,
   now,
   dir,
-}) {
+}: TrackInput) {
   const p = parseFilename(rawFilename, tree);
   const flags = [...p.flags];
 
@@ -160,8 +173,8 @@ function makeTrack({
 }
 
 /** Themed trees: one level of `?dir=<Artist>` directories holding audio. */
-async function crawlArtistTree(tree, baseUrl, now) {
-  const tracks = [];
+async function crawlArtistTree(tree: SourceTree, baseUrl: string, now: string) {
+  const tracks: ReturnType<typeof makeTrack>[] = [];
   const indexHtml = await get(baseUrl);
   // Not `return tracks`. A root listing that never arrived is the difference
   // between "this tree is empty" and "we never saw this tree", and returning
@@ -214,8 +227,8 @@ async function crawlArtistTree(tree, baseUrl, now) {
  * ("April/" in 2008, "01/" in 2025) so directories are always ENUMERATED,
  * never constructed — constructing them is why /kirtan/2015/06/ came back empty.
  */
-async function crawlDayTree(now) {
-  const tracks = [];
+async function crawlDayTree(now: string) {
+  const tracks: ReturnType<typeof makeTrack>[] = [];
   const rootHtml = await get(TREES.daywise);
   // Same reasoning as crawlArtistTree: an unfetched root is a failure, not an
   // empty tree.
@@ -226,9 +239,7 @@ async function crawlDayTree(now) {
     );
   }
 
-  let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) =>
-    /^\d{4}$/.test(d)
-  );
+  let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) => /^\d{4}$/.test(d));
   if (SAMPLE) years = years.slice(-2);
   console.log(`[daywise] ${years.length} years`);
 
@@ -357,9 +368,7 @@ async function main() {
   );
   console.log(`→ ${target}`);
   if (SAMPLE) {
-    console.log(
-      'sample crawl — the seeder will refuse this file. Run without --sample to seed.'
-    );
+    console.log('sample crawl — the seeder will refuse this file. Run without --sample to seed.');
   }
 }
 

@@ -47,9 +47,7 @@ const URL_ = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54521';
 // is a key that outlives the machine that generated it.
 const KEY = process.env.SUPABASE_SERVICE_KEY;
 if (!KEY) {
-  console.error(
-    'SUPABASE_SERVICE_KEY is required. Get the local one from `npx supabase status`.'
-  );
+  console.error('SUPABASE_SERVICE_KEY is required. Get the local one from `npx supabase status`.');
   process.exit(1);
 }
 
@@ -75,10 +73,7 @@ function refuse(message: string, forceable = true): never {
 // its `tracks` key throws an unhandled TypeError further down instead of
 // refusing cleanly, and a file missing `errors` skips the error guard silently.
 if (!Array.isArray(report.tracks) || !Array.isArray(report.errors)) {
-  refuse(
-    'out/crawl.json is not a complete crawl report (missing `tracks` or `errors`).',
-    false
-  );
+  refuse('out/crawl.json is not a complete crawl report (missing `tracks` or `errors`).', false);
 }
 
 // Deliberately not forceable. A sample crawl reaching a production
@@ -86,10 +81,7 @@ if (!Array.isArray(report.tracks) || !Array.isArray(report.errors)) {
 // it into the same --force that waves through an expected shrink would mean one
 // flag covers both a judgement call and an accident. Re-run without --sample.
 if (report.sample === true) {
-  refuse(
-    'out/crawl.json is a sample crawl (report.sample is true). Run a full crawl.',
-    false
-  );
+  refuse('out/crawl.json is a sample crawl (report.sample is true). Run a full crawl.', false);
 }
 
 if (report.errors?.length > MAX_ERRORS && !FORCE) {
@@ -154,7 +146,7 @@ for (const t of report.tracks) {
     // re-fetching 670 pages from sgpc.net.
     confidence: t.flags.includes('no-date')
       ? 'low'
-      : t.flags.filter((f) => f !== 'artist-mismatch').length
+      : t.flags.filter((f: string) => f !== 'artist-mismatch').length
         ? 'medium'
         : 'high',
     flags: t.flags,
@@ -179,15 +171,12 @@ console.log(
 
 for (let i = 0; i < rows.length; i += BATCH) {
   const chunk = rows.slice(i, i + BATCH);
-  const { error } = await client
-    .from('tracks')
-    .upsert(chunk, { onConflict: 'id' });
+  const { error } = await client.from('tracks').upsert(chunk, { onConflict: 'id' });
   if (error) {
     console.error(`batch at ${i} failed:`, error.message);
     process.exit(1);
   }
-  if ((i / BATCH) % 10 === 0)
-    console.log(`  ${i + chunk.length}/${rows.length}`);
+  if ((i / BATCH) % 10 === 0) console.log(`  ${i + chunk.length}/${rows.length}`);
 }
 
 // The artist directories this crawl saw, as rows.
@@ -207,12 +196,10 @@ for (let i = 0; i < rows.length; i += BATCH) {
 // a plain upsert would blank all three.
 const artistDirs = [...new Set(rows.map((r) => r.artist_dir).filter(Boolean))];
 if (artistDirs.length) {
-  const { error: artistError } = await client
-    .from('artists')
-    .upsert(
-      artistDirs.map((name) => ({ name })),
-      { onConflict: 'name', ignoreDuplicates: true }
-    );
+  const { error: artistError } = await client.from('artists').upsert(
+    artistDirs.map((name) => ({ name })),
+    { onConflict: 'name', ignoreDuplicates: true }
+  );
   if (artistError) {
     console.error(`seeding artists failed: ${artistError.message}`);
     process.exit(1);
@@ -252,7 +239,5 @@ if (FORCE) {
   }
 }
 
-const { count } = await client
-  .from('tracks')
-  .select('*', { count: 'exact', head: true });
+const { count } = await client.from('tracks').select('*', { count: 'exact', head: true });
 console.log(`done — ${count} tracks in database`);

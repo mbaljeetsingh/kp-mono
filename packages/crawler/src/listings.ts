@@ -95,8 +95,7 @@ function parseAutoindex(html: string): Listing {
         .replace(/&nbsp;/g, ' ')
         .trim()
     );
-    const modifiedAt =
-      cells.find((c) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(c)) ?? null;
+    const modifiedAt = cells.find((c) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(c)) ?? null;
     const sizeCell = cells.find((c) => /^[\d.]+[KMGT]?$/i.test(c) && c !== '-');
 
     if (href.endsWith('/')) {
@@ -119,10 +118,7 @@ function parseAutoindex(html: string): Listing {
  */
 function parseThemed(html: string): Listing {
   const dirs = new Set<string>();
-  const files = new Map<
-    string,
-    { href: string; sizeBytes: null; modifiedAt: null }
-  >();
+  const files = new Map<string, { href: string; sizeBytes: null; modifiedAt: null }>();
 
   for (const m of html.matchAll(/<a\s+[^>]*href="([^"]+)"/gi)) {
     const href = m[1];

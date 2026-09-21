@@ -26,9 +26,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -49,8 +49,22 @@ jobs:
       # is empty every time, which is the point: crawl-artists skips whatever
       # is already cached, so on a persistent box a portrait SGPC *replaced*
       # would never be picked up, while here the whole set refreshes for free.
+      #
+      # `continue-on-error` because SGPC now refuses this endpoint from GitHub's
+      # IP ranges outright. The same request with the same user-agent returns
+      # 200 from a residential connection and 403 from a runner, four times over
+      # 71 seconds — so the existing retry cannot help, and no change on our side
+      # will. What it was costing was the whole weekly job: tracks crawl and seed
+      # fine in the steps above, then this one exits 1 and the run goes red for
+      # something that is not ours and is not the catalogue.
+      #
+      # The step still shows as failed, so nobody mistakes stale photos for fresh
+      # ones. When they need refreshing, `pnpm crawl:artists && pnpm seed:artists`
+      # from a laptop works — that is the same code, from an IP SGPC accepts.
       - run: node --experimental-strip-types packages/crawler/src/crawl-artists.ts
+        continue-on-error: true
       - run: node --experimental-strip-types packages/crawler/src/seed-artists.ts
+        continue-on-error: true
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}

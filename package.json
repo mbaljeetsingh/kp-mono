@@ -10,6 +10,7 @@
     "build": "turbo build",
     "build:player": "turbo build --filter=@kp/player",
     "build:admin": "turbo build --filter=@kp/admin",
+    "test": "turbo test",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
@@ -23,26 +24,24 @@
     "crawl:artists": "node --experimental-strip-types packages/crawler/src/crawl-artists.ts",
     "report": "node --experimental-strip-types packages/crawler/src/report.ts",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "dev:mobile": "turbo dev --filter=@kp/mobile",
+    "typecheck": "turbo typecheck",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.9.6",
     "supabase": "^2.113.0",
-    "turbo": "^2.10.8"
+    "turbo": "^2.10.8",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.1"
   },
-  "dependencies": {
-    "@lucide/vue": "^1.28.0",
-    "@tanstack/vue-table": "^8.21.3",
-    "@unovis/ts": "^1.6.7",
-    "@unovis/vue": "^1.6.7",
-    "@vee-validate/zod": "^4.15.1",
-    "@vueuse/core": "^13.9.0",
-    "embla-carousel-vue": "^8.6.0",
-    "reka-ui": "^2.10.1",
-    "vaul-vue": "^0.4.1",
-    "vee-validate": "^4.15.1",
-    "vue-input-otp": "^0.3.2",
-    "vue-sonner": "^2.0.9",
-    "zod": "^3.25.76"
+  "pnpm": {
+    "overrides": {
+      "lightningcss": "1.30.1"
+    }
   }
 }

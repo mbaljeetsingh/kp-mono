@@ -12,13 +12,27 @@ See [docs/BRD.md](docs/BRD.md), [docs/PRD.md](docs/PRD.md), and
 
 ```
 apps/player/       public listening app — account optional (favorites, playlists)
-apps/admin/        tagging workbench — auth required (SPA)
+apps/admin/        tagging workbench — auth required
+apps/mobile/       Expo app — the reason any of this is native (background audio)
+
+packages/core/     the playback and tagging model: segments, queue, read-along,
+                   coverage. Plain TypeScript, no framework, and the only place
+                   those rules exist.
+packages/playback/ player store + the audio driver seam (expo-audio | <audio>)
+packages/api/      Supabase client, Zod schemas, TanStack Query hooks
+packages/ui/       shadcn/ui, shared by player and admin
+packages/tokens/   theme and brand marks, shared by web and mobile
+packages/shared/   types, stations, ragas
+
 packages/crawler/  crawls sgpc.net → JSON → Postgres. Runs on cron, not in an app.
 packages/aligner/  Python: suggests shabads from audio, writes line timings.
                    Same shape as the crawler — cron or by hand, never in an app.
-packages/shared/   shared types
 supabase/          migrations
 ```
+
+The frontends are React: Vite + TanStack Router on the web, Expo on mobile.
+[docs/architecture.md](docs/architecture.md) records the shape and the
+decisions behind it — what is shared, what deliberately is not, and why.
 
 ## Running locally
 
@@ -26,8 +40,19 @@ supabase/          migrations
 pnpm install
 npx supabase start                              # Postgres + Auth + Studio
 pnpm --filter @kp/player dev                    # → :3000
-pnpm --filter @kp/admin  dev --port 3001        # → :3001
+pnpm --filter @kp/admin  dev                    # → :3001
 ```
+
+The phone needs a native build rather than a dev server, because the whole
+point of it is background audio:
+
+```bash
+cp apps/mobile/.env.example apps/mobile/.env    # then fill in the two values
+pnpm --filter @kp/mobile ios                    # builds and opens the simulator
+```
+
+After the first build, `npx expo start` in `apps/mobile` is enough — only a
+native dependency needs building again.
 
 That is the whole first run: a committed seed (`supabase/seed.sql`, issue #27)
 is applied automatically after migrations, so a fresh clone gets a working
@@ -134,19 +159,27 @@ replaying, and they are idempotent.
 ## Deploying
 
 Both apps are Netlify sites off this one repo, each with its own
-`netlify.toml`. The dashboard holds the rest:
+`netlify.toml`, and the build command and publish directory now live in those
+files rather than in the dashboard — a netlify.toml overrides the UI, so a
+branch that changes how an app builds carries the change with it.
 
-| setting           | player              | admin              |
-| ----------------- | ------------------- | ------------------ |
-| package directory | `apps/player`       | `apps/admin`       |
-| build command     | `pnpm build:player` | `pnpm build:admin` |
-| publish directory | `apps/player/dist`  | `apps/admin/dist`  |
+The dashboard still owns two things per site:
 
-Each site needs `NUXT_PUBLIC_SUPABASE_URL` and `NUXT_PUBLIC_SUPABASE_KEY` (the
-**publishable** key). Both configs refuse to build without them rather than
-ship a green deploy pointing at `127.0.0.1`. Leave base and functions
-directories at their defaults, and don't set `NODE_ENV` — `production` makes
-pnpm skip the devDependencies the build needs.
+| setting           | player        | admin        |
+| ----------------- | ------------- | ------------ |
+| package directory | `apps/player` | `apps/admin` |
+
+and the environment. **Each site needs `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_KEY`** (the **publishable** key). These are new names: the Nuxt
+apps read `NUXT_PUBLIC_SUPABASE_URL`/`NUXT_PUBLIC_SUPABASE_KEY`, and a site
+still holding only those will build green and then throw on first load, because
+`src/lib/supabase.ts` refuses to ship a bundle pointing at `127.0.0.1`. See
+`apps/<app>/.env.example`.
+
+Leave base and functions directories at their defaults — commands run from the
+repo root, which is why `.nvmrc` is found and why the publish paths above are
+root-relative — and don't set `NODE_ENV`: `production` makes pnpm skip the
+devDependencies the build needs.
 
 ## Notes
 

@@ -1,0 +1,20 @@
+{
+  // Shared by the packages — the three apps keep their own full configs, since
+  // each carries bundler- and platform-specific settings (Vite's `~/*` paths,
+  // Expo's generated config) that have no business here.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true
+  }
+}

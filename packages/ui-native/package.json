@@ -1,0 +1,57 @@
+{
+  "name": "@kp/ui-native",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/components/ui/*.tsx",
+    "./lib/utils": "./src/lib/utils.ts"
+  },
+  "scripts": {
+    "add": "react-native-reusables add --yes && node scripts/derelative.mjs",
+    "derelative": "node scripts/derelative.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@rn-primitives/accordion": "^1.5.2",
+    "@rn-primitives/alert-dialog": "^1.5.2",
+    "@rn-primitives/aspect-ratio": "^1.5.2",
+    "@rn-primitives/avatar": "^1.5.2",
+    "@rn-primitives/checkbox": "^1.5.2",
+    "@rn-primitives/collapsible": "^1.5.2",
+    "@rn-primitives/context-menu": "^1.5.2",
+    "@rn-primitives/dialog": "^1.5.2",
+    "@rn-primitives/dropdown-menu": "^1.5.2",
+    "@rn-primitives/hover-card": "^1.5.2",
+    "@rn-primitives/label": "^1.5.2",
+    "@rn-primitives/menubar": "^1.5.2",
+    "@rn-primitives/popover": "^1.5.2",
+    "@rn-primitives/portal": "^1.5.2",
+    "@rn-primitives/progress": "^1.5.2",
+    "@rn-primitives/radio-group": "^1.5.2",
+    "@rn-primitives/select": "^1.5.2",
+    "@rn-primitives/separator": "^1.5.2",
+    "@rn-primitives/slot": "^1.5.2",
+    "@rn-primitives/switch": "^1.5.2",
+    "@rn-primitives/tabs": "^1.5.2",
+    "@rn-primitives/toggle": "^1.5.2",
+    "@rn-primitives/toggle-group": "^1.5.2",
+    "@rn-primitives/tooltip": "^1.5.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react-native": "^1.47.0",
+    "tailwind-merge": "^3.6.0"
+  },
+  "peerDependencies": {
+    "nativewind": ">=5.0.0-rc.0",
+    "react": "^19.0.0",
+    "react-native": ">=0.86.0",
+    "react-native-reanimated": ">=4.0.0",
+    "react-native-screens": "*"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "react-native-css": "3.1.0-rc.0",
+    "react-native-screens": "~4.26.0",
+    "typescript": "~6.0.3"
+  }
+}
