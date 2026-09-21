@@ -338,15 +338,29 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+    devDependencies:
+      '@types/react':
+        specifier: ~19.2.2
+        version: 19.2.18
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   packages/core:
     dependencies:
       '@kp/shared':
         specifier: workspace:*
         version: link:../shared
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   packages/crawler:
     dependencies:
+      '@kp/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@supabase/supabase-js':
         specifier: ^2.111.0
         version: 2.111.0
@@ -354,9 +368,15 @@ importers:
         specifier: ^8.22.0
         version: 8.22.0
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.4
       '@types/pg':
         specifier: ^8.20.3
         version: 8.20.3
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   packages/playback:
     dependencies:
@@ -369,8 +389,16 @@ importers:
       zustand:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.2.18)(react@19.2.3)(use-sync-external-store@1.7.0(react@19.2.3))
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
-  packages/shared: {}
+  packages/shared:
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   packages/tokens: {}
 
@@ -406,6 +434,13 @@ importers:
       usehooks-ts:
         specifier: ^3.1.1
         version: 3.1.1(react@19.2.3)
+    devDependencies:
+      '@types/react':
+        specifier: ~19.2.2
+        version: 19.2.18
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   packages/ui-native:
     dependencies:
@@ -505,6 +540,19 @@ importers:
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
+    devDependencies:
+      '@types/react':
+        specifier: ~19.2.2
+        version: 19.2.18
+      react-native-css:
+        specifier: 3.1.0-rc.0
+        version: 3.1.0-rc.0(@expo/metro-config@57.0.12(expo@57.0.23)(typescript@6.0.3))(lightningcss@1.30.1)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      react-native-screens:
+        specifier: ~4.26.0
+        version: 4.26.2(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
 
 packages:
 
@@ -3005,6 +3053,9 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
+  '@types/node@22.20.4':
+    resolution: {integrity: sha512-zJRE40jpHtKqE/C4fgHrAKQLJuSpzEnP9ff9Y7YtoR3Wd2pwqzlekDeEuUQXjRd+QCYnVnNwuJYmhdk9XV8gvA==}
+
   '@types/node@26.1.2':
     resolution: {integrity: sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==}
 
@@ -5279,6 +5330,9 @@ packages:
     resolution: {integrity: sha512-LbBDqdIC5s8iROCUjMbW1f5dJQTEFB1+KO9ogbvlb3nm9n4YHa5p4KTvFPWvh2Hs8gZMBuiB1/8+pdfe/tDPug==}
     hasBin: true
 
+  undici-types@6.21.0:
+    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
+
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
@@ -6724,7 +6778,7 @@ snapshots:
       '@jest/schemas': 29.6.3
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 26.1.2
+      '@types/node': 22.20.4
       '@types/yargs': 17.0.35
       chalk: 4.1.2
 
@@ -8295,13 +8349,18 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
+  '@types/node@22.20.4':
+    dependencies:
+      undici-types: 6.21.0
+
   '@types/node@26.1.2':
     dependencies:
       undici-types: 8.3.0
+    optional: true
 
   '@types/pg@8.20.3':
     dependencies:
-      '@types/node': 26.1.2
+      '@types/node': 22.20.4
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 
@@ -8683,7 +8742,7 @@ snapshots:
 
   chrome-launcher@0.15.2:
     dependencies:
-      '@types/node': 26.1.2
+      '@types/node': 22.20.4
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 1.4.2
@@ -8692,7 +8751,7 @@ snapshots:
 
   chromium-edge-launcher@0.3.0:
     dependencies:
-      '@types/node': 26.1.2
+      '@types/node': 22.20.4
       escape-string-regexp: 4.0.0
       is-wsl: 2.2.0
       lighthouse-logger: 1.4.2
@@ -9521,7 +9580,7 @@ snapshots:
   jest-util@29.7.0:
     dependencies:
       '@jest/types': 29.6.3
-      '@types/node': 26.1.2
+      '@types/node': 22.20.4
       chalk: 4.1.2
       ci-info: 3.9.0
       graceful-fs: 4.2.11
@@ -9538,7 +9597,7 @@ snapshots:
 
   jest-worker@29.7.0:
     dependencies:
-      '@types/node': 26.1.2
+      '@types/node': 22.20.4
       jest-util: 29.7.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
@@ -10911,7 +10970,10 @@ snapshots:
   ua-parser-js@1.0.41:
     optional: true
 
-  undici-types@8.3.0: {}
+  undici-types@6.21.0: {}
+
+  undici-types@8.3.0:
+    optional: true
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 

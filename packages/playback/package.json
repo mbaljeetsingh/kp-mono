@@ -15,5 +15,8 @@
   },
   "peerDependencies": {
     "react": ">=19"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
   }
 }

@@ -7,10 +7,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@kp/shared": "workspace:*",
     "@supabase/supabase-js": "^2.111.0",
     "pg": "^8.22.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.20.3"
+    "@types/node": "^22.10.2",
+    "@types/pg": "^8.20.3",
+    "typescript": "~5.9.3"
   }
 }

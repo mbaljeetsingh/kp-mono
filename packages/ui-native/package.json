@@ -45,6 +45,13 @@
     "nativewind": ">=5.0.0-rc.0",
     "react": "^19.0.0",
     "react-native": ">=0.86.0",
-    "react-native-reanimated": ">=4.0.0"
+    "react-native-reanimated": ">=4.0.0",
+    "react-native-screens": "*"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "react-native-css": "3.1.0-rc.0",
+    "react-native-screens": "~4.26.0",
+    "typescript": "~6.0.3"
   }
 }

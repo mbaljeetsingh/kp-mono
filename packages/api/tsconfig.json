@@ -1,4 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The only package that touches browser globals: `fetch` in banidb and
+    // shabad-text, `localStorage` in the web half of the favourites seam.
+    // core, playback and shared mention them only in comments.
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx"
+  },
   "include": ["src"]
 }

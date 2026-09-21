@@ -1,6 +1,11 @@
 {
+  // Editor-only: nothing compiles through this (`include` is empty). It exists
+  // so a jump-to-definition on `@kp/*` lands in the package source rather than
+  // in a build output that does not exist.
+  //
+  // No `baseUrl` — TypeScript 6 removed it, and `paths` resolve relative to
+  // this file without one.
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
       "@kp/*": ["./packages/*/src"]
     }

@@ -15,7 +15,6 @@
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
     "paths": { "~/*": ["./src/*"] }
   },
   "include": ["src", "vite.config.ts"]
