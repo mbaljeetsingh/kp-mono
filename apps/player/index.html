@@ -16,7 +16,13 @@
     // after first paint, which is exactly what this exists to beat.
     (function () {
       try {
-        var c = localStorage.getItem('kp:theme') || 'system';
+        // Two encodings live under this key: the Nuxt app wrote a bare
+        // `dark`, and usehooks-ts writes a JSON `"dark"`. Comparing against
+        // the bare form alone meant a listener who chose Dark in the React app
+        // got a light flash on every load — the exact thing this script is
+        // here to prevent. Strip the quotes and both read the same.
+        var raw = localStorage.getItem('kp:theme') || 'system';
+        var c = raw.charAt(0) === '"' ? raw.slice(1, -1) : raw;
         var dark =
           c === 'dark' ||
           (c === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
