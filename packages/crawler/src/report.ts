@@ -26,8 +26,7 @@ function confidence(flags: string[]): 'high' | 'medium' | 'low' {
   return parseFlags.length ? 'medium' : 'high';
 }
 
-const pct = (n: number, d: number) =>
-  d ? `${((n / d) * 100).toFixed(1)}%` : '—';
+const pct = (n: number, d: number) => (d ? `${((n / d) * 100).toFixed(1)}%` : '—');
 const gb = (n: number) => `${(n / 1024 ** 3).toFixed(1)} GB`;
 
 function tally<T>(xs: T[], key: (x: T) => string | null) {
@@ -40,8 +39,18 @@ function tally<T>(xs: T[], key: (x: T) => string | null) {
   return m;
 }
 
+/** Only what this report reads. crawl.json holds a good deal more per track. */
+interface ReportedTrack {
+  tree: string;
+  artistDir: string | null;
+  date: string | null;
+  title: string | null;
+  sizeBytes: number | null;
+  flags: string[];
+}
+
 const report = JSON.parse(await readFile(join(OUT, 'crawl.json'), 'utf8'));
-const tracks = report.tracks as any[];
+const tracks = report.tracks as ReportedTrack[];
 const by = (t: string) => tracks.filter((x) => x.tree === t);
 
 const ragiwise = by('ragiwise');
@@ -66,7 +75,11 @@ console.log(`    daywise         ${daywise.length}   (indexed, not surfaced)`);
 console.log(
   `  unplayable        ${unplayable.length}  ${pct(unplayable.length, tracks.length)}  (.wma etc)`
 );
-const sized = tracks.filter((t) => t.sizeBytes);
+// A type predicate, so the sum below knows the nulls are gone. SGPC's autoindex
+// listings omit the size column on some trees, so this is most of daywise.
+const sized = tracks.filter((t): t is ReportedTrack & { sizeBytes: number } =>
+  Boolean(t.sizeBytes)
+);
 if (sized.length) {
   const total = sized.reduce((a, t) => a + t.sizeBytes, 0);
   console.log(`  sized files       ${sized.length} totalling ${gb(total)}`);
@@ -80,14 +93,10 @@ for (const k of ['high', 'medium', 'low']) {
     `  ${k.padEnd(16)}${String(conf.get(k) ?? 0).padStart(6)}  ${pct(conf.get(k) ?? 0, tracks.length)}`
   );
 }
-const flagCounts = tally(tracks, () => null);
 const allFlags = new Map<string, number>();
-for (const t of tracks)
-  for (const f of t.flags) allFlags.set(f, (allFlags.get(f) ?? 0) + 1);
+for (const t of tracks) for (const f of t.flags) allFlags.set(f, (allFlags.get(f) ?? 0) + 1);
 for (const [f, n] of [...allFlags].sort((a, b) => b[1] - a[1])) {
-  console.log(
-    `  ${f.padEnd(16)}${String(n).padStart(6)}  ${pct(n, tracks.length)}`
-  );
+  console.log(`  ${f.padEnd(16)}${String(n).padStart(6)}  ${pct(n, tracks.length)}`);
 }
 
 // ── artists ──────────────────────────────────────────────────────────────
@@ -95,9 +104,7 @@ console.log('\nARTISTS');
 const rArtists = tally(ragiwise, (t) => t.artistDir);
 const pArtists = tally(puratan, (t) => t.artistDir);
 console.log(`  ragiwise          ${rArtists.size}`);
-console.log(
-  `  puratan           ${pArtists.size}  (separate roster, no "Bhai " prefix)`
-);
+console.log(`  puratan           ${pArtists.size}  (separate roster, no "Bhai " prefix)`);
 console.log('  top 10 by track count:');
 for (const [a, n] of [...rArtists].sort((x, y) => y[1] - x[1]).slice(0, 10)) {
   console.log(`    ${String(n).padStart(5)}  ${a}`);

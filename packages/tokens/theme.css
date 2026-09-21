@@ -1,0 +1,163 @@
+/* Keyframes used by shadcn-vue components (accordion, dialog, dropdown). */
+@import 'tw-animate-css';
+
+/*
+ * `dark:` follows the class, not the operating system.
+ *
+ * Tailwind v4's built-in variant compiles to
+ * `@media (prefers-color-scheme: dark)`, which is not what either app means by
+ * dark: the palette below is selected by a `.dark` class on <html>, and in the
+ * player that class is now a listener's choice. Without this the two disagree
+ * exactly when they differ — picking Light on a dark-mode phone kept every
+ * `dark:` utility on, from shadcn's `dark:bg-input/30` to this repo's own
+ * amber notices, at dark-on-light contrast.
+ *
+ * `:where` so the variant adds no specificity, and it matches the element
+ * carrying the class as well as its descendants — some utilities land on
+ * <html> itself.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Shared theme tokens for all np-mono apps (apps/app, apps/admin, apps/web).
+ * Default shadcn-vue "New York" theme (zinc base). Each app's index.css
+ * @imports this file; Tailwind v4 resolves @theme through @import.
+ */
+
+/* The palette lives in tokens.css — shared with the Expo app. */
+@import './tokens.css';
+
+/*
+ * Body carries the text colour, not just the app shell.
+ *
+ * Reka portals every overlay — dialogs, dropdowns, sheets — to document.body,
+ * outside whatever wrapper an app puts `text-foreground` on. Components that
+ * name their own colour (DialogTitle, DialogDescription, DropdownMenuContent)
+ * survive that; ones that inherit do not. `DialogContent` sets `bg-background`
+ * with no text colour, so a portalled form's `<Label>`s came out in the
+ * browser default — near-black on a dark card, i.e. invisible.
+ */
+body {
+  color: var(--foreground);
+  /*
+   * And the canvas. The app shell paints `bg-background` over this, so it only
+   * shows through where the shell does not reach — an overscroll bounce, or the
+   * strip behind a portalled overlay — which in the light palette was the
+   * browser's white rather than parchment.
+   */
+  background-color: var(--background);
+}
+
+/*
+ * Dark-mode atmospheric glow — subtle warm radial from top center, fixed so
+ * it doesn't scroll-swim. Hardcoded rgba because CSS custom props don't
+ * resolve inside rgba() reliably across browsers.
+ */
+.dark body {
+  background-color: var(--background);
+  background-image: radial-gradient(
+    ellipse 60% 40% at 50% -10%,
+    rgba(226, 118, 74, 0.14),
+    transparent 70%
+  );
+  background-attachment: fixed;
+}
+
+/*
+ * Default border colour, restored.
+ *
+ * Tailwind v4's bare `border` utility falls back to `currentColor` — so every
+ * shadcn component that says `border` without naming a colour (dropdowns,
+ * dialogs, cards) drew its edge in the text colour: a bright ivory ring in
+ * dark mode, near-black in light. Explicit `border-border` usage never showed
+ * it, which is why only the portalled overlays looked outlined. This is the
+ * v3-behaviour compat rule the Tailwind v4 upgrade guide (and shadcn's v4
+ * templates) ship for exactly this.
+ */
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
+}
+
+/*
+ * Custom scrollbars — applied globally here so apps/app's in-container
+ * scroll surfaces (editor, lists, sheets) match the rest of the app, and
+ * apps/admin + apps/web pick up the same treatment by default.
+ */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+    @apply bg-muted;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+  ::-webkit-scrollbar-corner {
+    @apply bg-muted;
+  }
+
+  .dark ::-webkit-scrollbar {
+    @apply bg-background;
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/40 rounded-full;
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/60;
+  }
+  .dark ::-webkit-scrollbar-corner {
+    @apply bg-background;
+  }
+}
+
+@utility featured-surface {
+  @apply bg-gradient-to-b from-primary/10 to-transparent;
+}
+
+/*
+ * Text-selection highlight — soft primary tint so it matches the warm
+ * theme instead of falling back to the browser's default blue. Kept gentle
+ * (~25%) so selected text stays readable.
+ */
+::selection,
+*::selection {
+  background-color: rgb(from var(--primary) r g b / 0.25);
+  color: var(--foreground);
+}
+
+.dark ::selection,
+.dark *::selection {
+  background-color: rgb(from var(--primary) r g b / 0.35);
+  color: var(--foreground);
+}
+
+/*
+ * GurbaniLipi — the legacy Gurmukhi font shabad search types in.
+ *
+ * It is not a Unicode font: it maps ASCII codepoints to Gurmukhi glyphs, so the
+ * roman string "mdmA" renders as ਮਦਮਅ. That is exactly what BaniDB's
+ * first-letter search wants to receive, which is why the search can keep the
+ * typist's raw keystrokes in the query and still show them Gurmukhi — no
+ * transliteration step in between, and nothing to disagree about.
+ *
+ * Strictly for input. Real Gurmukhi from BaniDB arrives as Unicode, which this
+ * font has no glyphs for.
+ */
+@font-face {
+  font-family: 'gurbanilipi';
+  src: url('./fonts/Gurb_rg.ttf') format('truetype');
+  font-display: swap;
+}
+
+@utility font-gurmukhi {
+  font-family: 'gurbanilipi', sans-serif;
+}

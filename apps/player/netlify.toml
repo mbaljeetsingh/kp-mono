@@ -1,2 +1,24 @@
+# Netlify reads this file from the site's package directory (`apps/player`), but
+# runs its commands from the repo root — which is what the `ignore` path below
+# has always relied on, since `scripts/` only resolves from there. So the
+# command and publish path are root-relative too.
+#
+# Both used to live only in the dashboard, where they still described the Nuxt
+# SSR app this repo no longer contains. They belong here: a netlify.toml
+# overrides the UI, so deploy config now moves with the branch that changes it
+# instead of needing two dashboards edited by hand at the right moment.
+#
+# Node comes from /.nvmrc, which Netlify finds because the base directory is
+# the repo root. Pinning it again here would just be a second thing to forget.
 [build]
+  command = "pnpm build:player"
+  publish = "apps/player/dist"
   ignore = "bash scripts/netlify-ignore.sh player"
+
+# TanStack Router routes client-side, so every path has to reach index.html.
+# Without this a reload on /search — or any link someone shared — is a 404
+# from Netlify before the app ever loads.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

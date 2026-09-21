@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#141413"/>
+  <g transform="translate(5.12 5.12) scale(0.84)">
+    <g fill="none" stroke="#f5f4ed" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Same K skeleton as the notation mark, so the two read as siblings. -->
+      <path d="M20 7v50"/>
+      <path d="M20 34 44 13.5"/>
+      <path d="M20 34 45.5 57"/>
+    </g>
+    <!-- Where the notation mark carries matra ticks and dots, the player mark
+         carries sound radiating from the stem. -->
+    <g fill="none" stroke="#f5f4ed" stroke-linecap="round" opacity="0.9">
+      <path d="M12.5 25.5a11 11 0 0 0 0 17" stroke-width="4.5"/>
+      <path d="M4.5 18a20 20 0 0 0 0 32" stroke-width="4.5" opacity="0.55"/>
+    </g>
+  </g>
+</svg>

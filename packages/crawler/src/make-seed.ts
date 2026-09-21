@@ -39,14 +39,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
-const OUT = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../supabase/seed.sql'
-);
+const OUT = join(dirname(fileURLToPath(import.meta.url)), '../../../supabase/seed.sql');
 
-const DB_URL =
-  process.env.SEED_DB_URL ??
-  'postgresql://postgres:postgres@127.0.0.1:54522/postgres';
+const DB_URL = process.env.SEED_DB_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54522/postgres';
 
 /** Bypasses the "is this a full crawl" guard below. */
 const FORCE = process.argv.includes('--force');
@@ -63,8 +58,7 @@ const DAYWISE_NEWEST = 100;
 // crypt('password', gen_salt('bf')) computed once — embedding the call
 // instead would salt differently on every run.
 const FIXED_TS = '2026-08-04T00:00:00+00:00';
-const PASSWORD_HASH =
-  '$2a$06$XS.Ou9Iy3MjA9ULvKDUIpOdst4vpb2.hT/OJ2oEImZDy8hiyKE5gS';
+const PASSWORD_HASH = '$2a$06$XS.Ou9Iy3MjA9ULvKDUIpOdst4vpb2.hT/OJ2oEImZDy8hiyKE5gS';
 const ACCOUNTS = [
   {
     id: '00000000-0000-4000-8000-000000000001',
@@ -125,9 +119,7 @@ function insertBlock(
       .slice(i, i + 50)
       .map((r) => `  (${columns.map((c) => lit(c, r[c])).join(', ')})`)
       .join(',\n');
-    chunks.push(
-      `insert into ${table} (${columns.join(', ')}) values\n${values};`
-    );
+    chunks.push(`insert into ${table} (${columns.join(', ')}) values\n${values};`);
   }
   return chunks.join('\n\n') + '\n';
 }
@@ -140,9 +132,7 @@ async function fetchTable(sql: string, params: unknown[] = []) {
   const res = await client.query(sql, params);
   return {
     rows: res.rows as Record<string, unknown>[],
-    jsonbCols: new Set(
-      res.fields.filter((f) => f.dataTypeID === JSONB_OID).map((f) => f.name)
-    ),
+    jsonbCols: new Set(res.fields.filter((f) => f.dataTypeID === JSONB_OID).map((f) => f.name)),
   };
 }
 
@@ -205,7 +195,10 @@ await client.end();
 
 const published = renditions.filter((r) => r.status === 'published').length;
 const byTree = tracks.reduce<Record<string, number>>((acc, t) => {
-  acc[t.tree] = (acc[t.tree] ?? 0) + 1;
+  // Rows come back as Record<string, unknown> — `tree` is a text column, but
+  // pg cannot tell tsc that, and an unknown cannot index.
+  const tree = String(t.tree);
+  acc[tree] = (acc[tree] ?? 0) + 1;
   return acc;
 }, {});
 

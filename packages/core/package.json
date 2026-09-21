@@ -1,0 +1,25 @@
+{
+  "name": "@kp/core",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./segment": "./src/segment.ts",
+    "./timings": "./src/timings.ts",
+    "./repeat": "./src/repeat.ts",
+    "./types": "./src/types.ts",
+    "./stations": "./src/stations.ts",
+    "./artwork": "./src/artwork.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@kp/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

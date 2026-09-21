@@ -78,8 +78,8 @@ SB_KEY=<key> TRACK=<track id> uv run python scan_track.py [--write-drafts]
 
 Blind identification: ASR the broadcast, search BaniDB with the distinctive
 words, score candidate shabads window-by-window, report regions where one
-dominates. Queue mode consumes `scan_requests` (the *Suggest* button in admin
-writes rows there; *Suggest again* re-queues a finished one), oldest first, and
+dominates. Queue mode consumes `scan_requests` (the _Suggest_ button in admin
+writes rows there; _Suggest again_ re-queues a finished one), oldest first, and
 stamps `done_at` even when nothing cleared the gate — "scanned, nothing found"
 is an answer. A failing track is left queued for retry without blocking the
 rest.

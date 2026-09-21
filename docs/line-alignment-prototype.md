@@ -12,7 +12,7 @@ v1](https://github.com/karanbirsingh/live-gurbani-captioning-benchmark-v1)
 
 [bani.karanbirsingh.com](https://bani.karanbirsingh.com) is **live + blind**: a
 phone in a gurdwara, rolling window, no idea what shabad is coming. Its paper
-reports 57.9% frame accuracy, and most of its error is *identifying* the
+reports 57.9% frame accuracy, and most of its error is _identifying_ the
 shabad, not following the line.
 
 We are **offline + oracle**. Renditions already carry `shabad_id` from tagging
@@ -21,20 +21,20 @@ of timestamps. That skips the part their system spends its error budget on. It
 is forced alignment, not captioning — a batch job, no microphone, no model at
 runtime, no latency budget.
 
-It is also the *only* option available: sgpc.net sends no CORS headers, so the
+It is also the _only_ option available: sgpc.net sends no CORS headers, so the
 browser cannot read archive audio at all. A server-side job fetches it fine.
 
 ## Results
 
-| Configuration | Frame acc. |
-|---|---|
-| null everywhere (benchmark's floor) | 26.0% |
-| regex-derived rahao line, held all recording | 18.7% |
-| human-picked refrain line, held all recording | 43.1% |
-| the paper's live + blind system | 57.9% |
-| GT delayed 5s — "perfect tracking with lag" | 85.5% |
-| **this prototype, all 12 cases** | **97.2%** |
-| **this prototype, leave-one-recording-out** | **95.5%** |
+| Configuration                                 | Frame acc. |
+| --------------------------------------------- | ---------- |
+| null everywhere (benchmark's floor)           | 26.0%      |
+| regex-derived rahao line, held all recording  | 18.7%      |
+| human-picked refrain line, held all recording | 43.1%      |
+| the paper's live + blind system               | 57.9%      |
+| GT delayed 5s — "perfect tracking with lag"   | 85.5%      |
+| **this prototype, all 12 cases**              | **97.2%**  |
+| **this prototype, leave-one-recording-out**   | **95.5%**  |
 
 **95.5% is the number to quote**, and only for the benchmark's audio. There are
 4 recordings, not 12 cases — the cold-start variants reuse the same audio, so
@@ -62,8 +62,8 @@ renditions, not more knobs.
 3. Phonetic folding of ASR output **and** canonical text: NFD, strip nukta and
    vowel signs, fold retroflex/dental pairs.
 4. Per-window score against each line = `0.6 × char similarity
-   (rapidfuzz.partial_ratio) + 0.4 × IDF-weighted fuzzy word recall`, where IDF
-   is computed over *this shabad's own lines*, so the words that distinguish a
+(rapidfuzz.partial_ratio) + 0.4 × IDF-weighted fuzzy word recall`, where IDF
+   is computed over _this shabad's own lines_, so the words that distinguish a
    line from its neighbour dominate.
 5. Average over covering windows, combine the two scales, argmax over
    non-heading lines, floor → null.
@@ -77,16 +77,16 @@ runtime difference on its own.
 
 ## What helped, and what didn't
 
-| Change | Effect |
-|---|---|
-| baseline: folding + per-frame argmax | 91.6% LOO |
-| + IDF-weighted word recall blended in | **94.9%** LOO |
-| + second, shorter-window ASR pass | **95.5%** LOO |
-| HMM: monotonic antras, anchor-return, null state | −10pt |
-| triangular window weighting | −0.5pt |
-| centre-cropping window text | −1pt |
-| any constant time shift | flat — no systematic lag |
-| prompting the ASR with the shabad's vocabulary | −3.1pt LOO |
+| Change                                           | Effect                   |
+| ------------------------------------------------ | ------------------------ |
+| baseline: folding + per-frame argmax             | 91.6% LOO                |
+| + IDF-weighted word recall blended in            | **94.9%** LOO            |
+| + second, shorter-window ASR pass                | **95.5%** LOO            |
+| HMM: monotonic antras, anchor-return, null state | −10pt                    |
+| triangular window weighting                      | −0.5pt                   |
+| centre-cropping window text                      | −1pt                     |
+| any constant time shift                          | flat — no systematic lag |
+| prompting the ASR with the shabad's vocabulary   | −3.1pt LOO               |
 
 Two are worth dwelling on.
 
@@ -96,7 +96,7 @@ the smoothing gained. The refrain comes back constantly; a model that treats
 that as unlikely is wrong about kirtan.
 
 **Prompting the ASR backfired.** It raised the mean match score against every
-line (0.816 → 0.853), but accuracy *fell*, because it lifted the wrong lines
+line (0.816 → 0.853), but accuracy _fell_, because it lifted the wrong lines
 too and flattened the contrast the argmax depends on. It would also have broken
 per-track ASR caching, since the prompt is per-shabad.
 
@@ -109,13 +109,13 @@ exactly what the tagger anchored `main_verse_id` to.
 
 Word count looked like the fix and is also wrong, in both directions. In shabad
 4214 the sung verse `[10]` folds to 2 tokens while the mangal heading `[1]`
-folds to 3 — a real verse *shorter* than a heading. No threshold on either
+folds to 3 — a real verse _shorter_ than a heading. No threshold on either
 tokenisation separates them; at `<4` it excludes five genuine verses. This was
 live during the real-audio run, silently making verse [10] unpredictable.
 
 Headings are not short, they are **made of metadata** — raag name, author,
 ghar/metre markers, plus the invocation. BaniDB supplies `shabadInfo.raag` and
-`.writer`, so the rule is: a line whose folded tokens are *all* drawn from that
+`.writer`, so the rule is: a line whose folded tokens are _all_ drawn from that
 vocabulary is a heading, whatever its length.
 
 Verified on all eight shabads tested (4 benchmark, 4 production): drops exactly
@@ -137,7 +137,7 @@ input.
 ## Validity checks
 
 - **Wrong-shabad control** — feed a recording another shabad's text: **14.8%**,
-  *below* the 26% null floor. Rules out leakage; the score tracks the real
+  _below_ the 26% null floor. Rules out leakage; the score tracks the real
   audio-to-text match. Re-run on the final config, not just the simple one.
 - **`line_idx` → BaniDB** — confirmed exact against `/shabads/4377`:
   `verseId = verses[line_idx].verseId`, heading included as `verses[0]`. No
@@ -148,12 +148,12 @@ input.
 All four tagged renditions, fetched from sgpc.net server-side, scored with the
 final matcher at the recommended operating point:
 
-| rendition | shabad | lines used | dominant | tagger `main_verse` | blank | confidence |
-|---|---|---|---|---|---|---|
-| Dekh phool phool phoole | 4214 | 10/18 | 2 | 2 ✓ | 3% | 0.866 |
-| Pria Ki Sobh Suhavani Niki | 4589 | 5/6 | 1 | 1 ✓ | 4% | 0.762 |
-| Tere Gun Gava Dheh Bujhaii | 2990 | 8/12 | 4 | 4 ✓ | 0% | 0.824 |
-| Dhan Dhan Ramdas Gur | 3590 | 4/9 | 5 | 0 ✗ | 92% | **0.515** |
+| rendition                  | shabad | lines used | dominant | tagger `main_verse` | blank | confidence |
+| -------------------------- | ------ | ---------- | -------- | ------------------- | ----- | ---------- |
+| Dekh phool phool phoole    | 4214   | 10/18      | 2        | 2 ✓                 | 3%    | 0.866      |
+| Pria Ki Sobh Suhavani Niki | 4589   | 5/6        | 1        | 1 ✓                 | 4%    | 0.762      |
+| Tere Gun Gava Dheh Bujhaii | 2990   | 8/12       | 4        | 4 ✓                 | 0%    | 0.824      |
+| Dhan Dhan Ramdas Gur       | 3590   | 4/9        | 5        | 0 ✗                 | 92%   | **0.515**  |
 
 Three of four align cleanly and the aligner's dominant line matches the
 tagger's anchor in each. On shabad 2990 the output is textbook: refrain, rahao
@@ -183,18 +183,18 @@ A margin below ~0.05, or absolute confidence below ~0.6, is a reliable
 ## The real weak spot: it rarely shows nothing
 
 At peak accuracy the aligner almost never blanks — it fills 265 of 290 gap
-frames with a line. The benchmark hides this, because GT gaps *accept* the
+frames with a line. The benchmark hides this, because GT gaps _accept_ the
 adjacent line. The player would not: alaap, tabla solos, and katha between
 verses should clear the panel.
 
 The floor is the knob, and this is a product decision, not a technical wall:
 
-| floor | bench acc. | blanks when silent | wrongly blanked |
-|---|---|---|---|
-| 0.30 | 97.2% | 9% | 0 frames |
-| **0.40** | **96.6%** | **28%** | **29 frames** |
-| 0.45 | 95.3% | 39% | 61 frames |
-| 0.50 | 93.4% | 54% | 107 frames |
+| floor    | bench acc. | blanks when silent | wrongly blanked |
+| -------- | ---------- | ------------------ | --------------- |
+| 0.30     | 97.2%      | 9%                 | 0 frames        |
+| **0.40** | **96.6%**  | **28%**            | **29 frames**   |
+| 0.45     | 95.3%      | 39%                | 61 frames       |
+| 0.50     | 93.4%      | 54%                | 107 frames      |
 
 **Recommend floor 0.40 with scale weight 0.5 for the player.** That scores
 96.6% on all 12, and two of the four held-out folds selected exactly this pair
@@ -224,7 +224,7 @@ on line 2, regex would pick 3.
 
 So the default is systematically one line late. Any rendition where a tagger
 accepted it without listening likely has the wrong anchor. Worth a query before
-building on that column — and worth changing the default to the line *before*
+building on that column — and worth changing the default to the line _before_
 the marker.
 
 ## Not evaluated
@@ -245,15 +245,15 @@ the marker.
 Four alternative designs were reviewed independently against the 95.5%
 baseline. All four came back **clearly worse**:
 
-| approach | verdict | decisive fact |
-|---|---|---|
-| classic CTC forced alignment | clearly worse | monotonicity is structural to the DP; kirtan violates it |
-| IndicConformer CTC head | clearly worse | its own model card puts surt-small-v3 ahead |
-| audio-to-audio via TTS references | clearly worse | no IDF equivalent in embedding space |
+| approach                          | verdict                               | decisive fact                                             |
+| --------------------------------- | ------------------------------------- | --------------------------------------------------------- |
+| classic CTC forced alignment      | clearly worse                         | monotonicity is structural to the DP; kirtan violates it  |
+| IndicConformer CTC head           | clearly worse                         | its own model card puts surt-small-v3 ahead               |
+| audio-to-audio via TTS references | clearly worse                         | no IDF equivalent in embedding space                      |
 | sentence embeddings as the scorer | clearly worse, **measured** 92.6% LOO | semantic similarity is anti-informative within one shabad |
 
 The embedding result was re-run on the cached transcripts rather than argued:
-it reproduced 95.5% exactly, then swapped only the scorer. On *clean* canonical
+it reproduced 95.5% exactly, then swapped only the scorer. On _clean_ canonical
 text the best **wrong** line scores 0.908 under e5 against 0.406 under the
 lexical scorer — almost no headroom, because the lines of a shabad rhyme alike
 and mean nearly the same thing. It also collapses the wrong-`shabad_id`
@@ -262,8 +262,8 @@ that margin as well as on accuracy.
 
 **A simplification that looked right and was not: dropping the 8s/2s pass.**
 It buys only 0.6 points of frame accuracy for 3× the compute, so on the metric
-it is obviously cuttable. Cutting it was wrong — see *What the benchmark could
-not see* below. Window *overlap* genuinely cannot go: the label grid is
+it is obviously cuttable. Cutting it was wrong — see _What the benchmark could
+not see_ below. Window _overlap_ genuinely cannot go: the label grid is
 precisely the set of change points of the covering-window set.
 
 Notably, the textbook approach (CTC forced alignment) would have failed. This
@@ -284,23 +284,23 @@ CBR), and an ID3 offset (no tag; the file opens on a raw frame sync).
 A first attempt to measure the lag probed segment interiors and came back
 **flat and useless** — the refrain returns constantly and occupies 62–70% of
 sung time, so a probe taken 12s later usually lands on the same line. Only
-*boundaries* discriminate. Scoring both the outgoing and incoming line across a
+_boundaries_ discriminate. Scoring both the outgoing and incoming line across a
 range of lags and finding where the difference crosses zero locates the true
 transition.
 
 The result was not what the report suggested:
 
-| | single scale | two scale |
-|---|---|---|
-| mean error | +0.4s | −1.0s |
-| **mean absolute error** | **4.91s** | **3.52s** |
-| within ±3s | 3/10 | 6/10 |
+|                                           | single scale       | two scale              |
+| ----------------------------------------- | ------------------ | ---------------------- |
+| mean error                                | +0.4s              | −1.0s                  |
+| **mean absolute error**                   | **4.91s**          | **3.52s**              |
+| within ±3s                                | 3/10               | 6/10                   |
 | excluding one boundary that fails in both | MAE 4.57s, sd 4.96 | **MAE 2.58s, sd 2.88** |
 
 **There is no constant offset — there is ±5.6s of unbiased jitter.** A blanket
 correction would have made things worse. Half the boundaries land early, and an
 early jump is far more noticeable than a late one because you see a line before
-you hear it; symmetric jitter therefore *sounds* like a systematic lead.
+you hear it; symmetric jitter therefore _sounds_ like a systematic lead.
 
 And the fix is the pass this document previously recommended cutting. Frame
 accuracy is dominated by segment interiors — a 40-second line contributes 40
@@ -319,11 +319,11 @@ across the cached short-pass windows (interpolated between window centers,
 clamped inside the two segments, gap edges left alone). No new ASR — it reruns
 in seconds off the cached transcripts.
 
-| | MAE | within ±3s | **early by >3s** | late by >3s |
-|---|---|---|---|---|
-| single scale | 4.91s | 3/10 | 4 | 3 |
-| two scale | 3.52s | 6/10 | 1 | 3 |
-| two scale + refine | **2.61s** | **8/11** | **0** | 3 |
+|                    | MAE       | within ±3s | **early by >3s** | late by >3s |
+| ------------------ | --------- | ---------- | ---------------- | ----------- |
+| single scale       | 4.91s     | 3/10       | 4                | 3           |
+| two scale          | 3.52s     | 6/10       | 1                | 3           |
+| two scale + refine | **2.61s** | **8/11**   | **0**            | 3           |
 
 The perceptual column is the third: an early highlight shows a line before it
 is sung, which is what a listener reports as "running fast"; a late one merely

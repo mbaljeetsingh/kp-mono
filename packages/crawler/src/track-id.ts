@@ -47,8 +47,7 @@ export interface TrackIdParts {
   dir?: string | null;
 }
 
-export const sha1 = (s: string): string =>
-  createHash('sha1').update(s).digest('hex').slice(0, 16);
+export const sha1 = (s: string): string => createHash('sha1').update(s).digest('hex').slice(0, 16);
 
 export function stableId({
   tree,
@@ -64,19 +63,9 @@ export function stableId({
       ? // `dir` disambiguates undated files: two identically-named recordings
         // in different month directories would otherwise share an id, and the
         // seeder's dedup would silently drop one as a duplicate.
-        [
-          tree,
-          date ?? `${dir ?? ''}/${rawFilename}`,
-          String(slotStartSec ?? ''),
-        ]
+        [tree, date ?? `${dir ?? ''}/${rawFilename}`, String(slotStartSec ?? '')]
       : tree === 'puratan'
         ? [tree, artistDir ?? '', title ?? rawFilename]
-        : [
-            tree,
-            artistDir ?? '',
-            date ?? '',
-            String(slotStartSec ?? ''),
-            rawFilename,
-          ];
+        : [tree, artistDir ?? '', date ?? '', String(slotStartSec ?? ''), rawFilename];
   return sha1(parts.join('|').toLowerCase());
 }

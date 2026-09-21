@@ -16,7 +16,7 @@
  *
  *   node --experimental-strip-types src/crawl-artists.ts
  */
-import { mkdir, writeFile, readFile, stat } from 'node:fs/promises';
+import { mkdir, writeFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,11 +30,11 @@ const UA =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
   '(KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Filenames come from SGPC and are used verbatim as storage keys, so anything
  *  that could escape the directory has to go. */
-const safeName = (name) => name.replace(/[^\w \-.]/g, '_').trim();
+const safeName = (name: string) => name.replace(/[^\w \-.]/g, '_').trim();
 
 /**
  * Retried like crawl.ts's get(), and for the same reason: SGPC refuses
@@ -144,18 +144,14 @@ async function main() {
       await writeFile(path, buf);
       manifest.push({ name: a.name, file, bytes: buf.length });
     } catch (err) {
-      errors.push({ name: a.name, message: String(err?.message ?? err) });
+      errors.push({ name: a.name, message: err instanceof Error ? err.message : String(err) });
     }
     if ((i + 1) % 25 === 0) console.log(`  ${i + 1}/${artists.length}`);
   }
 
   await writeFile(
     join(OUT, 'artists.json'),
-    JSON.stringify(
-      { fetchedAt: new Date().toISOString(), manifest, errors },
-      null,
-      2
-    )
+    JSON.stringify({ fetchedAt: new Date().toISOString(), manifest, errors }, null, 2)
   );
 
   const total = manifest.reduce((sum, m) => sum + m.bytes, 0);

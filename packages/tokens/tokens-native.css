@@ -1,0 +1,94 @@
+/*
+ * The same palette, for the Expo app. GENERATED — edit tokens.css instead.
+ *
+ * NativeWind has no <html> to hang a `.dark` class on, so the dark values —
+ * which is what both surfaces show by default — are applied to :root directly.
+ *
+ * A light mode on the phone is a later step: it needs NativeWind's colorScheme
+ * wired to the same choice the web toggle writes, not a second copy of these.
+ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  color-scheme: dark;
+
+  /*
+   * Warm dark — lamp-lit, not charcoal-with-a-hint-of-warmth.
+   * Browns pushed toward red-orange hue so warmth is visible, not theoretical.
+   * Text uses warm ivory (eye reads chroma most strongly at high lightness).
+   * Primary is a brighter lantern terracotta so it glows on dark surfaces.
+   */
+  --background: #1a1612; /* warm brown-black canvas */
+  --foreground: #ede8d6; /* warm ivory — perceptibly cream, not white */
+  --card: #221e18; /* raised warm charcoal */
+  --card-foreground: #ede8d6;
+  --popover: #2a251e; /* minimal lift over card — elevation without stark contrast */
+  --popover-foreground: #ede8d6;
+  --primary: #e2764a; /* fallback — brand layer overrides via theme-brand.css */
+  --primary-foreground: #1a1612; /* dark ink text — canonical dark-mode button pattern */
+  --secondary: #2e2720; /* one step above card */
+  --secondary-foreground: #ede8d6;
+  --muted: #2e2720;
+  --muted-foreground: #c4b89b; /* warm taupe — slightly lifted for readable secondary text */
+  --accent: #3a322a; /* hover/active — a notch above secondary */
+  --accent-foreground: #ede8d6;
+  --destructive: #c94a4a;
+  --destructive-foreground: #ede8d6;
+  --border: #494033; /* warm charcoal border — one step lifted so cards read against the canvas */
+  --input: #4f4435; /* soft warm stroke — outline buttons and form fields integrate cleanly */
+  --ring: #e2764a;
+
+  --chart-1: #e2764a;
+  --chart-2: #b8ad96;
+  --chart-3: #8a806f;
+  --chart-4: #c96442;
+  --chart-5: #6a6054;
+
+  --sidebar: #221e18;
+  --sidebar-foreground: #ede8d6;
+  --sidebar-primary: #e2764a;
+  --sidebar-primary-foreground: #1a1612;
+  --sidebar-accent: #3a322a;
+  --sidebar-accent-foreground: #ede8d6;
+  --sidebar-border: #453c30;
+  --sidebar-ring: #e2764a;
+}

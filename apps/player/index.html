@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/svg+xml" href="/brand/favicon.svg" />
+    <title>Kirtan Player</title>
+    <meta
+      name="description"
+      content="Search, play, and tag 20 years of kirtan from Sri Harmandir Sahib."
+    />
+  </head>
+  <script>
+    // Pre-paint, so a listener who chose Light never sees a dark flash.
+    // Inline and un-bundled on purpose: anything the bundler touches arrives
+    // after first paint, which is exactly what this exists to beat.
+    (function () {
+      try {
+        var c = localStorage.getItem('kp:theme') || 'system';
+        var dark =
+          c === 'dark' ||
+          (c === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.classList.toggle('dark', dark);
+      } catch (e) {
+        // Storage blocked. The class already on <html> stands.
+      }
+    })();
+  </script>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "@kp/tokens",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./theme.css": "./theme.css",
+    "./brand/*": "./brand/*",
+    "./fonts/*": "./fonts/*",
+    "./tokens.css": "./tokens.css",
+    "./tokens-native.css": "./tokens-native.css",
+    "./colors": "./colors.ts"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs"
+  }
+}

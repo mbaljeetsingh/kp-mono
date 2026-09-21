@@ -180,8 +180,7 @@ export function parseFilename(
   if (slot && beforeSlot) artistInFilename = beforeSlot.replace(/\s+/g, ' ');
 
   // --- title: puratan carries the shabad's first line and nothing else ---
-  const title =
-    !slot && !date ? name.replace(/\s+/g, ' ').trim() || null : null;
+  const title = !slot && !date ? name.replace(/\s+/g, ' ').trim() || null : null;
 
   if (tree !== 'puratan') {
     if (!date) flags.push('no-date');
@@ -215,10 +214,7 @@ export function normaliseArtist(name: string): string {
 }
 
 /** True when the filename's artist disagrees with its directory. */
-export function artistsDisagree(
-  dir: string,
-  inFilename: string | null
-): boolean {
+export function artistsDisagree(dir: string, inFilename: string | null): boolean {
   if (!inFilename) return false;
   return normaliseArtist(dir) !== normaliseArtist(inFilename);
 }

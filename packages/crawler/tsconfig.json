@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The crawler is the one package that runs on Node directly rather than
+    // through a bundler, so it needs Node's globals and its own resolution.
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
+    "types": ["node"],
+    "allowImportingTsExtensions": true
+  },
+  "include": ["src"]
+}
