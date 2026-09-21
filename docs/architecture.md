@@ -171,11 +171,14 @@ an SPA redirect so client-side routes resolve.
 
 ## Known gaps
 
-- The tab bar does not minimise on scroll. `minimizeBehavior="onScrollDown"` is
-  set and reaches UIKit (`_controller.tabBarMinimizeBehavior` in
-  react-native-screens), so UIKit is not finding a scroll view to track —
-  probably because the lists sit inside a `Screen` wrapper and do not extend
-  under the bar.
+- The tab bar does not minimise on scroll, and the reason is upstream. The prop
+  reaches UIKit, but UIKit minimizes against a scroll view registered through
+  `setContentScrollView` — which react-native-screens only calls from
+  `registerDescendantScrollView`, compiled in behind the `RNS_GAMMA_ENABLED`
+  pod-install flag (off by default) and driven by a `ScrollViewMarker` the
+  package does not export. A plain FlatList is never registered. Enabling an
+  experimental flag across the navigation layer is not worth a scroll
+  animation; the prop starts working when gamma ships by default.
 - SGPC refuses the artist-roster endpoint from GitHub's IP ranges: 200 from a
   residential connection, 403 from a runner. The weekly crawl tolerates it;
   photos refresh with `pnpm crawl:artists && pnpm seed:artists` from a laptop.

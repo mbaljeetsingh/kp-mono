@@ -22,6 +22,7 @@ import { colors } from '@kp/tokens/colors';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { MiniPlayer } from '~/components/MiniPlayer';
+import { usePlayer } from '~/lib/player';
 
 /*
  * Five, not six.
@@ -40,14 +41,32 @@ const TABS = [
 ] as const;
 
 export default function TabLayout() {
+  // Only whether there is anything loaded, so this does not re-render at the
+  // 10Hz the status updates arrive at.
+  const playing = usePlayer((state) => state.current !== null);
+
   return (
     <NativeTabs
       // Without this the bar is the system blue. Everything else about it —
       // blur, haptics, the press behaviour — is UIKit's and better left alone.
-      // Yes — iOS 26 shrinks the bar as you scroll down a list and brings it
-      // back on the way up, which is what Apple Music does. `automatic` is the
-      // default and leaves the decision to UIKit; naming it means the archive
-      // gets the screen while you are reading it.
+      /*
+       * Inert today, and kept anyway.
+       *
+       * It reaches UIKit — react-native-screens sets
+       * `_controller.tabBarMinimizeBehavior` from it — but UIKit minimizes
+       * against a scroll view it has been *told* about, via
+       * `setContentScrollView`. RNS only makes that call from
+       * `registerDescendantScrollView`, which is compiled in behind
+       * `RNS_GAMMA_ENABLED` (an env flag at pod-install time, off by default)
+       * and is driven by a `ScrollViewMarker` that the package does not export
+       * from its root. So a plain FlatList is never registered and there is
+       * nothing to observe.
+       *
+       * Enabling an experimental compile flag across the whole navigation layer
+       * is not a trade worth making for a scroll animation. The prop starts
+       * working the day gamma ships by default; removing it would only mean
+       * rediscovering this.
+       */
       minimizeBehavior="onScrollDown"
       tintColor={colors.primary}
       iconColor={{ default: colors.mutedForeground, selected: colors.primary }}
@@ -60,10 +79,18 @@ export default function TabLayout() {
         </NativeTabs.Trigger>
       ))}
 
-      {/* Outside every screen, so navigating never interrupts playback. */}
-      <NativeTabs.BottomAccessory>
-        <MiniPlayer />
-      </NativeTabs.BottomAccessory>
+      {/*
+       * Outside every screen, so navigating never interrupts playback.
+       *
+       * Omitted entirely rather than rendered empty: the accessory is a pill
+       * iOS draws and blurs itself, so a MiniPlayer that returns null on a
+       * fresh install still left a blank capsule floating above the tabs.
+       */}
+      {playing ? (
+        <NativeTabs.BottomAccessory>
+          <MiniPlayer />
+        </NativeTabs.BottomAccessory>
+      ) : null}
     </NativeTabs>
   );
 }
