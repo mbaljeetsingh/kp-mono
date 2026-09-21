@@ -159,19 +159,27 @@ replaying, and they are idempotent.
 ## Deploying
 
 Both apps are Netlify sites off this one repo, each with its own
-`netlify.toml`. The dashboard holds the rest:
+`netlify.toml`, and the build command and publish directory now live in those
+files rather than in the dashboard — a netlify.toml overrides the UI, so a
+branch that changes how an app builds carries the change with it.
 
-| setting           | player              | admin              |
-| ----------------- | ------------------- | ------------------ |
-| package directory | `apps/player`       | `apps/admin`       |
-| build command     | `pnpm build:player` | `pnpm build:admin` |
-| publish directory | `apps/player/dist`  | `apps/admin/dist`  |
+The dashboard still owns two things per site:
 
-Each site needs `NUXT_PUBLIC_SUPABASE_URL` and `NUXT_PUBLIC_SUPABASE_KEY` (the
-**publishable** key). Both configs refuse to build without them rather than
-ship a green deploy pointing at `127.0.0.1`. Leave base and functions
-directories at their defaults, and don't set `NODE_ENV` — `production` makes
-pnpm skip the devDependencies the build needs.
+| setting           | player        | admin        |
+| ----------------- | ------------- | ------------ |
+| package directory | `apps/player` | `apps/admin` |
+
+and the environment. **Each site needs `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_KEY`** (the **publishable** key). These are new names: the Nuxt
+apps read `NUXT_PUBLIC_SUPABASE_URL`/`NUXT_PUBLIC_SUPABASE_KEY`, and a site
+still holding only those will build green and then throw on first load, because
+`src/lib/supabase.ts` refuses to ship a bundle pointing at `127.0.0.1`. See
+`apps/<app>/.env.example`.
+
+Leave base and functions directories at their defaults — commands run from the
+repo root, which is why `.nvmrc` is found and why the publish paths above are
+root-relative — and don't set `NODE_ENV`: `production` makes pnpm skip the
+devDependencies the build needs.
 
 ## Notes
 

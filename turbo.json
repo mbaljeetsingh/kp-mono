@@ -1,6 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalEnv": ["SUPABASE_URL", "SUPABASE_KEY", "NETLIFY"],
+  // The web apps read these through Vite, so they carry its prefix. They were
+  // "SUPABASE_URL"/"SUPABASE_KEY" until the React rewrite — the Nuxt names —
+  // which meant turbo hashed two variables nothing reads any more and ignored
+  // the two that decide which database a bundle talks to. A changed Supabase
+  // URL could have replayed a cached bundle pointing at the old one.
+  "globalEnv": ["VITE_SUPABASE_URL", "VITE_SUPABASE_KEY", "NETLIFY"],
   // shared-theme/ is gone: the tokens now live in packages/tokens, which is
   // inside a workspace glob, so turbo's per-package hash sees them on its own.
   // .nvmrc still needs naming — nothing else watches a Node version bump.
