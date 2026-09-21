@@ -8,14 +8,7 @@
  */
 import { useAuth, useFavorites, type Favorites } from '@kp/api';
 import type { Session } from '@supabase/supabase-js';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 import { supabase } from '~/lib/supabase';
 

@@ -188,7 +188,11 @@ export function SegmentEditor({
           onMark={() => onChangeStart(position)}
           // Clamped against the other end, the same as a drag on the timeline —
           // nudging past it would write a range the database rejects at save.
-          onNudge={(by) => onChangeStart(Math.min(Math.max(0, start + by), end - MIN_LENGTH))}
+          // Floor last. A new segment opens with start and end both at the
+          // playhead, so `end - MIN_LENGTH` is a tenth of a second *below*
+          // start — clamping to it before flooring at zero produced -0.1, and
+          // the server rejected the draft with a raw Zod blob about start_sec.
+          onNudge={(by) => onChangeStart(Math.max(0, Math.min(start + by, end - MIN_LENGTH)))}
           onSeek={() => onSeek(start)}
           onAudition={() => onAudition(start)}
         />
