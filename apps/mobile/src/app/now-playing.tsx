@@ -53,9 +53,16 @@ export default function NowPlayingScreen() {
    * most of the archive is not either, so without this the panel is a dead end
    * exactly when somebody most wants it.
    */
-  const [lookedUp, setLookedUp] = useState<number | null>(null);
+  const [pick, setPick] = useState<{ trackId: string; shabadId: number } | null>(null);
+
+  // Paired with the track it was chosen for rather than cleared by an effect,
+  // which ran a render *after* the new track arrived and so showed the previous
+  // track's shabad for a frame on every skip.
+  const lookedUp = pick && pick.trackId === current?.id ? pick.shabadId : null;
+
+  // The measured line tops belong to the shabad that was on screen, so a new
+  // track invalidates them. Refs only — nothing here renders.
   useEffect(() => {
-    setLookedUp(null);
     lineTops.current = {};
     scrolledTo.current = null;
   }, [current?.id]);
@@ -115,6 +122,11 @@ export default function NowPlayingScreen() {
     // time the singing advances.
     if (Date.now() - draggedAt.current < READER_HOLD_MS) return;
 
+    // Written here rather than held in state: which line we last scrolled to is
+    // not something that renders, and making it state would re-render the whole
+    // reader on every scroll. The compiler rule flags it because the effect
+    // above clears the same ref on a track change.
+    // eslint-disable-next-line react-hooks/immutability
     scrolledTo.current = verseId;
     scroller.current?.scrollTo({
       y: Math.max(0, top - viewportHeight.current / 2),
@@ -128,6 +140,8 @@ export default function NowPlayingScreen() {
 
   const rememberLine = useCallback(
     (verseId: number, y: number) => {
+      // Measured layout, not rendered state — same reasoning as scrolledTo.
+      // eslint-disable-next-line react-hooks/immutability
       lineTops.current[verseId] = y;
       // The layout that finally makes the opening scroll possible.
       if (verseId === anchorId) scrollToAnchor(verseId);
@@ -240,7 +254,9 @@ export default function NowPlayingScreen() {
                     ? 'Nothing is tagged on a live broadcast — search for the line you are hearing.'
                     : 'No shabad linked to this rendition yet — search for the line you are hearing.'}
                 </Text>
-                <ShabadSearch onSelect={setLookedUp} />
+                <ShabadSearch
+                  onSelect={(chosen) => setPick({ trackId: current.id, shabadId: chosen })}
+                />
               </View>
             ) : null}
 

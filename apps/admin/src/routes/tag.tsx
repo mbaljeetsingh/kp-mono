@@ -96,17 +96,27 @@ export function TagRoute() {
     [renditions.data]
   );
 
-  /** Load the form's boundaries whenever the target changes. */
-  useEffect(() => {
-    if (editing === null) {
-      setStart(null);
-      setEnd(null);
-      return;
-    }
-    if (editing === 'new') return; // openEditor seeds these from the playhead
-    setStart(Number(editing.start_sec));
-    setEnd(Number(editing.end_sec));
-  }, [editing]);
+  /*
+   * Opening and closing the editor set the boundaries, rather than an effect
+   * watching `editing` and setting them afterwards.
+   *
+   * The effect version ran a render late, so the timeline drew the previous
+   * segment's band for a frame every time a row was clicked. Every path that
+   * changes the target goes through one of these three, which is what made the
+   * effect removable: `markStart`/`markEnd` deliberately do not, because they
+   * set one boundary themselves and must leave the other alone.
+   */
+  const editRendition = useCallback((row: Rendition) => {
+    setStart(Number(row.start_sec));
+    setEnd(Number(row.end_sec));
+    setEditing(row);
+  }, []);
+
+  const closeEditor = useCallback(() => {
+    setStart(null);
+    setEnd(null);
+    setEditing(null);
+  }, []);
 
   const openNew = useCallback(() => {
     // Both at the playhead: the start is where you are, and the end is marked
@@ -336,7 +346,7 @@ export function TagRoute() {
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                       {clock(Number(r.start_sec))}–{clock(Number(r.end_sec))}
                     </span>
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+                    <Button variant="ghost" size="sm" onClick={() => editRendition(r)}>
                       Edit
                     </Button>
                   </div>
@@ -347,6 +357,10 @@ export function TagRoute() {
 
           {editing ? (
             <SegmentEditor
+              // Remounts when the target changes, which is how the form reloads
+              // itself — see the comment on its state block. Safe because the
+              // editor unmounts entirely when `editing` is null.
+              key={editing === 'new' ? 'new' : editing.id}
               trackId={id}
               userId={session?.user.id ?? ''}
               position={position}
@@ -363,7 +377,7 @@ export function TagRoute() {
                 remove: can['renditions.delete'],
                 review: can['renditions.review'],
               }}
-              onDone={() => setEditing(null)}
+              onDone={closeEditor}
               onSeek={player.seek}
             />
           ) : (

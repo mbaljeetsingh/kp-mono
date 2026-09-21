@@ -86,6 +86,22 @@ export function useTagPlayer(src: string | undefined): TagPlayer {
     node.preload = 'metadata';
     node.playbackRate = speed;
     el.current = node;
+
+    /*
+     * Kept as an effect-body reset rather than a remount.
+     *
+     * This effect exists to build an external system — an HTMLAudioElement —
+     * and these three lines are React catching up with the one it just built:
+     * a new element is at 0, has no known duration and is not looping. The
+     * alternative is keying the page on `src`, which would also throw away the
+     * segments a tagger has open.
+     *
+     * Leaving them out is not an option either: the element's own events
+     * (`loadedmetadata`, `timeupdate`) do not fire until bytes arrive over the
+     * network, and until they do the transport would show the previous track's
+     * clock against the new file.
+     */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPosition(0);
     setDuration(0);
     setLoop(null);

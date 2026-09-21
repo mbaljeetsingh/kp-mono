@@ -39,8 +39,18 @@ function tally<T>(xs: T[], key: (x: T) => string | null) {
   return m;
 }
 
+/** Only what this report reads. crawl.json holds a good deal more per track. */
+interface ReportedTrack {
+  tree: string;
+  artistDir: string | null;
+  date: string | null;
+  title: string | null;
+  sizeBytes: number | null;
+  flags: string[];
+}
+
 const report = JSON.parse(await readFile(join(OUT, 'crawl.json'), 'utf8'));
-const tracks = report.tracks as any[];
+const tracks = report.tracks as ReportedTrack[];
 const by = (t: string) => tracks.filter((x) => x.tree === t);
 
 const ragiwise = by('ragiwise');
@@ -65,7 +75,11 @@ console.log(`    daywise         ${daywise.length}   (indexed, not surfaced)`);
 console.log(
   `  unplayable        ${unplayable.length}  ${pct(unplayable.length, tracks.length)}  (.wma etc)`
 );
-const sized = tracks.filter((t) => t.sizeBytes);
+// A type predicate, so the sum below knows the nulls are gone. SGPC's autoindex
+// listings omit the size column on some trees, so this is most of daywise.
+const sized = tracks.filter((t): t is ReportedTrack & { sizeBytes: number } =>
+  Boolean(t.sizeBytes)
+);
 if (sized.length) {
   const total = sized.reduce((a, t) => a + t.sizeBytes, 0);
   console.log(`  sized files       ${sized.length} totalling ${gb(total)}`);

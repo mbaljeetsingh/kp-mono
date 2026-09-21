@@ -12,7 +12,7 @@ import { Button } from '@kp/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@kp/ui/dialog';
 import { Input } from '@kp/ui/input';
 import { Label } from '@kp/ui/label';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
 import { useSession } from '~/lib/session';
@@ -25,17 +25,28 @@ export function NewPlaylistDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        {/*
+         * Keyed on the open state so every open mounts an empty form. This was
+         * an effect clearing the name and the error when `open` turned true,
+         * which ran a render after the dialog was on screen — the last
+         * playlist's name was briefly visible in the field. Keyed rather than
+         * conditionally rendered so the content is still there to animate out.
+         */}
+        <NewPlaylistForm key={String(open)} onCreated={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewPlaylistForm({ onCreated }: { onCreated: () => void }) {
   const { userId, pendingPick, setPendingPick } = useSession();
   const { create, addItem } = usePlaylistMutations(supabase, userId);
 
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setName('');
-    setError(null);
-  }, [open]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -50,45 +61,43 @@ export function NewPlaylistDialog({
         toast.success(`Added “${pendingPick.name}” to ${playlist.name}`);
         setPendingPick(null);
       }
-      onOpenChange(false);
+      onCreated();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Could not create the playlist');
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>New playlist</DialogTitle>
-          {pendingPick ? (
-            <DialogDescription>“{pendingPick.name}” goes in once it exists.</DialogDescription>
-          ) : null}
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>New playlist</DialogTitle>
+        {pendingPick ? (
+          <DialogDescription>“{pendingPick.name}” goes in once it exists.</DialogDescription>
+        ) : null}
+      </DialogHeader>
 
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="playlist-name">Name</Label>
-            <Input
-              id="playlist-name"
-              value={name}
-              autoFocus
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Morning kirtan"
-            />
-          </div>
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="playlist-name">Name</Label>
+          <Input
+            id="playlist-name"
+            value={name}
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Morning kirtan"
+          />
+        </div>
 
-          {error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
-          <Button type="submit" disabled={!name.trim() || create.isPending}>
-            {create.isPending ? 'Creating…' : 'Create'}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <Button type="submit" disabled={!name.trim() || create.isPending}>
+          {create.isPending ? 'Creating…' : 'Create'}
+        </Button>
+      </form>
+    </>
   );
 }

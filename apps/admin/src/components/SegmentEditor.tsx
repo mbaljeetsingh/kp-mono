@@ -23,7 +23,7 @@ import { ShabadSearch } from '@kp/ui/app/shabad-search';
 import { ShabadDisplay } from '~/components/ShabadDisplay';
 import { useQueryClient } from '@tanstack/react-query';
 import { Headphones, Link2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { BANIDB_BASE } from '~/lib/links';
 
@@ -75,9 +75,23 @@ export function SegmentEditor({
 }: Props) {
   const queryClient = useQueryClient();
 
-  const [name, setName] = useState('');
-  const [raag, setRaag] = useState('');
-  const [artist, setArtist] = useState('');
+  /*
+   * Seeded from `editing` once, at mount.
+   *
+   * The page gives this component a `key` that changes whenever the target
+   * does, so switching rows — or leaving a row to start a new segment —
+   * remounts it and every field below is initialised fresh. That replaces an
+   * effect that reassigned all eight pieces of state on every change of
+   * `editing`, which reloaded the form a render late: for one frame, a row you
+   * had just clicked showed the previous row's name.
+   *
+   * The boundaries are deliberately not here. The page owns `start` and `end`
+   * and has already seeded them from the playhead or from the row being
+   * revised, so a remount must not disturb them — they arrive as props.
+   */
+  const [name, setName] = useState(editing?.name ?? '');
+  const [raag, setRaag] = useState(editing?.raag ?? '');
+  const [artist, setArtist] = useState(editing?.artist ?? '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -88,27 +102,10 @@ export function SegmentEditor({
    * ang, author and the lyrics all come from BaniDB for free, and the aligner
    * can give this rendition per-line timings.
    */
-  const [shabadId, setShabadId] = useState<number | null>(null);
-  const [mainVerseId, setMainVerseId] = useState<number | null>(null);
+  const [shabadId, setShabadId] = useState<number | null>(editing?.shabad_id ?? null);
+  const [mainVerseId, setMainVerseId] = useState<number | null>(editing?.main_verse_id ?? null);
   const [linkedLine, setLinkedLine] = useState<string>('');
   const [searching, setSearching] = useState(false);
-
-  /*
-   * Reload the form whenever the target changes — including to null, which is
-   * "start a new one" and must not inherit the last segment's name. The
-   * boundaries are not reset here: the page owns them, and it has already
-   * seeded them from the playhead or from the row being revised.
-   */
-  useEffect(() => {
-    setError(null);
-    setSearching(false);
-    setLinkedLine('');
-    setName(editing?.name ?? '');
-    setRaag(editing?.raag ?? '');
-    setArtist(editing?.artist ?? '');
-    setShabadId(editing?.shabad_id ?? null);
-    setMainVerseId(editing?.main_verse_id ?? null);
-  }, [editing]);
 
   const clashes = overlapping(segments, { start, end }, editing?.id);
   const ordered = end > start;

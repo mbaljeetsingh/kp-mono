@@ -39,8 +39,12 @@ export function LyricsPanel({ className }: { className?: string }) {
    * — they are hearing a line right now and want to read along. Cleared when
    * the track changes, because it was chosen for that track.
    */
-  const [lookedUp, setLookedUp] = useState<number | null>(null);
-  useEffect(() => setLookedUp(null), [current?.id]);
+  const [pick, setPick] = useState<{ trackId: string; shabadId: number } | null>(null);
+
+  // Paired with the track it was chosen for, rather than cleared by an effect
+  // on `current?.id`. The effect ran a render *after* the new track arrived, so
+  // the panel showed the previous track's shabad for a frame on every skip.
+  const lookedUp = pick && pick.trackId === current?.id ? pick.shabadId : null;
 
   const shabadId = current?.shabadId ?? lookedUp;
   const query = useShabadText(BANIDB_BASE, shabadId);
@@ -87,7 +91,12 @@ export function LyricsPanel({ className }: { className?: string }) {
             ? 'Nothing is tagged on a live broadcast — search for the line you are hearing.'
             : 'No shabad linked to this rendition yet. Search for the line you are hearing.'}
         </p>
-        <ShabadSearch base={BANIDB_BASE} onSelect={(pick) => setLookedUp(pick.shabadId)} />
+        <ShabadSearch
+          base={BANIDB_BASE}
+          onSelect={(chosen) =>
+            current && setPick({ trackId: current.id, shabadId: chosen.shabadId })
+          }
+        />
       </div>
     );
   }
@@ -110,7 +119,7 @@ export function LyricsPanel({ className }: { className?: string }) {
             variant="ghost"
             size="icon-sm"
             aria-label="Clear the looked-up shabad"
-            onClick={() => setLookedUp(null)}
+            onClick={() => setPick(null)}
           >
             <X />
           </Button>

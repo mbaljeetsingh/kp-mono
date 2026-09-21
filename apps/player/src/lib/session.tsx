@@ -12,7 +12,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -77,13 +76,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [userId]
   );
 
-  // Pick up an interrupted "add to playlist" once there is a session. Gated on
-  // the sign-in dialog being shut: opening this one while that is still up puts
-  // two focus traps on screen, and which settles first depends on whether the
-  // auth listener fires before or after the dialog closes.
-  useEffect(() => {
-    if (userId && pendingPick && !promptOpen) setNewPlaylistOpen(true);
-  }, [userId, pendingPick, promptOpen]);
+  /*
+   * Pick up an interrupted "add to playlist" once there is a session.
+   *
+   * Derived rather than set by an effect watching the same three values. The
+   * effect opened the dialog a render after sign-in resolved, so the shell
+   * painted once with nothing on screen in between. Still gated on the sign-in
+   * dialog being shut: opening this one while that is up puts two focus traps
+   * on screen, and which settles first depends on whether the auth listener
+   * fires before or after the dialog closes.
+   */
+  const showNewPlaylist = newPlaylistOpen || Boolean(userId && pendingPick && !promptOpen);
+
+  const changeNewPlaylist = useCallback((open: boolean) => {
+    setNewPlaylistOpen(open);
+    // Dismissing drops the pick as well. Without this the derivation above
+    // would still be true and the dialog would reopen on the next render.
+    if (!open) setPendingPick(null);
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -96,8 +106,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       closePrompt,
       pendingPick,
       setPendingPick,
-      newPlaylistOpen,
-      setNewPlaylistOpen,
+      newPlaylistOpen: showNewPlaylist,
+      setNewPlaylistOpen: changeNewPlaylist,
       openNewPlaylist,
     }),
     [
@@ -109,7 +119,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       prompt,
       closePrompt,
       pendingPick,
-      newPlaylistOpen,
+      showNewPlaylist,
+      changeNewPlaylist,
       openNewPlaylist,
     ]
   );

@@ -60,18 +60,14 @@ export default tseslint.config(
       // apps' real configs rather than this one. Two voices, one complaint.
       '@typescript-eslint/no-unused-vars': 'off',
 
-      // Warn, not error, and deliberately so — these two are the React Compiler
-      // advisories, and the ten they currently flag are all the same shape:
-      // state reset in an effect when a dialog opens or a track changes, and
-      // refs written in callbacks that an effect also reads. Each is a genuine
-      // smell with a known fix (derive it, or remount on a `key`), and each fix
-      // is a behaviour change in a flow that is verified by hand rather than by
-      // a test. Erroring would mean either ten rushed refactors or ten
-      // suppression comments, and the suppressions would outlive the reason.
-      // They stay visible on every run instead; see Known gaps in
-      // docs/architecture.md.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/immutability': 'warn',
+      // Errors, like the rest. These two are the React Compiler advisories and
+      // they found eight real ones: forms reloaded by an effect a render after
+      // the thing they were reloading for, so a dialog showed the last
+      // playlist's name and the tagging workbench showed the previous row's.
+      // All eight are fixed by deriving the value or remounting on a `key`.
+      // Three sites remain and carry a suppression naming the reason at the
+      // line, which is the honest way to keep an exception — unlike a global
+      // downgrade, it cannot quietly cover the next one.
 
       // An underscore-prefixed catch binding is a deliberate discard; an `any`
       // in a .d.ts shim is not worth a rewrite.
