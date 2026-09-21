@@ -7,9 +7,15 @@
  *
  * The line searched for and clicked is pre-selected, because that is what the
  * tagger was looking for; every other line is one click away here.
+ *
+ * The whole verse goes back up, not just its id: picking a line is a statement
+ * about which line this rendition is known by, and the form has to be able to
+ * rename itself and retitle the linked-shabad pill from it. Handing back a bare
+ * number left both showing the line that was *searched* long after another had
+ * been chosen, which read as the click having done nothing.
  */
-import { useShabadText } from '@kp/api';
-import { Button } from '@kp/ui/button';
+import { type ShabadVerse, useShabadText } from '@kp/api';
+import { Pin } from 'lucide-react';
 
 import { BANIDB_BASE } from '~/lib/links';
 import { cn } from '~/lib/utils';
@@ -21,7 +27,7 @@ export function ShabadDisplay({
 }: {
   shabadId: number;
   mainVerseId: number | null;
-  onPick: (verseId: number) => void;
+  onPick: (verse: ShabadVerse) => void;
 }) {
   const query = useShabadText(BANIDB_BASE, shabadId);
   const lines = query.data?.verses ?? [];
@@ -39,31 +45,50 @@ export function ShabadDisplay({
   }
 
   return (
-    <div className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-lg border border-border p-2">
+    <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border p-2">
       <p className="px-1 pb-1 text-xs text-muted-foreground">
-        Pick the rahao — the line the ragi returns to.
+        Click a line to make it the main verse — the rahao the ragi returns to.
       </p>
 
       {lines.map((line) => {
         const picked = line.verseId === mainVerseId;
         return (
-          <Button
+          /*
+           * A plain button rather than the shared one, as the search results
+           * are: the ghost variant's `hover:bg-muted` is emitted after any
+           * background set here, so the chosen line lost its tint under the
+           * pointer that had just chosen it — the one moment it most needed to
+           * be visible. The pin carries the state anyway, so hover cannot hide
+           * it at all.
+           */
+          <button
             key={line.verseId}
-            variant="ghost"
+            type="button"
             aria-pressed={picked}
-            onClick={() => onPick(line.verseId)}
+            title={picked ? 'The main verse' : 'Set as the main verse'}
+            onClick={() => onPick(line)}
             className={cn(
-              'h-auto justify-start whitespace-normal px-2 py-1.5 text-left',
-              picked && 'bg-primary/15 text-primary'
+              'flex items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
+              picked && 'bg-primary/10 hover:bg-primary/15'
             )}
           >
-            <span className="flex flex-col gap-0.5">
-              <span className="text-sm">{line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}</span>
+            <Pin
+              className={cn('mt-1 size-3 shrink-0', picked ? 'text-primary' : 'text-transparent')}
+            />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className={cn('text-sm', picked && 'font-medium text-primary')}>
+                {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
+              </span>
+              {line.transliteration?.english ? (
+                <span className="text-xs text-muted-foreground">
+                  {line.transliteration.english}
+                </span>
+              ) : null}
               {line.translation?.en?.bdb ? (
-                <span className="text-xs text-muted-foreground">{line.translation.en.bdb}</span>
+                <span className="text-xs text-muted-foreground/70">{line.translation.en.bdb}</span>
               ) : null}
             </span>
-          </Button>
+          </button>
         );
       })}
     </div>

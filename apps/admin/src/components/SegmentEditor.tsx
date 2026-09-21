@@ -13,6 +13,7 @@ import {
   updateRendition,
   type Draft,
   type Rendition,
+  type ShabadVerse,
 } from '@kp/api';
 import { overlapping, prettyShabadName, type TimelineSegment } from '@kp/core';
 import { Button } from '@kp/ui/button';
@@ -106,6 +107,26 @@ export function SegmentEditor({
   const [mainVerseId, setMainVerseId] = useState<number | null>(editing?.main_verse_id ?? null);
   const [linkedLine, setLinkedLine] = useState<string>('');
   const [searching, setSearching] = useState(false);
+
+  /**
+   * A line clicked in the shabad below becomes the anchor — and the name and
+   * the pill follow it.
+   *
+   * The asymmetry with the search pick is deliberate, and was the Vue form's
+   * too: linking a shabad only *suggests* a name, so it never overwrites what
+   * somebody typed, but clicking a line afterwards is a deliberate statement
+   * about which line this rendition is known by, so the name follows it
+   * outright. Before this, the click moved an invisible id and nothing else:
+   * the pill still named the searched line and so did the name field, which
+   * read as the click having done nothing at all.
+   */
+  function pickMainVerse(verse: ShabadVerse) {
+    setMainVerseId(verse.verseId);
+    setLinkedLine(verse.verse?.unicode ?? verse.verse?.gurmukhi ?? '');
+    if (verse.transliteration?.english) {
+      setName(prettyShabadName(verse.transliteration.english));
+    }
+  }
 
   const clashes = overlapping(segments, { start, end }, editing?.id);
   const ordered = end > start;
@@ -257,7 +278,7 @@ export function SegmentEditor({
           </Button>
         )}
         {shabadId ? (
-          <ShabadDisplay shabadId={shabadId} mainVerseId={mainVerseId} onPick={setMainVerseId} />
+          <ShabadDisplay shabadId={shabadId} mainVerseId={mainVerseId} onPick={pickMainVerse} />
         ) : null}
 
         <p className="text-xs text-muted-foreground">
