@@ -162,6 +162,12 @@ If E2E comes back, the shape to keep is a flow per bug — one exists because
 something got through, not because a screen exists — and the first four should
 be the four above.
 
+ESLint runs over the whole workspace (`pnpm lint`, and in CI). It is scoped to
+what prettier and tsc cannot see — the rules of hooks — because that is where
+this codebase's bugs live. It earned its place immediately: it found a ref
+written during render in `InfiniteScroll`, the same defect already fixed by hand
+in the admin workbench's player and missed everywhere else.
+
 ## Building and shipping
 
 Local development is `npx expo run:ios` — fast, free, no queue. EAS is for
@@ -194,6 +200,13 @@ an SPA redirect so client-side routes resolve.
 - SGPC refuses the artist-roster endpoint from GitHub's IP ranges: 200 from a
   residential connection, 403 from a runner. The weekly crawl tolerates it;
   photos refresh with `pnpm crawl:artists && pnpm seed:artists` from a laptop.
+- Eleven `react-hooks` warnings stand, from the React Compiler rules
+  (`set-state-in-effect`, `immutability`). All are one shape: state reset in an
+  effect when a dialog opens or a track changes, and refs written in callbacks
+  an effect also reads. Each has a known fix — derive it, or remount on a `key`
+  — and each is a behaviour change in a flow verified by hand rather than by a
+  test, so they are warnings rather than errors and rather than suppressions
+  that would outlive their reason.
 - No end-to-end run is automated, on a machine or in CI. Unit tests stop at the
   app boundary and every bug this project shipped recently lived past it, so
   this is the largest real gap — see Testing for what was tried.

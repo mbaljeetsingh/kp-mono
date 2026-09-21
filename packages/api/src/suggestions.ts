@@ -25,6 +25,16 @@ export interface SuggestionGroup {
   items: Playable[];
 }
 
+/**
+ * PostgREST's builder type is lost to the `never` casts below — the chain is
+ * generated from a database schema this package deliberately does not import —
+ * so each chained method is reached through a minimal call signature instead of
+ * the unsafe built-in, which accepts anything callable, class constructors
+ * included.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Chained = (...args: any[]) => any;
+
 export async function fetchSuggestionGroups(
   client: KpClient,
   current: Playable | null
@@ -49,9 +59,9 @@ export async function fetchSuggestionGroups(
     // PostgREST wants the in-list parenthesised; ids are uuids, so there is
     // nothing here to quote or escape.
     if (seen.size) {
-      q = (q as { not: Function }).not('id', 'in', `(${[...seen].join(',')})`) as never;
+      q = (q as { not: Chained }).not('id', 'in', `(${[...seen].join(',')})`) as never;
     }
-    const { data, error } = (await (q as { limit: Function }).limit(PER_GROUP)) as {
+    const { data, error } = (await (q as { limit: Chained }).limit(PER_GROUP)) as {
       data: unknown[] | null;
       error: unknown;
     };
@@ -71,7 +81,7 @@ export async function fetchSuggestionGroups(
   // fallback rather than searching for renditions by a station's name.
   if (current?.artist && !current.isLive) {
     await take(`More from ${current.subtitle ?? current.artist}`, (q) =>
-      (q as never as { eq: Function })
+      (q as never as { eq: Chained })
         .eq('artist', current.artist)
         .order('created_at', { ascending: false })
     );
@@ -79,7 +89,7 @@ export async function fetchSuggestionGroups(
 
   if (current?.raag && !current.isLive) {
     await take(`More in ${current.raag}`, (q) =>
-      (q as never as { eq: Function })
+      (q as never as { eq: Chained })
         .eq('raag', current.raag)
         .order('created_at', { ascending: false })
     );
@@ -89,7 +99,7 @@ export async function fetchSuggestionGroups(
   // published under them yet — which, this early in the archive, is most of them.
   if (!groups.length) {
     await take('Recently added', (q) =>
-      (q as never as { order: Function }).order('created_at', {
+      (q as never as { order: Chained }).order('created_at', {
         ascending: false,
       })
     );

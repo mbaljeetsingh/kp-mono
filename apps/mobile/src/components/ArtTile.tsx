@@ -10,7 +10,7 @@
 import { artworkFor } from '@kp/core';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
 
 interface Props {
@@ -40,10 +40,13 @@ export function ArtTile({ name, src, size = 48, rounded = 8 }: Props) {
 
   // Photos are seeded as paths only, so a miss is the normal state of a fresh
   // clone and the gradient has to take over silently.
-  const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [src]);
+  // Which src failed, rather than a boolean plus an effect to clear it: the
+  // effect reset `broken` one render *after* a new src arrived, so a row
+  // recycled from a broken photo to a good one showed the gradient for a
+  // frame. Deriving it compares against the current src and cannot lag.
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
 
-  const showPhoto = Boolean(src) && !broken;
+  const showPhoto = Boolean(src) && brokenSrc !== src;
   const { start, end } = endpoints(art.angle);
 
   return (
@@ -58,7 +61,7 @@ export function ArtTile({ name, src, size = 48, rounded = 8 }: Props) {
       {showPhoto ? (
         <Image
           source={{ uri: src! }}
-          onError={() => setBroken(true)}
+          onError={() => setBrokenSrc(src ?? null)}
           style={{ width: '100%', height: '100%' }}
           contentFit="cover"
         />

@@ -6,5 +6,8 @@
     "./types": "./src/types.ts",
     "./data/ragas.json": "./src/data/ragas.json",
     "./data/stations.json": "./src/data/stations.json"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
   }
 }

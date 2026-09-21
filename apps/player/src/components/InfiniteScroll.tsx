@@ -21,8 +21,15 @@ export function InfiniteScroll({ onLoadMore, hasMore, loading }: Props) {
 
   // Ref'd so the effect below depends on visibility alone — an inline callback
   // from the parent changes identity every render and would refire constantly.
+  //
+  // Mirrored in an effect rather than during render, for the same reason as
+  // the admin workbench's player: a render React throws away still runs its
+  // body, so assigning here would publish a callback from a render that never
+  // happened.
   const load = useRef(onLoadMore);
-  load.current = onLoadMore;
+  useEffect(() => {
+    load.current = onLoadMore;
+  }, [onLoadMore]);
 
   useEffect(() => {
     if (isIntersecting && hasMore && !loading) load.current();

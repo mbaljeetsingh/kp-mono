@@ -195,7 +195,10 @@ await client.end();
 
 const published = renditions.filter((r) => r.status === 'published').length;
 const byTree = tracks.reduce<Record<string, number>>((acc, t) => {
-  acc[t.tree] = (acc[t.tree] ?? 0) + 1;
+  // Rows come back as Record<string, unknown> — `tree` is a text column, but
+  // pg cannot tell tsc that, and an unknown cannot index.
+  const tree = String(t.tree);
+  acc[tree] = (acc[tree] ?? 0) + 1;
   return acc;
 }, {});
 

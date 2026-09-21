@@ -79,7 +79,6 @@ for (const k of ['high', 'medium', 'low']) {
     `  ${k.padEnd(16)}${String(conf.get(k) ?? 0).padStart(6)}  ${pct(conf.get(k) ?? 0, tracks.length)}`
   );
 }
-const flagCounts = tally(tracks, () => null);
 const allFlags = new Map<string, number>();
 for (const t of tracks) for (const f of t.flags) allFlags.set(f, (allFlags.get(f) ?? 0) + 1);
 for (const [f, n] of [...allFlags].sort((a, b) => b[1] - a[1])) {

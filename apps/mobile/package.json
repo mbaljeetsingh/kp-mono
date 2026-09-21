@@ -27,7 +27,6 @@
     "lucide-react-native": "^1.47.0",
     "nativewind": "5.0.0-rc.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-css": "3.1.0-rc.0",
     "react-native-gesture-handler": "~2.32.0",
@@ -37,7 +36,6 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "^15.15.5",
     "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "~0.21.0",
     "react-native-worklets": "0.10.1",
     "tailwind-merge": "^3.6.0",
     "usehooks-ts": "^3.1.1",
@@ -54,11 +52,8 @@
   "scripts": {
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "lint": "expo lint",
-    "reset-project": "node ./scripts/reset-project.js",
     "start": "expo start",
-    "typecheck": "tsc --noEmit",
-    "web": "expo start --web"
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }

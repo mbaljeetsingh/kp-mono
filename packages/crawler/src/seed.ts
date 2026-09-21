@@ -146,7 +146,7 @@ for (const t of report.tracks) {
     // re-fetching 670 pages from sgpc.net.
     confidence: t.flags.includes('no-date')
       ? 'low'
-      : t.flags.filter((f) => f !== 'artist-mismatch').length
+      : t.flags.filter((f: string) => f !== 'artist-mismatch').length
         ? 'medium'
         : 'high',
     flags: t.flags,

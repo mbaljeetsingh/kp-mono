@@ -6,7 +6,7 @@
  * gradient comes from the name, so an artist looks the same on every page.
  */
 import { artworkFor } from '@kp/core';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { cn } from '~/lib/utils';
 
@@ -27,10 +27,13 @@ export function ArtTile({ name, src, className, rounded = 'md' }: Props) {
    * gradient has to take over silently; a broken-image icon in every third row
    * is worse than no photo at all.
    */
-  const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [src]);
+  // Which src failed, rather than a boolean plus an effect to clear it: the
+  // effect reset `broken` one render *after* a new src arrived, so a row
+  // recycled from a broken photo to a good one showed the gradient for a
+  // frame. Deriving it compares against the current src and cannot lag.
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
 
-  const showPhoto = Boolean(src) && !broken;
+  const showPhoto = Boolean(src) && brokenSrc !== src;
 
   return (
     <div
@@ -46,7 +49,7 @@ export function ArtTile({ name, src, className, rounded = 'md' }: Props) {
           src={src!}
           alt=""
           loading="lazy"
-          onError={() => setBroken(true)}
+          onError={() => setBrokenSrc(src ?? null)}
           className="size-full object-cover"
         />
       ) : (

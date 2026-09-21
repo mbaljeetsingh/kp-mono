@@ -26,12 +26,17 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev:mobile": "turbo dev --filter=@kp/mobile",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "lint": "eslint ."
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "prettier": "^3.9.6",
     "supabase": "^2.113.0",
     "turbo": "^2.10.8",
+    "typescript-eslint": "^8.70.0",
     "vitest": "^5.0.1"
   },
   "pnpm": {

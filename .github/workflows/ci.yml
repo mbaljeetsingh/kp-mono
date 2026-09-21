@@ -38,6 +38,10 @@ jobs:
       # argue about in review.
       - run: pnpm format:check
 
+      # Rules of hooks, which neither prettier nor tsc can see. Warnings are
+      # printed and do not fail the run — see the comment in eslint.config.js.
+      - run: pnpm lint
+
       # Typecheck before test. A type error explains itself; the test failure it
       # causes usually does not.
       - run: pnpm typecheck
