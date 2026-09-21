@@ -80,6 +80,10 @@ worth knowing before running the CLI:
 
 All 32 components are present; Button, Input and Badge are adopted so far.
 
+Icons come from `lucide-react-native`, which draws through `react-native-svg`.
+Nothing in the app imports `react-native-svg` directly, so a dependency audit
+will offer to remove it — and removing it blanks every icon in the app.
+
 ## Decisions
 
 **expo-audio, not react-native-track-player.** RNTP v5 went commercial in May
@@ -147,8 +151,16 @@ project shipped recently lived past it: favourites written through a
 flag only the web renders, Next doing nothing on a queue of one, a 24pt touch
 target. All four typechecked perfectly.
 
-`apps/mobile/.maestro/` holds a flow per bug, which is the intended shape: a flow
-exists because something got through, not because a screen exists.
+Nothing automated closes that gap today. Four Maestro flows were written for it
+and then deleted unrun: they cost a third-party Homebrew tap and a JVM to
+execute, and inspection showed they would have failed anyway — wrong bundle id,
+and `id:` selectors aimed at testIDs this app does not set, since it labels
+controls for VoiceOver with `accessibilityLabel` instead. Unrun flows are worse
+than none, because they read as coverage.
+
+If E2E comes back, the shape to keep is a flow per bug — one exists because
+something got through, not because a screen exists — and the first four should
+be the four above.
 
 ## Building and shipping
 
@@ -182,9 +194,9 @@ an SPA redirect so client-side routes resolve.
 - SGPC refuses the artist-roster endpoint from GitHub's IP ranges: 200 from a
   residential connection, 403 from a runner. The weekly crawl tolerates it;
   photos refresh with `pnpm crawl:artists && pnpm seed:artists` from a laptop.
-- `@expo/ui`, `expo-symbols` and `expo-glass-effect` are dependencies nothing
-  imports. `react-native-svg` looks the same but is not — it is a peer of
-  `lucide-react-native`, which draws every icon in the app.
+- No end-to-end run is automated, on a machine or in CI. Unit tests stop at the
+  app boundary and every bug this project shipped recently lived past it, so
+  this is the largest real gap — see Testing for what was tried.
 
 ## History
 

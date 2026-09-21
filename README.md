@@ -52,8 +52,7 @@ pnpm --filter @kp/mobile ios                    # builds and opens the simulator
 ```
 
 After the first build, `npx expo start` in `apps/mobile` is enough — only a
-native dependency needs building again. `apps/mobile/.maestro/` holds end-to-end
-flows; run one with `maestro test apps/mobile/.maestro/<flow>.yaml`.
+native dependency needs building again.
 
 That is the whole first run: a committed seed (`supabase/seed.sql`, issue #27)
 is applied automatically after migrations, so a fresh clone gets a working
