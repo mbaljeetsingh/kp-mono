@@ -117,9 +117,28 @@ export function RootLayout() {
         </nav>
 
         <main className="min-w-0 flex-1 overflow-y-auto">
-          <div className="flex items-center justify-end gap-1 px-4 pt-3 sm:hidden">
-            <AccountButton />
-            <ThemeToggle />
+          {/* The mark, which a phone had lost entirely: it lives in the
+              sidebar, and the sidebar is what a narrow screen drops — so the
+              one corner every site puts its way home in was empty. The badge
+              alone rather than the badge and the name: the home screen prints
+              "Kirtan Player" in display type an inch below this. */}
+          <div className="flex items-center justify-between gap-1 px-4 pt-3 sm:hidden">
+            <Link
+              to="/"
+              aria-label="Kirtan Player — home"
+              // Padded down and to the right rather than all round, so the tap
+              // target clears 44px without pulling the badge out of line with
+              // the content below it.
+              className="flex items-center py-1.5 pr-2"
+            >
+              <img src="/brand/logo-badge.svg" alt="" className="size-8 dark:hidden" />
+              <img src="/brand/logo-badge-dark.svg" alt="" className="hidden size-8 dark:block" />
+            </Link>
+
+            <div className="flex items-center gap-1">
+              <AccountButton />
+              <ThemeToggle />
+            </div>
           </div>
           <div className="mx-auto max-w-4xl px-4 py-4 sm:py-6">
             <Outlet />
