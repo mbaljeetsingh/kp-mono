@@ -34,6 +34,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # tokens-native.css and colors.ts are generated from tokens.css, and
+      # nothing until now regenerated them. Editing the palette without running
+      # the generator shipped a stale native theme and a stale colors.ts —
+      # silently, because both files are committed and look hand-written.
+      # This regenerates and fails if the result differs from what is committed.
+      - run: pnpm tokens:check
+
       # Formatting first: it is the fastest to run and the least interesting to
       # argue about in review.
       - run: pnpm format:check
