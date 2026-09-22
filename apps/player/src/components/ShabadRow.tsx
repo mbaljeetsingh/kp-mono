@@ -8,7 +8,6 @@
  */
 import { segmentTotal, type Playable } from '@kp/core';
 import { Button } from '@kp/ui/button';
-import { Link } from '@tanstack/react-router';
 import { Pause, Play } from 'lucide-react';
 import type { MouseEvent } from 'react';
 
@@ -95,22 +94,14 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
 
       <div className="min-w-0 flex-1">
         <p className={cn('truncate text-sm', isCurrent && 'text-primary')}>{item.title}</p>
+        {/* Plain text, deliberately. A link here made the ragi's name a target
+            you had to miss in order to play the row — on a phone, where it sits
+            under a title your thumb already covers, missing it is the hard
+            part. The ragi is reachable from this row's menu, from the full
+            player, and from the Ragis tab; playing what you tapped is not
+            reachable any other way. */}
         <p className="truncate text-xs text-muted-foreground">
-          {/* The one part of the row that does not play: a listener who taps a
-              ragi's name means their shabads, not this one. `artist` and not
-              `subtitle`, because the route keys on the stored name while the
-              display name is the one worth reading. */}
-          {item.artist ? (
-            <Link
-              to="/ragis/$name"
-              params={{ name: item.artist }}
-              className="hover:text-foreground hover:underline"
-            >
-              {item.subtitle ?? item.artist}
-            </Link>
-          ) : (
-            item.subtitle
-          )}
+          {item.subtitle ?? item.artist}
           {item.raag ? ` · ${item.raag}` : ''}
         </p>
       </div>
