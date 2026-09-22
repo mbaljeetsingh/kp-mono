@@ -11,6 +11,7 @@ import { upNext, type Playable } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { Play, X } from 'lucide-react';
+import type { MouseEvent } from 'react';
 
 import { ArtTile } from '~/components/ArtTile';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -96,8 +97,23 @@ function Row({
   onPlay: () => void;
   onRemove?: () => void;
 }) {
+  /**
+   * The whole row plays, the same as a shelf row: the thumbnail and the gap
+   * beside the title were dead space, and that is where a click lands.
+   * Anything with a click of its own — the remove X, the play button, the
+   * title button that is this row's keyboard target — is skipped by finding it
+   * in the click's ancestry, so it fires once rather than twice.
+   */
+  function onRowClick(event: MouseEvent<HTMLDivElement>) {
+    if ((event.target as Element).closest('a,button')) return;
+    onPlay();
+  }
+
   return (
-    <div className="group flex items-center gap-2 rounded-lg px-1 py-1.5 hover:bg-accent/50">
+    <div
+      onClick={onRowClick}
+      className="group flex cursor-pointer items-center gap-2 rounded-lg px-1 py-1.5 hover:bg-accent/50"
+    >
       <ArtTile
         name={item.artist ?? item.title}
         src={artistPhotoUrl(item.artistPhoto)}
