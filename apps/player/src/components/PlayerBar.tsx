@@ -59,14 +59,16 @@ export function PlayerBar() {
               <ChevronUp className="size-4 shrink-0 text-muted-foreground lg:hidden" />
             </button>
 
-            {/* Beside the thing it applies to, which is the title — on the far
-                right it read as part of the transport, and it is not: it says
-                something about this shabad, not about playback.
+            {/* Beside the thing it applies to, which is the title — on a wide
+                bar the far right is the transport's, and a heart there reads
+                as part of playback, which it is not: it says something about
+                this shabad. On a phone, where the transport is two icons at
+                the end of the strip, this same slot is the one right before
+                them — which is where every phone player puts it, and it is the
+                only way to save what is playing without opening the sheet.
                 A broadcast is not something to save — there is no rendition
                 behind it. */}
-            {current.isLive ? null : (
-              <FavoriteButton id={current.id} name={current.title} className="hidden sm:flex" />
-            )}
+            {current.isLive ? null : <FavoriteButton id={current.id} name={current.title} />}
           </div>
 
           {/* The height is the column's, not the seek bar's — a live feed draws
