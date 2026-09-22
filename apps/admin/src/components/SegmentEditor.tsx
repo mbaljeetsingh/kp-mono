@@ -35,8 +35,6 @@ import { MIN_LENGTH } from '~/lib/use-tag-player';
 interface Props {
   trackId: string;
   userId: string;
-  /** Where the audio is right now — what "Mark here" means. */
-  position: number;
   segments: TimelineSegment[];
   /** The segment being revised, or null to create a new one. */
   editing: Rendition | null;
@@ -49,6 +47,13 @@ interface Props {
   end: number;
   onChangeStart: (seconds: number) => void;
   onChangeEnd: (seconds: number) => void;
+  /**
+   * Put a boundary at the playhead. Owned by the page rather than done here,
+   * because `[` and `]` do exactly the same thing from the keyboard and the
+   * rule about carrying the far boundary has to be one rule, not two.
+   */
+  onMarkStart: () => void;
+  onMarkEnd: () => void;
   /** Hear a boundary right after moving it — the only way to check a cut. */
   onAudition: (seconds: number) => void;
   can: { propose: boolean; publish: boolean; remove: boolean; review: boolean };
@@ -62,13 +67,14 @@ const NUDGE = 1;
 export function SegmentEditor({
   trackId,
   userId,
-  position,
   segments,
   editing,
   start,
   end,
   onChangeStart,
   onChangeEnd,
+  onMarkStart,
+  onMarkEnd,
   onAudition,
   can,
   onDone,
@@ -206,13 +212,15 @@ export function SegmentEditor({
         <Boundary
           label="Start"
           value={start}
-          onMark={() => onChangeStart(position)}
-          // Clamped against the other end, the same as a drag on the timeline —
-          // nudging past it would write a range the database rejects at save.
-          // Floor last. A new segment opens with start and end both at the
-          // playhead, so `end - MIN_LENGTH` is a tenth of a second *below*
-          // start — clamping to it before flooring at zero produced -0.1, and
-          // the server rejected the draft with a raw Zod blob about start_sec.
+          // The page's own mark, the same one `[` runs: it carries the far
+          // boundary ahead rather than crossing it. Marking here used to write
+          // the playhead straight in, which on a segment you have been letting
+          // play means start > end and a red error for a reasonable action.
+          onMark={onMarkStart}
+          // Floor last. `end - MIN_LENGTH` can sit below zero on a segment
+          // marked at the very start of a recording — clamping to it before
+          // flooring produced -0.1, and the server rejected the draft with a
+          // raw Zod blob about start_sec.
           onNudge={(by) => onChangeStart(Math.max(0, Math.min(start + by, end - MIN_LENGTH)))}
           onSeek={() => onSeek(start)}
           onAudition={() => onAudition(start)}
@@ -220,7 +228,7 @@ export function SegmentEditor({
         <Boundary
           label="End"
           value={end}
-          onMark={() => onChangeEnd(position)}
+          onMark={onMarkEnd}
           onNudge={(by) => onChangeEnd(Math.max(start + MIN_LENGTH, end + by))}
           onSeek={() => onSeek(end)}
           onAudition={() => onAudition(end)}

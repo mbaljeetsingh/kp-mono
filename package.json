@@ -25,6 +25,7 @@
     "report": "node --experimental-strip-types packages/crawler/src/report.ts",
     "tokens:generate": "node packages/tokens/scripts/generate.mjs",
     "tokens:check": "node packages/tokens/scripts/generate.mjs && git diff --exit-code -- packages/tokens/tokens-native.css packages/tokens/colors.ts",
+    "theme:check": "node scripts/check-theme-preload.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "dev:mobile": "turbo dev --filter=@kp/mobile",

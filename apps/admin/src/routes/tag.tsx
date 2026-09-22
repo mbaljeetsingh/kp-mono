@@ -25,7 +25,7 @@ import { SegmentEditor } from '~/components/SegmentEditor';
 import { Timeline } from '~/components/Timeline';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
-import { SKIP_COARSE, SKIP_FINE, SPEEDS, useTagPlayer } from '~/lib/use-tag-player';
+import { MIN_LENGTH, SKIP_COARSE, SKIP_FINE, SPEEDS, useTagPlayer } from '~/lib/use-tag-player';
 
 /**
  * Should this keystroke belong to the page or to what has focus?
@@ -104,7 +104,8 @@ export function TagRoute() {
    * segment's band for a frame every time a row was clicked. Every path that
    * changes the target goes through one of these three, which is what made the
    * effect removable: `markStart`/`markEnd` deliberately do not, because they
-   * set one boundary themselves and must leave the other alone.
+   * set the boundary they are named for and disturb the other only as far as
+   * keeping the range valid requires.
    */
   const editRendition = useCallback((row: Rendition) => {
     setStart(Number(row.start_sec));
@@ -119,21 +120,54 @@ export function TagRoute() {
   }, []);
 
   const openNew = useCallback(() => {
-    // Both at the playhead: the start is where you are, and the end is marked
-    // when you get there. An end that defaulted to the duration would draw a
-    // band across the rest of the recording the moment the editor opened.
+    /*
+     * Start at the playhead, end a hair after it.
+     *
+     * The start is where you are and the end is marked when you get there, so
+     * the end wants to be as close to the start as the range allows — an end
+     * that defaulted to the duration would draw a band across the rest of the
+     * recording the moment the editor opened.
+     *
+     * A hair, though, not zero. Opening both at the playhead made every new
+     * segment invalid on arrival, so the editor greeted the tagger with "The
+     * end must come after the start" in red before they had done anything at
+     * all — an error about a state the form had put itself in.
+     */
     setStart(position);
-    setEnd(position);
+    setEnd(position + MIN_LENGTH);
     setEditing('new');
   }, [position]);
 
+  /*
+   * Marking a boundary carries the other one rather than crossing it.
+   *
+   * These set the boundary you asked for and leave the other alone — but only
+   * while the other is still somewhere a range can legally reach. Two ways they
+   * were not:
+   *
+   * Pressing `[` with no editor open set a start and left the end at null,
+   * which the editor reads as 0 — so marking a start three minutes in opened a
+   * form already complaining that the end must come after the start, with no
+   * end in sight to fix. That is the normal way to begin a segment by ear.
+   *
+   * And on an open segment the playhead has usually moved past the end by the
+   * time you hear the shabad begin, so marking the start crossed it.
+   *
+   * Both now push the far boundary ahead of the near one instead of reporting
+   * an error about a range the tagger never asked for. The nudges have always
+   * clamped this way; marking is the same edit.
+   */
   const markStart = useCallback(() => {
     setStart(position);
+    setEnd((e) => (e == null || e < position + MIN_LENGTH ? position + MIN_LENGTH : e));
     setEditing((e) => e ?? 'new');
   }, [position]);
 
   const markEnd = useCallback(() => {
     setEnd(position);
+    setStart((s) =>
+      s == null || s > position - MIN_LENGTH ? Math.max(0, position - MIN_LENGTH) : s
+    );
     setEditing((e) => e ?? 'new');
   }, [position]);
 
@@ -363,11 +397,12 @@ export function TagRoute() {
               key={editing === 'new' ? 'new' : editing.id}
               trackId={id}
               userId={session?.user.id ?? ''}
-              position={position}
               segments={segments}
               editing={editing === 'new' ? null : editing}
               start={start ?? 0}
               end={end ?? 0}
+              onMarkStart={markStart}
+              onMarkEnd={markEnd}
               onChangeStart={setStart}
               onChangeEnd={setEnd}
               onAudition={player.auditionBoundary}

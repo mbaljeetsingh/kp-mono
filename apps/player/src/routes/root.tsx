@@ -17,7 +17,7 @@ import { NowPlayingPanel } from '~/components/NowPlaying';
 import { AuthDialog } from '~/components/AuthDialog';
 import { NewPlaylistDialog } from '~/components/NewPlaylistDialog';
 import { PlayerBar } from '~/components/PlayerBar';
-import { ThemeToggle } from '~/components/ThemeToggle';
+import { ThemeToggle } from '@kp/ui/app/theme-toggle';
 import { CONTRIBUTE_URL, GITHUB_URL } from '~/lib/links';
 import { usePlayerKeys } from '~/lib/keys';
 import { useSession } from '~/lib/session';
@@ -81,15 +81,22 @@ export function RootLayout() {
 
           {/* The player carries no editing UI: the archive grows in the
               workbench and the code grows on GitHub, so this is where it says so. */}
-          <div className="mt-auto flex flex-col gap-2 border-t border-border pt-3">
-            {/* The one link here that asks something of the reader, rather
-                than just offering it — so it is the one that is not grey. */}
+          <div className="mt-auto flex flex-col gap-2">
+            {/*
+              Ruled off above and below.
+
+              This is the one link in the sidebar that asks something of the
+              reader rather than offering them something, and the archive only
+              grows if it is taken up. Sitting in a stack with Source it read as
+              one more footer link; alone between two rules it reads as the
+              thing the app wants.
+            */}
             <a
               href={CONTRIBUTE_URL}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+              className="my-1 flex items-center gap-2 border-y border-border py-3 pl-3 pr-2 text-sm font-medium text-primary hover:bg-primary/10"
             >
-              <Users className="size-4" />
-              Contribute
+              <Users className="size-4 shrink-0" />
+              Contribute shabads
             </a>
             <a
               href={GITHUB_URL}
@@ -98,8 +105,12 @@ export function RootLayout() {
               <Github className="size-4" />
               Source
             </a>
-            <div className="flex items-center justify-between px-1">
-              <AccountButton />
+            {/* The sidebar has the width to say which account this is, so it
+                does; the phone header above does not, and keeps the circle. */}
+            <div className="flex items-center gap-1">
+              <div className="min-w-0 flex-1">
+                <AccountButton variant="row" />
+              </div>
               <ThemeToggle />
             </div>
           </div>

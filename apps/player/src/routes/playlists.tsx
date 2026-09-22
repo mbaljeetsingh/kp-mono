@@ -92,7 +92,7 @@ export function PlaylistsRoute() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onSelect={() => {
+                  onClick={() => {
                     const name = window.prompt('Rename playlist', playlist.name);
                     if (name && name.trim() && name !== playlist.name) {
                       void rename
@@ -105,7 +105,7 @@ export function PlaylistsRoute() {
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
-                  onSelect={() => {
+                  onClick={() => {
                     // Deleting a collection someone assembled by hand asks first.
                     if (window.confirm(`Delete “${playlist.name}”?`)) {
                       void remove
