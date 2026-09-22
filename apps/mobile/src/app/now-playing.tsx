@@ -254,26 +254,6 @@ export default function NowPlayingScreen() {
             </View>
           ) : null}
         </View>
-
-        {/* A broadcast is not something to save — there is no rendition behind it. */}
-        {current.isLive ? null : (
-          <Pressable
-            onPress={() => favorites.toggle(current.id)}
-            accessibilityLabel={
-              favorites.has(current.id)
-                ? `Remove ${current.title} from saved`
-                : `Save ${current.title}`
-            }
-            hitSlop={8}
-            className="size-11 items-center justify-center"
-          >
-            <Heart
-              size={22}
-              color={favorites.has(current.id) ? colors.primary : colors.subtleForeground}
-              fill={favorites.has(current.id) ? colors.primary : 'transparent'}
-            />
-          </Pressable>
-        )}
       </View>
 
       <View className="mx-5 mb-2 flex-row rounded-xl bg-card p-[3px]">
@@ -390,7 +370,32 @@ export default function NowPlayingScreen() {
           <SeekBar current={current} position={position} duration={duration} />
         )}
 
-        <View className="flex-row items-center justify-center gap-5">
+        {/* The heart belongs down here with the transport, not up beside the
+            title: saving a shabad is something you do while listening to it,
+            and the title sits at the top of a full-height screen while the
+            thumb is here. Inset absolutely rather than given a slot in the
+            row, so the transport stays centred where it has always been.
+            A broadcast is not something to save — there is no rendition
+            behind it. */}
+        <View className="relative flex-row items-center justify-center gap-5">
+          {current.isLive ? null : (
+            <Pressable
+              onPress={() => favorites.toggle(current.id)}
+              accessibilityLabel={
+                favorites.has(current.id)
+                  ? `Remove ${current.title} from saved`
+                  : `Save ${current.title}`
+              }
+              className="absolute bottom-0 left-0 top-0 w-14 items-center justify-center"
+            >
+              <Heart
+                size={26}
+                color={favorites.has(current.id) ? colors.primary : colors.subtleForeground}
+                fill={favorites.has(current.id) ? colors.primary : 'transparent'}
+              />
+            </Pressable>
+          )}
+
           <Pressable
             onPress={playerActions.previous}
             disabled={current.isLive}
