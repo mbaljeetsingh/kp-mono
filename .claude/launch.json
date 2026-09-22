@@ -12,6 +12,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@kp/admin", "dev:port"],
       "port": 3001
+    },
+    {
+      "name": "mobile",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@kp/mobile", "exec", "expo", "start", "--port", "8082"],
+      "port": 8082
     }
   ]
 }

@@ -37,7 +37,7 @@ export function FavoritesRoute() {
   return (
     <section className="flex flex-col gap-4">
       <header>
-        <h1 className="text-2xl font-semibold">Saved</h1>
+        <h1 className="font-display text-3xl font-semibold">Saved</h1>
         <p className="text-sm text-muted-foreground">
           {userId
             ? 'Saved to your account.'

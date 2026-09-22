@@ -32,7 +32,7 @@ export default function PlaylistsScreen() {
     return (
       <Screen edges={['top']} className="flex-1 bg-background">
         <View className="gap-3 p-6">
-          <Text className="text-2xl font-semibold text-foreground">Playlists</Text>
+          <Text className="font-display text-[28px] leading-8 text-foreground">Playlists</Text>
           <Text className="text-sm text-muted-foreground">
             Playlists need an account. A collection you spent time on should not live on one device.
           </Text>
@@ -56,7 +56,7 @@ export default function PlaylistsScreen() {
         ListHeaderComponent={
           <View className="gap-3 px-3 pb-2 pt-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-2xl font-semibold text-foreground">Playlists</Text>
+              <Text className="font-display text-[28px] leading-8 text-foreground">Playlists</Text>
               <Pressable
                 onPress={() => setCreating((v) => !v)}
                 accessibilityLabel="New playlist"

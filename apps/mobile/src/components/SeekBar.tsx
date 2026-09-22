@@ -82,7 +82,7 @@ export function SeekBar({
         accessibilityValue={{ min: 0, max: 100, now: Math.round(pct) }}
         style={{ height: TOUCH_HEIGHT, justifyContent: 'center' }}
       >
-        <View className="h-1.5 rounded-full bg-muted">
+        <View className="h-1 rounded-full bg-secondary">
           <View className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
           {/* Drawn outside the track's own bounds, so it cannot be clipped by
               the rounded overflow the fill needs. Grows under the finger, which
@@ -95,15 +95,15 @@ export function SeekBar({
               width: dragging != null ? 18 : 12,
               height: dragging != null ? 18 : 12,
               marginLeft: dragging != null ? -9 : -6,
-              top: dragging != null ? -6 : -3,
+              top: dragging != null ? -7 : -4,
             }}
           />
         </View>
       </View>
 
       <View className="flex-row justify-between">
-        <Text className="text-xs tabular-nums text-muted-foreground">{clock(elapsed)}</Text>
-        <Text className="text-xs tabular-nums text-muted-foreground">
+        <Text className="text-xs tabular-nums text-subtle-foreground">{clock(elapsed)}</Text>
+        <Text className="text-xs tabular-nums text-subtle-foreground">
           {clock(segmentTotal(current, duration))}
         </Text>
       </View>

@@ -46,12 +46,20 @@ export function ReadAlongLine({
   }));
 
   return (
-    <View className="py-1.5" onLayout={onLayout}>
-      <Animated.Text style={animated} className="text-base">
+    <View className="py-2" onLayout={onLayout}>
+      <Animated.Text style={animated} className="font-gurbani text-[21px] leading-8">
         {gurmukhi}
       </Animated.Text>
       {translation ? (
-        <Text className="pt-0.5 text-xs text-muted-foreground">{translation}</Text>
+        <Text
+          className={
+            lit
+              ? 'pt-0.5 text-[13px] leading-[18px] text-foreground'
+              : 'pt-0.5 text-[13px] leading-[18px] text-subtle-foreground'
+          }
+        >
+          {translation}
+        </Text>
       ) : null}
     </View>
   );

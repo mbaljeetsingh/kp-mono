@@ -3,6 +3,8 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
+    "@expo-google-fonts/newsreader": "0.4.1",
+    "@expo-google-fonts/noto-serif-gurmukhi": "0.4.1",
     "@kp/api": "workspace:*",
     "@kp/core": "workspace:*",
     "@kp/playback": "workspace:*",

@@ -17,14 +17,18 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-live: var(--live);
+  --color-success: var(--success);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -52,43 +56,50 @@
   color-scheme: dark;
 
   /*
-   * Warm dark — lamp-lit, not charcoal-with-a-hint-of-warmth.
-   * Browns pushed toward red-orange hue so warmth is visible, not theoretical.
-   * Text uses warm ivory (eye reads chroma most strongly at high lightness).
-   * Primary is a brighter lantern terracotta so it glows on dark surfaces.
+   * Lamp-lit dark.
+   *
+   * The canvas is near-black with a warm cast, and the surfaces climb from it
+   * in visible steps — what used to be the background is now the card, so a
+   * card finally reads as raised. Text is warm ivory rather than white. The
+   * accent is a lantern gold that glows on the dark ground; it takes dark ink
+   * for its own text, the canonical dark-mode button.
    */
-  --background: #1a1612; /* warm brown-black canvas */
-  --foreground: #ede8d6; /* warm ivory — perceptibly cream, not white */
-  --card: #221e18; /* raised warm charcoal */
-  --card-foreground: #ede8d6;
-  --popover: #2a251e; /* minimal lift over card — elevation without stark contrast */
-  --popover-foreground: #ede8d6;
-  --primary: #e2764a; /* fallback — brand layer overrides via theme-brand.css */
-  --primary-foreground: #1a1612; /* dark ink text — canonical dark-mode button pattern */
-  --secondary: #2e2720; /* one step above card */
-  --secondary-foreground: #ede8d6;
-  --muted: #2e2720;
-  --muted-foreground: #c4b89b; /* warm taupe — slightly lifted for readable secondary text */
-  --accent: #3a322a; /* hover/active — a notch above secondary */
-  --accent-foreground: #ede8d6;
-  --destructive: #c94a4a;
-  --destructive-foreground: #ede8d6;
-  --border: #494033; /* warm charcoal border — one step lifted so cards read against the canvas */
-  --input: #4f4435; /* soft warm stroke — outline buttons and form fields integrate cleanly */
-  --ring: #e2764a;
+  --background: #0f0d0b; /* near-black, warm */
+  --foreground: #f4efe3; /* warm ivory, 16.9:1 */
+  --card: #1a1612; /* surface 1 */
+  --card-foreground: #f4efe3;
+  --popover: #241f1a; /* surface 2 — sheets, menus */
+  --popover-foreground: #f4efe3;
+  --primary: #e8a33d; /* lantern gold, 9:1 on the canvas */
+  --primary-foreground: #1a1206;
+  --primary-soft: #2f2513; /* gold tint for chips and the raag badge */
+  --secondary: #2c261f; /* surface 3 — pills, tracks */
+  --secondary-foreground: #f4efe3;
+  --muted: #2c261f;
+  --muted-foreground: #a99d89; /* secondary copy, 7.3:1 */
+  --subtle-foreground: #8a7f70; /* metadata, 4.9:1 */
+  --accent: #372f27; /* hover / pressed — a notch above secondary */
+  --accent-foreground: #f4efe3;
+  --destructive: #d2554b;
+  --destructive-foreground: #f4efe3;
+  --live: #e5484d;
+  --success: #7dab86;
+  --border: #2a241e; /* hairline — visible against the canvas, quiet on a card */
+  --input: #3a322a;
+  --ring: #e8a33d;
 
-  --chart-1: #e2764a;
+  --chart-1: #e8a33d;
   --chart-2: #b8ad96;
   --chart-3: #8a806f;
-  --chart-4: #c96442;
+  --chart-4: #c98a2e;
   --chart-5: #6a6054;
 
-  --sidebar: #221e18;
-  --sidebar-foreground: #ede8d6;
-  --sidebar-primary: #e2764a;
-  --sidebar-primary-foreground: #1a1612;
-  --sidebar-accent: #3a322a;
-  --sidebar-accent-foreground: #ede8d6;
-  --sidebar-border: #453c30;
-  --sidebar-ring: #e2764a;
+  --sidebar: #1a1612;
+  --sidebar-foreground: #f4efe3;
+  --sidebar-primary: #e8a33d;
+  --sidebar-primary-foreground: #1a1206;
+  --sidebar-accent: #372f27;
+  --sidebar-accent-foreground: #f4efe3;
+  --sidebar-border: #2a241e;
+  --sidebar-ring: #e8a33d;
 }

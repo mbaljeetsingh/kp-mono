@@ -34,7 +34,7 @@ export default function PlaylistScreen() {
             </Pressable>
             <View className="flex-row items-end justify-between">
               <View>
-                <Text className="text-2xl font-semibold text-foreground">
+                <Text className="font-display text-[28px] leading-8 text-foreground">
                   {playlist.data?.name ?? 'Playlist'}
                 </Text>
                 <Text className="text-sm text-muted-foreground">

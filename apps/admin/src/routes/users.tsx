@@ -53,7 +53,7 @@ export function UsersRoute() {
   return (
     <section className="flex flex-col gap-4">
       <header>
-        <h1 className="text-2xl font-semibold">
+        <h1 className="font-display text-3xl font-semibold">
           Users{' '}
           <span className="text-base font-normal text-muted-foreground">({people.length})</span>
         </h1>

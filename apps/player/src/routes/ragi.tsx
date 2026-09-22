@@ -20,7 +20,7 @@ export function RagiRoute() {
         Ragis
       </Link>
 
-      <h1 className="text-2xl font-semibold">{name}</h1>
+      <h1 className="font-display text-3xl font-semibold">{name}</h1>
 
       <ShabadList
         items={items}

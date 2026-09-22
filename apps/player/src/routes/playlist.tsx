@@ -30,7 +30,9 @@ export function PlaylistRoute() {
 
       <header className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">{playlist.data?.name ?? 'Playlist'}</h1>
+          <h1 className="font-display text-3xl font-semibold">
+            {playlist.data?.name ?? 'Playlist'}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {rows.length} {rows.length === 1 ? 'shabad' : 'shabads'}
           </p>

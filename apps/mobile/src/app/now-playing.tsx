@@ -7,7 +7,8 @@
  */
 import { colors } from '@kp/tokens/colors';
 import { useShabadText } from '@kp/api';
-import { clock, highlightVerseId, isAligned, REPEAT_LABELS } from '@kp/core';
+import { artworkFor, clock, highlightVerseId, isAligned, REPEAT_LABELS } from '@kp/core';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
   ChevronDown,
@@ -21,9 +22,6 @@ import {
 } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-
-import { Badge } from '@kp/ui-native/badge';
-import { Text as UIText } from '@kp/ui-native/text';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
@@ -87,19 +85,39 @@ export default function NowPlayingScreen() {
    */
   const scroller = useRef<ScrollView>(null);
   const lineTops = useRef<Record<number, number>>({});
+  // Where the block of lines starts inside the scroll content. Each line
+  // reports its offset within that block, not within the scroll view, and a
+  // notice above the block shifts the whole shabad down by its height.
+  const linesTop = useRef(0);
   const viewportHeight = useRef(0);
 
   /**
-   * The panel is the reader's once they drag it. Somebody who scrolled down to
-   * read a later translation must not be yanked back every time the singing
-   * advances; following resumes after a pause.
+   * The panel is the reader's once they drag it — for a while. Somebody who
+   * scrolled down to read a later translation must not be yanked back every
+   * time the singing advances. On an aligned rendition the hold is a pause,
+   * not a hand-over: when it lapses the reader returns to the sung line on its
+   * own, so the lit line is never left off-screen while the singing carries on.
    */
   const READER_HOLD_MS = 8000;
   const draggedAt = useRef(0);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Falls back to the tagger's anchor when nothing is being sung, so opening
   // mid-alaap still lands on the refrain rather than the top of the shabad.
   const anchorId = lit ?? current?.mainVerseId ?? null;
+
+  // Read inside the hold timer, which outlives the render that armed it.
+  const anchorRef = useRef<number | null>(null);
+  const following = useRef(false);
+  // A property of the rendition, not of this instant. Timings are sparse on
+  // purpose — a gap is alaap, instrumental or katha — so `lit` is null for
+  // minutes at a stretch, and gating on it meant a hold that happened to lapse
+  // during an alaap turned the pause into a hand-over.
+  const aligned = Boolean(current && isAligned(current));
+  useEffect(() => {
+    anchorRef.current = anchorId;
+    following.current = aligned;
+  }, [anchorId, aligned]);
 
   /**
    * Scroll the sung line into the middle.
@@ -129,10 +147,31 @@ export default function NowPlayingScreen() {
     // eslint-disable-next-line react-hooks/immutability
     scrolledTo.current = verseId;
     scroller.current?.scrollTo({
-      y: Math.max(0, top - viewportHeight.current / 2),
+      y: Math.max(0, linesTop.current + top - viewportHeight.current / 2),
       animated: true,
     });
   }, []);
+
+  const onReaderDrag = useCallback(() => {
+    draggedAt.current = Date.now();
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => {
+      holdTimer.current = null;
+      if (!following.current) return;
+      // The hold is over; forget both the drag and the last scroll target so
+      // the sung line is centred again even if it has not changed since.
+      draggedAt.current = 0;
+      scrolledTo.current = null;
+      scrollToAnchor(anchorRef.current);
+    }, READER_HOLD_MS);
+  }, [scrollToAnchor]);
+
+  useEffect(
+    () => () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    },
+    []
+  );
 
   useEffect(() => {
     scrollToAnchor(anchorId);
@@ -158,37 +197,61 @@ export default function NowPlayingScreen() {
   }
 
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
+  // The tile's leading colour, so the screen and the art agree.
+  const glow = artworkFor(current.artist ?? current.title).colors[0];
 
   return (
     <Screen edges={['top', 'bottom']} className="bg-background">
-      <View className="flex-row items-center px-2 pt-2">
+      {/* The screen takes its cast from the ragi: the same hue the art tile is
+          drawn in, washed across the top and gone by the transport. Photos do
+          not carry a colour we can read cheaply, so the tile's gradient stands
+          in for both. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={[`${glow}4d`, `${glow}00`]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 360 }}
+      />
+
+      <View className="flex-row items-center justify-between px-2 pt-1">
         <Pressable
           onPress={() => router.back()}
           accessibilityLabel="Close"
-          className="size-10 items-center justify-center"
+          className="size-11 items-center justify-center"
         >
-          <ChevronDown size={22} color={colors.foreground} />
+          <ChevronDown size={24} color={colors.foreground} />
         </Pressable>
+        <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Now playing
+        </Text>
+        <View className="size-11" />
       </View>
 
-      <View className="flex-row items-center gap-3 px-4 pb-3">
+      <View className="flex-row items-center gap-4 px-5 pb-4 pt-3">
         <ArtTile
           name={current.artist ?? current.title}
           src={artistPhotoUrl(current.artistPhoto)}
-          size={56}
-          rounded={10}
+          size={112}
+          rounded={16}
         />
-        <View className="min-w-0 flex-1">
-          <Text numberOfLines={1} className="font-medium text-foreground">
+        <View className="min-w-0 flex-1 gap-1.5">
+          <Text numberOfLines={2} className="font-display text-2xl leading-7 text-foreground">
             {current.title}
           </Text>
-          <Text numberOfLines={1} className="text-sm text-muted-foreground">
+          <Text numberOfLines={1} className="text-[15px] text-muted-foreground">
             {current.subtitle ?? current.artist}
           </Text>
           {current.isLive ? (
-            <Badge variant="secondary" className="self-start">
-              <UIText className="text-primary">LIVE</UIText>
-            </Badge>
+            /* Card, not the gold tint the raag chip takes: live red on that
+               tint is 3.9:1, under the floor the palette holds itself to. An
+               opaque surface also blocks the gradient above, so the figure
+               does not move with whichever ragi is playing. */
+            <View className="self-start rounded-md bg-card px-2 py-0.5">
+              <Text className="text-xs font-semibold text-live">LIVE</Text>
+            </View>
+          ) : current.raag ? (
+            <View className="self-start rounded-md bg-primary-soft px-2 py-0.5">
+              <Text className="text-xs font-semibold text-primary">{current.raag}</Text>
+            </View>
           ) : null}
         </View>
 
@@ -202,30 +265,34 @@ export default function NowPlayingScreen() {
                 : `Save ${current.title}`
             }
             hitSlop={8}
-            className="size-10 items-center justify-center"
+            className="size-11 items-center justify-center"
           >
             <Heart
-              size={20}
-              color={favorites.has(current.id) ? colors.primary : colors.mutedForeground}
+              size={22}
+              color={favorites.has(current.id) ? colors.primary : colors.subtleForeground}
               fill={favorites.has(current.id) ? colors.primary : 'transparent'}
             />
           </Pressable>
         )}
       </View>
 
-      <View className="flex-row gap-2 px-4 pb-2">
+      <View className="mx-5 mb-2 flex-row rounded-xl bg-card p-[3px]">
         {(['lyrics', 'queue'] as const).map((value) => (
           <Pressable
             key={value}
             onPress={() => setTab(value)}
             className={
               tab === value
-                ? 'flex-1 items-center rounded-lg bg-muted py-2'
-                : 'flex-1 items-center rounded-lg py-2'
+                ? 'flex-1 items-center rounded-[9px] bg-secondary py-2'
+                : 'flex-1 items-center rounded-[9px] py-2'
             }
           >
             <Text
-              className={tab === value ? 'text-sm text-primary' : 'text-sm text-muted-foreground'}
+              className={
+                tab === value
+                  ? 'text-sm font-semibold text-foreground'
+                  : 'text-sm font-medium text-muted-foreground'
+              }
             >
               {value === 'lyrics' ? 'Read along' : 'Up next'}
             </Text>
@@ -235,13 +302,11 @@ export default function NowPlayingScreen() {
 
       <ScrollView
         ref={scroller}
-        onScrollBeginDrag={() => {
-          draggedAt.current = Date.now();
-        }}
+        onScrollBeginDrag={onReaderDrag}
         onLayout={(e) => {
           viewportHeight.current = e.nativeEvent.layout.height;
         }}
-        className="flex-1 px-4"
+        className="flex-1 px-5"
       >
         {tab === 'queue' ? (
           <QueueList />
@@ -273,7 +338,29 @@ export default function NowPlayingScreen() {
               </Text>
             ) : null}
 
-            <View className="gap-1.5 pb-4">
+            <View
+              className="gap-1 pb-4"
+              onLayout={(e) => {
+                const y = e.nativeEvent.layout.y;
+                if (y === linesTop.current) return;
+                /*
+                 * Aim again whenever the block moves.
+                 *
+                 * The notices above it unmount in the same commit the lines
+                 * mount — "Loading the shabad…" is the usual one — and a line
+                 * reports its own offset before its parent reports theirs. So
+                 * the opening scroll is computed against the previous offset
+                 * and then latched by `scrolledTo`, leaving the shabad short by
+                 * the height of a notice that is no longer there. On an
+                 * unaligned rendition the anchor never changes again, so
+                 * nothing would correct it.
+                 */
+                linesTop.current = y;
+                // eslint-disable-next-line react-hooks/immutability
+                scrolledTo.current = null;
+                scrollToAnchor(anchorId);
+              }}
+            >
               {lines.map((line) => (
                 <ReadAlongLine
                   key={line.verseId}
@@ -295,10 +382,7 @@ export default function NowPlayingScreen() {
         )}
       </ScrollView>
 
-      <View className="gap-3 border-t border-border px-4 pb-4 pt-3">
-        {/* A broadcast has no timeline to scrub, and it already says LIVE beside
-            the title. Nothing is drawn rather than an inert track: a greyed-out
-            bar still claims there is a length to be part-way through. */}
+      <View className="gap-4 px-5 pb-4 pt-3">
         {/* A broadcast has no timeline to scrub, and it already says LIVE beside
             the title. Nothing is drawn rather than an inert track: a greyed-out
             bar still claims there is a length to be part-way through. */}
@@ -306,28 +390,29 @@ export default function NowPlayingScreen() {
           <SeekBar current={current} position={position} duration={duration} />
         )}
 
-        <View className="flex-row items-center justify-center gap-4">
+        <View className="flex-row items-center justify-center gap-5">
           <Pressable
             onPress={playerActions.previous}
             disabled={current.isLive}
             accessibilityLabel="Previous"
-            className="size-12 items-center justify-center"
+            className="size-14 items-center justify-center"
           >
             <SkipBack
-              size={22}
-              color={current.isLive ? colors.mutedForeground : colors.foreground}
+              size={30}
+              color={current.isLive ? colors.subtleForeground : colors.foreground}
+              fill={current.isLive ? colors.subtleForeground : colors.foreground}
             />
           </Pressable>
 
           <Pressable
             onPress={playerActions.toggle}
             accessibilityLabel={playing ? 'Pause' : 'Play'}
-            className="size-16 items-center justify-center rounded-full bg-primary"
+            className="size-[72px] items-center justify-center rounded-full bg-primary active:opacity-90"
           >
             {playing ? (
-              <Pause size={26} color={colors.primaryForeground} />
+              <Pause size={30} color={colors.primaryForeground} fill={colors.primaryForeground} />
             ) : (
-              <Play size={26} color={colors.primaryForeground} />
+              <Play size={30} color={colors.primaryForeground} fill={colors.primaryForeground} />
             )}
           </Pressable>
 
@@ -335,11 +420,12 @@ export default function NowPlayingScreen() {
             onPress={() => void skipToNext()}
             disabled={current.isLive}
             accessibilityLabel="Next"
-            className="size-12 items-center justify-center"
+            className="size-14 items-center justify-center"
           >
             <SkipForward
-              size={22}
-              color={current.isLive ? colors.mutedForeground : colors.foreground}
+              size={30}
+              color={current.isLive ? colors.subtleForeground : colors.foreground}
+              fill={current.isLive ? colors.subtleForeground : colors.foreground}
             />
           </Pressable>
 
@@ -351,8 +437,8 @@ export default function NowPlayingScreen() {
             className="size-12 items-center justify-center"
           >
             <RepeatIcon
-              size={20}
-              color={repeat === 'off' ? colors.mutedForeground : colors.primary}
+              size={22}
+              color={repeat === 'off' ? colors.subtleForeground : colors.primary}
             />
           </Pressable>
         </View>

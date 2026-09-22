@@ -14,7 +14,7 @@ export function RadioRoute() {
   return (
     <section className="flex flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-semibold">Radio</h1>
+        <h1 className="font-display text-3xl font-semibold">Radio</h1>
         <p className="text-sm text-muted-foreground">
           Live darbars, and feeds this archive does not hold.
         </p>

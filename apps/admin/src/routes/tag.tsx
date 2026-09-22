@@ -201,7 +201,7 @@ export function TagRoute() {
       {recording.data ? (
         <>
           <header>
-            <h1 className="text-xl font-semibold">
+            <h1 className="font-display text-2xl font-semibold">
               {recording.data.title ?? recording.data.raw_filename ?? recording.data.id}
             </h1>
             <p className="text-sm text-muted-foreground">
