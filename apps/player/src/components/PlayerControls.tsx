@@ -35,6 +35,17 @@ export function PlayerControls({
 
   return (
     <div className="flex items-center gap-1">
+      {/* Repeat hangs off the right with nothing to answer it on the left, so
+          the middle of this row is not the play button — it sits half a button
+          to the left of it, under a seek bar that is centred and beside a
+          sheet that is centred, which is exactly where it reads as a mistake.
+          An empty slot the size of repeat puts the play button back in the
+          middle. Empty rather than something useful: what belongs there is a
+          fourth control this player does not have. */}
+      {compact ? null : (
+        <div aria-hidden="true" className={cn('shrink-0', big ? 'size-10' : 'size-9')} />
+      )}
+
       {compact ? null : (
         <Button
           variant="ghost"
