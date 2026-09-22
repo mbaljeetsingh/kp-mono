@@ -19,9 +19,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Shared theme tokens for all np-mono apps (apps/app, apps/admin, apps/web).
- * Default shadcn-vue "New York" theme (zinc base). Each app's index.css
- * @imports this file; Tailwind v4 resolves @theme through @import.
+ * Shared theme for the web apps (apps/player, apps/admin). Each app's
+ * styles.css @imports this file; Tailwind v4 resolves @theme through @import.
  */
 
 /* The palette lives in tokens.css — shared with the Expo app. */
@@ -57,7 +56,7 @@ body {
   background-color: var(--background);
   background-image: radial-gradient(
     ellipse 60% 40% at 50% -10%,
-    rgba(226, 118, 74, 0.14),
+    rgba(232, 163, 61, 0.12),
     transparent 70%
   );
   background-attachment: fixed;
@@ -160,4 +159,24 @@ body {
 
 @utility font-gurmukhi {
   font-family: 'gurbanilipi', sans-serif;
+}
+
+/*
+ * The two faces the apps ship beyond the system stack.
+ *
+ * Newsreader carries titles — the app name, screen headings, the shabad title
+ * in the player. Noto Serif Gurmukhi carries every line of Gurbani drawn from
+ * BaniDB, so the read-along stops depending on whichever Gurmukhi face the OS
+ * happens to have. Both load from Google Fonts via <link> in each app's
+ * index.html (a stylesheet @import would land after first paint); the Expo app
+ * bundles the same families through @expo-google-fonts and names them in its
+ * own global.css, which is why the utilities live here per surface rather than
+ * in tokens.css.
+ */
+@utility font-display {
+  font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+}
+
+@utility font-gurbani {
+  font-family: 'Noto Serif Gurmukhi', 'Gurmukhi MN', serif;
 }

@@ -26,3 +26,24 @@
 @utility font-gurmukhi {
   font-family: 'GurbaniLipi';
 }
+
+/*
+ * Newsreader for titles, Noto Serif Gurmukhi for Gurbani — the same two
+ * families the web loads from Google Fonts. Here they come from the
+ * @expo-google-fonts packages and are registered in the root layout under
+ * these names, one family per weight, because that is the one form both iOS
+ * and Android resolve identically. So: never stack `font-semibold` on top of
+ * these — the weight is already in the family, and asking for a bolder face
+ * of a single-weight family falls back to the system font.
+ */
+@utility font-display {
+  font-family: 'Newsreader-SemiBold';
+}
+
+@utility font-display-medium {
+  font-family: 'Newsreader-Medium';
+}
+
+@utility font-gurbani {
+  font-family: 'NotoSerifGurmukhi-Regular';
+}

@@ -70,7 +70,7 @@ export default function SignInScreen() {
       </View>
 
       <View className="gap-4 p-6 pt-2">
-        <Text className="text-2xl font-semibold text-foreground">
+        <Text className="font-display text-[28px] leading-8 text-foreground">
           {mode === 'signin' ? 'Sign in' : 'Create an account'}
         </Text>
         <Text className="text-sm text-muted-foreground">

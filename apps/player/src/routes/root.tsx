@@ -48,7 +48,7 @@ export function RootLayout() {
           <Link to="/" className="mb-4 flex items-center gap-2">
             <img src="/brand/logo-badge.svg" alt="" className="size-7 dark:hidden" />
             <img src="/brand/logo-badge-dark.svg" alt="" className="hidden size-7 dark:block" />
-            <span className="text-sm font-semibold">Kirtan Player</span>
+            <span className="font-display text-lg font-semibold">Kirtan Player</span>
           </Link>
 
           {MAIN.map(({ to, label, icon: Icon }) => (

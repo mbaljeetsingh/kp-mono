@@ -19,11 +19,14 @@ import { BANIDB_BASE } from '~/lib/links';
 import { cn } from '~/lib/utils';
 
 /**
- * The panel is the reader's once they scroll it.
+ * The panel is the reader's once they scroll it — for a while.
  *
  * A listener who scrolled down to read a later translation must not be yanked
  * back to the sung line every time the singing advances. Wheel and touch mark
- * reader intent — `scroll` would also fire for our own scrollIntoView.
+ * reader intent — `scroll` would also fire for our own scrollTo. But on an
+ * aligned rendition the hold is a pause, not a hand-over: when it lapses the
+ * panel returns to the sung line on its own, so the lit line is never left
+ * somewhere off-screen while the singing carries on.
  */
 const READER_HOLD_MS = 8000;
 
@@ -65,23 +68,55 @@ export function LyricsPanel({ className }: { className?: string }) {
   const panel = useRef<HTMLDivElement>(null);
   const anchor = useRef<HTMLParagraphElement | null>(null);
   const readerScrolledAt = useRef(0);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const markReaderIntent = useCallback(() => {
-    readerScrolledAt.current = Date.now();
-  }, []);
-
+  // Read inside the timer, which outlives the render that armed it.
+  const following = useRef(false);
+  // A property of the rendition, not of this instant. Timings are sparse on
+  // purpose — a gap is alaap, instrumental or katha — so `lit` is null for
+  // minutes at a stretch, and gating on it meant a hold that happened to lapse
+  // during an alaap turned the pause into a hand-over.
+  const aligned = Boolean(current && isAligned(current));
   useEffect(() => {
+    following.current = aligned;
+  }, [aligned]);
+
+  const follow = useCallback(() => {
     const box = panel.current;
     const line = anchor.current;
-    if (anchorId == null || !box || !line) return;
-    if (Date.now() - readerScrolledAt.current < READER_HOLD_MS) return;
+    if (!box || !line) return;
 
     // Aimed at the panel rather than `scrollIntoView`, which walks every
     // scrollable ancestor — inside the phone sheet that scrolled the sheet
     // itself, carrying the artwork and the transport off the top of the screen.
     const top = line.offsetTop - box.clientHeight / 2 + line.clientHeight / 2;
     box.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
-  }, [anchorId]);
+  }, []);
+
+  const markReaderIntent = useCallback(() => {
+    readerScrolledAt.current = Date.now();
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => {
+      holdTimer.current = null;
+      if (following.current) follow();
+    }, READER_HOLD_MS);
+  }, [follow]);
+
+  useEffect(
+    () => () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+    },
+    []
+  );
+
+  // `lines.length` too: the anchor is often known before BaniDB has answered,
+  // and an effect keyed on the anchor alone would fire once, find no element,
+  // and not run again until the singing moved on.
+  useEffect(() => {
+    if (anchorId == null) return;
+    if (Date.now() - readerScrolledAt.current < READER_HOLD_MS) return;
+    follow();
+  }, [anchorId, lines.length, follow]);
 
   if (!shabadId) {
     return (
@@ -106,7 +141,7 @@ export function LyricsPanel({ className }: { className?: string }) {
       ref={panel}
       onWheel={markReaderIntent}
       onTouchMove={markReaderIntent}
-      className={cn('overflow-y-auto px-4 py-3', className)}
+      className={cn('relative overflow-y-auto px-4 py-3', className)}
     >
       {/* A looked-up shabad is the listener's guess, not a tag — labelled so
           nobody reads it as something the archive asserts. */}
@@ -144,13 +179,13 @@ export function LyricsPanel({ className }: { className?: string }) {
               key={line.verseId}
               ref={line.verseId === anchorId ? anchor : undefined}
               className={cn(
-                'text-base leading-relaxed transition-colors',
-                isLit ? 'text-primary' : 'text-muted-foreground'
+                'font-gurbani text-lg leading-8 transition-colors',
+                isLit ? 'font-semibold text-primary' : 'text-muted-foreground'
               )}
             >
               {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
               {line.translation?.en?.bdb ? (
-                <span className="mt-0.5 block text-xs text-muted-foreground/70">
+                <span className="mt-0.5 block font-sans text-xs text-subtle-foreground">
                   {line.translation.en.bdb}
                 </span>
               ) : null}

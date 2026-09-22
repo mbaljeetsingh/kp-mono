@@ -69,8 +69,8 @@ export default function TabLayout() {
        */
       minimizeBehavior="onScrollDown"
       tintColor={colors.primary}
-      iconColor={{ default: colors.mutedForeground, selected: colors.primary }}
-      labelStyle={{ color: colors.mutedForeground }}
+      iconColor={{ default: colors.subtleForeground, selected: colors.primary }}
+      labelStyle={{ color: colors.subtleForeground }}
     >
       {TABS.map((tab) => (
         <NativeTabs.Trigger key={tab.name} name={tab.name}>

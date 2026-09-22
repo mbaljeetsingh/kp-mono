@@ -30,7 +30,7 @@ export function PlaylistsRoute() {
   if (!userId) {
     return (
       <section className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold">Playlists</h1>
+        <h1 className="font-display text-3xl font-semibold">Playlists</h1>
         <EmptyState
           title="Playlists need an account."
           hint="A collection you spent time on should not live in one browser's storage."
@@ -49,7 +49,7 @@ export function PlaylistsRoute() {
   return (
     <section className="flex flex-col gap-4">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Playlists</h1>
+        <h1 className="font-display text-3xl font-semibold">Playlists</h1>
         <Button size="sm" variant="outline" onClick={() => openNewPlaylist()}>
           <Plus />
           New
