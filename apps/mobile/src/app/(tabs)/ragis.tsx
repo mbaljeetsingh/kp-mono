@@ -18,7 +18,9 @@ export default function RagisScreen() {
         numColumns={3}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
-          <Text className="px-3 pb-2 pt-3 text-2xl font-semibold text-foreground">Ragis</Text>
+          <Text className="px-3 pb-2 pt-3 font-display text-[34px] leading-10 text-foreground">
+            Ragis
+          </Text>
         }
         renderItem={({ item }) => (
           <Pressable

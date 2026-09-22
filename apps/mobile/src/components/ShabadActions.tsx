@@ -39,9 +39,9 @@ export function ShabadActions({
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable className="flex-1 justify-end bg-black/50" onPress={onClose}>
         {/* Stops a tap inside the sheet from dismissing it. */}
-        <Pressable className="rounded-t-2xl bg-card pb-8 pt-2" onPress={() => {}}>
+        <Pressable className="rounded-t-2xl bg-popover pb-8 pt-2" onPress={() => {}}>
           <View className="flex-row items-center gap-2 px-4 pb-2">
-            <Text numberOfLines={1} className="flex-1 font-medium text-foreground">
+            <Text numberOfLines={1} className="flex-1 font-display-medium text-lg text-foreground">
               {item.title}
             </Text>
             <Pressable

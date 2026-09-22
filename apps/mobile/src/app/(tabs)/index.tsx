@@ -8,7 +8,7 @@ import { randomShabads, useShabads } from '@kp/api';
 import { DEFAULT_STATION, stationPlayable, type Playable } from '@kp/core';
 import { colors } from '@kp/tokens/colors';
 import { useMutation } from '@tanstack/react-query';
-import { Radio, Shuffle } from 'lucide-react-native';
+import { Play, Radio, Shuffle } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
@@ -41,42 +41,56 @@ export default function ShabadsScreen() {
         keyExtractor={(item: Playable) => item.id}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
-          <View className="gap-3 px-3 pb-2 pt-3">
-            <View>
-              <Text className="text-2xl font-semibold text-foreground">Kirtan Player</Text>
-              <Text className="text-sm text-muted-foreground">
+          <View className="gap-4 px-3 pb-2 pt-3">
+            <View className="gap-1">
+              <Text className="font-display text-[34px] leading-10 text-foreground">
+                Kirtan Player
+              </Text>
+              <Text className="text-[15px] leading-5 text-muted-foreground">
                 Twenty years of kirtan from Sri Harmandir Sahib.
               </Text>
             </View>
-
+            {/* The broadcast is the one thing on this screen that is happening
+                right now, so it gets the raised card and the accent. */}
+            <Pressable
+              onPress={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
+              className="flex-row items-center gap-3 rounded-2xl bg-card p-3 active:bg-accent"
+            >
+              <View className="size-14 items-center justify-center rounded-xl bg-primary-soft">
+                <Radio size={24} color={colors.primary} />
+              </View>
+              <View className="min-w-0 flex-1 gap-0.5">
+                <View className="flex-row items-center gap-1.5">
+                  <View className="size-1.5 rounded-full bg-live" />
+                  <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-live">
+                    Live
+                  </Text>
+                </View>
+                <Text numberOfLines={1} className="text-[17px] font-semibold text-foreground">
+                  {DEFAULT_STATION.name}
+                </Text>
+                <Text numberOfLines={1} className="text-[13px] text-muted-foreground">
+                  {DEFAULT_STATION.place}
+                </Text>
+              </View>
+              <View className="size-11 items-center justify-center rounded-full bg-primary">
+                <Play size={20} color={colors.primaryForeground} fill={colors.primaryForeground} />
+              </View>
+            </Pressable>
             {/* The other ways in all need the listener to name something first.
                 This is the one for arriving with nothing in mind — which for
                 kirtan is not the unusual case. */}
             <Pressable
               disabled={shuffle.isPending}
               onPress={() => shuffle.mutate()}
-              className="flex-row items-center justify-center gap-2 rounded-xl border border-border py-3 active:bg-accent"
+              className="h-12 flex-row items-center justify-center gap-2 rounded-full bg-secondary active:bg-accent"
             >
-              <Shuffle size={16} color={colors.foreground} />
-              <Text className="text-foreground">Shuffle the archive</Text>
+              <Shuffle size={18} color={colors.primary} />
+              <Text className="text-base font-semibold text-foreground">Shuffle the archive</Text>
             </Pressable>
-
-            <Pressable
-              onPress={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
-              className="flex-row items-center gap-3 rounded-xl border border-border px-3 py-3 active:bg-accent"
-            >
-              <Radio size={18} color={colors.primary} />
-              <View className="min-w-0 flex-1">
-                <Text numberOfLines={1} className="text-foreground">
-                  {DEFAULT_STATION.name}
-                </Text>
-                <Text numberOfLines={1} className="text-xs text-muted-foreground">
-                  Live now · {DEFAULT_STATION.place}
-                </Text>
-              </View>
-            </Pressable>
-
-            <Text className="pt-1 text-sm font-medium text-foreground">Recently tagged</Text>
+            <Text className="pt-1 font-display text-[22px] leading-7 text-foreground">
+              Recently tagged
+            </Text>
           </View>
         }
         renderItem={({ item, index }) => (

@@ -13,11 +13,8 @@ import {
   stationPlayable,
   type Station,
 } from '@kp/core';
-import { Radio } from 'lucide-react-native';
+import { Pause, Play, Radio } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
-
-import { Badge } from '@kp/ui-native/badge';
-import { Text as UIText } from '@kp/ui-native/text';
 
 import { Screen } from '~/components/Screen';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -33,15 +30,23 @@ function StationCard({ station }: { station: Station }) {
   return (
     <Pressable
       onPress={() => (isCurrent ? playerActions.toggle() : playerActions.play(playable))}
-      className="mx-2 mb-2 flex-row items-center gap-3 rounded-xl border border-border px-3 py-3 active:bg-card"
+      className="mx-3 mb-2 flex-row items-center gap-3 rounded-2xl bg-card px-3 py-3 active:bg-accent"
     >
-      <Radio size={16} color={isCurrent ? colors.primary : colors.mutedForeground} />
-      <View className="min-w-0 flex-1">
-        <Text numberOfLines={1} className="text-foreground">
+      <View
+        className={
+          isCurrent
+            ? 'size-11 items-center justify-center rounded-xl bg-primary-soft'
+            : 'size-11 items-center justify-center rounded-xl bg-secondary'
+        }
+      >
+        <Radio size={20} color={isCurrent ? colors.primary : colors.mutedForeground} />
+      </View>
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text numberOfLines={1} className="text-base font-medium text-foreground">
           {station.name}
         </Text>
         {station.place ? (
-          <Text numberOfLines={1} className="text-xs text-muted-foreground">
+          <Text numberOfLines={1} className="text-[13px] leading-[18px] text-muted-foreground">
             {station.place}
           </Text>
         ) : null}
@@ -50,12 +55,24 @@ function StationCard({ station }: { station: Station }) {
           "selected but not playing" is equally true of a station somebody
           deliberately stopped. */}
       {starting === playable.id ? (
-        <Text className="text-xs text-muted-foreground">Connecting…</Text>
-      ) : isCurrent && playing ? (
-        <Badge variant="secondary">
-          <UIText className="text-primary">LIVE</UIText>
-        </Badge>
+        <Text className="text-xs text-subtle-foreground">Connecting…</Text>
       ) : null}
+      {/* The whole card is the target; this is the affordance that says the
+          card plays, and the one place the station's state is drawn — a pause
+          glyph while it is the one on air. */}
+      <View
+        className={
+          isCurrent && playing
+            ? 'size-10 items-center justify-center rounded-full bg-primary'
+            : 'size-10 items-center justify-center rounded-full bg-secondary'
+        }
+      >
+        {isCurrent && playing ? (
+          <Pause size={18} color={colors.primaryForeground} fill={colors.primaryForeground} />
+        ) : (
+          <Play size={18} color={colors.foreground} fill={colors.foreground} />
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -75,7 +92,7 @@ export default function RadioScreen() {
         contentContainerClassName="pb-4"
         ListHeaderComponent={
           <View className="px-4 pb-2 pt-3">
-            <Text className="text-2xl font-semibold text-foreground">Radio</Text>
+            <Text className="font-display text-[34px] leading-10 text-foreground">Radio</Text>
             <Text className="text-sm text-muted-foreground">
               Live darbars, and feeds this archive does not hold.
             </Text>
@@ -84,7 +101,9 @@ export default function RadioScreen() {
         renderItem={({ item: section }) => (
           <View className="pt-2">
             {section.title ? (
-              <Text className="px-4 pb-2 text-sm font-medium text-foreground">{section.title}</Text>
+              <Text className="px-4 pb-2 pt-2 font-display text-[22px] leading-7 text-foreground">
+                {section.title}
+              </Text>
             ) : null}
             {section.data.map((station) => (
               <StationCard key={station.id} station={station} />

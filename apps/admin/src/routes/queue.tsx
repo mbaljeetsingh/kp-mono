@@ -90,7 +90,7 @@ export function QueueRoute() {
   return (
     <section className="flex flex-col gap-4">
       <header>
-        <h1 className="text-2xl font-semibold">Tagging queue</h1>
+        <h1 className="font-display text-3xl font-semibold">Tagging queue</h1>
         <p className="text-sm text-muted-foreground">
           A recording you can finish in one sitting is the one worth picking up.
         </p>

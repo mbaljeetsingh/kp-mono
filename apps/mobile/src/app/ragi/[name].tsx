@@ -30,7 +30,7 @@ export default function RagiScreen() {
               <ChevronLeft size={16} color={colors.mutedForeground} />
               <Text className="text-sm text-muted-foreground">Ragis</Text>
             </Pressable>
-            <Text className="text-2xl font-semibold text-foreground">{name}</Text>
+            <Text className="font-display text-[28px] leading-8 text-foreground">{name}</Text>
           </View>
         }
         renderItem={({ item, index }) => (

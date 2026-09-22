@@ -53,7 +53,7 @@ export default function SavedScreen() {
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
           <View className="px-3 pb-2 pt-3">
-            <Text className="text-2xl font-semibold text-foreground">Saved</Text>
+            <Text className="font-display text-[34px] leading-10 text-foreground">Saved</Text>
             <Text className="text-sm text-muted-foreground">
               {userId
                 ? 'Saved to your account.'

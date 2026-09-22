@@ -76,7 +76,9 @@ export function ShabadDisplay({
               className={cn('mt-1 size-3 shrink-0', picked ? 'text-primary' : 'text-transparent')}
             />
             <span className="flex min-w-0 flex-col gap-0.5">
-              <span className={cn('text-sm', picked && 'font-medium text-primary')}>
+              <span
+                className={cn('font-gurbani text-base', picked && 'font-semibold text-primary')}
+              >
                 {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
               </span>
               {line.transliteration?.english ? (

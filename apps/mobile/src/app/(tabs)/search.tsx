@@ -26,7 +26,7 @@ export default function SearchScreen() {
   return (
     <Screen edges={['top']} className="flex-1 bg-background">
       <View className="px-4 pb-2 pt-3">
-        <Text className="pb-3 text-2xl font-semibold text-foreground">Search</Text>
+        <Text className="pb-3 font-display text-[34px] leading-10 text-foreground">Search</Text>
         <Input
           value={term}
           onChangeText={setTerm}
