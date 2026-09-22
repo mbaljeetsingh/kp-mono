@@ -10,7 +10,7 @@ import { usePlaylistMutations, usePlaylists } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { colors } from '@kp/tokens/colors';
 import { useRouter } from 'expo-router';
-import { Heart, ListPlus, Plus, X } from 'lucide-react-native';
+import { Heart, ListPlus, Plus, Users, X } from 'lucide-react-native';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { playerActions } from '~/lib/player';
@@ -52,6 +52,22 @@ export function ShabadActions({
               <X size={18} color={colors.mutedForeground} />
             </Pressable>
           </View>
+
+          {/* A row plays when you press it, so the ragi's name in that row is
+              not a target — this is where it went. The same door the web's row
+              menu carries, for the same reason. */}
+          {item.artist ? (
+            <Pressable
+              onPress={() => {
+                onClose();
+                router.push({ pathname: '/ragi/[name]', params: { name: item.artist } });
+              }}
+              className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+            >
+              <Users size={18} color={colors.foreground} />
+              <Text className="text-foreground">View ragi</Text>
+            </Pressable>
+          ) : null}
 
           <Pressable
             onPress={() => {
