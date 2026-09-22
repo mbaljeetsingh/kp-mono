@@ -237,9 +237,31 @@ export default function NowPlayingScreen() {
           <Text numberOfLines={2} className="font-display text-2xl leading-7 text-foreground">
             {current.title}
           </Text>
-          <Text numberOfLines={1} className="text-[15px] text-muted-foreground">
-            {current.subtitle ?? current.artist}
-          </Text>
+          {/* The one name on this screen worth following. It is a link here
+              and plain text in a list row, which is the same rule on both:
+              where a tap means "play this", the name stays out of the way;
+              where you are already listening to it, it is the way out.
+              `artist` and not `subtitle`, because the route keys on the stored
+              name while the display name is the one worth reading. */}
+          {current.artist ? (
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/ragi/[name]', params: { name: current.artist } })
+              }
+              accessibilityRole="link"
+              accessibilityLabel={`Shabads by ${current.subtitle ?? current.artist}`}
+              hitSlop={6}
+              className="self-start active:opacity-60"
+            >
+              <Text numberOfLines={1} className="text-[15px] text-muted-foreground">
+                {current.subtitle ?? current.artist}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text numberOfLines={1} className="text-[15px] text-muted-foreground">
+              {current.subtitle}
+            </Text>
+          )}
           {current.isLive ? (
             /* Card, not the gold tint the raag chip takes: live red on that
                tint is 3.9:1, under the floor the palette holds itself to. An
