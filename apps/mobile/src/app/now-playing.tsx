@@ -396,6 +396,12 @@ export default function NowPlayingScreen() {
             </Pressable>
           )}
 
+          {/* Repeat hangs off the right with nothing to answer it on the left,
+              so the middle of this row is not the play button — it sits half a
+              button to the left of it, under a seek bar that is centred. An
+              empty slot the size of repeat puts it back in the middle. */}
+          <View className="w-12" />
+
           <Pressable
             onPress={playerActions.previous}
             disabled={current.isLive}
