@@ -73,8 +73,6 @@ function Body({
             )}
             {current.isLive ? <LiveBadge /> : null}
           </div>
-          {/* A broadcast is not something to save — there is no rendition behind it. */}
-          {current.isLive ? null : <FavoriteButton id={current.id} name={current.title} />}
         </div>
       ) : null}
 
@@ -97,7 +95,26 @@ function Body({
       {transport ? (
         <div className="flex shrink-0 flex-col items-center gap-2 border-t border-border px-4 pb-5 pt-3">
           <SeekBar />
-          <PlayerControls size="lg" />
+          {/* The heart rides with the transport rather than up beside the
+              title. Saving a shabad is something you do while listening to it,
+              and on a phone the title is at the top of a full-height sheet
+              while the thumb is down here with everything else it can reach.
+              Positioned rather than sitting in the row: a heart taking a slot
+              on one side alone would push the transport half a button to the
+              right, and the transport is the one thing on this screen whose
+              position is worth keeping exactly where it was. */}
+          <div className="relative flex w-full items-center justify-center">
+            {/* A broadcast is not something to save — there is no rendition
+                behind it. */}
+            {current.isLive ? null : (
+              <FavoriteButton
+                id={current.id}
+                name={current.title}
+                className="absolute left-0 top-1/2 size-10 -translate-y-1/2"
+              />
+            )}
+            <PlayerControls size="lg" />
+          </div>
         </div>
       ) : null}
     </div>
