@@ -7,7 +7,7 @@
     "./lib/utils": "./src/lib/utils.ts"
   },
   "scripts": {
-    "add": "react-native-reusables add --yes && node scripts/derelative.mjs",
+    "add": "npx --yes @react-native-reusables/cli@latest add --yes && node scripts/derelative.mjs",
     "derelative": "node scripts/derelative.mjs",
     "typecheck": "tsc --noEmit"
   },
