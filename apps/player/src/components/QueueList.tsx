@@ -133,12 +133,15 @@ function Row({
         <Play />
       </Button>
       {onRemove ? (
+        // Shown outright where there is no hover: the row itself plays, so a
+        // phone loses nothing by leaving the play button to the pointer — but
+        // removing something from the queue has no other way in.
         <Button
           variant="ghost"
           size="icon-sm"
           aria-label={`Remove ${item.title} from the queue`}
           onClick={onRemove}
-          className="opacity-0 group-hover:opacity-100"
+          className="opacity-0 group-hover:opacity-100 touch:opacity-100"
         >
           <X />
         </Button>

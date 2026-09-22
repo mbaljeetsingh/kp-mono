@@ -46,6 +46,12 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
    * to this row later cannot forget to opt out and silently start playback.
    */
   function onRowClick(event: MouseEvent<HTMLDivElement>) {
+    // The row's menu renders in a portal, and React routes a portal's events up
+    // the component tree rather than the DOM tree — so choosing "Add to queue"
+    // or a playlist arrived here as a click on the row and started playing the
+    // thing you were quietly filing. Anything that did not physically land
+    // inside the row is not a click on the row.
+    if (!event.currentTarget.contains(event.target as Node)) return;
     if ((event.target as Element).closest('a,button')) return;
     toggle();
   }
@@ -118,7 +124,7 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
       <FavoriteButton
         id={item.id}
         name={item.title}
-        className="shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 aria-pressed:opacity-100"
+        className="shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 aria-pressed:opacity-100 touch:opacity-100"
       />
       <ShabadMenu item={item} />
     </div>

@@ -8,3 +8,16 @@
  * would be stripped from the build and the components would render unstyled.
  */
 @source '../../../packages/ui/src';
+
+/*
+ * A device that cannot hover.
+ *
+ * Tailwind 4 gates `hover:` behind `@media (hover: hover)`, which is right —
+ * a phone firing hover on tap is worse than no hover at all. But it means a
+ * control revealed only by `group-hover` is a control a phone never shows, and
+ * the row heart was exactly that: on a touch screen it appeared only once a
+ * shabad was already saved, which is the one moment you do not need it.
+ * Named rather than written inline at each site, because it is one rule about
+ * this app's controls and it should read as one.
+ */
+@custom-variant touch (@media (hover: none));
