@@ -5,16 +5,16 @@
  * and a toggle that silently pins one of the two takes it away from anyone who
  * had it.
  */
-import { Button } from '@kp/ui/button';
+import { Monitor, Moon, Sun } from 'lucide-react';
+
+import { useTheme, type ThemeChoice } from '../../lib/theme';
+import { Button } from '../ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@kp/ui/dropdown-menu';
-import { Monitor, Moon, Sun } from 'lucide-react';
-
-import { useTheme, type ThemeChoice } from '~/lib/theme';
+} from '../ui/dropdown-menu';
 
 const OPTIONS: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -36,7 +36,11 @@ export function ThemeToggle() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         {OPTIONS.map(({ value, label, icon: OptionIcon }) => (
-          <DropdownMenuItem key={value} onSelect={() => set(value)}>
+          /* `onClick`, not Radix's `onSelect`. Base UI's Menu.Item has no
+             `onSelect`, and because the underlying element is a <div> the name
+             is a valid DOM prop — so it type-checked, attached as a listener
+             for the text-selection event, and silently never fired. */
+          <DropdownMenuItem key={value} onClick={() => set(value)}>
             <OptionIcon />
             {label}
             {choice === value ? <span className="ml-auto text-primary">•</span> : null}

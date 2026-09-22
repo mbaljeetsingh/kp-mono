@@ -4,70 +4,53 @@
  * Held in its guest state until `loading` clears: flashing an account menu at
  * someone who turns out to be signed out, or the reverse, is worse than a beat
  * of nothing.
+ *
+ * The menu itself is shared with the workbench; what the player adds to it is
+ * the two library destinations, which are the only things here that know about
+ * this app's router.
  */
 import { signOut } from '@kp/api';
-import { Avatar, AvatarFallback } from '@kp/ui/avatar';
+import { AccountMenu } from '@kp/ui/app/account-menu';
 import { Button } from '@kp/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@kp/ui/dropdown-menu';
+import { DropdownMenuItem } from '@kp/ui/dropdown-menu';
 import { Link } from '@tanstack/react-router';
-import { Heart, ListMusic, LogOut } from 'lucide-react';
+import { Heart, ListMusic } from 'lucide-react';
 
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 
-export function AccountButton() {
+export function AccountButton({ variant = 'avatar' }: { variant?: 'avatar' | 'row' }) {
   const { session, loading, prompt } = useSession();
 
   if (loading) return <div className="size-8" aria-hidden />;
 
   if (!session) {
     return (
-      <Button variant="ghost" size="sm" onClick={prompt}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={prompt}
+        className={variant === 'row' ? 'w-full justify-start px-2' : undefined}
+      >
         Sign in
       </Button>
     );
   }
 
-  const email = session.user.email ?? '';
-  const initial = email.slice(0, 1).toUpperCase() || '?';
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account" />
-        }
-      >
-        <Avatar className="size-7">
-          <AvatarFallback className="text-xs">{initial}</AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
-          {email}
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem render={<Link to="/favorites" />}>
-          <Heart />
-          Saved
-        </DropdownMenuItem>
-        <DropdownMenuItem render={<Link to="/playlists" />}>
-          <ListMusic />
-          Playlists
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void signOut(supabase)}>
-          <LogOut />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <AccountMenu
+      email={session.user.email ?? ''}
+      onSignOut={() => void signOut(supabase)}
+      variant={variant}
+    >
+      <DropdownMenuItem render={<Link to="/favorites" />}>
+        <Heart />
+        Saved
+      </DropdownMenuItem>
+      <DropdownMenuItem render={<Link to="/playlists" />}>
+        <ListMusic />
+        Playlists
+      </DropdownMenuItem>
+    </AccountMenu>
   );
 }

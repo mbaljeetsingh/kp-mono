@@ -2,16 +2,23 @@
  * Light or dark, or whatever the device says.
  *
  * The token file has carried both palettes from the start — the parchment set
- * on `:root` and the lamp-lit set on `.dark` — and the app simply pinned
+ * on `:root` and the lamp-lit set on `.dark` — and the apps simply pinned
  * `class="dark"` on <html> and never offered the other one. This is the switch;
  * the tokens needed nothing.
+ *
+ * Shared by the player and the workbench. It lived in the player alone while
+ * the workbench was dark-only, which is no longer true.
  */
 import { useEffect } from 'react';
 import { useLocalStorage, useMediaQuery } from 'usehooks-ts';
 
 export type ThemeChoice = 'system' | 'light' | 'dark';
 
-/** Read by the pre-paint script in index.html too, which cannot import. */
+/**
+ * Read by the pre-paint script in each app's index.html too, which cannot
+ * import. Change it here and the two blocks in those files have to follow —
+ * `pnpm theme:check` fails the build if they drift.
+ */
 export const THEME_KEY = 'kp:theme';
 
 /**
@@ -46,7 +53,7 @@ export function useTheme() {
     deserializer: readThemeChoice,
   });
 
-  // Someone who has never touched the toggle should follow their phone into
+  // Someone who has never touched the toggle should follow their machine into
   // dark mode at sunset without reloading.
   const systemDark = useMediaQuery('(prefers-color-scheme: dark)');
 

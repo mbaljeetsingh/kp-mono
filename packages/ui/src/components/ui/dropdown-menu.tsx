@@ -50,6 +50,21 @@ function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
 }
 
+/**
+ * Carries its own group.
+ *
+ * `Menu.GroupLabel` throws outright — "MenuGroupContext is missing" — when it
+ * is not inside a `Menu.Group`, and it is rendered lazily inside the popup, so
+ * the throw lands mid-render the first time the menu opens and takes the whole
+ * app down with it. Radix's label, which every call site here was written
+ * against, stands alone quite happily; a wrapper that keeps the Radix shape but
+ * detonates on open is a trap rather than a port.
+ *
+ * Wrapping here rather than asking each call site to remember: the labels in
+ * this codebase head a whole menu, not a subgroup, so there is nothing for a
+ * caller's `Menu.Group` to usefully enclose. `DropdownMenuGroup` is still
+ * exported for real grouping, and nesting the two is harmless.
+ */
 function DropdownMenuLabel({
   className,
   inset,
@@ -58,15 +73,17 @@ function DropdownMenuLabel({
   inset?: boolean
 }) {
   return (
-    <MenuPrimitive.GroupLabel
-      data-slot="dropdown-menu-label"
-      data-inset={inset}
-      className={cn(
-        "px-2 py-1.5 text-xs font-medium text-muted-foreground data-inset:pl-8",
-        className
-      )}
-      {...props}
-    />
+    <MenuPrimitive.Group>
+      <MenuPrimitive.GroupLabel
+        data-slot="dropdown-menu-label"
+        data-inset={inset}
+        className={cn(
+          "px-2 py-1.5 text-xs font-medium text-muted-foreground data-inset:pl-8",
+          className
+        )}
+        {...props}
+      />
+    </MenuPrimitive.Group>
   )
 }
 

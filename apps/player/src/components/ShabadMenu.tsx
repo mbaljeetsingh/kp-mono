@@ -39,12 +39,12 @@ export function ShabadMenu({ item }: { item: Playable }) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuItem onSelect={() => playerActions.addToQueue(item)}>
+        <DropdownMenuItem onClick={() => playerActions.addToQueue(item)}>
           <ListPlus />
           Add to queue
         </DropdownMenuItem>
 
-        <DropdownMenuItem onSelect={() => favorites.toggle(item.id)}>
+        <DropdownMenuItem onClick={() => favorites.toggle(item.id)}>
           <Heart />
           {saved ? 'Remove from saved' : 'Save'}
         </DropdownMenuItem>
@@ -57,13 +57,13 @@ export function ShabadMenu({ item }: { item: Playable }) {
         {!userId ? (
           // Asking for a sign-in beats a create form that would only fail at
           // the insert — playlists are account-only by design.
-          <DropdownMenuItem onSelect={prompt}>Sign in to use playlists</DropdownMenuItem>
+          <DropdownMenuItem onClick={prompt}>Sign in to use playlists</DropdownMenuItem>
         ) : (
           <>
             {lists.map((playlist) => (
               <DropdownMenuItem
                 key={playlist.id}
-                onSelect={() => {
+                onClick={() => {
                   void addItem
                     .mutateAsync({ playlistId: playlist.id, renditionId: item.id })
                     .then((inserted) =>
@@ -77,7 +77,7 @@ export function ShabadMenu({ item }: { item: Playable }) {
                 {playlist.name}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuItem onSelect={() => openNewPlaylist({ id: item.id, name: item.title })}>
+            <DropdownMenuItem onClick={() => openNewPlaylist({ id: item.id, name: item.title })}>
               <Plus />
               New playlist…
             </DropdownMenuItem>
