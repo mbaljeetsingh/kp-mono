@@ -41,6 +41,10 @@ jobs:
       # This regenerates and fails if the result differs from what is committed.
       - run: pnpm tokens:check
 
+      # The pre-paint theme script is inline in every app's index.html and
+      # cannot be imported, so it is a copy. This fails if the copies drift.
+      - run: pnpm theme:check
+
       # Formatting first: it is the fastest to run and the least interesting to
       # argue about in review.
       - run: pnpm format:check

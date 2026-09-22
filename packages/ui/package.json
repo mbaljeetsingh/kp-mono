@@ -4,8 +4,8 @@
   "type": "module",
   "exports": {
     "./*": "./src/components/ui/*.tsx",
-    "./lib/utils": "./src/lib/utils.ts",
-    "./app/*": "./src/components/app/*.tsx"
+    "./app/*": "./src/components/app/*.tsx",
+    "./lib/*": "./src/lib/*.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

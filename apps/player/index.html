@@ -16,15 +16,20 @@
       content="Search, play, and tag 20 years of kirtan from Sri Harmandir Sahib."
     />
   </head>
+  <!-- theme-preload:start -->
   <script>
-    // Pre-paint, so a listener who chose Light never sees a dark flash.
+    // Pre-paint, so a contributor who chose Light never sees a dark flash.
     // Inline and un-bundled on purpose: anything the bundler touches arrives
     // after first paint, which is exactly what this exists to beat.
+    //
+    // Byte-identical to the block in apps/player/index.html, and kept that way
+    // by `pnpm theme:check` — an inline script cannot be imported, so the only
+    // alternative to a copy is the two drifting unnoticed.
     (function () {
       try {
         // Two encodings live under this key: the Nuxt app wrote a bare
         // `dark`, and usehooks-ts writes a JSON `"dark"`. Comparing against
-        // the bare form alone meant a listener who chose Dark in the React app
+        // the bare form alone meant someone who chose Dark in the React app
         // got a light flash on every load — the exact thing this script is
         // here to prevent. Strip the quotes and both read the same.
         var raw = localStorage.getItem('kp:theme') || 'system';
@@ -38,6 +43,7 @@
       }
     })();
   </script>
+  <!-- theme-preload:end -->
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
