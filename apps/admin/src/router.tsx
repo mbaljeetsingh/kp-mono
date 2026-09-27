@@ -44,6 +44,21 @@ function queueSearch(search: Record<string, unknown>): QueueSearch {
   return out;
 }
 
+/**
+ * The queue's search, plus the row to open. The review queue links here with
+ * `?rendition=<id>` so a reviewer starts on the row they clicked rather than
+ * hunting for it in the list.
+ */
+export interface TagSearch extends QueueSearch {
+  rendition?: string;
+}
+
+function tagSearch(search: Record<string, unknown>): TagSearch {
+  const out: TagSearch = queueSearch(search);
+  if (typeof search.rendition === 'string') out.rendition = search.rendition;
+  return out;
+}
+
 const queueRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
@@ -61,7 +76,7 @@ const tagRoute = createRoute({
   component: TagRoute,
   // The same shape as the queue's, so the shelf a tagger was working through
   // rides along and the Back link returns them to it rather than to the default.
-  validateSearch: queueSearch,
+  validateSearch: tagSearch,
 });
 const pendingRoute = createRoute({
   getParentRoute: () => rootRoute,
