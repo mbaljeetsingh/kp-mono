@@ -55,10 +55,12 @@ jobs:
 
       - run: uv venv && uv pip install -e .
       # 15s windows every 30s, each run through the model on its own: roughly
-      # RTF 0.02-0.03 over the broadcast, extrapolated from the align timings, not
-      # yet measured on a scan (was ~30 CPU-minutes per broadcast under surt).
-      # 3 a night clears a typical tagging session's requests.
-      - run: uv run python scan_track.py --from-queue --limit 3
+      # RTF 0.02-0.03 over the recording, extrapolated from the align timings,
+      # not yet measured on a scan (was ~30 CPU-minutes per recording under
+      # surt). The requests so far are ragi-wise duties of ~35 minutes, ~1
+      # minute each; the worst case is a day-wise file (median ~14 hours,
+      # ~25 minutes), and 6 of those still fit inside timeout-minutes.
+      - run: uv run python scan_track.py --from-queue --limit 6
         env:
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
           SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
