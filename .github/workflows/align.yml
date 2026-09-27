@@ -5,35 +5,31 @@
 # a crashed night simply leaves rows for the next one. Alignment deliberately
 # waits for publish (verify first, then spend compute); see issue #30.
 #
-# CPU maths, measured on the runner rather than estimated. Cost is per ASR
-# WINDOW, not per second of audio: Whisper pads every clip to a fixed 30s mel
-# input, so an 8s window costs 7.8s of runner time and a 15s one 9.7s — nearly
-# the same for double the audio. Each pass emits D/HOP windows, so a rendition
-# of D seconds costs D/5 x 9.8 + D/2 x 8.0 ≈ 6D. RTF ≈ 6, and the hop-2 short
-# pass is two thirds of it.
+# CPU maths, measured on this runner type (run 36318552033, 4 vCPU) rather
+# than estimated. The ASR model is a CTC conformer on onnxruntime: the long
+# pass is one forward pass over the rendition (RTF 0.075), the short pass runs
+# each 8s window on its own (RTF 0.164) — ~0.24x the rendition's duration in
+# all, 2-3 minutes for a 10-minute set. The audio fetch is seconds.
 #
-# So --limit 3 --deadline-min 270. Two different bounds, because neither is
+# So --limit 20 --deadline-min 60. Two different bounds, because neither is
 # sufficient alone:
 #
-#   --limit 3 bounds renditions ALIGNED, not rows fetched. A rendition the
+#   --limit 20 bounds renditions ALIGNED, not rows fetched. A rendition the
 #   confidence gate refuses never gets timings, so it stays at the head of a
 #   created_at.asc queue forever; counted against the limit it would retire one
 #   of the night's slots permanently (see SKIP_BUDGET in write_timings.py).
 #
-#   --deadline-min 270 bounds the clock, which is what this timeout actually
-#   enforces. A count cannot: three half-hour renditions is ~9 hours at RTF 6,
-#   so --limit 3 alone would still be cancelled part-way. The job projects each
-#   rendition's cost from its duration and defers what will not fit, leaving 60
-#   minutes of headroom under timeout-minutes for the one already in flight.
+#   --deadline-min 60 bounds the clock, which is what this timeout actually
+#   enforces. The job projects each rendition's cost from its duration
+#   (CI_RTF, rounded up) and defers what will not fit, leaving 30 minutes of
+#   headroom under timeout-minutes for the one already in flight.
 #
-# Three 10-minute sets is ~3 hours in practice. The timeout stays at 330 as a
-# backstop, which is what it is now rather than the routine outcome.
-#
-# The note that used to sit here claimed RTF 2–2.5 and that --limit 10 bounded
-# the night at "roughly 4 hours even if every rendition is a full hour-long
-# set"; at the real RTF that is 10+ hours for 10-minute sets. It is why the
-# nights of 27 and 28 Aug were cancelled at the timeout with renditions still
-# queued, each losing the in-flight rendition's ASR.
+# History worth keeping: under surt-small-v3 (Whisper) this job was RTF ~6-9 —
+# every window padded to a 30s mel input and re-encoded by both passes — and
+# ran a limit of 3 with a 270-minute deadline inside 330 minutes. An earlier
+# note here sized it off the Apple Silicon RTF instead and cancelled the
+# nights of 27 and 28 Aug at the timeout. Measure on the runner before
+# changing these numbers.
 name: align
 on:
   schedule:
@@ -53,7 +49,7 @@ on:
 jobs:
   align:
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: packages/aligner
@@ -61,16 +57,19 @@ jobs:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v5
         with:
-          # Without this every night re-downloads the same 1-2 GB of wheels
-          # (torch, transformers) that changed zero times since the last run.
+          # Without this every night re-downloads the same wheels (onnxruntime,
+          # numpy) that changed zero times since the last run.
           enable-cache: true
           cache-dependency-glob: packages/aligner/pyproject.toml
-      # The ASR model is ~500 MB from Hugging Face; cache it or every night
-      # starts with the same download.
+      # The ASR model is 184 MB from Hugging Face; cache it or every night
+      # starts with the same download. The key names the pinned revision
+      # (runtime.REVISION): a cache hit never re-saves, so a key left over from
+      # a previous model would restore that model forever and never store this
+      # one.
       - uses: actions/cache@v4
         with:
           path: ~/.cache/huggingface
-          key: hf-surt-small-v3
+          key: hf-karansea-ctc-5fd2e89e
       # Both aligner scripts decode audio by shelling out to ffmpeg, and the
       # runner image does not carry it — the scan failed with a bare
       # "No such file or directory: 'ffmpeg'" and, because a failed track is
@@ -80,7 +79,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - run: uv venv && uv pip install -e .
-      - run: uv run python write_timings.py --limit 3 --deadline-min 270
+      - run: uv run python write_timings.py --limit 20 --deadline-min 60
         env:
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
           SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
