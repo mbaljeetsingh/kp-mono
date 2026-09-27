@@ -40,7 +40,12 @@ export async function fetchPermissions(client: KpClient): Promise<PermissionMap>
       // `false` and be cached for the session, so a single dropped request
       // hid the publish button from an admin until a hard reload — a
       // permission nobody had revoked, reported as revoked.
-      if (error) throw error;
+      //
+      // Except one error that genuinely means no: 22P02 is a permission this
+      // client knows and the database's enum does not yet, as on a project a
+      // migration behind. Throwing on that would take every other permission
+      // down with it, Save draft included.
+      if (error && error.code !== '22P02') throw error;
       return [requested, data === true] as const;
     })
   );

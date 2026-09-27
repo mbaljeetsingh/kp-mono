@@ -82,7 +82,7 @@ export function TagRoute() {
 }
 
 function Workbench({ id }: { id: string }) {
-  const { session, can } = useSession();
+  const { session, can, permissionsLoading } = useSession();
   const userId = session?.user.id ?? '';
   const search = useSearch({ from: '/tag/$id' });
   const navigate = useNavigate();
@@ -271,7 +271,9 @@ function Workbench({ id }: { id: string }) {
    * paints a frame empty first.
    */
   const [deepLinked, setDeepLinked] = useState(false);
-  if (!deepLinked && search.rendition && renditions.isSuccess) {
+  // Waits for the permissions and the session too: decided on NONE, `canEdit`
+  // is false and the row would silently never open.
+  if (!deepLinked && search.rendition && renditions.isSuccess && userId && !permissionsLoading) {
     setDeepLinked(true);
     const wanted = rows.find((r) => r.id === search.rendition);
     if (wanted && canEdit(wanted)) {
