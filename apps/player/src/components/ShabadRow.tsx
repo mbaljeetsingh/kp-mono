@@ -11,11 +11,10 @@ import { Button } from '@kp/ui/button';
 import { Pause, Play } from 'lucide-react';
 import type { MouseEvent } from 'react';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { FavoriteButton } from '~/components/FavoriteButton';
 import { ShabadMenu } from '~/components/ShabadMenu';
 import { playerActions } from '~/lib/player';
-import { artistPhotoUrl } from '~/lib/supabase';
 import { clock, cn } from '~/lib/utils';
 
 interface Props {
@@ -64,9 +63,8 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
       )}
     >
       <div className="group/art relative shrink-0">
-        <ArtTile
-          name={item.artist ?? item.title}
-          src={artistPhotoUrl(item.artistPhoto)}
+        <PlayableArt
+          item={item}
           className={cn(
             'size-10 text-lg',
             // The play overlay covers this tile on hover; initials showing

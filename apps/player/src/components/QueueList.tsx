@@ -13,9 +13,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Play, X } from 'lucide-react';
 import type { MouseEvent } from 'react';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { playerActions, usePlayer } from '~/lib/player';
-import { artistPhotoUrl, supabase } from '~/lib/supabase';
+import { supabase } from '~/lib/supabase';
 import { cn } from '~/lib/utils';
 
 export function QueueList({ className }: { className?: string }) {
@@ -114,11 +114,7 @@ function Row({
       onClick={onRowClick}
       className="group flex cursor-pointer items-center gap-2 rounded-lg px-1 py-1.5 hover:bg-accent/50"
     >
-      <ArtTile
-        name={item.artist ?? item.title}
-        src={artistPhotoUrl(item.artistPhoto)}
-        className="size-8 text-sm"
-      />
+      <PlayableArt item={item} className="size-8 text-sm" />
       <button type="button" onClick={onPlay} className="min-w-0 flex-1 text-left">
         <p className="truncate text-sm">{item.title}</p>
         <p className="truncate text-xs text-muted-foreground">{item.subtitle ?? item.artist}</p>

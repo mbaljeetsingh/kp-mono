@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@kp/ui/tabs';
 import { Link } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { FavoriteButton } from '~/components/FavoriteButton';
 import { LiveBadge } from '~/components/LiveBadge';
 import { LyricsPanel } from '~/components/LyricsPanel';
@@ -20,7 +20,6 @@ import { PlayerControls } from '~/components/PlayerControls';
 import { QueueList } from '~/components/QueueList';
 import { SeekBar } from '~/components/SeekBar';
 import { usePlayer } from '~/lib/player';
-import { artistPhotoUrl } from '~/lib/supabase';
 
 /**
  * `transport` is false for the desktop panel.
@@ -51,12 +50,7 @@ function Body({
           already rests, and anything higher needs a second hand. */}
       {header ? (
         <div className="flex items-center gap-3 px-4 pb-3">
-          <ArtTile
-            name={current.artist ?? current.title}
-            src={artistPhotoUrl(current.artistPhoto)}
-            rounded="lg"
-            className="size-14 text-2xl"
-          />
+          <PlayableArt item={current} className="size-14 rounded-lg text-2xl" />
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{current.title}</p>
             {current.artist ? (

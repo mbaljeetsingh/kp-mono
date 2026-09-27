@@ -32,11 +32,15 @@ const indexRoute = createRoute({
 const shabadsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/shabads',
+  validateSearch: (s: Record<string, unknown>): { sort?: 'popular' } =>
+    s.sort === 'popular' ? { sort: 'popular' } : {},
   component: ShabadsRoute,
 });
 const searchRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/search',
+  validateSearch: (s: Record<string, unknown>): { q?: string } =>
+    typeof s.q === 'string' ? { q: s.q } : {},
   component: SearchRoute,
 });
 const ragisRoute = createRoute({

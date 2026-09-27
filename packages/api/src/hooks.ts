@@ -22,6 +22,7 @@ import {
   shabadsByArtist,
   PAGE_SIZE,
   type Page,
+  type ShabadSort,
 } from './queries';
 import type { Artist } from './schemas';
 
@@ -34,10 +35,13 @@ function pageParams() {
   };
 }
 
-export function useShabads(client: KpClient): UseInfiniteQueryResult<{ pages: Page<Playable>[] }> {
+export function useShabads(
+  client: KpClient,
+  sort: ShabadSort = 'newest'
+): UseInfiniteQueryResult<{ pages: Page<Playable>[] }> {
   return useInfiniteQuery({
-    queryKey: keys.shabads.list(),
-    queryFn: ({ pageParam }) => listShabads(client, pageParam as number),
+    queryKey: keys.shabads.list({ sort }),
+    queryFn: ({ pageParam }) => listShabads(client, pageParam as number, sort),
     ...pageParams(),
   });
 }
