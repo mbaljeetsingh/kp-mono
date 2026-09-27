@@ -5,13 +5,14 @@ get tagged. Audio comes from sgpc.net server-side, transcripts are cached per
 rendition on disk, and the only thing that reaches the database is the timings.
 
 Settings are the ones measurement settled on (see docs/line-alignment-prototype.md):
-  two ASR scales + crossing refinement   boundary MAE 2.61s, none early >3s
+  two ASR scales + crossing refinement   boundary MAE 1.1s on the benchmark GT
   blend 0.4                              char similarity + IDF word recall
   floor 0.40                             blanks during alaap, no stale lines
+  shift +0.75s                           the CTC model hears transitions early
 
 Renditions whose audio does not match their tagged shabad are SKIPPED, not
 written. Confidence separates them cleanly — correctly tagged renditions score
-0.76-0.87, a mismatch ~0.51 — and writing timings for a wrong shabad would put
+0.82-0.92, a mismatch ~0.52 — and writing timings for a wrong shabad would put
 confidently wrong highlighting on the renditions people actually watch.
 
 The queue is data: published renditions with a shabad_id and no timings yet.
@@ -41,18 +42,26 @@ SHORT_WIN, SHORT_HOP, ALPHA = 8.0, 2.0, 0.5
 BLEND, FLOOR = 0.4, 0.40
 CACHE = "cache"
 
-# Cost of a run, measured on a CI runner rather than estimated. Whisper pads
-# every clip to a fixed 30s mel input, so cost is per ASR WINDOW (~9s each), not
-# per second of audio; the two passes emit D/5 + D/2 windows, so a rendition
-# costs ~6x its duration. Apple Silicon manages ~0.83 — never budget CI off that
-# number, which is the mistake that cancelled two nights. See README.
-CI_RTF = 6.0
+# Added to every window's start and end before matching — never stored, so the
+# cached transcripts keep raw times and re-tuning this costs no ASR. Even the
+# per-window short pass lands transitions a little early under the CTC model;
+# the shift chosen held-out (on the other three benchmark recordings each time)
+# was +0.5 to +1.0s, and applying it took boundary MAE from 1.38s to 1.10s.
+SHIFT = 0.75
+
+# Cost of a run, measured on a CI runner (4 vCPU, run 36318552033) rather than
+# estimated: sliced long pass RTF 0.075 + per-window short pass 0.164. Rounded
+# up for headroom; the audio fetch was 6s per 10 minutes, noise beside it.
+# surt-small-v3 measured RTF 9.1 on the same runner — if this number ever
+# looks too good, that is the comparison, not a typo.
+CI_RTF = 0.3
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--dry-run", action="store_true", help="align but do not write")
 ap.add_argument("--only", help="restrict to one rendition id prefix")
 ap.add_argument("--single", action="store_true",
-                help="single scale only: 3x cheaper, blurrier boundaries")
+                help="single scale only: skips the short pass (~2/3 of the "
+                     "runtime), blurrier boundaries")
 ap.add_argument("--limit", type=int, default=None,
                 help="align at most N renditions this run. Bounds the count "
                      "only — pair it with --deadline-min to bound the clock")
@@ -66,32 +75,24 @@ ap.add_argument("--deadline-min", type=int, default=None,
 args = ap.parse_args()
 
 
-def transcribe(wav, win, hop):
-    """Sliding-window ASR. Each window decoded independently — the transcript's
-    position in time is which window produced it, never Whisper's timestamps."""
-    pipe = runtime.load_pipe()
-    audio, _ = sf.read(wav, dtype="float32")
-    dur = len(audio) / SR
-    starts, clips = [], []
-    t = 0.0
-    while (t + 1) * SR < len(audio):
-        starts.append(t)
-        clips.append(audio[int(t * SR):int((t + win) * SR)])
-        t += hop
-    texts = []
-    for i in range(0, len(clips), 4):
-        texts.extend(o["text"].strip() for o in
-                     pipe(clips[i:i + 4], generate_kwargs=runtime.GEN,
-                          batch_size=4))
-        runtime.free_accelerator()
-        print(f"    {len(texts)}/{len(clips)} windows", end="\r", flush=True)
-    print()
-    # Clamp to the real audio length. The final window starts less than `win`
-    # from the end, so recording it as a full `win` wide pushes every derived
-    # timing past the end of the rendition.
-    return [{"start": s, "end": min(s + win, dur), "text": tx}
-            for s, tx in zip(starts, texts)]
+def transcribe(wav, tag):
+    """Both passes decode windows independently — a transcript's position in
+    time is which window produced it, never anything the model says.
 
+    The long pass is sliced from one forward pass over the recording: cheap,
+    and the context it hears is what makes it transcribe well. The short pass
+    exists to localise, so each window hears only itself — sliced, its
+    boundaries landed ~1.5s early (docs/line-alignment-prototype.md)."""
+    audio, _ = sf.read(wav, dtype="float32")
+    if tag == "full":
+        return runtime.transcribe_sliced(audio, WIN, HOP)
+    return runtime.transcribe_windows(audio, SHORT_WIN, SHORT_HOP,
+                                      label="short windows")
+
+
+def shifted(windows):
+    return [{**w, "start": w["start"] + SHIFT, "end": w["end"] + SHIFT}
+            for w in windows]
 
 
 def frames_of(windows, lines, n):
@@ -184,8 +185,8 @@ def refine_boundaries(segments, short_windows, lines):
 # So over-fetch by a small budget and stop once `limit` renditions have cleared
 # the gate. The budget is what keeps the night bounded in the other direction:
 # a skip is cheap only once its transcript is cached, and a mistag's FIRST night
-# still pays a full pass (~23 min for a 12-minute set). limit 3 + budget 4 is a
-# worst case of roughly 5 hours, inside timeout-minutes.
+# still pays the long pass (~1 min for a 12-minute set at CI_RTF). The budget
+# keeps a jammed head of the queue from costing more than a few minutes.
 SKIP_BUDGET = 4
 
 os.makedirs(CACHE, exist_ok=True)
@@ -265,7 +266,7 @@ for r in sorted(rends, key=lambda x: x["name"]):
 
     # --limit bounds the count; --deadline-min bounds the clock, and only the
     # second one is what a CI timeout actually enforces. Three half-hour
-    # renditions is ~9 hours at RTF 6 — a count of three does not stop that, and
+    # renditions was ~9 hours under surt — a count does not bound that, and
     # the run dies at timeout-minutes with its in-flight ASR thrown away. So
     # project the cost from the duration and defer anything that will not fit.
     #
@@ -303,9 +304,9 @@ for r in sorted(rends, key=lambda x: x["name"]):
     # is wrong and cannot be corrected in place — the migration is applied in
     # production, and this repo only rewrites migrations while no database has
     # them. So the correction lives here, next to the cache key that causes it:
-    # a re-cut pays a full two-pass ASR, ~6x the rendition's duration on a CI
-    # runner. Shabad 4248, re-cut 180-555 -> 171-516, re-transcribed from
-    # scratch for 35 minutes on 29 Aug. Correct behaviour, but not free — and it
+    # a re-cut pays a full two-pass ASR. Shabad 4248, re-cut 180-555 -> 171-516,
+    # re-transcribed from scratch for 35 minutes on 29 Aug under surt; at
+    # CI_RTF it is a couple of minutes now. Correct behaviour, and it still
     # spends one of the night's --limit slots.
     cut = f"{short}_{off:.0f}_{end:.0f}"
     wav = f"{CACHE}/{cut}.wav"
@@ -315,23 +316,26 @@ for r in sorted(rends, key=lambda x: x["name"]):
                         "-t", str(end - off), "-i", r["tracks"]["url"],
                         "-ar", str(SR), "-ac", "1", wav], check=True)
 
-    def pass_at(win, hop, tag):
-        p = f"{CACHE}/{cut}_{tag}_asr.json"
+    # The model is in the key too: another model's text is a different scale,
+    # not a cache hit.
+    def pass_at(tag):
+        key = f"{cut}_{tag}_{runtime.MODEL_TAG}"
+        p = f"{CACHE}/{key}_asr.json"
         if os.path.exists(p):
-            return json.load(open(p))["windows"]
+            return shifted(json.load(open(p))["windows"])
         # Disk missed — the bucket is the disk that survives a CI runner.
-        remote = runtime.fetch_transcript(f"align/{cut}_{tag}.json")
+        remote = runtime.fetch_transcript(f"align/{key}.json")
         if remote:
             json.dump(remote, open(p, "w"), ensure_ascii=False)
-            print(f"  ASR pass {win:g}s/{hop:g}s: from storage", flush=True)
-            return remote["windows"]
-        print(f"  ASR pass {win:g}s/{hop:g}s", flush=True)
-        w = transcribe(wav, win, hop)
+            print(f"  ASR pass {tag}: from storage", flush=True)
+            return shifted(remote["windows"])
+        print(f"  ASR pass {tag}", flush=True)
+        w = transcribe(wav, tag)
         json.dump({"windows": w}, open(p, "w"), ensure_ascii=False)
-        runtime.store_transcript(f"align/{cut}_{tag}.json", {"windows": w})
-        return w
+        runtime.store_transcript(f"align/{key}.json", {"windows": w})
+        return shifted(w)
 
-    windows = pass_at(WIN, HOP, "full")
+    windows = pass_at("full")
 
     # Isolated, because this is the first thing after the ASR and the ASR is
     # the run. A shabad that cannot be fetched — retries exhausted, or an id
@@ -367,15 +371,15 @@ for r in sorted(rends, key=lambda x: x["name"]):
     # listener perceives: a boundary landing early shows a line before it is
     # sung. Measured boundary jitter without it was +/-5.6s.
     #
-    # Deliberately AFTER the two gates above, not beside the full pass. At
-    # hop 2 it is 5/7 of the windows and two thirds of the runtime, and nothing
+    # Deliberately AFTER the two gates above, not beside the full pass. Run
+    # window by window it is two thirds of the runtime, and nothing
     # before this point reads it: confidence scores `windows` alone. Running it
     # first meant a mistagged rendition — which never leaves the queue, so it is
     # retried every night — paid the whole ASR before being refused. Now it pays
     # the full pass only. The full pass is already banked to the bucket by
     # pass_at, so a shabad fetch that fails transiently still costs nothing the
     # next run has to redo.
-    short_windows = pass_at(SHORT_WIN, SHORT_HOP, "short") if not args.single else None
+    short_windows = pass_at("short") if not args.single else None
 
     span = max(w["end"] for w in windows)
     case = {"video_id": short, "uem": {"start": 0, "end": span}, "lines": lines}

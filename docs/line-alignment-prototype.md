@@ -53,6 +53,10 @@ renditions, not more knobs.
 
 ## Pipeline
 
+> **Model changed, September 2026.** Step 1 is now a CTC model — see
+> [Switching the ASR model](#switching-the-asr-model-september-2026). Steps
+> 2-5 are unchanged; the numbers in this section are surt's.
+
 1. [`surindersinghssj/surt-small-v3`](https://huggingface.co/surindersinghssj/surt-small-v3)
    — whisper-small finetune, Apache-2.0, ~660h Gurbani. No training, no NeMo.
 2. **Two sliding-window ASR passes**, each window decoded independently;
@@ -252,6 +256,13 @@ baseline. All four came back **clearly worse**:
 | audio-to-audio via TTS references | clearly worse                         | no IDF equivalent in embedding space                      |
 | sentence embeddings as the scorer | clearly worse, **measured** 92.6% LOO | semantic similarity is anti-informative within one shabad |
 
+_Note, September 2026:_ the IndicConformer row was argued from the base
+model's card, never measured. A shabad-specific CTC finetune of that model was
+later measured and adopted — it holds accuracy and is ~38x cheaper; see
+[Switching the ASR model](#switching-the-asr-model-september-2026). The
+forced-alignment row still stands: the adopted model feeds the same windowed
+matcher, not a monotonic DP.
+
 The embedding result was re-run on the cached transcripts rather than argued:
 it reproduced 95.5% exactly, then swapped only the scorer. On _clean_ canonical
 text the best **wrong** line scores 0.908 under e5 against 0.406 under the
@@ -339,6 +350,65 @@ The general lesson is worth keeping: every conclusion here that came from a
 metric or from reasoning was wrong about half the time — the HMM, prompting,
 triangular weighting, the heading rule, and this. Every conclusion that came
 from measuring against the real thing held.
+
+## Switching the ASR model (September 2026)
+
+surt-small-v3 was replaced by
+[`karansea/indicconformer-stt-pa-ctc-shabad-preview`](https://huggingface.co/karansea/indicconformer-stt-pa-ctc-shabad-preview)
+(CTC-only finetune of AI4Bharat IndicConformer on shabad audio, MIT, 184 MB
+int8 ONNX), found through
+[KhalisFoundation/sttm-desktop#2202](https://github.com/KhalisFoundation/sttm-desktop/pull/2202),
+which uses it for live following. Only the model changed: folding, IDF blend,
+two scales, argmax and crossing refinement are as above.
+
+**Why.** Cost, not accuracy. Whisper pads every window to a 30s mel input and
+the two passes re-encode overlapping audio, so on a CI runner a rendition cost
+~9x its duration and a night aligned three. A CTC model's frames can be
+computed once and sliced into any window grid.
+
+**Benchmark, held out** (same protocol as above; alpha/floor/shift chosen on
+the other three recordings each fold; boundaries against the benchmark's own
+ground truth, 20 transitions — a different instrument from the 2.61s measured
+on production audio further down, so compare within this table only):
+
+| ASR                                                  | LOO acc.  | boundary MAE | within 3s |
+| ---------------------------------------------------- | --------- | ------------ | --------- |
+| surt-small-v3                                        | 95.5%     | 0.79s        | 20/20     |
+| CTC, both passes sliced from one forward pass        | 95.0%     | 2.01s        | 16/20     |
+| CTC, sliced + held-out time shift                    | 94.5%     | 1.69s        | 17/20     |
+| **CTC, sliced long pass + per-window short, +shift** | **95.3%** | **1.10s**    | 19/20     |
+
+Sliced frames hear audio past the window's edge, and that context puts
+transitions early (bias −1.9s), by an amount that varies per recording — so a
+constant shift cannot remove it. Running the short pass window by window
+removes most of it; the residual is a stable +0.5 to +1.0s held out, shipped
+as `SHIFT = 0.75`.
+
+**Cost, on a 4-vCPU `ubuntu-latest` runner** (same machine, same SGPC audio):
+
+| pass     | surt RTF | CTC RTF            |
+| -------- | -------- | ------------------ |
+| 15s / 5s | 2.67     | 0.075 (sliced)     |
+| 8s / 2s  | 6.43     | 0.164 (per window) |
+| **both** | **9.10** | **~0.24**          |
+
+**The confidence gate did not move.** On our own tagged renditions, write_timings'
+confidence under each model:
+
+| rendition            | surt  | CTC   |
+| -------------------- | ----- | ----- |
+| shabad 1320          | 0.931 | 0.920 |
+| shabad 1794          | 0.818 | 0.827 |
+| shabad 4248          | 0.801 | 0.824 |
+| shabad 3590 (mistag) | 0.520 | 0.525 |
+
+Benchmark own-vs-other margins: surt +0.16..+0.28, CTC +0.14..+0.29. So
+`MIN_CONFIDENCE = 0.60` stands. Timings from the two models agree on 90-94% of
+seconds on production renditions, boundaries within ~0.5s.
+
+**Not re-measured:** the scan's window floor (0.55) and region margin (0.05).
+The model export also fails on inputs past ~60s, so long audio goes through in
+45s chunks with 5s context either side.
 
 ## Prototype code
 

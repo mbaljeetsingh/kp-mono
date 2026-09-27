@@ -7,8 +7,9 @@ can follow the singing. Runs out-of-band — by hand or on cron, never in an app
 
 Method, measurements, and everything that was tried and measured worse are in
 [docs/line-alignment-prototype.md](../../docs/line-alignment-prototype.md) and
-[issue #30](https://github.com/mbaljeetsingh/kp-mono/issues/30). Headline:
-95.5% frame accuracy held-out; boundary MAE 2.61s after refinement.
+[issue #30](https://github.com/mbaljeetsingh/kp-mono/issues/30). Headline,
+current model, held out on the benchmark: 95.3% frame accuracy, boundary MAE
+1.1s against ground truth.
 
 ## Setup
 
@@ -21,9 +22,10 @@ uv venv && uv pip install -e .
 and it is not a Python dependency, so `uv` will not bring it. `brew install
 ffmpeg` locally; the workflows apt-install it on the runner.
 
-First run downloads the ASR model (~500 MB) from Hugging Face
-([surindersinghssj/surt-small-v3](https://huggingface.co/surindersinghssj/surt-small-v3),
-Apache-2.0). Audio is fetched from sgpc.net server-side — the browser can't
+First run downloads the ASR model (184 MB, int8 ONNX) from Hugging Face
+([karansea/indicconformer-stt-pa-ctc-shabad-preview](https://huggingface.co/karansea/indicconformer-stt-pa-ctc-shabad-preview),
+MIT), pinned to one revision in `runtime.py`. CPU only, via onnxruntime — no
+torch, no GPU. Audio is fetched from sgpc.net server-side — the browser can't
 (no CORS), which is why this whole package exists outside the apps.
 
 ## Align published renditions
@@ -47,26 +49,27 @@ fit in N minutes, which is the bound a CI timeout actually enforces; `--all`
 re-aligns already-timed renditions (after a matcher improvement); `--only
 <id-prefix>` restricts to one and overrides `--limit`, so a targeted run cannot
 silently miss a rendition that is not among the oldest rows; `--single` skips
-the second ASR pass (3x cheaper, blurrier boundaries — not recommended for
+the second ASR pass (~3x cheaper, blurrier boundaries — not recommended for
 publishing).
 
 A run that aligns nothing because every rendition at the head of the queue was
 refused reports `JAMMED` and exits non-zero: nothing behind those rows can be
 reached until a human reviews their tags.
 
-Roughly RTF 0.83 on Apple Silicon: a 10-minute rendition costs ~8 minutes.
-**On a CI runner it is RTF ~6, not 0.83** — there is no MPS, and cost is per ASR
-window rather than per second of audio, since Whisper pads every clip to a fixed
-30s mel input (an 8s window costs 7.8s of runner time, a 15s one 9.7s). Each
-pass emits `duration/HOP` windows, so the hop-2 short pass alone is two thirds
-of a run. Do not size a CI job off the Apple Silicon number; that mistake put
-`--limit 10` and a 330-minute timeout in `align.yml` and cancelled two nights
-part-way through the queue.
+Cost is ~0.24x the rendition's duration on a CI runner (measured: long pass
+RTF 0.075, short pass 0.164), so a 10-minute set takes 2-3 minutes. The long
+pass is one forward pass over the recording with each window sliced out of it;
+the short pass runs every 8s window on its own, because sliced frames hear
+past the window's edge and put transitions early. `--single` skips the short
+pass. The model it replaced, surt-small-v3 (Whisper), was RTF ~9 on the same
+runner — every window padded to a 30s mel input — which is why the nightly
+limits in `align.yml` were once 3 renditions in 330 minutes.
 
 ASR output caches in `cache/` and in the `transcripts` bucket, so re-running the
-matcher is free — but only at the same boundaries. The cache key includes them
-(`{id}_{start}_{end}`), deliberately: the wav is cut at fetch time, so re-cutting
-a rendition MUST miss the cache and pay the full two-pass ASR again.
+matcher is free — but only at the same boundaries and the same model. The key
+includes both (`{id}_{start}_{end}_{pass}_{runtime.MODEL_TAG}`), deliberately:
+the wav is cut at fetch time, so re-cutting a rendition MUST miss the cache,
+and another model's text is a different confidence scale, not a hit.
 
 ## Suggest shabads for untagged recordings
 
