@@ -79,10 +79,14 @@ SB_KEY=<key> uv run python scan_track.py --from-queue --limit 3
 SB_KEY=<key> TRACK=<track id> uv run python scan_track.py [--write-drafts]
 ```
 
-Blind identification: ASR the broadcast, search BaniDB with the distinctive
-words, score candidate shabads window-by-window, report regions where one
-dominates. Queue mode consumes `scan_requests` (the _Suggest_ button in admin
-writes rows there; _Suggest again_ re-queues a finished one), oldest first, and
+Blind identification: ASR the broadcast, shortlist the 8 shabads whose lines
+win the most windows across the whole Guru Granth Sahib, score the shortlist
+window-by-window, report regions where one dominates. The shortlist is local
+(`corpus.py`: the text fetched once from BaniDB's ang endpoint, cached on disk
+and in the `transcripts` bucket) because BaniDB word search on CTC transcripts
+missed the right shabad on most recordings. Queue mode consumes
+`scan_requests` (the _Suggest_ button in admin writes rows there; _Suggest
+again_ re-queues a finished one), oldest first, and
 stamps `done_at` even when nothing cleared the gate — "scanned, nothing found"
 is an answer. A failing track is left queued for retry without blocking the
 rest.
@@ -92,6 +96,35 @@ become renditions with `status = 'shabad_linked'`, `source = 'scan'`, named
 from the region's dominant line, owned by whoever requested the scan —
 invisible to the player until a human reviews the boundaries in the tagger and
 publishes. It never publishes anything itself.
+
+## Measure the scan against published tags
+
+```bash
+SB_URL=https://<ref>.supabase.co/rest/v1 SB_KEY=<key> \
+  uv run python eval_scan.py [--limit N] [--exclude-shabad ID ...]
+```
+
+Runs the scan over every track with a published rendition and replays a grid
+of `FLOOR` x `MIN_MARGIN` over it: how many would-be drafts name the published
+shabad, name a different one, or land where nothing is tagged. Read-only by
+construction — GETs only, transcripts and the corpus kept on local disk — so it
+is safe to point at prod, which has far more published tags than a local
+stack. `--exclude-shabad 3590` drops the known mistag from the truth.
+
+With no key at all, export the truth from the SQL editor and pass `--truth
+truth.json` (`SB_KEY=x` still has to be set; the transcript store just misses):
+
+```sql
+select json_agg(t) from (
+  select tr.id as track_id, tr.url, tr.tagged_done_at is not null as done,
+         json_agg(json_build_object('shabad_id', r.shabad_id, 'start', r.start_sec,
+                                    'end', r.end_sec) order by r.start_sec) as spans
+  from renditions r join tracks tr on tr.id = r.track_id
+  where r.status = 'published' and r.shabad_id is not null
+    and tr.missing_since is null
+  group by tr.id
+) t;
+```
 
 ## Scheduling
 

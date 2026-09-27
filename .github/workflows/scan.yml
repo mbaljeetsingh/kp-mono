@@ -54,12 +54,16 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - run: uv venv && uv pip install -e .
-      # 15s windows every 30s, each run through the model on its own: roughly
-      # RTF 0.02-0.03 over the recording, extrapolated from the align timings,
-      # not yet measured on a scan (was ~30 CPU-minutes per recording under
-      # surt). The requests so far are ragi-wise duties of ~35 minutes, ~1
-      # minute each; the worst case is a day-wise file (median ~14 hours,
-      # ~25 minutes), and 6 of those still fit inside timeout-minutes.
+      # 15s windows every 30s, each run through the model on its own. Measured
+      # on an M-series laptop (eval_scan.py): ASR RTF 0.004-0.013, and ~10s of
+      # shortlist + scoring per recording, so a ~35-minute ragi-wise duty is
+      # well under a minute there; a runner has not been timed yet and is
+      # slower at the ASR (was ~30 CPU-minutes per recording under surt). The
+      # worst case is a day-wise file (median ~14 hours); 6 of those still
+      # fit inside timeout-minutes at the align runner's RTF. The first run
+      # after this change also fetches the corpus (corpus.py: 1,430 BaniDB
+      # calls, a few minutes) and stores it in the transcripts bucket; every
+      # later run reads it from there.
       - run: uv run python scan_track.py --from-queue --limit 6
         env:
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
