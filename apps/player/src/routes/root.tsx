@@ -8,24 +8,29 @@
  * shared link, and for them this is the product; the native app earns its place
  * on background audio and the lock screen rather than being a toll gate.
  */
-import { Link, Outlet } from '@tanstack/react-router';
+import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import { Toaster } from '@kp/ui/sonner';
-import { Disc3, Github, Heart, ListMusic, Radio, Search, Users } from 'lucide-react';
+import { Github, Heart, House, Library, ListMusic, Radio, Search, Users } from 'lucide-react';
 
 import { AccountButton } from '~/components/AccountButton';
 import { NowPlayingPanel } from '~/components/NowPlaying';
 import { AuthDialog } from '~/components/AuthDialog';
 import { NewPlaylistDialog } from '~/components/NewPlaylistDialog';
 import { PlayerBar } from '~/components/PlayerBar';
+import { SearchField } from '~/components/SearchField';
+import { ShuffleButton } from '~/components/ShuffleButton';
 import { ThemeToggle } from '@kp/ui/app/theme-toggle';
 import { CONTRIBUTE_URL, GITHUB_URL } from '~/lib/links';
 import { usePlayerKeys } from '~/lib/keys';
 import { useSession } from '~/lib/session';
+import { cn } from '~/lib/utils';
 
+/**
+ * Search and Ragis are not places of their own: search is a box in the header
+ * that finds ragis too, and the directory is a shelf on Home.
+ */
 const MAIN = [
-  { to: '/', label: 'Shabads', icon: Disc3 },
-  { to: '/search', label: 'Search', icon: Search },
-  { to: '/ragis', label: 'Ragis', icon: Users },
+  { to: '/', label: 'Home', icon: House },
   { to: '/radio', label: 'Radio', icon: Radio },
 ] as const;
 
@@ -34,12 +39,19 @@ const LIBRARY = [
   { to: '/playlists', label: 'Playlists', icon: ListMusic },
 ] as const;
 
-/** Four on a phone: a fifth tab makes each one too narrow to hit reliably. */
-const TABS = [...MAIN.slice(0, 3), LIBRARY[0]] as const;
+/** Library is Saved and Playlists together; a phone has room for three. */
+const TABS = [...MAIN, { to: '/favorites', label: 'Library', icon: Library }] as const;
+
+function tabActive(to: string, pathname: string) {
+  if (to === '/') return pathname === '/';
+  if (to === '/favorites') return pathname === to || pathname.startsWith('/playlists');
+  return pathname.startsWith(to);
+}
 
 export function RootLayout() {
   const { newPlaylistOpen, setNewPlaylistOpen } = useSession();
   usePlayerKeys();
+  const pathname = useLocation({ select: (l) => l.pathname });
 
   return (
     <div className="flex h-dvh flex-col bg-background text-foreground">
@@ -136,9 +148,21 @@ export function RootLayout() {
             </Link>
 
             <div className="flex items-center gap-1">
+              <Link
+                to="/search"
+                aria-label="Search"
+                className="flex size-9 items-center justify-center rounded-md hover:bg-accent/50"
+              >
+                <Search className="size-4" />
+              </Link>
+              <ShuffleButton />
               <AccountButton />
               <ThemeToggle />
             </div>
+          </div>
+          <div className="sticky top-0 z-10 hidden items-center justify-center gap-2 border-b border-border bg-background/95 px-6 py-3 backdrop-blur sm:flex">
+            <SearchField className="max-w-xl flex-1" />
+            <ShuffleButton />
           </div>
           <div className="mx-auto max-w-4xl px-4 py-4 sm:py-6">
             <Outlet />
@@ -156,9 +180,10 @@ export function RootLayout() {
           <Link
             key={to}
             to={to}
-            className="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-muted-foreground"
-            activeProps={{ className: 'text-primary' }}
-            activeOptions={{ exact: to === '/' }}
+            className={cn(
+              'flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] text-muted-foreground',
+              tabActive(to, pathname) && 'text-primary'
+            )}
           >
             <Icon className="size-4" />
             {label}

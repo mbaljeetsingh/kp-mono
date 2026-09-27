@@ -42,10 +42,22 @@ function shabads(client: KpClient, from: number) {
     .range(from, from + PAGE_SIZE - 1);
 }
 
-export async function listShabads(client: KpClient, from = 0): Promise<Page<Playable>> {
-  const { data, error } = await shabads(client, from).order('created_at', {
-    ascending: false,
-  });
+/** The orders a listener can put the archive in. */
+export type ShabadSort = 'newest' | 'popular';
+
+const SORT_COLUMN: Record<ShabadSort, string> = { newest: 'created_at', popular: 'play_count' };
+
+export async function listShabads(
+  client: KpClient,
+  from = 0,
+  sort: ShabadSort = 'newest'
+): Promise<Page<Playable>> {
+  // `id` breaks ties. Offset paging over a column with repeats — most play
+  // counts are equal — lets Postgres order the tied rows differently for each
+  // page, so the same shabad shows up twice and another never does.
+  const { data, error } = await shabads(client, from)
+    .order(SORT_COLUMN[sort], { ascending: false })
+    .order('id');
   if (error) throw error;
   return toPage(data);
 }
@@ -120,7 +132,7 @@ export async function randomShabads(client: KpClient, n: number): Promise<Playab
 }
 
 /**
- * The newest published shabads.
+ * The top of the archive in one order — the newest, or the most listened to.
  *
  * A shelf, not the archive. Home once scrolled forever in pages of fifty, so
  * "recently added" grew into every shabad there has ever been and the page had
@@ -128,12 +140,27 @@ export async function randomShabads(client: KpClient, n: number): Promise<Playab
  * was last here", which twenty rows covers. The endless list belongs on
  * /shabads, which is one link away.
  */
-export async function recentShabads(client: KpClient, limit: number): Promise<Playable[]> {
+export async function shelfShabads(
+  client: KpClient,
+  limit: number,
+  sort: ShabadSort = 'newest'
+): Promise<Playable[]> {
   const { data, error } = await client
     .from('shabads')
     .select(SHABAD_COLUMNS)
-    .order('created_at', { ascending: false })
+    .order(SORT_COLUMN[sort], { ascending: false })
     .limit(limit);
   if (error) throw error;
   return parseRows(shabadRowSchema, data ?? []).rows.map(toPlayable);
+}
+
+/**
+ * One listen, counted server-side.
+ *
+ * Through a definer function because anonymous listeners may bump the count
+ * but must not be able to UPDATE renditions.
+ */
+export async function registerPlay(client: KpClient, renditionId: string): Promise<void> {
+  const { error } = await client.rpc('register_play', { rendition: renditionId });
+  if (error) throw error;
 }

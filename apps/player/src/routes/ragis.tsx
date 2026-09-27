@@ -6,11 +6,10 @@
  * like a database rather than a music app.
  */
 import { useArtists } from '@kp/api';
-import { Link } from '@tanstack/react-router';
 
-import { ArtTile } from '~/components/ArtTile';
 import { EmptyState } from '~/components/EmptyState';
-import { artistPhotoUrl, supabase } from '~/lib/supabase';
+import { RagiCard } from '~/components/RagiCard';
+import { supabase } from '~/lib/supabase';
 
 export function RagisRoute() {
   const query = useArtists(supabase);
@@ -36,20 +35,7 @@ export function RagisRoute() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {artists.map((artist) => (
-          <Link
-            key={artist.name}
-            to="/ragis/$name"
-            params={{ name: artist.name }}
-            className="flex flex-col items-center gap-2 rounded-xl p-3 text-center hover:bg-accent/50"
-          >
-            <ArtTile
-              name={artist.display_name ?? artist.name}
-              src={artistPhotoUrl(artist.photo_path)}
-              rounded="full"
-              className="size-20 text-2xl"
-            />
-            <span className="line-clamp-2 text-sm">{artist.display_name ?? artist.name}</span>
-          </Link>
+          <RagiCard key={artist.name} artist={artist} />
         ))}
       </div>
     </section>

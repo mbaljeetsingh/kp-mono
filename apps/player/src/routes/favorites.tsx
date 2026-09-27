@@ -8,6 +8,7 @@
 import { toPlayable, type Playable } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
 
+import { LibraryTabs } from '~/components/LibraryTabs';
 import { ShabadList } from '~/components/ShabadList';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
@@ -36,6 +37,7 @@ export function FavoritesRoute() {
 
   return (
     <section className="flex flex-col gap-4">
+      <LibraryTabs />
       <header>
         <h1 className="font-display text-3xl font-semibold">Saved</h1>
         <p className="text-sm text-muted-foreground">
