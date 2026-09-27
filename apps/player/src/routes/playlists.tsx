@@ -18,6 +18,7 @@ import { Link } from '@tanstack/react-router';
 import { ListMusic, MoreHorizontal, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { LibraryTabs } from '~/components/LibraryTabs';
 import { EmptyState } from '~/components/EmptyState';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
@@ -30,6 +31,7 @@ export function PlaylistsRoute() {
   if (!userId) {
     return (
       <section className="flex flex-col gap-4">
+        <LibraryTabs />
         <h1 className="font-display text-3xl font-semibold">Playlists</h1>
         <EmptyState
           title="Playlists need an account."
@@ -48,6 +50,7 @@ export function PlaylistsRoute() {
 
   return (
     <section className="flex flex-col gap-4">
+      <LibraryTabs />
       <header className="flex items-center justify-between">
         <h1 className="font-display text-3xl font-semibold">Playlists</h1>
         <Button size="sm" variant="outline" onClick={() => openNewPlaylist()}>

@@ -23,6 +23,8 @@ export function usePlayerKeys() {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+      // Already someone's key — a carousel's arrows, say — and not ours as well.
+      if (event.defaultPrevented) return;
       if (isTyping(event.target)) return;
 
       const state = playerStore.getState();

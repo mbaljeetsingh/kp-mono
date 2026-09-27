@@ -9,14 +9,13 @@
 import { ChevronUp } from 'lucide-react';
 import { useState } from 'react';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { FavoriteButton } from '~/components/FavoriteButton';
 import { LiveBadge } from '~/components/LiveBadge';
 import { NowPlayingSheet } from '~/components/NowPlaying';
 import { PlayerControls } from '~/components/PlayerControls';
 import { SeekBar } from '~/components/SeekBar';
 import { usePlayer } from '~/lib/player';
-import { artistPhotoUrl } from '~/lib/supabase';
 
 export function PlayerBar() {
   const current = usePlayer((s) => s.current);
@@ -39,11 +38,7 @@ export function PlayerBar() {
               aria-label="Open the full player"
               className="flex min-w-0 flex-1 items-center gap-3 text-left lg:pointer-events-none"
             >
-              <ArtTile
-                name={current.artist ?? current.title}
-                src={artistPhotoUrl(current.artistPhoto)}
-                className="size-10 text-lg"
-              />
+              <PlayableArt item={current} className="size-10 text-lg" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{current.title}</span>
                 {/* Inline with the subtitle, not under it: on its own line the

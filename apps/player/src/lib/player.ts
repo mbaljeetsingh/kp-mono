@@ -6,11 +6,12 @@
  * `usePlayer(s => s.playing)` re-renders on that field alone — which is the
  * entire reason this is Zustand and not Context.
  */
+import { registerPlay } from '@kp/api';
 import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createWebAudioDriver } from './audio-driver';
-import { artistPhotoUrl } from './supabase';
+import { artistPhotoUrl, supabase } from './supabase';
 
 const storage = {
   async getItem(key: string) {
@@ -42,6 +43,34 @@ playerStore
 
 // Restore the queue on load. Never auto-plays — see the store.
 void playerStore.getState().hydrate();
+
+/**
+ * A listen is thirty seconds actually heard, not a tap: skipping through a
+ * queue would otherwise make whatever sits at the top of it "popular".
+ *
+ * Counted as time heard rather than read off the position, so a seek forward
+ * does not count and a seek back does not count twice. Radio is not a
+ * rendition, so it is never counted.
+ */
+const LISTEN_SEC = 30;
+let listen = { id: '', heard: 0, last: 0, counted: false };
+
+playerStore.subscribe(({ current, playing, position }) => {
+  if (!current || current.isLive) return;
+  if (current.id !== listen.id)
+    listen = { id: current.id, heard: 0, last: position, counted: false };
+
+  const step = position - listen.last;
+  listen.last = position;
+  if (!playing || listen.counted || step <= 0 || step > 2) return;
+
+  listen.heard += step;
+  if (listen.heard >= LISTEN_SEC) {
+    listen.counted = true;
+    // Best effort: a lost count is not worth an error in front of a listener.
+    registerPlay(supabase, current.id).catch(() => {});
+  }
+});
 
 export function usePlayer<T>(selector: (state: PlayerState) => T): T {
   return useStore(playerStore, selector);

@@ -5,21 +5,24 @@
  * and grey placeholder squares are what makes a music app look broken. The
  * gradient comes from the name, so an artist looks the same on every page.
  */
-import { artworkFor } from '@kp/core';
+import { artworkFor, type Playable } from '@kp/core';
 import { useState } from 'react';
 
 import { cn } from '~/lib/utils';
 
 interface Props {
   name: string;
+  /** What picks the colour, when that should not be the name itself. */
+  seed?: string;
   /** A real photo when SGPC published one; the gradient is the fallback. */
   src?: string | null;
   className?: string;
   rounded?: 'md' | 'lg' | 'full';
 }
 
-export function ArtTile({ name, src, className, rounded = 'md' }: Props) {
-  const art = artworkFor(name);
+export function ArtTile({ name, seed, src, className, rounded = 'md' }: Props) {
+  const art = artworkFor(seed ?? name);
+  const initials = seed === undefined ? art.initials : artworkFor(name).initials;
 
   /**
    * Photos are seeded as paths only — the images themselves are not in git, and
@@ -57,9 +60,21 @@ export function ArtTile({ name, src, className, rounded = 'md' }: Props) {
           aria-hidden
           className="select-none text-[0.7em] font-semibold tracking-wide text-white/90"
         >
-          {art.initials}
+          {initials}
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * A shabad's tile: its own initials, coloured by the shabad rather than the
+ * ragi. A ragi's tile on every row made one ragi's list a column of identical
+ * squares, while the same shabad sung by two ragis looked unrelated; keyed on
+ * the BaniDB id it is the other way round.
+ */
+export function PlayableArt({ item, className }: { item: Playable; className?: string }) {
+  return (
+    <ArtTile name={item.title} seed={String(item.shabadId ?? item.title)} className={className} />
   );
 }
