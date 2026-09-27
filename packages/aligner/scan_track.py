@@ -82,7 +82,7 @@ def asr_scan(track_id, url):
                         "-ar", str(SR), "-ac", "1", wav], check=True)
     # The model is in both keys: another model's text is a different scale,
     # not a cache hit.
-    key = f"{track_id}_{WIN:g}s{HOP:g}s_{runtime.MODEL_TAG}"
+    key = f"{track_id}_{WIN:g}s{HOP:g}s_{runtime.WINDOWED_TAG}"
     cache = f"{CACHE}/track_{key}_scan.json"
     if os.path.exists(cache):
         return json.load(open(cache))["windows"]

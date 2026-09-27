@@ -21,10 +21,6 @@ import urllib.request
 # "preview": an unannounced push would move every score this gate reads.
 MODEL = "karansea/indicconformer-stt-pa-ctc-shabad-preview"
 REVISION = "5fd2e89e3a43d31f47b0fb55fdce5ed50a91283f"
-# In every transcript cache key, local and in the bucket. Text from a
-# different model is not a cache hit, it is a different scale — without this a
-# model change would silently keep matching the old model's transcripts.
-MODEL_TAG = f"ctc-{REVISION[:8]}"
 # Below this mean best-match the audio does not plausibly contain the shabad.
 # Measured under this model on our own tagged renditions: correct tags
 # 0.82-0.92, the real mistag (shabad 3590) 0.525 — the same bands surt-small-v3
@@ -42,6 +38,14 @@ SB = os.environ.get("SB_URL", "http://127.0.0.1:54521/rest/v1")
 CHUNK, CONTEXT = 45.0, 5.0
 BLANK = 256            # CTC blank: 256 Gurmukhi pieces, then blank
 FRAME = 0.04           # seconds per output frame
+
+# In every transcript cache key, local and in the bucket: which model, AND how
+# its text was produced. Text from a different model, or cut from different
+# chunks, is not a cache hit but a different scale — without the tag a change
+# to any of these would silently keep matching the old transcripts.
+MODEL_TAG = f"ctc-{REVISION[:8]}"
+SLICED_TAG = f"{MODEL_TAG}-sliced{CHUNK:g}x{CONTEXT:g}"
+WINDOWED_TAG = f"{MODEL_TAG}-windowed"
 
 _model = None
 
@@ -127,6 +131,15 @@ def transcribe_sliced(audio, win, hop):
                         int(round((min(dur, t + CHUNK) - a0) / stride))])
         t += CHUNK
     lp = np.concatenate(parts)
+    # Windows index the stitched frames at a fixed FRAME, so every chunk must
+    # have contributed exactly its share. A model whose out_len rounds
+    # differently would drift a frame per chunk — seconds over a long
+    # rendition, with text landing on the wrong windows and no error at all.
+    if abs(len(lp) - dur / FRAME) > 2:
+        raise RuntimeError(
+            f"stitched {len(lp)} frames for {dur:.1f}s of audio, expected "
+            f"~{dur / FRAME:.0f} at {FRAME}s — the model's frame rate is not "
+            f"what runtime.FRAME assumes")
     return [{"start": s, "end": e,
              "text": _decode(lp[int(s / FRAME):int(e / FRAME)])}
             for s, e in _windows(dur, win, hop)]

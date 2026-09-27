@@ -366,7 +366,7 @@ the two passes re-encode overlapping audio, so on a CI runner a rendition cost
 ~9x its duration and a night aligned three. A CTC model's frames can be
 computed once and sliced into any window grid.
 
-**Benchmark, held out** (same protocol as above; alpha/floor/shift chosen on
+**Benchmark, held out, the experiment's code** (same protocol as above; alpha/floor/shift chosen on
 the other three recordings each fold; boundaries against the benchmark's own
 ground truth, 20 transitions — a different instrument from the 2.61s measured
 on production audio further down, so compare within this table only):
@@ -383,6 +383,26 @@ transitions early (bias −1.9s), by an amount that varies per recording — so 
 constant shift cannot remove it. Running the short pass window by window
 removes most of it; the residual is a stable +0.5 to +1.0s held out, shipped
 as `SHIFT = 0.75`.
+
+**The shipped path, re-scored.** The table above is the experiment's own
+code. Re-running the benchmark through `runtime.transcribe_sliced` /
+`transcribe_windows` (45s chunks) with the fixed shift found that the
+production constants mattered more than any of it: `write_timings` does not
+tune alpha or the floor per run, and surt's `FLOOR = 0.40` blanked real singing
+under CTC, whose rougher text scores every line a little lower —
+zOtIpxMT9hU fell to 80.2%. At fixed settings, all four recordings:
+
+| ASR, alpha 0.5            | floor 0.40 | floor 0.35 | boundary MAE (found) |
+| ------------------------- | ---------- | ---------- | -------------------- |
+| surt-small-v3             | 96.4%      | 96.4%      | 0.79s (20/20)        |
+| CTC, shipped path + 0.75s | 94.0%      | **96.2%**  | **0.86s** (18/20)    |
+
+So the floor moved to 0.35 with the model. These are fixed constants scored on
+the same four recordings they were picked from, not held out — but the held-out
+folds above chose 0.30-0.35 for CTC three times in four, and the floor does not
+touch the boundary numbers. Leave-one-out with the floor free drops to 93.7%,
+entirely because one fold picks 0.40 for zOtIpxMT9hU: the floor is the fragile
+knob for this model, and the first thing to re-check on more annotated audio.
 
 **Cost, on a 4-vCPU `ubuntu-latest` runner** (same machine, same SGPC audio):
 

@@ -8,8 +8,8 @@ can follow the singing. Runs out-of-band — by hand or on cron, never in an app
 Method, measurements, and everything that was tried and measured worse are in
 [docs/line-alignment-prototype.md](../../docs/line-alignment-prototype.md) and
 [issue #30](https://github.com/mbaljeetsingh/kp-mono/issues/30). Headline,
-current model, held out on the benchmark: 95.3% frame accuracy, boundary MAE
-1.1s against ground truth.
+current model at the shipped settings: 96.2% frame accuracy on the benchmark,
+boundary MAE 0.86s against its ground truth.
 
 ## Setup
 

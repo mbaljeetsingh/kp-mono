@@ -5,9 +5,9 @@ get tagged. Audio comes from sgpc.net server-side, transcripts are cached per
 rendition on disk, and the only thing that reaches the database is the timings.
 
 Settings are the ones measurement settled on (see docs/line-alignment-prototype.md):
-  two ASR scales + crossing refinement   boundary MAE 1.1s on the benchmark GT
+  two ASR scales + crossing refinement   boundary MAE 0.86s on the benchmark GT
   blend 0.4                              char similarity + IDF word recall
-  floor 0.40                             blanks during alaap, no stale lines
+  floor 0.35                             blanks during alaap, no stale lines
   shift +0.75s                           the CTC model hears transitions early
 
 Renditions whose audio does not match their tagged shabad are SKIPPED, not
@@ -39,7 +39,11 @@ from runtime import MIN_CONFIDENCE, SB, SR, api, banidb
 
 WIN, HOP = 15.0, 5.0
 SHORT_WIN, SHORT_HOP, ALPHA = 8.0, 2.0, 0.5
-BLEND, FLOOR = 0.4, 0.40
+# FLOOR is per model, not per matcher: CTC text is rougher than surt's, so
+# every line scores a little lower and surt's 0.40 blanked real singing —
+# 80% on one benchmark recording against surt's 93%. At 0.35 the shipped path
+# scores 96.2% over the benchmark (surt at its own settings: 96.4%).
+BLEND, FLOOR = 0.4, 0.35
 CACHE = "cache"
 
 # Added to every window's start and end before matching — never stored, so the
@@ -75,24 +79,13 @@ ap.add_argument("--deadline-min", type=int, default=None,
 args = ap.parse_args()
 
 
-def transcribe(wav, tag):
-    """Both passes decode windows independently — a transcript's position in
-    time is which window produced it, never anything the model says.
-
-    The long pass is sliced from one forward pass over the recording: cheap,
-    and the context it hears is what makes it transcribe well. The short pass
-    exists to localise, so each window hears only itself — sliced, its
-    boundaries landed ~1.5s early (docs/line-alignment-prototype.md)."""
-    audio, _ = sf.read(wav, dtype="float32")
-    if tag == "full":
-        return runtime.transcribe_sliced(audio, WIN, HOP)
-    return runtime.transcribe_windows(audio, SHORT_WIN, SHORT_HOP,
-                                      label="short windows")
-
-
 def shifted(windows):
-    return [{**w, "start": w["start"] + SHIFT, "end": w["end"] + SHIFT}
-            for w in windows]
+    """SHIFT applied, with ends clamped to the audio: the raw grid's last end
+    IS the duration, and a window past it would push the frame grid — and
+    every timing derived from it — beyond the end of the rendition."""
+    dur = max((w["end"] for w in windows), default=0.0)
+    return [{**w, "start": min(w["start"] + SHIFT, dur),
+             "end": min(w["end"] + SHIFT, dur)} for w in windows]
 
 
 def frames_of(windows, lines, n):
@@ -316,10 +309,32 @@ for r in sorted(rends, key=lambda x: x["name"]):
                         "-t", str(end - off), "-i", r["tracks"]["url"],
                         "-ar", str(SR), "-ac", "1", wav], check=True)
 
-    # The model is in the key too: another model's text is a different scale,
-    # not a cache hit.
-    def pass_at(tag):
-        key = f"{cut}_{tag}_{runtime.MODEL_TAG}"
+    # Both passes decode windows independently — a transcript's position in
+    # time is which window produced it, never anything the model says. The
+    # long pass is sliced from one forward pass over the recording: cheap, and
+    # the context it hears is what makes it transcribe well. The short pass
+    # exists to localise, so each window hears only itself — sliced, its
+    # boundaries landed ~1.5s early (docs/line-alignment-prototype.md).
+    decoded = []
+
+    def audio():
+        """The wav, decoded at most once per rendition — only when a pass
+        actually misses both caches."""
+        if not decoded:
+            decoded.append(sf.read(wav, dtype="float32")[0])
+        return decoded[0]
+
+    def full(a):
+        return runtime.transcribe_sliced(a, WIN, HOP)
+
+    def short(a):
+        return runtime.transcribe_windows(a, SHORT_WIN, SHORT_HOP,
+                                          label="short windows")
+
+    # The model and the way it was run are in the key: another model's text,
+    # or text cut differently, is a different scale, not a cache hit.
+    def pass_at(tag, method, run):
+        key = f"{cut}_{tag}_{method}"
         p = f"{CACHE}/{key}_asr.json"
         if os.path.exists(p):
             return shifted(json.load(open(p))["windows"])
@@ -330,12 +345,12 @@ for r in sorted(rends, key=lambda x: x["name"]):
             print(f"  ASR pass {tag}: from storage", flush=True)
             return shifted(remote["windows"])
         print(f"  ASR pass {tag}", flush=True)
-        w = transcribe(wav, tag)
+        w = run(audio())
         json.dump({"windows": w}, open(p, "w"), ensure_ascii=False)
         runtime.store_transcript(f"align/{key}.json", {"windows": w})
         return shifted(w)
 
-    windows = pass_at("full")
+    windows = pass_at("full", runtime.SLICED_TAG, full)
 
     # Isolated, because this is the first thing after the ASR and the ASR is
     # the run. A shabad that cannot be fetched — retries exhausted, or an id
@@ -379,7 +394,8 @@ for r in sorted(rends, key=lambda x: x["name"]):
     # the full pass only. The full pass is already banked to the bucket by
     # pass_at, so a shabad fetch that fails transiently still costs nothing the
     # next run has to redo.
-    short_windows = pass_at("short") if not args.single else None
+    short_windows = (pass_at("short", runtime.WINDOWED_TAG, short)
+                     if not args.single else None)
 
     span = max(w["end"] for w in windows)
     case = {"video_id": short, "uem": {"start": 0, "end": span}, "lines": lines}
