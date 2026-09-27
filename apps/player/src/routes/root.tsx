@@ -161,7 +161,7 @@ export function RootLayout() {
             </div>
           </div>
           <div className="sticky top-0 z-10 hidden items-center justify-center gap-2 border-b border-border bg-background/95 px-6 py-3 backdrop-blur sm:flex">
-            <SearchField className="max-w-xl flex-1" />
+            <SearchField exitOnClear className="max-w-xl flex-1" />
             <ShuffleButton />
           </div>
           <div className="mx-auto max-w-4xl px-4 py-4 sm:py-6">
