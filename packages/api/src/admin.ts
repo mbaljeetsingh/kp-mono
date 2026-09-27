@@ -50,11 +50,13 @@ export const renditionSchema = z.object({
   artist: z.string().nullish(),
   /** Who proposed it — the UPDATE policy lets a publisher promote only their own. */
   created_by: z.string().nullish(),
+  /** 'manual' or 'scan'. A scan's cut is a machine guess, off by ~20 s at the median. */
+  source: z.string().nullish(),
 });
 
 /** One list for every read and write, so a column added to the schema cannot reach one and not the others. */
 const RENDITION_COLUMNS =
-  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by';
+  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by,source';
 
 export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;

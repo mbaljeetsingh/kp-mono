@@ -879,6 +879,9 @@ function SegmentRow({
           <span className="block truncate text-xs text-muted-foreground">
             {r.shabad_id ? 'shabad linked' : 'no shabad linked'}
             {r.raag ? ` · ${r.raag}` : ''}
+            {/* Said until someone publishes it: the scan hears 15 s of every
+                30 s, so its cut is a guess worth checking by ear. */}
+            {r.source === 'scan' && !published ? ' · from the scan, check the edges' : ''}
           </span>
         </span>
         <span className="shrink-0 text-xs tabular-nums">

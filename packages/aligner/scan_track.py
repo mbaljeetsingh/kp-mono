@@ -49,6 +49,7 @@ MIN_MARGIN = 0.05       # the floor itself is runtime.MIN_CONFIDENCE
 MIN_DRAFT_SEC = 60      # shorter regions are pointers (see is_draft)
 QUOTE_MAX_SEC = 90      # a run this short inside another shabad is a quote
 SMOOTH = 3              # windows averaged per label (see regions_from)
+MERGE_ACROSS_SEC = 300  # one shabad either side of only pointers is one draft
 # Each shortlisted shabad costs one BaniDB fetch; 8 crowded a real shabad off
 # the list on a prod recording whose shortlist was full of routine banis.
 TOP_CANDIDATES = 16
@@ -230,7 +231,21 @@ def merge_regions(regions):
             merged[-1] = (m[0], t1, sid, max(m[3], conf), max(m[4], margin))
         else:
             merged.append((t0, t1, sid, conf, margin))
-    return merged
+    # Second pass: the same shabad either side of nothing but pointers. Vichar
+    # and alaap mid-shabad throw up weak one-window runs of other shabads, and
+    # those broke 3950 (tagged 525-1105 s) into two drafts of one shabad.
+    out = []
+    for g in merged:
+        # The last draft so far, if only pointers have come since.
+        k = next((i for i in range(len(out) - 1, -1, -1)
+                  if is_draft(out[i])), None)
+        if (is_draft(g) and k is not None and out[k][2] == g[2]
+                and g[0] - out[k][1] <= MERGE_ACROSS_SEC):
+            m = out[k]
+            out[k:] = [(m[0], g[1], g[2], max(m[3], g[3]), max(m[4], g[4]))]
+        else:
+            out.append(g)
+    return out
 
 
 def write_drafts(track_id, windows, regions, owner=None):
