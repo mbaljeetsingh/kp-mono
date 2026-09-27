@@ -175,6 +175,11 @@ export function RootLayout() {
         <NowPlayingPanel />
       </div>
 
+      <PlayerBar />
+
+      {/* Below the player, not above it: the tabs are the app's floor, as in
+          every phone music app, and the strip of what is playing sits on top
+          of them rather than wedged between them and the thumb. */}
       <nav className="flex border-t border-border sm:hidden">
         {TABS.map(({ to, label, icon: Icon }) => (
           <Link
@@ -190,8 +195,6 @@ export function RootLayout() {
           </Link>
         ))}
       </nav>
-
-      <PlayerBar />
 
       <AuthDialog />
       <NewPlaylistDialog open={newPlaylistOpen} onOpenChange={setNewPlaylistOpen} />
