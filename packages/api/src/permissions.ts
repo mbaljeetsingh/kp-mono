@@ -35,7 +35,17 @@ const NONE: PermissionMap = Object.fromEntries(PERMISSIONS.map((p) => [p, false]
 export async function fetchPermissions(client: KpClient): Promise<PermissionMap> {
   const answers = await Promise.all(
     PERMISSIONS.map(async (requested) => {
-      const { data } = await client.rpc('authorize', { requested });
+      const { data, error } = await client.rpc('authorize', { requested });
+      // Thrown, not read as "no". A failed round trip used to come back as
+      // `false` and be cached for the session, so a single dropped request
+      // hid the publish button from an admin until a hard reload — a
+      // permission nobody had revoked, reported as revoked.
+      //
+      // Except one error that genuinely means no: 22P02 is a permission this
+      // client knows and the database's enum does not yet, as on a project a
+      // migration behind. Throwing on that would take every other permission
+      // down with it, Save draft included.
+      if (error && error.code !== '22P02') throw error;
       return [requested, data === true] as const;
     })
   );
@@ -43,16 +53,19 @@ export async function fetchPermissions(client: KpClient): Promise<PermissionMap>
 }
 
 /**
- * Cached under one key so the round trips happen once per session rather than
- * once per page. Signed out, nobody may do anything — asked or not.
+ * Cached per account so the round trips happen once per session rather than
+ * once per page. Keyed on the user, because an answer held under one shared
+ * key outlived a sign-out: signing in as someone else kept the last account's
+ * permissions. Signed out, nobody may do anything — asked or not.
  */
-export function usePermissions(client: KpClient, signedIn: boolean) {
+export function usePermissions(client: KpClient, userId: string | null | undefined) {
   const query = useQuery({
-    queryKey: ['permissions'],
+    queryKey: ['permissions', userId ?? null],
     queryFn: () => fetchPermissions(client),
-    enabled: signedIn,
+    enabled: Boolean(userId),
     staleTime: Infinity,
   });
+  const signedIn = Boolean(userId);
 
   return {
     can: query.data ?? NONE,

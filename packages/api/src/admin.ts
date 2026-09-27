@@ -46,8 +46,15 @@ export const renditionSchema = z.object({
   shabad_id: z.number().nullish(),
   main_verse_id: z.number().nullish(),
   raag: z.string().nullish(),
+  taal: z.string().nullish(),
   artist: z.string().nullish(),
+  /** Who proposed it — the UPDATE policy lets a publisher promote only their own. */
+  created_by: z.string().nullish(),
 });
+
+/** One list for every read and write, so a column added to the schema cannot reach one and not the others. */
+const RENDITION_COLUMNS =
+  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by';
 
 export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
@@ -222,7 +229,7 @@ export async function listRecordings(
 export async function listRenditions(client: KpClient, trackId: string): Promise<Rendition[]> {
   const { data, error } = await client
     .from('renditions')
-    .select('id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,artist')
+    .select(RENDITION_COLUMNS)
     .eq('track_id', trackId)
     .order('start_sec', { ascending: true });
   if (error) throw error;
@@ -289,6 +296,12 @@ export const draftSchema = z
     shabad_id: z.number().nullish(),
     main_verse_id: z.number().nullish(),
     raag: z.string().trim().nullish(),
+    taal: z.string().trim().nullish(),
+    /*
+     * Optional in the form's sense too: the form no longer offers it (Vue never
+     * did), and leaving it out of a draft is what keeps an update from wiping a
+     * value somebody set before. The column stays — the shabads view reads it.
+     */
     artist: z.string().trim().nullish(),
   })
   // Mirrors the `rendition_ordered` check constraint, so a bad range is caught
@@ -320,7 +333,7 @@ export async function createRendition(
   const { data, error } = await client
     .from('renditions')
     .insert({ ...parsed, created_by: userId })
-    .select('id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,artist')
+    .select(RENDITION_COLUMNS)
     .single();
   if (error) throw error;
   return renditionSchema.parse(data);
@@ -336,7 +349,7 @@ export async function updateRendition(
     .from('renditions')
     .update({ ...parsed, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .select('id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,artist')
+    .select(RENDITION_COLUMNS)
     .single();
   if (error) throw error;
   return renditionSchema.parse(data);
@@ -480,17 +493,41 @@ export async function requestScan(client: KpClient, trackId: string): Promise<vo
 }
 
 /** This recording's place in the scan queue, if it has one. */
+/**
+ * What the scanner heard but was not sure enough to draft — below its
+ * confidence gates. Pointers, not tags: times are track-clock seconds, so the
+ * transport can jump straight there, and nothing is saved until a tagger who
+ * listened saves it.
+ */
+export interface ScanFinding {
+  shabad_id: number;
+  name: string;
+  start: number;
+  end: number;
+  confidence: number;
+}
+
+export interface ScanRequest {
+  done_at: string | null;
+  findings: ScanFinding[];
+}
+
 export async function getScanRequest(
   client: KpClient,
   trackId: string
-): Promise<{ done_at: string | null } | null> {
+): Promise<ScanRequest | null> {
   const { data, error } = await client
     .from('scan_requests')
-    .select('track_id,done_at')
+    .select('track_id,done_at,findings')
     .eq('track_id', trackId)
     .maybeSingle();
   if (error) throw error;
-  return (data as { done_at: string | null } | null) ?? null;
+  if (!data) return null;
+  const row = data as { done_at: string | null; findings: ScanFinding[] | null };
+  return {
+    done_at: row.done_at,
+    findings: [...(row.findings ?? [])].sort((a, b) => a.start - b.start),
+  };
 }
 
 export function useScanRequest(client: KpClient, trackId: string) {
@@ -498,5 +535,74 @@ export function useScanRequest(client: KpClient, trackId: string) {
     queryKey: ['scan-request', trackId],
     queryFn: () => getScanRequest(client, trackId),
     enabled: trackId.length > 0,
+  });
+}
+
+/* ── The puratan loop ─────────────────────────────────────────────────── */
+
+/**
+ * Past this many, the oldest skips come back into rotation. The list rides in
+ * the query string at ~17 bytes an id, and the 8 KB proxy ceiling that sets
+ * QUEUED_SHELF_MAX applies here too — a session where every lookup 414s is
+ * worse than seeing a skipped file again.
+ */
+export const SKIP_FILTER_MAX = 200;
+
+function untaggedPuratan(client: KpClient, exclude: string[], head = false) {
+  let q = client
+    .from('recordings')
+    .select('id', head ? { count: 'exact', head: true } : undefined)
+    .eq('tree', 'puratan')
+    .eq('renditions', 0)
+    .is('tagged_done_at', null);
+  const ids = exclude.slice(-SKIP_FILTER_MAX);
+  if (ids.length) q = q.not('id', 'in', `(${ids.join(',')})`);
+  return q;
+}
+
+/**
+ * The next untagged puratan recording — the same ragi first, so a session
+ * walks one directory at a time the way the source tree is organised.
+ *
+ * Always limit 1 and let the database choose: PostgREST truncates at max_rows
+ * silently, so fetching the queue to pick client-side breaks for ragis late in
+ * the alphabet. Null only when the queue genuinely answered empty — an error
+ * throws, so a failed lookup never reads as "all tagged".
+ */
+export async function nextUntaggedPuratan(
+  client: KpClient,
+  exclude: string[],
+  ragi: string | null | undefined
+): Promise<string | null> {
+  if (ragi) {
+    const { data, error } = await untaggedPuratan(client, exclude)
+      .eq('artist_dir', ragi)
+      .order('title')
+      .limit(1);
+    if (error) throw error;
+    if (data?.[0]) return (data[0] as { id: string }).id;
+  }
+  const { data, error } = await untaggedPuratan(client, exclude)
+    .order('artist_dir')
+    .order('title')
+    .limit(1);
+  if (error) throw error;
+  return (data?.[0] as { id: string } | undefined)?.id ?? null;
+}
+
+/**
+ * How many untagged puratan recordings wait after this one — the number that
+ * makes a thousand-file backlog feel finishable, counted with the same filter
+ * `nextUntaggedPuratan` uses so the two cannot disagree.
+ */
+export function usePuratanLeft(client: KpClient, exclude: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: ['puratan-left', exclude],
+    queryFn: async () => {
+      const { count, error } = await untaggedPuratan(client, exclude, true);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled,
   });
 }
