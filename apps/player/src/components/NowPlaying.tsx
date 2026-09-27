@@ -157,6 +157,13 @@ export function NowPlayingSheet({
 
 /** The desktop panel. Same body, no sheet around it. */
 export function NowPlayingPanel() {
+  const current = usePlayer((s) => s.current);
+  /*
+   * Nothing playing, no panel. The body already renders nothing then, but the
+   * column around it stayed: a bordered, empty 20rem strip taking a quarter
+   * of the window from the list a first-time visitor is choosing from.
+   */
+  if (!current) return null;
   return (
     <aside className="hidden w-80 shrink-0 flex-col border-l border-border py-4 lg:flex">
       {/* No header and no transport: the bar directly below already carries

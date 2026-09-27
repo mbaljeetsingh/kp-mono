@@ -36,7 +36,7 @@ const Ctx = createContext<SessionValue | null>(null);
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth(supabase);
-  const { can, loading: permissionsLoading } = usePermissions(supabase, Boolean(session));
+  const { can, loading: permissionsLoading } = usePermissions(supabase, session?.user.id);
 
   const value = useMemo(
     () => ({
