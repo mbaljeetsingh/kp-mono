@@ -1,5 +1,5 @@
 # Python, in a TypeScript monorepo, on purpose: this package is where the ASR
-# model lives, and the model only exists in the Python ecosystem. Nothing here
+# model lives, and the tooling around it is Python's. Nothing here
 # runs in an app — like the crawler, it runs on cron (or by hand) and talks to
 # Postgres. The apps only ever read the rows it writes.
 [project]
@@ -7,12 +7,15 @@ name = "kp-aligner"
 version = "0.1.0"
 description = "Aligns Gurbani lines to kirtan audio; writes line_timings to Postgres"
 requires-python = ">=3.11"
+# No torch: the ASR model is an ONNX export run on onnxruntime's CPU provider,
+# which is the whole reason a nightly run fits on a free runner.
 dependencies = [
-  "torch",
-  "transformers",
+  "onnxruntime",
+  "sentencepiece",
+  "numpy",
+  "huggingface_hub",
   "rapidfuzz",
   "soundfile",
-  "accelerate",
 ]
 
 # Flat modules, no package directory — setuptools auto-discovery refuses that
