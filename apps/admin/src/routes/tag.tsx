@@ -620,7 +620,13 @@ function Workbench({ id }: { id: string }) {
                   }
                 }}
                 duration={duration}
-                titleMatches={wholeFile ? (titleMatches.data ?? []) : []}
+                // Offered for as long as nothing is tagged, not only while the
+                // whole-file mode is on: trimming an applause tail off a
+                // puratan file is still confirming the same match, and gating
+                // on the mode unlinked the shabad and blanked the name the
+                // moment a boundary moved. Cached, so leaving the mode does
+                // not drop what was fetched.
+                titleMatches={wholeFileOffered ? (titleMatches.data ?? []) : []}
                 titleMatching={wholeFile && titleMatches.isFetching}
                 seedName={seedName}
                 loop={loop}

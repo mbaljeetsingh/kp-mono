@@ -513,7 +513,11 @@ export function SegmentEditor({
           value={name}
           onChange={(e) => setTypedName(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && canSave && !busy) void save(publishable);
+            if (e.key !== 'Enter' || !canSave || busy) return;
+            // The primary button's action, whichever it is. In the puratan
+            // loop a bare publish would leave the recording unmarked — and
+            // with no slot, nothing else can ever count it done.
+            void (loop ? saveAndNext() : save(publishable));
           }}
           placeholder="Type what you hear, or link a shabad above"
         />
