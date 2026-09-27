@@ -19,7 +19,9 @@ draft — "scanned, nothing found" must not look like "still waiting".
 Method: ASR the broadcast in 15s windows every 30s, search BaniDB with the
 distinctive transcribed words, score every window against the top candidates
 with the same folded matcher the aligner uses — so the confidence scale is the
-calibrated one (correct tags historically 0.76–0.87, wrong ~0.51). Regions
+calibrated one (correct tags 0.82–0.92, wrong ~0.52). FLOOR and MIN_MARGIN
+below were set under surt-small-v3 and not re-measured in the switch to the
+CTC model; the gate they sit beside was, and did not move. Regions
 where one shabad dominates become suggestions; a region must clear confidence
 0.6 AND margin 0.05 over the runner-up to be drafted. Margin matters as much
 as confidence: a 0.61/+0.01 region is a coin flip, not a tag.
@@ -78,31 +80,26 @@ def asr_scan(track_id, url):
         print("  fetching audio…", flush=True)
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", url,
                         "-ar", str(SR), "-ac", "1", wav], check=True)
-    cache = f"{CACHE}/track_{track_id}_scan.json"
+    # The model is in both keys: another model's text is a different scale,
+    # not a cache hit.
+    key = f"{track_id}_{WIN:g}s{HOP:g}s_{runtime.WINDOWED_TAG}"
+    cache = f"{CACHE}/track_{key}_scan.json"
     if os.path.exists(cache):
         return json.load(open(cache))["windows"]
-    remote = runtime.fetch_transcript(f"scan/{track_id}_{WIN:g}s{HOP:g}s.json")
+    remote = runtime.fetch_transcript(f"scan/{key}.json")
     if remote:
         json.dump(remote, open(cache, "w"), ensure_ascii=False)
         print("  scan windows: from storage", flush=True)
         return remote["windows"]
-    pipe = runtime.load_pipe()
     audio, _ = sf.read(wav, dtype="float32")
     dur = len(audio) / SR
-    starts = list(range(0, int(dur - WIN), int(HOP)))
-    texts = []
-    for i in range(0, len(starts), 8):
-        clips = [audio[s * SR:int((s + WIN) * SR)] for s in starts[i:i + 8]]
-        texts.extend(o["text"].strip() for o in
-                     pipe(clips, generate_kwargs=runtime.GEN, batch_size=8))
-        runtime.free_accelerator()
-        print(f"  ASR {len(texts)}/{len(starts)}", end="\r", flush=True)
-    print()
-    windows = [{"start": float(s), "end": float(s + WIN), "text": tx}
-               for s, tx in zip(starts, texts)]
+    # Window by window, not sliced: the grid covers half the broadcast, so
+    # running only the windows is half the audio through the model.
+    starts = [float(s) for s in range(0, int(dur - WIN), int(HOP))]
+    windows = runtime.transcribe_windows(audio, WIN, HOP, starts=starts,
+                                         label="scan windows")
     json.dump({"windows": windows}, open(cache, "w"), ensure_ascii=False)
-    runtime.store_transcript(f"scan/{track_id}_{WIN:g}s{HOP:g}s.json",
-                             {"windows": windows})
+    runtime.store_transcript(f"scan/{key}.json", {"windows": windows})
     return windows
 
 
