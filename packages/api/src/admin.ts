@@ -516,11 +516,16 @@ export async function requestScan(client: KpClient, trackId: string): Promise<vo
  * Scan a recording again: clear `done_at` and the scanner takes it on its next
  * run (or at once, from Actions with its track id). Findings stay until that
  * scan replaces them. Same capability as asking the first time.
+ *
+ * The drafts belong to whoever asks this time — the renditions SELECT policy
+ * shows a tagger their own drafts, not the ones someone else asked for months
+ * ago. `requested_at` is the server's clock ('now()' is evaluated by Postgres),
+ * because the queue is ordered by it and a browser's clock can be a day off.
  */
-export async function rescan(client: KpClient, trackId: string): Promise<void> {
+export async function rescan(client: KpClient, trackId: string, userId: string): Promise<void> {
   const { data, error } = await client
     .from('scan_requests')
-    .update({ done_at: null, requested_at: new Date().toISOString() })
+    .update({ done_at: null, requested_at: 'now()', requested_by: userId })
     .eq('track_id', trackId)
     .select('track_id');
   if (error) throw error;

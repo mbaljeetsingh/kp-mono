@@ -48,6 +48,7 @@ import time
 
 import numpy as np
 import soundfile as sf
+from rapidfuzz import fuzz, process
 
 import align
 import corpus
@@ -173,24 +174,38 @@ def evidence(long_w, short_w, shabads, n):
     """[shabad x second] best-line match, the mean of every window covering
     that second, half from each pass — the scan's view of what is sung when."""
     sids = list(shabads)
-    texts = [[shabads[s][1][j]["text"] for j in shabads[s][2]] for s in sids]
+    # Every sung line of every candidate, one block of columns per shabad, so
+    # the best line per shabad is a reduceat — align.score's own comparison
+    # (folded partial ratio), run as one matrix across every core.
+    lines, starts = [], []
+    for s in sids:
+        starts.append(len(lines))
+        lines += [align.fold(shabads[s][1][j]["text"]) for j in shabads[s][2]]
     halves = []
     for windows in (long_w, short_w):
         acc, cnt = np.zeros((len(sids), n)), np.zeros(n)
-        for w in windows:
-            a, b = int(w["start"]), min(int(w["end"]), n)
-            if a >= b:
-                continue
-            cnt[a:b] += 1
-            acc[:, a:b] += np.array(
-                [max(align.score(w["text"], t, True) for t in ts)
-                 for ts in texts])[:, None]
+        if windows and sids:
+            m = process.cdist([align.fold(w["text"]) for w in windows], lines,
+                              scorer=fuzz.partial_ratio, workers=-1)
+            best = np.maximum.reduceat(m, starts, axis=1) / 100.0
+            for w, row in zip(windows, best):
+                a, b = int(w["start"]), min(int(w["end"]), n)
+                if a < b:
+                    cnt[a:b] += 1
+                    acc[:, a:b] += row[:, None]
         halves.append(acc / np.maximum(cnt, 1))
     return sids, 0.5 * halves[0] + 0.5 * halves[1]
 
 
 def _smooth(v, width):
-    return np.convolve(v, np.ones(width) / width, mode="same")
+    """Centred moving average over the seconds that exist. Plain zero-padded
+    convolution read the first and last half-width of every recording as
+    quiet (0.80 became 0.41 at t=0 over 61 s), which started every puratan
+    file's shabad late; and for a recording shorter than the kernel it returned
+    more values than there are seconds."""
+    k = np.ones(max(1, min(width, len(v))))
+    return (np.convolve(v, k, mode="same")
+            / np.convolve(np.ones(len(v)), k, mode="same"))
 
 
 def regions_from(sids, ev, floor=FLOOR):
@@ -282,24 +297,33 @@ def verdict(g, align_conf):
             and t1 - t0 >= AUTO_MIN_SEC and align_conf >= AUTO_MIN_ALIGN)
 
 
-def find_drafts(sids, ev, long_w, short_w, shabads):
+def find_drafts(sids, ev, long_w, short_w, shabads, floor=FLOOR):
     """Everything the scan concludes about one recording: [(region, align
     confidence or None, timings)] — a draft carries its align result, a
     pointer (below either gate) carries None and no timings."""
-    regions = merge_regions(regions_from(sids, ev))
+    regions = merge_regions(regions_from(sids, ev, floor))
     drafts = refine_edges([g for g in regions if is_draft(g)], sids, ev)
-    out, d = [], iter(drafts)
-    for g in regions:
+    out = []
+    for g in drafts:
+        # The gate again, on the edges refine_edges placed: a region whose
+        # singing is strong for 20 of its 65 s is not a 60-second draft.
         if not is_draft(g):
             out.append((g, None, []))
             continue
-        g = next(d)
         conf, timings = align_draft(g, long_w, short_w, shabads[g[2]])
         # Align is the second gate: a region the scan believes but align,
         # reading the same audio line by line, does not, is a pointer.
         out.append((g, conf, timings) if conf >= MIN_CONFIDENCE
                    else (g, None, []))
-    return out
+    # Pointers, minus any a draft's refined edges grew over: that stretch is
+    # the draft's shabad after all, and a pointer on it is noise.
+    kept = [(g, c, t) for g, c, t in out if c is not None]
+    for g in regions:
+        if not is_draft(g) and not any(
+                min(g[1], d[1]) - max(g[0], d[0]) > 0.5 * (g[1] - g[0])
+                for d, _, _ in kept):
+            out.append((g, None, []))
+    return sorted(out, key=lambda x: x[0][0])
 
 
 def drop_quotes(regions):
@@ -415,7 +439,10 @@ def write_drafts(track_id, found, shabads, owner=None):
             # re-cut trigger clears them if a tagger moves an edge, and
             # write_timings re-times it as for any rendition.
             "line_timings": timings or None,
-            "scan_verdict": {"confidence": round(conf, 3),
+            # The edges are in it: a tagger who re-cuts the draft changes
+            # start_sec/end_sec, and the verdict must still say what it judged.
+            "scan_verdict": {"start": round(t0, 2), "end": round(t1, 2),
+                             "confidence": round(conf, 3),
                              "margin": round(margin, 3),
                              "align_confidence": round(align_conf, 3),
                              "auto": auto, "published": publish},
@@ -474,7 +501,17 @@ if __name__ == "__main__":
         print(f"scan queue: {len(queue)} request(s), limit {limit}"
               f"{f', only {only}' if only else ''}"
               f"{'  AUTO_PUBLISH on' if AUTO_PUBLISH else ''}\n")
+        # A count does not bound the clock: six 3-hour recordings at align's
+        # RTF are ~4.5 hours against a 3-hour job timeout. Stop STARTING
+        # requests past the deadline; the rest wait for the next run.
+        deadline = int(sys.argv[sys.argv.index("--deadline-min") + 1]) \
+            if "--deadline-min" in sys.argv else None
+        started = time.monotonic()
         for q in queue:
+            if deadline and (time.monotonic() - started) / 60 > deadline:
+                print(f"── stopping: past --deadline-min {deadline}; the rest "
+                      f"stay queued for the next run")
+                break
             # One broken track (dead URL tonight, BaniDB hiccup) must not
             # wedge the whole queue: the oldest request would otherwise be
             # retried first every night, and everything behind it starves.
@@ -494,7 +531,8 @@ if __name__ == "__main__":
             print(f"  marked done ({n} draft(s), "
                   f"{len(found)} listen-here pointer(s))\n")
         if only and not queue:
-            print(f"{only} has no pending scan request — click Suggest "
-                  f"shabads on it first, or it has already been scanned.")
+            # Failed, not green: the person who ran this is waiting for drafts.
+            sys.exit(f"{only} has no pending scan request — click Suggest "
+                     f"shabads (or Scan again) on it first.")
     else:
         scan(os.environ["TRACK"], drafts="--write-drafts" in sys.argv)

@@ -792,7 +792,7 @@ function Workbench({ id }: { id: string }) {
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      void rescan(supabase, id)
+                      void rescan(supabase, id, userId)
                         .then(() =>
                           queryClient.invalidateQueries({ queryKey: ['scan-request', id] })
                         )

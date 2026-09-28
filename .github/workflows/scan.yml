@@ -47,6 +47,13 @@ jobs:
     if: ${{ !inputs.eval }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    # One scan at a time. The queue has no claim: a track_id run dispatched
+    # while the nightly one (often started hours late) is still going would
+    # read the same request, check for existing drafts before either wrote,
+    # and draft every shabad twice. A second run waits for the first.
+    concurrency:
+      group: scan
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: packages/aligner
@@ -76,7 +83,9 @@ jobs:
       # Align's two passes over each whole recording (scan_track.py): ~RTF
       # 0.24 on a runner, going by align's measured passes — ~9 minutes for a
       # 35-minute ragi-wise duty, ~45 for a 3-hour Asa di Vaar — plus a
-      # minute of matching. 6 fit inside timeout-minutes; the first run after
+      # minute of matching. --deadline-min 120 stops STARTING requests after
+      # two hours, so one long recording begun late still ends inside
+      # timeout-minutes; the rest wait for the next run. The first run after
       # the corpus change also fetches it (corpus.py, a few minutes) and
       # stores it in the transcripts bucket for every later run.
       - run: |
@@ -87,7 +96,7 @@ jobs:
             fi
             uv run python scan_track.py --from-queue --track "$TRACK_ID"
           else
-            uv run python scan_track.py --from-queue --limit 6
+            uv run python scan_track.py --from-queue --limit 6 --deadline-min 120
           fi
         env:
           TRACK_ID: ${{ inputs.track_id }}

@@ -23,8 +23,8 @@ Two halves, so the ASR can fan out across runners and one step reads it all:
     # the report, over every shard's output
     uv run python eval_scan.py --report results
 
-A run keeps each track's per-second evidence, so the report re-derives
-regions for every FLOOR x MIN_MARGIN pair without any ASR or BaniDB.
+A run writes each track's drafts at every FLOOR x MIN_MARGIN pair, through
+the shipped path (align gate included), so the report needs no ASR or BaniDB.
 """
 
 import argparse
@@ -35,7 +35,6 @@ import os
 import statistics
 import time
 
-import numpy as np
 
 import scan_track
 from runtime import MIN_CONFIDENCE, SB, api
@@ -125,17 +124,26 @@ def run():
         shabads = scan_track.shortlist(long_w, store=False)
         n_sec = int(max(w["end"] for w in long_w)) + 1
         sids, ev = scan_track.evidence(long_w, short_w, shabads, n_sec)
-        found = scan_track.find_drafts(sids, ev, long_w, short_w, shabads)
+        # The shipped path — align gate and all — at every grid point, so the
+        # report's "current" row is exactly what scan_track writes.
+        grid = {}
+        saved = scan_track.MIN_MARGIN
+        for floor in FLOORS:
+            for margin in MARGINS:
+                scan_track.MIN_MARGIN = margin
+                grid[f"{floor}/{margin}"] = [
+                    list(g) + [a] for g, a, _ in scan_track.find_drafts(
+                        sids, ev, long_w, short_w, shabads, floor)
+                    if a is not None]
+        scan_track.MIN_MARGIN = saved
         t["match"] = time.monotonic() - s0
         if "asr" in t:
             print(f"  {t['duration'] / 60:.1f} min: fetch {t['fetch']:.0f}s, "
                   f"ASR {t['asr']:.0f}s (RTF {t['asr'] / t['duration']:.3f}), "
                   f"match {t['match']:.0f}s", flush=True)
         json.dump({"track_id": k, "url": tr["url"], "done": tr["done"],
-                   "spans": tr["spans"], "sids": sids,
-                   "ev": np.round(ev, 4).tolist(), "timing": t,
-                   "drafts": [list(g) + [a] for g, a, _ in found
-                              if a is not None]},
+                   "spans": tr["spans"], "timing": t, "grid": grid,
+                   "drafts": grid[f"{scan_track.FLOOR}/{scan_track.MIN_MARGIN}"]},
                   open(f"{args.out}/{k}.json", "w"))
 
 
@@ -174,7 +182,6 @@ def report(folder):
     cases = [json.load(open(p)) for p in sorted(glob.glob(f"{folder}/*.json"))]
     for c in cases:
         c["spans"] = [tuple(s) for s in c["spans"]]
-        c["ev"] = np.array(c["ev"])
     total = sum(len(c["spans"]) for c in cases)
     print(f"\n{total} published rendition(s) on {len(cases)} track(s), "
           f"{sum(c['done'] for c in cases)} fully tagged\n")
@@ -182,23 +189,17 @@ def report(folder):
     print(f"{'floor':>5} {'margin':>6} | {'drafts':>6} {'ok':>3} {'wrong':>5} "
           f"{'unjdg':>5} | {'prec':>5} {'found':>5} | {'edge med':>8} "
           f"{'MAE':>6} {'cut off':>8}")
-    saved = (scan_track.FLOOR, scan_track.MIN_MARGIN)
     for floor in FLOORS:
         for margin in MARGINS:
-            scan_track.MIN_MARGIN = margin
             tot = collections.Counter()
             errs = []
             for c in cases:
-                regions = scan_track.merge_regions(
-                    scan_track.regions_from(c["sids"], c["ev"], floor))
-                drafts = scan_track.refine_edges(
-                    [g for g in regions if scan_track.is_draft(g)],
-                    c["sids"], c["ev"])
+                drafts = [d[:5] for d in c["grid"][f"{floor}/{margin}"]]
                 ok, wrong, unj, hit, e, lost, extra = judge(drafts, c["spans"])
                 tot.update(ok=ok, wrong=wrong, unj=unj, hit=hit)
                 tot["lost"] += lost
                 errs += e
-            now = (floor, margin) == saved
+            now = (floor, margin) == (scan_track.FLOOR, scan_track.MIN_MARGIN)
             print(f"{floor:5.2f} {margin:6.2f} | "
                   f"{tot['ok'] + tot['wrong'] + tot['unj']:6d} {tot['ok']:3d} "
                   f"{tot['wrong']:5d} {tot['unj']:5d} | "
@@ -207,7 +208,6 @@ def report(folder):
                   f"{statistics.median(errs) if errs else 0:7.1f}s "
                   f"{statistics.mean(errs) if errs else 0:5.1f}s "
                   f"{tot['lost']:7.0f}s{'  <- current' if now else ''}")
-    scan_track.FLOOR, scan_track.MIN_MARGIN = saved
 
     # Auto-publish bands, over the drafts the shipped settings wrote (they
     # carry align's confidence, which only a full run computes).
