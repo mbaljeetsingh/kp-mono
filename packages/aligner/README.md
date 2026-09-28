@@ -76,37 +76,58 @@ and another model's text is a different confidence scale, not a hit.
 ```bash
 pnpm scan                                        # consume the admin queue, from repo root
 SB_KEY=<key> uv run python scan_track.py --from-queue --limit 3
+SB_KEY=<key> uv run python scan_track.py --from-queue --track <track id>   # one queued recording
 SB_KEY=<key> TRACK=<track id> uv run python scan_track.py [--write-drafts]
 ```
 
-Blind identification: ASR the broadcast, shortlist the 8 shabads whose lines
-win the most windows across the whole Guru Granth Sahib, score the shortlist
-window-by-window, report regions where one dominates. The shortlist is local
-(`corpus.py`: the text fetched once from BaniDB's ang endpoint, cached on disk
-and in the `transcripts` bucket) because BaniDB word search on CTC transcripts
-missed the right shabad on most recordings. Queue mode consumes
-`scan_requests` (the _Suggest_ button in admin writes rows there; _Suggest
-again_ re-queues a finished one), oldest first, and
-stamps `done_at` even when nothing cleared the gate — "scanned, nothing found"
-is an answer. A failing track is left queued for retry without blocking the
-rest.
+Deployed, one recording at a time: click _Suggest shabads_ (or _Scan again_)
+on it in admin, then Actions → scan → Run workflow with its `track_id`.
 
-Confident regions (confidence ≥ 0.6 **and** margin ≥ 0.05 over the runner-up)
-become renditions with `status = 'shabad_linked'`, `source = 'scan'`, named
-from the region's dominant line, owned by whoever requested the scan —
-invisible to the player until a human reviews the boundaries in the tagger and
-publishes. It never publishes anything itself.
+Blind identification, with lyrics. The scan runs align's own two passes over
+the whole recording (cached per track under `track/` in the `transcripts`
+bucket) and reads everything off that one transcript:
+
+1. **Shortlist** the 16 shabads whose lines win the most windows across the
+   Guru Granth Sahib and Bhai Gurdas Ji's Vaaran (`corpus.py`, fetched once
+   from BaniDB's ang endpoint). BaniDB word search on CTC transcripts missed
+   the right shabad on most recordings.
+2. **Regions** from per-second evidence per shortlisted shabad, smoothed over a
+   minute; a short run of one shabad between two runs of another is a quote
+   from vichar and is dropped; the same shabad either side of only weak runs
+   is one region.
+3. **Gate**: confidence ≥ 0.6, margin ≥ 0.05 over the runner-up, at least 60 s.
+4. **Edges** placed again from 5 s evidence, grown outward from inside.
+5. **Align** on the draft's span: its confidence is a second gate (below 0.6
+   the region is a pointer), its timings are the draft's `line_timings`.
+
+Drafts are renditions with `status = 'shabad_linked'`, `source = 'scan'`,
+lyrics timed, named from the line sung longest, owned by whoever requested
+the scan, and a `scan_verdict` saying whether it would have published itself
+(`AUTO_PUBLISH=1` acts on that; nothing sets it). Invisible to the player until
+a human reviews the edges and publishes — no night's wait for lyrics after.
+Queue mode consumes `scan_requests` oldest first and stamps `done_at` even when
+nothing cleared the gate; a failing track is left queued for retry.
+
+Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
+prod's published tags (25 renditions, 17 recordings) against the old sparse
+scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
 
 ## Measure the scan against published tags
 
 ```bash
 SB_URL=https://<ref>.supabase.co/rest/v1 SB_KEY=<key> \
   uv run python eval_scan.py [--limit N] [--exclude-shabad ID ...]
+uv run python eval_scan.py --shard 3/8 --out results    # one of N slices
+uv run python eval_scan.py --report results             # tables over every slice
 ```
 
+On prod: Actions → scan → Run workflow with `eval` ticked — 12 runners, the
+report in the run summary.
+
 Runs the scan over every track with a published rendition and replays a grid
-of `FLOOR` x `MIN_MARGIN` over it: how many would-be drafts name the published
-shabad, name a different one, or land where nothing is tagged. Read-only by
+of `FLOOR` x `MIN_MARGIN` over the saved evidence: how many drafts name the
+published shabad, name a different one, or land where nothing is tagged, how
+far their edges sit from the human's, and how the auto-publish bands do. Read-only by
 construction — GETs only, transcripts and the corpus kept on local disk — so it
 is safe to point at prod, which has far more published tags than a local
 stack. `--exclude-shabad 3590` drops the known mistag from the truth.
