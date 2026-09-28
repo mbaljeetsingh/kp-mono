@@ -10,6 +10,7 @@ import {
   canPublishRendition,
   nextUntaggedPuratan,
   requestScan,
+  rescan,
   setRenditionStatus,
   setTaggedDone,
   usePuratanLeft,
@@ -786,9 +787,24 @@ function Workbench({ id }: { id: string }) {
 
             {can['scans.request'] ? (
               scan.data ? (
-                <span className="text-xs text-muted-foreground">
-                  {scan.data.done_at ? 'Scanned' : 'Queued for scanning'}
-                </span>
+                scan.data.done_at ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      void rescan(supabase, id)
+                        .then(() =>
+                          queryClient.invalidateQueries({ queryKey: ['scan-request', id] })
+                        )
+                        .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
+                    }
+                  >
+                    <ScanLine />
+                    Scan again
+                  </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">Queued for scanning</span>
+                )
               ) : (
                 <Button
                   variant="outline"
@@ -882,6 +898,10 @@ function SegmentRow({
             {/* Said until someone publishes it: the scan hears 15 s of every
                 30 s, so its cut is a guess worth checking by ear. */}
             {r.source === 'scan' && !published ? ' · from the scan, check the edges' : ''}
+            {r.source === 'scan' && r.line_timings?.length ? ' · lyrics timed' : ''}
+            {/* The shadow verdict: what it would have done had auto-publish
+                been on. Shown so a reviewer can hold it against their ear. */}
+            {r.scan_verdict?.auto && !published ? ' · would auto-publish' : ''}
           </span>
         </span>
         <span className="shrink-0 text-xs tabular-nums">

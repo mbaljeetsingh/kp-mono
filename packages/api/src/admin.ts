@@ -50,13 +50,31 @@ export const renditionSchema = z.object({
   artist: z.string().nullish(),
   /** Who proposed it — the UPDATE policy lets a publisher promote only their own. */
   created_by: z.string().nullish(),
-  /** 'manual' or 'scan'. A scan's cut is a machine guess, off by ~20 s at the median. */
+  /** 'manual' or 'scan'. A scan's cut is a machine guess worth checking by ear. */
   source: z.string().nullish(),
+  /** A scan draft arrives with its lyrics timed; only whether it has them matters here. */
+  line_timings: z.array(z.unknown()).nullish(),
+  /**
+   * What the scanner concluded about a draft it wrote. `auto` = it would have
+   * published itself had AUTO_PUBLISH been on — shown so a reviewer can judge
+   * that verdict against their own ear before anything is ever switched on.
+   */
+  scan_verdict: z
+    .object({
+      confidence: z.number(),
+      margin: z.number(),
+      align_confidence: z.number(),
+      auto: z.boolean(),
+      published: z.boolean(),
+    })
+    .partial()
+    .nullish(),
 });
 
 /** One list for every read and write, so a column added to the schema cannot reach one and not the others. */
 const RENDITION_COLUMNS =
-  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by,source';
+  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by,' +
+  'source,line_timings,scan_verdict';
 
 export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
@@ -492,6 +510,22 @@ export async function requestScan(client: KpClient, trackId: string): Promise<vo
   // An ignored duplicate comes back empty and is not a failure: the recording
   // is already in the queue, which is what the tagger wanted.
   void data;
+}
+
+/**
+ * Scan a recording again: clear `done_at` and the scanner takes it on its next
+ * run (or at once, from Actions with its track id). Findings stay until that
+ * scan replaces them. Same capability as asking the first time.
+ */
+export async function rescan(client: KpClient, trackId: string): Promise<void> {
+  const { data, error } = await client
+    .from('scan_requests')
+    .update({ done_at: null, requested_at: new Date().toISOString() })
+    .eq('track_id', trackId)
+    .select('track_id');
+  if (error) throw error;
+  // RLS refuses an UPDATE by matching nothing, so an empty answer is a refusal.
+  if (!data?.length) throw new Error('Scanning this recording again is not permitted.');
 }
 
 /** This recording's place in the scan queue, if it has one. */
