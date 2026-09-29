@@ -74,13 +74,15 @@ CACHE = "cache"
 
 # Auto-publish verdict. Recorded on every draft (scan_verdict), acted on only
 # with AUTO_PUBLISH=1 — the shadow period compares what it WOULD have
-# published with what people did. Starting values from the sparse scan's
-# strict band (34/34 right on prod); re-measure on the dense scale with
-# eval_scan.py before switching it on.
-AUTO_MIN_CONFIDENCE = 0.75
-AUTO_MIN_MARGIN = 0.10
-AUTO_MIN_SEC = 120
-AUTO_MIN_ALIGN = 0.80
+# published with what people did. Measured on the dense scale over prod's 48
+# published renditions (eval_scan.py, run 36376143405): this band held 50 of
+# the 140 drafts, 26 of them over tagged time, none wrong. The next looser
+# band (0.70 / 0.10 / 120 s / 0.75) had one wrong in 32. 0 of 26 still allows
+# an error rate of up to ~11%, which is what the shadow weeks are for.
+AUTO_MIN_CONFIDENCE = 0.72
+AUTO_MIN_MARGIN = 0.12
+AUTO_MIN_SEC = 180
+AUTO_MIN_ALIGN = 0.78
 AUTO_PUBLISH = os.environ.get("AUTO_PUBLISH") == "1"
 
 

@@ -810,7 +810,7 @@ function Workbench({ id }: { id: string }) {
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    void requestScan(supabase, id)
+                    void requestScan(supabase, id, userId)
                       .then(() => queryClient.invalidateQueries({ queryKey: ['scan-request', id] }))
                       .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
                   }
@@ -895,14 +895,24 @@ function SegmentRow({
           <span className="block truncate text-xs text-muted-foreground">
             {r.shabad_id ? 'shabad linked' : 'no shabad linked'}
             {r.raag ? ` · ${r.raag}` : ''}
-            {/* Said until someone publishes it: the scan hears 15 s of every
-                30 s, so its cut is a guess worth checking by ear. */}
-            {r.source === 'scan' && !published ? ' · from the scan, check the edges' : ''}
-            {r.source === 'scan' && r.line_timings?.length ? ' · lyrics timed' : ''}
-            {/* The shadow verdict: what it would have done had auto-publish
-                been on. Shown so a reviewer can hold it against their ear. */}
-            {r.scan_verdict?.auto && !published ? ' · would auto-publish' : ''}
           </span>
+          {r.source === 'scan' && (!published || r.line_timings?.length) ? (
+            // Its own line, wrapping rather than truncated: on the line above,
+            // the shadow verdict came last and was the part that got cut off.
+            <span className="block text-xs text-muted-foreground">
+              {[
+                // Until someone publishes it: the edges are a machine's guess
+                // (~5 s off at the median on prod), worth checking by ear.
+                !published && 'from the scan, check the edges',
+                r.line_timings?.length && 'lyrics timed',
+                // What it would have done had auto-publish been on — shown so
+                // a reviewer can hold the verdict against their own ear.
+                r.scan_verdict?.auto && !published && 'would auto-publish',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          ) : null}
         </span>
         <span className="shrink-0 text-xs tabular-nums">
           <button

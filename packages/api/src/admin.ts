@@ -501,10 +501,22 @@ export async function setTaggedDone(
  * budgets roughly thirty CPU-minutes per broadcast on a runner, three a night —
  * and this button is the only thing rationing it.
  */
-export async function requestScan(client: KpClient, trackId: string): Promise<void> {
+export async function requestScan(
+  client: KpClient,
+  trackId: string,
+  userId: string
+): Promise<void> {
   const { data, error } = await client
     .from('scan_requests')
-    .upsert({ track_id: trackId }, { onConflict: 'track_id', ignoreDuplicates: true })
+    // requested_by from the session: the INSERT policy does not default it,
+    // and the scanner makes it every draft's created_by. The Vue page set it;
+    // the React port dropped it, so drafts arrived owned by nobody — hidden
+    // from a requester without review, and unpublishable by one (a publisher
+    // may promote only their own).
+    .upsert(
+      { track_id: trackId, requested_by: userId },
+      { onConflict: 'track_id', ignoreDuplicates: true }
+    )
     .select('track_id');
   if (error) throw error;
   // An ignored duplicate comes back empty and is not a failure: the recording
