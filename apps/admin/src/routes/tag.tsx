@@ -461,6 +461,23 @@ function Workbench({ id }: { id: string }) {
 
       {recording.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
 
+      {/* Said, not left blank: a failed load used to render the back link and
+          nothing else, which reads as a broken page rather than a retryable one. */}
+      {recording.isError ? (
+        <div role="alert" className="flex flex-wrap items-center gap-2">
+          <p className="text-sm text-destructive">Could not load this recording.</p>
+          <Button variant="outline" size="sm" onClick={() => void recording.refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : null}
+      {recording.isSuccess && !recording.data ? (
+        <p className="text-sm text-muted-foreground">
+          This recording is not in the tagging queue. Day-wise files, unplayable formats and
+          recordings gone from sgpc.net are left out of it.
+        </p>
+      ) : null}
+
       {recording.data ? (
         <>
           <header className="flex flex-wrap items-start gap-x-4 gap-y-2">
