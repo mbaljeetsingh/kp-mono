@@ -15,4 +15,7 @@ if (!url || !key) {
   throw new Error('VITE_SUPABASE_URL and VITE_SUPABASE_KEY must be set — see .env.example');
 }
 
-export const supabase = createKpClient({ url, key });
+// Refuse, don't send, a request that would leave without the user's token:
+// every read here is the signed-in user's, and an anonymous answer looks like
+// a real one — Review empty, a tag page missing its drafts (ClientConfig.tokenless).
+export const supabase = createKpClient({ url, key, tokenless: 'refuse' });

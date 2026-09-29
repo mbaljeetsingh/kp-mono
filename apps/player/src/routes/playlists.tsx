@@ -58,7 +58,20 @@ export function PlaylistsRoute() {
 
       {query.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
 
-      {!query.isLoading && lists.length === 0 ? (
+      {/* Throwing in fetchPlaylists keeps a failure from reading as no
+          playlists; saying it here is the other half. */}
+      {query.isError && query.data === undefined ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p role="alert" className="text-sm text-destructive">
+            Could not load your playlists.
+          </p>
+          <Button size="sm" variant="outline" onClick={() => void query.refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : null}
+
+      {query.data !== undefined && lists.length === 0 ? (
         <EmptyState
           title="No playlists yet."
           hint="Use the menu on any shabad to file it into one."

@@ -264,8 +264,14 @@ export async function getRecording(client: KpClient, id: string): Promise<Record
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
+  // A row the view returns but the schema refuses is a bug to report, not an
+  // absent recording: as null, the tag page told the tagger this recording was
+  // one the queue leaves out.
   const parsed = recordingSchema.safeParse(data);
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) {
+    throw new Error(`Recording ${id} does not match its schema: ${parsed.error.message}`);
+  }
+  return parsed.data;
 }
 
 export function useRecordings(client: KpClient, filters: RecordingFilters) {
@@ -497,9 +503,11 @@ export async function setTaggedDone(
 /**
  * Ask the scanner to suggest shabads for a recording.
  *
- * Its own capability too. A queued scan is not free — the nightly workflow
- * budgets roughly thirty CPU-minutes per broadcast on a runner, three a night —
- * and this button is the only thing rationing it.
+ * The row is the whole request: a trigger on scan_requests starts a scan run
+ * at once (20260930000000_dispatch_scan_and_align.sql), and the nightly run
+ * sweeps up anything a dispatch missed. Its own capability too — a scan costs
+ * about a quarter of the recording's length in runner time, and this button is
+ * the only thing rationing it.
  */
 export async function requestScan(
   client: KpClient,
@@ -525,9 +533,9 @@ export async function requestScan(
 }
 
 /**
- * Scan a recording again: clear `done_at` and the scanner takes it on its next
- * run (or at once, from Actions with its track id). Findings stay until that
- * scan replaces them. Same capability as asking the first time.
+ * Scan a recording again: clearing `done_at` starts a scan run at once, the
+ * same trigger as a first request. Findings stay until that scan replaces
+ * them. Same capability as asking the first time.
  *
  * The drafts belong to whoever asks this time — the renditions SELECT policy
  * shows a tagger their own drafts, not the ones someone else asked for months
@@ -588,6 +596,10 @@ export function useScanRequest(client: KpClient, trackId: string) {
     queryKey: ['scan-request', trackId],
     queryFn: () => getScanRequest(client, trackId),
     enabled: trackId.length > 0,
+    // While queued, look again every half minute: a request starts a scan run
+    // at once (the dispatch trigger), so its drafts can land while the tagger
+    // is still on the page. Visible tabs only, as refetchInterval runs.
+    refetchInterval: (query) => (query.state.data && !query.state.data.done_at ? 30_000 : false),
   });
 }
 

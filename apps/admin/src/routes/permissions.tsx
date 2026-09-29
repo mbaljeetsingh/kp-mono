@@ -10,6 +10,7 @@ import { TRUST_LADDER } from '@kp/shared/types';
 import { Switch } from '@kp/ui/switch';
 import { Check, Minus } from 'lucide-react';
 
+import { LoadStatus } from '~/components/LoadStatus';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { cn } from '~/lib/utils';
@@ -35,7 +36,11 @@ export function PermissionsRoute() {
         </p>
       </header>
 
-      {loading || all.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <LoadStatus what="the permissions" queries={[all, granted]} />
+      )}
 
       {setPermission.isError ? (
         <p role="alert" className="text-sm text-destructive">
@@ -45,69 +50,73 @@ export function PermissionsRoute() {
         </p>
       ) : null}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-md text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="py-2 pr-4 text-left font-medium">Permission</th>
-              {TRUST_LADDER.map((role) => (
-                <th key={role} className="px-3 py-2 text-center font-medium capitalize">
-                  {role}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {permissions.map((permission) => (
-              <tr key={permission} className="border-b border-border/50">
-                <td className="py-2 pr-4">
-                  <code className="text-xs">{permission}</code>
-                </td>
-                {TRUST_LADDER.map((role) => {
-                  const on = held.has(`${role}:${permission}`);
-                  // The RPC refuses this one outright — an admin removing their
-                  // own ability to manage users would lock the instance out of
-                  // its own matrix with no way back in. Said here rather than
-                  // letting the server reject a switch that already moved.
-                  const locked = role === 'admin' && permission === 'users.manage';
-
-                  return (
-                    <td key={role} className="px-3 py-2 text-center">
-                      {editable && !locked ? (
-                        <Switch
-                          checked={on}
-                          aria-label={`${permission} for ${role}`}
-                          disabled={setPermission.isPending}
-                          onCheckedChange={(next) =>
-                            setPermission.mutate({
-                              role,
-                              permission,
-                              enabled: Boolean(next),
-                            })
-                          }
-                        />
-                      ) : on ? (
-                        <Check
-                          aria-label="granted"
-                          className={cn(
-                            'mx-auto size-4',
-                            locked ? 'text-muted-foreground' : 'text-primary'
-                          )}
-                        />
-                      ) : (
-                        <Minus
-                          aria-label="not granted"
-                          className="mx-auto size-4 text-muted-foreground/40"
-                        />
-                      )}
-                    </td>
-                  );
-                })}
+      {/* Only over both halves: from `granted.data ?? []` alone, a failed read
+          drew every permission as not granted, switches an admin could flip. */}
+      {all.data !== undefined && granted.data !== undefined ? (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-md text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="py-2 pr-4 text-left font-medium">Permission</th>
+                {TRUST_LADDER.map((role) => (
+                  <th key={role} className="px-3 py-2 text-center font-medium capitalize">
+                    {role}
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {permissions.map((permission) => (
+                <tr key={permission} className="border-b border-border/50">
+                  <td className="py-2 pr-4">
+                    <code className="text-xs">{permission}</code>
+                  </td>
+                  {TRUST_LADDER.map((role) => {
+                    const on = held.has(`${role}:${permission}`);
+                    // The RPC refuses this one outright — an admin removing their
+                    // own ability to manage users would lock the instance out of
+                    // its own matrix with no way back in. Said here rather than
+                    // letting the server reject a switch that already moved.
+                    const locked = role === 'admin' && permission === 'users.manage';
+
+                    return (
+                      <td key={role} className="px-3 py-2 text-center">
+                        {editable && !locked ? (
+                          <Switch
+                            checked={on}
+                            aria-label={`${permission} for ${role}`}
+                            disabled={setPermission.isPending}
+                            onCheckedChange={(next) =>
+                              setPermission.mutate({
+                                role,
+                                permission,
+                                enabled: Boolean(next),
+                              })
+                            }
+                          />
+                        ) : on ? (
+                          <Check
+                            aria-label="granted"
+                            className={cn(
+                              'mx-auto size-4',
+                              locked ? 'text-muted-foreground' : 'text-primary'
+                            )}
+                          />
+                        ) : (
+                          <Minus
+                            aria-label="not granted"
+                            className="mx-auto size-4 text-muted-foreground/40"
+                          />
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
       <p className="text-xs text-muted-foreground">
         Admin always keeps <code>users.manage</code> — without it nobody could edit this table

@@ -28,6 +28,87 @@ export interface ClientConfig {
    * a `window` that is not there.
    */
   detectSessionInUrl?: boolean;
+  /**
+   * What happens to a request about to leave without the signed-in user's
+   * token. When a refresh fails for a moment — the laptop just woke, the
+   * network or the auth server is not back — supabase-js sends the publishable
+   * key instead, for at least the minute it waits before trying again, and
+   * says nothing: no auth event fires, so the app still shows the user signed
+   * in.
+   *
+   * `'send'` (the default) lets it go. The listener apps' public reads answer
+   * the same either way, and their own rows (favorites, playlists) are not
+   * granted to anon, so those fail loudly instead.
+   *
+   * `'refuse'` answers it here with a 401. For admin, where every read is the
+   * user's, an anonymous answer is wrong in a way nothing can see:
+   * `renditions` returns 200 with published rows only, so Review says
+   * "Nothing waiting" and a tag page offers whole-file publish over a draft it
+   * no longer shows. A failure is at least visible, and retried.
+   */
+  tokenless?: 'send' | 'refuse';
+}
+
+/** What the guard knows about the session, and what it has seen go wrong. */
+export interface AuthWatch {
+  signedIn: boolean;
+  /**
+   * Requests that left, or would have, without the signed-in user's token,
+   * plus data requests answered 401 while signed in (a token the server
+   * already considers expired — a client clock running behind).
+   */
+  trouble: number;
+}
+
+const watches = new WeakMap<KpClient, AuthWatch>();
+
+/**
+ * How much auth trouble this client has seen since load (see AuthWatch).
+ * useAuth compares it across token changes: a new token after trouble means
+ * the cache may hold answers fetched without one; a new token without any
+ * is a routine refresh, and re-fetching then would buy nothing.
+ */
+export function authTrouble(client: KpClient): number {
+  return watches.get(client)?.trouble ?? 0;
+}
+
+const REFUSED = JSON.stringify({
+  code: 'PGRST301',
+  message: 'Your sign-in is being renewed. Try again in a moment.',
+  details: null,
+  hint: null,
+});
+
+/**
+ * The fetch every request of a client goes through — the auth client's own
+ * included, which is why /auth/v1/ passes untouched: sign-in and the refresh
+ * itself are meant to go out on the publishable key.
+ */
+export function guardFetch(
+  watch: AuthWatch,
+  { url, key, tokenless = 'send' }: Pick<ClientConfig, 'url' | 'key' | 'tokenless'>,
+  base: typeof fetch = (input, init) => fetch(input, init)
+): typeof fetch {
+  const authPath = `${url.replace(/\/+$/, '')}/auth/v1/`;
+  return async (input, init) => {
+    const target = typeof input === 'string' ? input : 'href' in input ? input.href : input.url;
+    if (!watch.signedIn || target.startsWith(authPath)) return base(input, init);
+
+    const bearer = new Headers(init?.headers).get('Authorization');
+    if (!bearer || bearer === `Bearer ${key}`) {
+      watch.trouble += 1;
+      if (tokenless === 'refuse') {
+        return new Response(REFUSED, {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    const response = await base(input, init);
+    if (response.status === 401) watch.trouble += 1;
+    return response;
+  };
 }
 
 export function createKpClient({
@@ -35,13 +116,24 @@ export function createKpClient({
   key,
   storage,
   detectSessionInUrl = true,
+  tokenless = 'send',
 }: ClientConfig): KpClient {
-  return createClient(url, key, {
+  const watch: AuthWatch = { signedIn: false, trouble: 0 };
+  const client = createClient(url, key, {
     auth: {
       storage: storage as never,
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl,
     },
+    global: { fetch: guardFetch(watch, { url, key, tokenless }) },
   });
+  // "Signed in" means what the auth events say, the same events useAuth
+  // mirrors into React. A refresh that fails retryably emits none, so the
+  // watch stays signed in through exactly the window it exists to catch.
+  client.auth.onAuthStateChange((_event, session) => {
+    watch.signedIn = session !== null;
+  });
+  watches.set(client, watch);
+  return client;
 }
