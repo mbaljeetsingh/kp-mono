@@ -15,8 +15,10 @@ Two ways to run it:
 
 Queue mode consumes scan_requests (the admin button writes rows there), oldest
 first, and stamps done_at whether or not anything was confident enough to
-draft — "scanned, nothing found" must not look like "still waiting".
-`--track` limits it to one request, for scanning one recording on demand.
+draft — "scanned, nothing found" must not look like "still waiting". It
+re-reads the queue after every track, so a run drains it, requests made while
+it runs included. `--track` limits it to one request, for scanning one
+recording on demand.
 
 Method, measured against prod's published renditions (eval_scan.py):
 
@@ -489,31 +491,50 @@ def scan(track_id, drafts, owner=None):
 
 if __name__ == "__main__":
     if "--from-queue" in sys.argv:
+        # Without --limit a run drains the queue, which is what scan.yml wants
+        # (it bounds the clock with --deadline-min instead); `pnpm scan` on a
+        # laptop passes one.
         limit = int(sys.argv[sys.argv.index("--limit") + 1]) \
-            if "--limit" in sys.argv else 3
+            if "--limit" in sys.argv else None
         # --track: exactly one request, for scanning one recording on demand
         # (scan.yml's track_id input). Still a request — it must be queued —
         # so done_at, findings and the draft's owner are stamped the same way.
         only = sys.argv[sys.argv.index("--track") + 1] \
             if "--track" in sys.argv else None
-        queue = api(f"{SB}/scan_requests?done_at=is.null"
-                    + (f"&track_id=eq.{only}" if only else "")
-                    + f"&order=requested_at.asc&limit={limit}"
-                    f"&select=track_id,requested_by")
-        print(f"scan queue: {len(queue)} request(s), limit {limit}"
-              f"{f', only {only}' if only else ''}"
-              f"{'  AUTO_PUBLISH on' if AUTO_PUBLISH else ''}\n")
         # A count does not bound the clock: six 3-hour recordings at align's
         # RTF are ~4.5 hours against a 3-hour job timeout. Stop STARTING
         # requests past the deadline; the rest wait for the next run.
         deadline = int(sys.argv[sys.argv.index("--deadline-min") + 1]) \
             if "--deadline-min" in sys.argv else None
+        print(f"scan queue: oldest first"
+              f"{f', at most {limit}' if limit else ''}"
+              f"{f', only {only}' if only else ''}"
+              f"{f', starting nothing after {deadline} min' if deadline else ''}"
+              f"{'  AUTO_PUBLISH on' if AUTO_PUBLISH else ''}\n")
         started = time.monotonic()
-        for q in queue:
+        tried = []
+        while limit is None or len(tried) < limit:
             if deadline and (time.monotonic() - started) / 60 > deadline:
                 print(f"── stopping: past --deadline-min {deadline}; the rest "
                       f"stay queued for the next run")
                 break
+            # Re-read after every track instead of fetching the queue once: a
+            # request made while this run is going must be taken by it. Every
+            # request dispatches a run (20260930000000_dispatch_scan_and_align
+            # .sql), but GitHub keeps one PENDING run per concurrency group and
+            # cancels the older, so a click during a run may end up with no run
+            # of its own — this loop is what still scans it. Tracks tried here
+            # are skipped, so a failure is not retried in a loop.
+            nxt = api(f"{SB}/scan_requests?done_at=is.null"
+                      + (f"&track_id=eq.{only}" if only else "")
+                      + (f"&track_id=not.in.({','.join(tried)})" if tried
+                         else "")
+                      + "&order=requested_at.asc&limit=1"
+                      "&select=track_id,requested_by")
+            if not nxt:
+                break
+            q = nxt[0]
+            tried.append(q["track_id"])
             # One broken track (dead URL tonight, BaniDB hiccup) must not
             # wedge the whole queue: the oldest request would otherwise be
             # retried first every night, and everything behind it starves.
@@ -532,7 +553,7 @@ if __name__ == "__main__":
                 body={"done_at": "now()", "findings": found or None})
             print(f"  marked done ({n} draft(s), "
                   f"{len(found)} listen-here pointer(s))\n")
-        if only and not queue:
+        if only and not tried:
             # Failed, not green: the person who ran this is waiting for drafts.
             sys.exit(f"{only} has no pending scan request — click Suggest "
                      f"shabads (or Scan again) on it first.")

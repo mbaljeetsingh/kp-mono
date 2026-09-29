@@ -80,8 +80,10 @@ SB_KEY=<key> uv run python scan_track.py --from-queue --track <track id>   # one
 SB_KEY=<key> TRACK=<track id> uv run python scan_track.py [--write-drafts]
 ```
 
-Deployed, one recording at a time: click _Suggest shabads_ (or _Scan again_)
-on it in admin, then Actions → scan → Run workflow with its `track_id`.
+Deployed, a click is the whole step: _Suggest shabads_ (or _Scan again_) in
+admin queues the recording and a database trigger starts `scan.yml` at once
+(see Scheduling). Actions → scan → Run workflow with a `track_id` scans one
+queued recording by hand.
 
 Blind identification, with lyrics. The scan runs align's own two passes over
 the whole recording (cached per track under `track/` in the `transcripts`
@@ -105,8 +107,9 @@ lyrics timed, named from the line sung longest, owned by whoever requested
 the scan, and a `scan_verdict` saying whether it would have published itself
 (`AUTO_PUBLISH=1` acts on that; nothing sets it). Invisible to the player until
 a human reviews the edges and publishes — no night's wait for lyrics after.
-Queue mode consumes `scan_requests` oldest first and stamps `done_at` even when
-nothing cleared the gate; a failing track is left queued for retry.
+Queue mode consumes `scan_requests` oldest first, re-reading it after each
+track so one run drains it, and stamps `done_at` even when nothing cleared the
+gate; a failing track is left queued for retry.
 
 Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
 prod's published tags (25 renditions, 17 recordings) against the old sparse
@@ -149,6 +152,24 @@ select json_agg(t) from (
 
 ## Scheduling
 
-Deployed: `.github/workflows/scan.yml` and `align.yml` run nightly against the
-project in the repo secrets. Locally there is no scheduler on purpose — run
-`pnpm pipeline` (scan, then align) after a tagging session.
+Deployed: `.github/workflows/scan.yml` and `align.yml` run against the project
+in the repo secrets as soon as there is work for them. A database trigger
+(`supabase/migrations/20260930000000_dispatch_scan_and_align.sql`) dispatches
+`scan.yml` when a scan request is queued or re-queued, and `align.yml` when a
+rendition enters align's queue — published, shabad linked, no timings. Both
+also run nightly, as the sweep for anything a dispatch missed.
+
+The trigger needs one secret, created once in the SQL editor:
+
+```sql
+select vault.create_secret('<token>', 'github_dispatch_token');
+```
+
+a fine-grained GitHub token for this repository only, with Actions: read and
+write. Without it nothing is dispatched and the nightly runs do the work, as
+before — which is every local database. A refused dispatch (an expired token
+answers 401) shows in `net._http_response`; replace the secret with
+`vault.update_secret`.
+
+Locally there is no scheduler on purpose — run `pnpm pipeline` (scan, then
+align) after a tagging session.

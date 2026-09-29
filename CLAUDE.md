@@ -31,7 +31,7 @@ pnpm pipeline                                # scan then align against the local
 cd packages/aligner && uv venv && uv pip install -e .   # once, for the Python tools
 ```
 
-CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, lint, typecheck, test and build on every PR. `scan.yml`/`align.yml` run nightly and `crawl.yml` weekly against the deployed project; `scan.yml` can also be run by hand with a `track_id` (one queued recording) or `eval` (read-only measurement of the scan against published tags).
+CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, lint, typecheck, test and build on every PR. `scan.yml`/`align.yml` start as soon as there is work — a database trigger dispatches them (`supabase/migrations/20260930000000_dispatch_scan_and_align.sql`) — and also run nightly as a sweep; `crawl.yml` runs weekly. All run against the deployed project. `scan.yml` can also be run by hand with a `track_id` (one queued recording) or `eval` (read-only measurement of the scan against published tags).
 
 ## Supabase — read this before touching the database
 
@@ -41,6 +41,7 @@ CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, li
 - The local Docker volume may hold a full 49k-track crawl and hand-tagged renditions. `supabase db reset` restores only the committed sample seed — don't reset without asking.
 - The seed accounts (README) are for local testing only: `admin@kirtanplayer.com` / `contributor@kirtanplayer.com`, password `password`.
 - The service key bypasses RLS: CI secrets or a history-less shell only, never an app or a committed file.
+- The GitHub token the dispatch trigger uses lives in Vault (`github_dispatch_token`), created by the owner in the SQL editor — never in a migration or a file. Test the trigger locally with a dummy secret only: a real token starts real runs against prod.
 
 ## Generated or checked copies — never edit by hand
 

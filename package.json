@@ -16,7 +16,7 @@
     "db:reset": "supabase db reset",
     "seed": "SUPABASE_SERVICE_KEY=$(npx supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)[\"SECRET_KEY\"])') node --experimental-strip-types packages/crawler/src/seed.ts",
     "align": "cd packages/aligner && SB_KEY=$(npx supabase status -o json | python3 -c \"import json,sys;print(json.load(sys.stdin)['SECRET_KEY'])\") uv run python write_timings.py",
-    "scan": "cd packages/aligner && SB_KEY=$(npx supabase status -o json | python3 -c \"import json,sys;print(json.load(sys.stdin)['SECRET_KEY'])\") uv run python scan_track.py --from-queue",
+    "scan": "cd packages/aligner && SB_KEY=$(npx supabase status -o json | python3 -c \"import json,sys;print(json.load(sys.stdin)['SECRET_KEY'])\") uv run python scan_track.py --from-queue --limit 3",
     "pipeline": "pnpm scan && pnpm align",
     "seed:artists": "SUPABASE_SERVICE_KEY=$(npx supabase status -o json | python3 -c 'import json,sys;print(json.load(sys.stdin)[\"SECRET_KEY\"])') node --experimental-strip-types packages/crawler/src/seed-artists.ts",
     "seed:generate": "node --experimental-strip-types packages/crawler/src/make-seed.ts",

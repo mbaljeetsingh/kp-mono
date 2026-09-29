@@ -1,4 +1,10 @@
-# Nightly: turn scan requests into draft renditions for review, lyrics timed.
+# Turn scan requests into draft renditions for review, lyrics timed.
+#
+# Started the moment someone asks: a database trigger dispatches this workflow
+# whenever a scan request is queued or re-queued (Suggest shabads, Scan again —
+# supabase/migrations/20260930000000_dispatch_scan_and_align.sql). The nightly
+# schedule stays, as the sweep for anything a dispatch missed: no token in
+# Vault, an expired one, a GitHub hiccup.
 #
 # Run by hand (Actions -> scan -> Run workflow) with:
 #   track_id  scan just that recording now — it must already be queued (the
@@ -51,6 +57,11 @@ jobs:
     # while the nightly one (often started hours late) is still going would
     # read the same request, check for existing drafts before either wrote,
     # and draft every shabad twice. A second run waits for the first.
+    #
+    # GitHub keeps just one WAITING run per group and cancels the older, so
+    # three requests during a long scan leave one running run and one waiting.
+    # Nothing is lost: every run drains the queue, re-reading it after each
+    # track, so whichever run comes next takes every request still queued.
     concurrency:
       group: scan
       cancel-in-progress: false
@@ -83,9 +94,10 @@ jobs:
       # Align's two passes over each whole recording (scan_track.py): ~RTF
       # 0.24 on a runner, going by align's measured passes — ~9 minutes for a
       # 35-minute ragi-wise duty, ~45 for a 3-hour Asa di Vaar — plus a
-      # minute of matching. --deadline-min 120 stops STARTING requests after
-      # two hours, so one long recording begun late still ends inside
-      # timeout-minutes; the rest wait for the next run. The first run after
+      # minute of matching. No --limit: a run drains the queue. --deadline-min
+      # 120 stops STARTING requests after two hours, so one long recording
+      # begun late still ends inside timeout-minutes; the rest wait for the
+      # next run. The first run after
       # the corpus change also fetches it (corpus.py, a few minutes) and
       # stores it in the transcripts bucket for every later run.
       - run: |
@@ -96,7 +108,7 @@ jobs:
             fi
             uv run python scan_track.py --from-queue --track "$TRACK_ID"
           else
-            uv run python scan_track.py --from-queue --limit 6 --deadline-min 120
+            uv run python scan_track.py --from-queue --deadline-min 120
           fi
         env:
           TRACK_ID: ${{ inputs.track_id }}

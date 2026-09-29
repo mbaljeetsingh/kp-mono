@@ -1,8 +1,14 @@
-# Nightly: give published renditions their line timings.
+# Give published renditions their line timings.
+#
+# Started when there is work: a database trigger dispatches this workflow when
+# a statement moves a rendition into the queue — a publish, or a re-cut or
+# re-tag of a published one (supabase/migrations/
+# 20260930000000_dispatch_scan_and_align.sql). The nightly schedule stays, as
+# the sweep for anything a dispatch missed.
 #
 # The queue is data — published + shabad_id + line_timings null — so this job
 # has no inputs, no ordering with the other workflows, and is safe to re-run:
-# a crashed night simply leaves rows for the next one. Alignment deliberately
+# a crashed run simply leaves rows for the next one. Alignment deliberately
 # waits for publish (verify first, then spend compute); see issue #30.
 #
 # CPU maths, measured on this runner type (run 36318552033, 4 vCPU) rather
@@ -50,6 +56,13 @@ jobs:
   align:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # One run at a time: the queue has no claim, so two runs would align the
+    # same renditions twice. GitHub keeps one waiting run per group and cancels
+    # the older, which loses nothing — every run takes the whole queue — and it
+    # is what turns ten publishes in a row into two runs rather than ten.
+    concurrency:
+      group: align
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: packages/aligner
