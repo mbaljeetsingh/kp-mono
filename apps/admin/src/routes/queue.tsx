@@ -16,7 +16,6 @@ import {
   rescan,
   SHELF_DEFAULT_SORT,
   SHELF_SORTS,
-  useQueuedScanIds,
   useRecordings,
   useScanStates,
   type Shelf,
@@ -38,7 +37,6 @@ import { clock, cn } from '~/lib/utils';
 
 const SHELVES: { id: Shelf; label: string; hint: string }[] = [
   { id: 'todo', label: 'Not started', hint: 'Nothing tagged yet' },
-  { id: 'queued', label: 'Queued', hint: 'Waiting on the scanner' },
   { id: 'started', label: 'In progress', hint: 'Tagged, but not covered' },
   { id: 'done', label: 'Done', hint: 'Published and covered' },
   { id: 'all', label: 'All', hint: 'Everything crawlable' },
@@ -78,8 +76,6 @@ export function QueueRoute() {
   const [term] = useDebounceValue(search.q ?? '', 300);
 
   const { can, userId } = useSession();
-
-  const queued = useQueuedScanIds(supabase, shelf === 'queued');
 
   // Requesting a scan is its own capability (20260826000100). RLS refuses it
   // anyway; hiding the control keeps the list from offering an action that
@@ -121,7 +117,6 @@ export function QueueRoute() {
     sort,
     tree,
     search: term,
-    queuedIds: queued.data ?? [],
   });
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -182,7 +177,7 @@ export function QueueRoute() {
         {/*
          * Only the orders this shelf can answer — "least left" is meaningless
          * where nothing is tagged — and nothing at all where it can answer
-         * only one. Queued and Done have a single order, so the control was a
+         * only one. Done has a single order, so the control was a
          * box around one button that was already chosen and did nothing.
          */}
         {SHELF_SORTS[shelf].length > 1 ? (
@@ -215,13 +210,7 @@ export function QueueRoute() {
         />
       </div>
 
-      <LoadStatus what="the queue" queries={[queued, query]} />
-
-      {shelf === 'queued' && !can['scans.request'] ? (
-        <p className="text-xs text-muted-foreground">
-          Scan requests need a permission your account does not have, so this shelf will be empty.
-        </p>
-      ) : null}
+      <LoadStatus what="the queue" queries={[query]} />
 
       <div className="flex flex-col gap-0.5">
         {items.map((r) => {
@@ -299,9 +288,7 @@ export function QueueRoute() {
           </p>
         ) : null}
 
-        {query.data !== undefined &&
-        (shelf !== 'queued' || queued.data !== undefined) &&
-        items.length === 0 ? (
+        {query.data !== undefined && items.length === 0 ? (
           <p className="px-3 py-8 text-sm text-muted-foreground">
             Nothing on this shelf. Try another filter.
           </p>

@@ -19,7 +19,10 @@ const rootRoute = createRootRoute({ component: RootLayout });
  *
  * Every field is optional; the queue supplies the default shelf.
  */
-const SHELVES = ['todo', 'queued', 'started', 'done', 'all'] as const;
+// No 'queued': a request is scanned in minutes now and shows on its own row, so
+// the shelf went. An old ?shelf=queued link fails this list and lands on the
+// default shelf.
+const SHELVES = ['todo', 'started', 'done', 'all'] as const;
 
 /**
  * Explicitly optional keys. Without the `?` the validated type has every key
@@ -34,10 +37,15 @@ export interface QueueSearch {
 }
 
 function queueSearch(search: Record<string, unknown>): QueueSearch {
-  const out: QueueSearch = {};
-  if (SHELVES.includes(search.shelf as never)) {
-    out.shelf = search.shelf as (typeof SHELVES)[number];
-  }
+  // Always set, undefined when unknown: the router merges what this returns
+  // over the raw query string ({ ...raw, ...validated }), so leaving the key out
+  // let ?shelf=queued — a bookmark from before the shelf went — straight
+  // through, and the queue crashed reading its sorts.
+  const out: QueueSearch = {
+    shelf: SHELVES.includes(search.shelf as never)
+      ? (search.shelf as (typeof SHELVES)[number])
+      : undefined,
+  };
   if (typeof search.sort === 'string') out.sort = search.sort;
   if (typeof search.tree === 'string') out.tree = search.tree;
   if (typeof search.q === 'string') out.q = search.q;
