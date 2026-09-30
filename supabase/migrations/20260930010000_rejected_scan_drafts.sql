@@ -110,8 +110,10 @@ select
     -- The scanner writes shabad_linked or published; 'draft' is an Unpublish.
     when d.status = 'draft' then 'unpublished'
     when d.status <> 'published' then 'waiting'
-    when c.drafted_shabad is not null and d.shabad_id is distinct from c.drafted_shabad
-      then 're-tagged'
+    -- Drafted before the scanner recorded its shabad, and edited before the
+    -- backfill above could vouch for it: whether it was re-tagged is lost.
+    when c.drafted_shabad is null then 'published, shabad unknown'
+    when d.shabad_id is distinct from c.drafted_shabad then 're-tagged'
     -- Any change: the scanner writes the row's edges and the verdict's the same
     -- way, so a difference is a person's edit — one nudge is exactly a second.
     when c.start_moved_sec > 0 or c.end_moved_sec > 0 then 'edges moved'

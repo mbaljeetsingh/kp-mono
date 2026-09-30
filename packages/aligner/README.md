@@ -121,8 +121,9 @@ from scan_draft_outcomes group by auto, outcome order by auto desc, outcome;
 ```
 
 `auto` = the draft cleared every auto-publish gate; the trial asks how often
-those end anywhere but `published as drafted`. Drafts from before the scanner
-recorded its drafted shabad count a re-tag only if nobody had edited them.
+those end anywhere but `published as drafted`. A draft from before the scanner
+recorded its drafted shabad, edited before this was added, reads `published,
+shabad unknown`: whether it was re-tagged is lost.
 
 Published parts are left alone: the scan never edits a rendition, skips a
 shabad already tagged on the recording, and drafts nothing — nor points at
