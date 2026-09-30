@@ -242,6 +242,8 @@ export async function listRenditions(client: KpClient, trackId: string): Promise
     .from('renditions')
     .select(RENDITION_COLUMNS)
     .eq('track_id', trackId)
+    // A rejected scan draft is kept for the record, not for the tagger.
+    .is('rejected_at', null)
     .order('start_sec', { ascending: true });
   if (error) throw error;
   return parseRows(renditionSchema, data ?? []).rows;
@@ -391,6 +393,24 @@ export async function setRenditionStatus(
   }
 }
 
+/**
+ * Turn a scan draft down without deleting it. The row is kept, hidden: the
+ * auto-publish trial counts rejections (scan_draft_outcomes), and the scanner,
+ * which skips a shabad already on the recording, then never suggests it there
+ * again. A deleted draft was suggested straight back by Scan again.
+ */
+export async function rejectRendition(client: KpClient, id: string, userId: string): Promise<void> {
+  const { data, error } = await client
+    .from('renditions')
+    // The server's clock, as for requested_at: 'now()' is evaluated by Postgres.
+    .update({ rejected_at: 'now()', rejected_by: userId })
+    .eq('id', id)
+    .select('id');
+  if (error) throw error;
+  // RLS refuses an UPDATE by matching nothing, so an empty answer is a refusal.
+  if (!data?.length) throw new Error('Rejecting that draft was not permitted.');
+}
+
 export async function deleteRendition(client: KpClient, id: string): Promise<void> {
   // Same as the status change: a DELETE the policy filters out succeeds with
   // nothing deleted.
@@ -441,6 +461,7 @@ export async function fetchPending(client: KpClient): Promise<PendingRendition[]
     .from('renditions')
     .select('*, tracks(artist_dir, date, url, raw_filename)')
     .neq('status', 'published')
+    .is('rejected_at', null)
     .order('created_at', { ascending: true })
     .limit(100);
   if (error) throw error;
