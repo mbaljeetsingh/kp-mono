@@ -244,6 +244,8 @@ export function SegmentEditor({
     void queryClient.invalidateQueries({ queryKey: ['recording', trackId] });
     // Everything this form does changes what is waiting for review.
     void queryClient.invalidateQueries({ queryKey: ['pending'] });
+    // Deleting a scan draft also drops the scan's pointers to that shabad.
+    void queryClient.invalidateQueries({ queryKey: ['scan-request', trackId] });
   }
 
   async function run(work: () => Promise<unknown>, done = onSaved) {
