@@ -80,7 +80,7 @@ export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
 
 /** Which shelf of the queue. Each is a different question about coverage. */
-export type Shelf = 'todo' | 'queued' | 'started' | 'done' | 'all';
+export type Shelf = 'todo' | 'started' | 'done' | 'all';
 
 /** How a shelf is ordered. */
 export type Sort = 'recent' | 'shortest' | 'least' | 'random';
@@ -91,7 +91,6 @@ export type Sort = 'recent' | 'shortest' | 'least' | 'random';
  */
 export const SHELF_SORTS: Record<Shelf, Sort[]> = {
   todo: ['shortest', 'random'],
-  queued: ['recent'],
   started: ['recent', 'least'],
   done: ['recent'],
   all: ['recent', 'shortest', 'random'],
@@ -99,23 +98,10 @@ export const SHELF_SORTS: Record<Shelf, Sort[]> = {
 
 export const SHELF_DEFAULT_SORT: Record<Shelf, Sort> = {
   todo: 'random',
-  queued: 'recent',
   started: 'recent',
   done: 'recent',
   all: 'recent',
 };
-
-/**
- * Ids the Queued shelf will ask for at once.
- *
- * ~19 bytes each in the query string, so this stays far inside the 8 KB a proxy
- * will usually carry. Capped because the queue is only self-limiting while the
- * scanner is healthy: every id it stamps leaves the queue, so a scanner failing
- * on every track — which is what a missing ffmpeg did — lets requests pile up
- * until the URL is too long to send, and the shelf then breaks exactly when
- * somebody opens it to ask why.
- */
-export const QUEUED_SHELF_MAX = 200;
 
 const RECORDING_COLUMNS =
   'id,url,tree,title,artist_dir,artist_photo,date,raw_filename,' +
@@ -134,26 +120,39 @@ export function escapeFilterValue(term: string): string {
   return `%${term.replace(/[(),]/g, '%')}%`;
 }
 
-/** Tracks with a scan requested and not yet finished — the Queued shelf. */
-export async function fetchQueuedScanIds(client: KpClient): Promise<string[]> {
+/** Every scan request, by track: null while it waits or runs, done_at once scanned. */
+export type ScanStates = Record<string, string | null>;
+
+export async function fetchScanStates(client: KpClient): Promise<ScanStates> {
   // Fetched rather than joined into the view: the table is small — one row per
-  // request, ever — and a second query keeps the view SQL untouched. Without
-  // scans.request, RLS returns nothing and the shelf is simply empty.
+  // request, ever — and a second query keeps the view SQL untouched.
   const { data, error } = await client.from('scan_requests').select('track_id,done_at');
-  // RLS returning nothing is an empty list, not an error. A real error — a
-  // dropped request, a renamed column — used to look identical to it, and the
-  // Queued shelf just sat there empty with nothing to explain itself.
+  // RLS returning nothing is an empty map, not an error. A real error — a
+  // dropped request, a renamed column — must not look identical to it, or
+  // every row offers Suggest on recordings already queued.
   if (error) throw error;
-  return ((data ?? []) as { track_id: string; done_at: string | null }[])
-    .filter((r) => r.done_at === null)
-    .map((r) => r.track_id);
+  return Object.fromEntries(
+    ((data ?? []) as { track_id: string; done_at: string | null }[]).map((r) => [
+      r.track_id,
+      r.done_at,
+    ])
+  );
 }
 
-export function useQueuedScanIds(client: KpClient, enabled: boolean) {
+/**
+ * Every request's state, for the queue's per-recording Suggest buttons — which
+ * replaced the Queued shelf once a click started its scan at once (the
+ * dispatch trigger): a request waits minutes now, not overnight, and says so
+ * on its own row. While any is waiting, look again every minute, so "queued"
+ * turns into "Suggest again" without a reload.
+ */
+export function useScanStates(client: KpClient, enabled: boolean) {
   return useQuery({
     queryKey: ['scan-requests'],
-    queryFn: () => fetchQueuedScanIds(client),
+    queryFn: () => fetchScanStates(client),
     enabled,
+    refetchInterval: (query) =>
+      Object.values(query.state.data ?? {}).some((done) => done === null) ? 60_000 : false,
   });
 }
 
@@ -162,8 +161,6 @@ export interface RecordingFilters {
   sort: Sort;
   tree: string | null;
   search: string;
-  /** From `useQueuedScanIds` — only the Queued shelf reads it. */
-  queuedIds: string[];
 }
 
 export async function listRecordings(
@@ -202,12 +199,6 @@ export async function listRecordings(
     query = query
       .gt('published', 0)
       .or(`untagged_seconds.lte.${DONE_SLACK_SECONDS},tagged_done_at.not.is.null`);
-  } else if (filters.shelf === 'queued') {
-    // Not a column on the view — the queue is its own table — so it filters by
-    // the ids awaiting a scan. An empty list needs no special case: PostgREST
-    // answers `in.()` with no rows, which is the right answer for an empty
-    // queue.
-    query = query.in('id', filters.queuedIds.slice(0, QUEUED_SHELF_MAX));
   }
 
   /*
@@ -276,16 +267,7 @@ export async function getRecording(client: KpClient, id: string): Promise<Record
 
 export function useRecordings(client: KpClient, filters: RecordingFilters) {
   return useInfiniteQuery({
-    queryKey: [
-      'recordings',
-      filters.shelf,
-      filters.sort,
-      filters.tree,
-      filters.search,
-      // Only the Queued shelf depends on the ids, and keying every shelf on them
-      // would refetch the whole queue whenever a scan finishes.
-      filters.shelf === 'queued' ? filters.queuedIds.length : 0,
-    ],
+    queryKey: ['recordings', filters.shelf, filters.sort, filters.tree, filters.search],
     queryFn: ({ pageParam }) => listRecordings(client, filters, pageParam as number),
     initialPageParam: 0,
     getNextPageParam: (last, all) => (last.hasMore ? all.length * PAGE_SIZE : undefined),
@@ -607,9 +589,9 @@ export function useScanRequest(client: KpClient, trackId: string) {
 
 /**
  * Past this many, the oldest skips come back into rotation. The list rides in
- * the query string at ~17 bytes an id, and the 8 KB proxy ceiling that sets
- * QUEUED_SHELF_MAX applies here too — a session where every lookup 414s is
- * worse than seeing a skipped file again.
+ * the query string at ~17 bytes an id, and a proxy will usually carry about
+ * 8 KB of it — a session where every lookup 414s is worse than seeing a
+ * skipped file again.
  */
 export const SKIP_FILTER_MAX = 200;
 

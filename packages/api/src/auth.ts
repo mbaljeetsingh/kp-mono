@@ -64,9 +64,14 @@ export function useAuth(client: KpClient): AuthState {
    *
    * A different user, or none, clears it. Signing out and back in — as someone
    * else, on the same tab — otherwise hands the next person the last one's
-   * cached rows, drafts their access would hide included. resetQueries rather
-   * than remove, so a listener's mounted public lists refetch instead of
-   * holding on to queries no longer in the cache.
+   * cached rows, drafts their access would hide included. Removed, not reset:
+   * this effect runs before the components below it have moved their queries
+   * to the new session's keys, so a reset — which refetches what is still
+   * observed — re-ran the old user's queries signed out. The admin's
+   * permissions came back all "no" from the publishable key, were cached under
+   * that user for good (staleTime Infinity), and signing back in found every
+   * control hidden until a reload. A removed query just builds afresh when a
+   * component next asks for it.
    */
   const last = useRef<{ token: string; userId: string; trouble: number } | null>(null);
   useEffect(() => {
@@ -75,7 +80,7 @@ export function useAuth(client: KpClient): AuthState {
     if (!session) {
       if (prev) {
         last.current = null;
-        void queryClient.resetQueries();
+        queryClient.removeQueries();
       }
       return;
     }
@@ -84,7 +89,7 @@ export function useAuth(client: KpClient): AuthState {
     last.current = { token: session.access_token, userId: session.user.id, trouble };
     if (!prev) return;
     if (session.user.id !== prev.userId) {
-      void queryClient.resetQueries();
+      queryClient.removeQueries();
     } else if (trouble !== prev.trouble) {
       void queryClient.cancelQueries().then(() => queryClient.invalidateQueries());
     }
