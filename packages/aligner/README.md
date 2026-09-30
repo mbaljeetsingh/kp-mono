@@ -107,6 +107,10 @@ lyrics timed, named from the line sung longest, owned by whoever requested
 the scan, and a `scan_verdict` saying whether it would have published itself
 (`AUTO_PUBLISH=1` acts on that; nothing sets it). Invisible to the player until
 a human reviews the edges and publishes — no night's wait for lyrics after.
+Published parts are left alone: the scan never edits a rendition, skips a
+shabad already tagged on the recording, and drafts nothing — nor points at
+anything — lying mostly inside a published one (`SETTLED`, in `write_drafts`
+rather than the matching, since `eval_scan.py` scores against those renditions).
 Queue mode consumes `scan_requests` oldest first, re-reading it after each
 track so one run drains it, and stamps `done_at` even when nothing cleared the
 gate; a failing track is left queued for retry.

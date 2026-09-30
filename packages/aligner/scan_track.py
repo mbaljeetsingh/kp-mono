@@ -8,6 +8,10 @@ A human reviews the boundaries in the tagger and publishes. Nothing publishes
 itself unless AUTO_PUBLISH is set, and even then only drafts whose verdict
 clears every gate (scan_verdict records it on every draft, set or not).
 
+What a person published is settled. The scan never edits or removes a
+rendition, skips a shabad already tagged on the recording, and suggests
+nothing — draft or pointer — lying mostly inside a published one.
+
 Two ways to run it:
 
     SB_KEY=... TRACK=<id> python scan_track.py [--write-drafts]
@@ -63,6 +67,7 @@ MIN_MARGIN = 0.05       # the floor itself is runtime.MIN_CONFIDENCE
 MIN_DRAFT_SEC = 60      # shorter regions are pointers (see is_draft)
 QUOTE_MAX_SEC = 90      # a run this short inside another shabad is a quote
 MERGE_ACROSS_SEC = 300  # one shabad either side of only pointers is one draft
+SETTLED = 0.5           # this much inside published renditions: not suggested
 REGION_SMOOTH = 61      # seconds of evidence averaged to find regions
 MIN_RUN_SEC = 10        # a run shorter than this is noise, not a region
 # Edges, placed again per draft: evidence smoothed over EDGE_SMOOTH s, walked
@@ -397,14 +402,40 @@ def _name(verse, sid):
     return (pretty_name(tr) or f"Shabad {sid}")[:80]
 
 
+def settled_share(t0, t1, spans):
+    """How much of [t0, t1] lies inside `spans`, counting an overlap once."""
+    covered, edge = 0.0, t0
+    for s0, s1 in sorted(spans):
+        lo, hi = max(s0, edge), min(s1, t1)
+        if hi > lo:
+            covered += hi - lo
+            edge = hi
+    return covered / (t1 - t0) if t1 > t0 else 1.0
+
+
 def write_drafts(track_id, found, shabads, owner=None):
-    existing = {r["shabad_id"] for r in
-                api(f"{SB}/renditions?track_id=eq.{track_id}&select=shabad_id")}
+    rows = api(f"{SB}/renditions?track_id=eq.{track_id}"
+               f"&select=shabad_id,status,start_sec,end_sec")
+    existing = {r["shabad_id"] for r in rows}
+    # What a person published is settled. The scan still hears those minutes —
+    # the transcript is the recording's, and the edges of a shabad beside a
+    # published one are placed from the audio around them — but it does not
+    # second-guess them: a region lying mostly inside published renditions is
+    # usually a pangti quoted in the vichar, or a wrong match, and as a draft
+    # or a pointer it is only something for a reviewer to dismiss. Here and not
+    # in find_drafts, because eval_scan.py scores the scan against exactly
+    # those renditions.
+    published = [(float(r["start_sec"]), float(r["end_sec"]))
+                 for r in rows if r["status"] == "published"]
     drafted = 0
     findings = []
     for g, align_conf, timings in found:
         t0, t1, sid, conf, margin = g
         verses, _, cand = shabads[sid]
+        if settled_share(t0, t1, published) >= SETTLED:
+            print(f"  leaving {t0:.0f}-{t1:.0f}s alone (shabad {sid}): "
+                  f"it lies inside a published rendition")
+            continue
         if align_conf is None:
             print(f"  not drafting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
                   f"conf {conf:.2f} margin {margin:+.2f}, {t1 - t0:.0f}s "
