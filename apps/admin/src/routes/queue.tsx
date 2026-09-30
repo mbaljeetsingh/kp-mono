@@ -12,18 +12,23 @@
  */
 import { coverageOpen, DONE_SLACK_SECONDS } from '@kp/core';
 import {
+  requestScan,
+  rescan,
   SHELF_DEFAULT_SORT,
   SHELF_SORTS,
   useQueuedScanIds,
   useRecordings,
+  useScanStates,
   type Shelf,
   type Sort,
 } from '@kp/api';
 import { Badge } from '@kp/ui/badge';
 import { Button } from '@kp/ui/button';
 import { Input } from '@kp/ui/input';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { Search } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
+import { useState } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
 
 import { LoadStatus } from '~/components/LoadStatus';
@@ -72,9 +77,44 @@ export function QueueRoute() {
    */
   const [term] = useDebounceValue(search.q ?? '', 300);
 
-  const { can } = useSession();
+  const { can, userId } = useSession();
 
   const queued = useQueuedScanIds(supabase, shelf === 'queued');
+
+  // Requesting a scan is its own capability (20260826000100). RLS refuses it
+  // anyway; hiding the control keeps the list from offering an action that
+  // could only come back as an error.
+  const canScan = can['scans.request'];
+  const scans = useScanStates(supabase, canScan);
+  const queryClient = useQueryClient();
+  const [asking, setAsking] = useState<string | null>(null);
+  // Keyed by track: a refusal belongs to the row that earned it, not to a line
+  // at the top of a list the tagger has scrolled a long way down.
+  const [askError, setAskError] = useState<Record<string, string>>({});
+  const scanState = (id: string): ScanState => {
+    const states = scans.data;
+    if (!states || !(id in states)) return 'none';
+    return states[id] === null ? 'queued' : 'done';
+  };
+  const suggest = (id: string, again: boolean) => {
+    if (!userId) return;
+    setAsking(id);
+    setAskError(({ [id]: _, ...rest }) => rest);
+    void (again ? rescan(supabase, id, userId) : requestScan(supabase, id, userId))
+      .then(() =>
+        Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['scan-requests'] }),
+          queryClient.invalidateQueries({ queryKey: ['scan-request', id] }),
+        ])
+      )
+      .catch((e) =>
+        setAskError((m) => ({
+          ...m,
+          [id]: e instanceof Error ? e.message : 'Could not ask for suggestions',
+        }))
+      )
+      .finally(() => setAsking(null));
+  };
 
   const query = useRecordings(supabase, {
     shelf,
@@ -187,48 +227,66 @@ export function QueueRoute() {
         {items.map((r) => {
           const open = coverageOpen(r.untagged_seconds);
           return (
-            <Link
-              key={r.id}
-              to="/tag/$id"
-              params={{ id: r.id }}
-              // Carried so the Back link on the tag page returns the tagger to
-              // the shelf they were working through.
-              search={(prev) => prev}
-              className="flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{r.title ?? r.raw_filename ?? r.id}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {r.artist_dir ?? 'Unknown'}
-                  {r.date ? ` · ${r.date}` : ''}
-                  {` · ${r.tree}`}
-                </p>
-              </div>
+            <div key={r.id}>
+              <div className="flex items-center rounded-lg hover:bg-accent/50">
+                <Link
+                  to="/tag/$id"
+                  params={{ id: r.id }}
+                  // Carried so the Back link on the tag page returns the tagger to
+                  // the shelf they were working through.
+                  search={(prev) => prev}
+                  className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">{r.title ?? r.raw_filename ?? r.id}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {r.artist_dir ?? 'Unknown'}
+                      {r.date ? ` · ${r.date}` : ''}
+                      {` · ${r.tree}`}
+                    </p>
+                  </div>
 
-              {r.tagged_done_at ? (
-                <Badge variant="secondary" className="shrink-0">
-                  marked done
-                </Badge>
-              ) : r.renditions > 0 ? (
-                <Badge variant="secondary" className="shrink-0">
-                  {r.published > 0 ? `${r.published} published` : `${r.renditions} draft`}
-                </Badge>
-              ) : null}
+                  {r.tagged_done_at ? (
+                    <Badge variant="secondary" className="shrink-0">
+                      marked done
+                    </Badge>
+                  ) : r.renditions > 0 ? (
+                    <Badge variant="secondary" className="shrink-0">
+                      {r.published > 0 ? `${r.published} published` : `${r.renditions} draft`}
+                    </Badge>
+                  ) : null}
 
-              {/* The measure the shelves turn on, shown so a tagger can see why
+                  {/* The measure the shelves turn on, shown so a tagger can see why
                   a recording is where it is. */}
-              {r.untagged_seconds != null && open ? (
-                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {clock(r.untagged_seconds)} left
-                </span>
-              ) : null}
+                  {r.untagged_seconds != null && open ? (
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      {clock(r.untagged_seconds)} left
+                    </span>
+                  ) : null}
 
-              {/* Null means no filename slot — all of puratan. Shown as unknown
+                  {/* Null means no filename slot — all of puratan. Shown as unknown
                   rather than 0:00, which would read as an empty file. */}
-              <span className="w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                {r.est_seconds ? clock(r.est_seconds) : '—'}
-              </span>
-            </Link>
+                  <span className="w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+                    {r.est_seconds ? clock(r.est_seconds) : '—'}
+                  </span>
+                </Link>
+                {/* Not for puratan: a puratan file is one shabad, and its tag page
+                names it from the filename the moment it opens. */}
+                {canScan && scans.data !== undefined && r.tree !== 'puratan' ? (
+                  <SuggestButton
+                    name={r.title ?? r.raw_filename ?? r.id}
+                    state={scanState(r.id)}
+                    busy={asking === r.id}
+                    onAsk={() => suggest(r.id, scanState(r.id) === 'done')}
+                  />
+                ) : null}
+              </div>
+              {askError[r.id] ? (
+                <p role="alert" className="px-3 pb-1 text-xs text-destructive">
+                  {askError[r.id]}
+                </p>
+              ) : null}
+            </div>
           );
         })}
 
@@ -266,5 +324,58 @@ export function QueueRoute() {
         and trail off, and no amount of tagging covers those.
       </p>
     </section>
+  );
+}
+
+type ScanState = 'none' | 'queued' | 'done';
+
+/**
+ * A quiet side door on the row, as the Vue queue had: ask the scanner to
+ * suggest shabads without opening the recording. Secondary on purpose —
+ * tagging by ear stays the main act. Beside the row's link rather than inside
+ * it: a button nested in a link is two controls in one to a screen reader, and
+ * every click on it would have to fight the navigation.
+ */
+function SuggestButton({
+  name,
+  state,
+  busy,
+  onAsk,
+}: {
+  name: string;
+  state: ScanState;
+  busy: boolean;
+  onAsk: () => void;
+}) {
+  if (state === 'queued') {
+    return (
+      <span
+        className="mr-3 shrink-0 text-[11px] text-muted-foreground/70"
+        title="Being scanned — its drafts appear on the recording's page when it finishes"
+      >
+        queued
+      </span>
+    );
+  }
+  // A finished scan is an answer, not a dead end: "nothing found" is worth
+  // asking again once the scanner improves.
+  const again = state === 'done';
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="mr-1 h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
+      disabled={busy}
+      onClick={onAsk}
+      aria-label={again ? `Scan ${name} again` : `Suggest shabads for ${name}`}
+      title={
+        again
+          ? 'Scanned already — ask again (the scanner may have improved since)'
+          : 'Scan this recording for shabad suggestions'
+      }
+    >
+      <Sparkles className="size-3.5" />
+      {again ? 'Suggest again' : 'Suggest'}
+    </Button>
   );
 }

@@ -134,8 +134,10 @@ export function escapeFilterValue(term: string): string {
   return `%${term.replace(/[(),]/g, '%')}%`;
 }
 
-/** Tracks with a scan requested and not yet finished — the Queued shelf. */
-export async function fetchQueuedScanIds(client: KpClient): Promise<string[]> {
+/** Every scan request, by track: null while it waits or runs, done_at once scanned. */
+export type ScanStates = Record<string, string | null>;
+
+export async function fetchScanStates(client: KpClient): Promise<ScanStates> {
   // Fetched rather than joined into the view: the table is small — one row per
   // request, ever — and a second query keeps the view SQL untouched. Without
   // scans.request, RLS returns nothing and the shelf is simply empty.
@@ -144,16 +146,37 @@ export async function fetchQueuedScanIds(client: KpClient): Promise<string[]> {
   // dropped request, a renamed column — used to look identical to it, and the
   // Queued shelf just sat there empty with nothing to explain itself.
   if (error) throw error;
-  return ((data ?? []) as { track_id: string; done_at: string | null }[])
-    .filter((r) => r.done_at === null)
-    .map((r) => r.track_id);
+  return Object.fromEntries(
+    ((data ?? []) as { track_id: string; done_at: string | null }[]).map((r) => [
+      r.track_id,
+      r.done_at,
+    ])
+  );
 }
 
+/** Tracks with a scan requested and not yet finished — the Queued shelf. */
 export function useQueuedScanIds(client: KpClient, enabled: boolean) {
   return useQuery({
     queryKey: ['scan-requests'],
-    queryFn: () => fetchQueuedScanIds(client),
+    queryFn: () => fetchScanStates(client),
     enabled,
+    select: (states: ScanStates) => Object.keys(states).filter((id) => states[id] === null),
+  });
+}
+
+/**
+ * The same rows, for the queue's per-recording Suggest buttons. While any is
+ * waiting, look again every minute: a request starts its scan at once (the
+ * dispatch trigger), so "queued" turns into "Suggest again" within minutes,
+ * not overnight.
+ */
+export function useScanStates(client: KpClient, enabled: boolean) {
+  return useQuery({
+    queryKey: ['scan-requests'],
+    queryFn: () => fetchScanStates(client),
+    enabled,
+    refetchInterval: (query) =>
+      Object.values(query.state.data ?? {}).some((done) => done === null) ? 60_000 : false,
   });
 }
 
