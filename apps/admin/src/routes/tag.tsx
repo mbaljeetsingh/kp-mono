@@ -10,6 +10,7 @@ import {
   canPublishRendition,
   nextUntaggedPuratan,
   requestScan,
+  rescan,
   setRenditionStatus,
   setTaggedDone,
   usePuratanLeft,
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { LoadStatus } from '~/components/LoadStatus';
 import { SegmentEditor, type PuratanLoop } from '~/components/SegmentEditor';
 import { Timeline } from '~/components/Timeline';
 import { useSession } from '~/lib/session';
@@ -91,6 +93,23 @@ function Workbench({ id }: { id: string }) {
   const renditions = useRenditions(supabase, id);
   const scan = useScanRequest(supabase, id);
   const queryClient = useQueryClient();
+
+  /*
+   * A scan finishing is when its drafts exist: show them without a reload.
+   * On the change only — a scan already done when the page opened had its
+   * drafts in the first renditions fetch.
+   */
+  const scanQueued = scan.data != null && !scan.data.done_at;
+  const scanDoneAt = scan.data?.done_at ?? null;
+  const sawQueued = useRef(false);
+  useEffect(() => {
+    if (scanQueued) {
+      sawQueued.current = true;
+    } else if (sawQueued.current && scanDoneAt) {
+      sawQueued.current = false;
+      void queryClient.invalidateQueries({ queryKey: ['renditions', id] });
+    }
+  }, [scanQueued, scanDoneAt, queryClient, id]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
 
@@ -147,8 +166,12 @@ function Workbench({ id }: { id: string }) {
    * a wrong match would put a mislabeled shabad straight into the player.
    */
   const isPuratan = recording.data?.tree === 'puratan';
-  /** The only state where whole-file bounds are an offer rather than a duplicate. */
-  const untouched = renditions.isSuccess && rows.length === 0;
+  /**
+   * The only state where whole-file bounds are an offer rather than a
+   * duplicate. On data, not isSuccess: a background refetch that fails keeps
+   * the rows it had, and must not collapse the mode mid-task.
+   */
+  const untouched = renditions.data !== undefined && rows.length === 0;
   /** The tagger's own choice; null follows the default, which is on for puratan. */
   const [wholeFileChoice, setWholeFileChoice] = useState<boolean | null>(null);
   const wholeFileOffered = untouched && !editing;
@@ -361,6 +384,10 @@ function Workbench({ id }: { id: string }) {
     [leaveWholeFile]
   );
 
+  // Nothing to drive until the recording is here — and a failed load's Try
+  // again is a plain button, whose Space this handler would otherwise swallow.
+  const hasRecording = Boolean(recording.data);
+
   /*
    * On the window, not on a wrapper: the page's own section has to be clicked
    * before it can receive a keystroke, so half the shortcuts did nothing until
@@ -368,6 +395,7 @@ function Workbench({ id }: { id: string }) {
    * who reaches for the mouse between every cut tags a fraction as much.
    */
   useEffect(() => {
+    if (!hasRecording) return;
     function onKey(e: KeyboardEvent) {
       if (ownsTheKeys(e.target)) return;
       const fine = e.shiftKey;
@@ -405,7 +433,7 @@ function Workbench({ id }: { id: string }) {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [player, markStart, markEnd]);
+  }, [hasRecording, player, markStart, markEnd]);
 
   /* ── What is done and what is left ────────────────────────────────────── */
 
@@ -458,9 +486,29 @@ function Workbench({ id }: { id: string }) {
         Queue
       </Link>
 
-      {recording.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+      {/* Said, not left blank: a failed load used to render the back link and
+          nothing else, which reads as a broken page rather than a retryable one.
+          The segments count as much as the recording — drawn without them, the
+          workbench shows a recording with nothing tagged, offers Suggest shabads
+          over a finished scan, and lets a tagger mark and save again segments
+          that exist. Try again takes the scan request too. */}
+      <LoadStatus
+        what="this recording"
+        queries={recording.data === null ? [] : [recording, renditions]}
+        retry={() => {
+          void recording.refetch();
+          void renditions.refetch();
+          void scan.refetch();
+        }}
+      />
+      {recording.data === null ? (
+        <p className="text-sm text-muted-foreground">
+          This recording is not in the tagging queue — no recording has this id, or it is one the
+          queue leaves out: day-wise files, unplayable formats and recordings gone from sgpc.net.
+        </p>
+      ) : null}
 
-      {recording.data ? (
+      {recording.data && renditions.data !== undefined ? (
         <>
           <header className="flex flex-wrap items-start gap-x-4 gap-y-2">
             <div className="min-w-64 flex-1">
@@ -786,15 +834,32 @@ function Workbench({ id }: { id: string }) {
 
             {can['scans.request'] ? (
               scan.data ? (
-                <span className="text-xs text-muted-foreground">
-                  {scan.data.done_at ? 'Scanned' : 'Queued for scanning'}
-                </span>
+                scan.data.done_at ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      void rescan(supabase, id, userId)
+                        .then(() =>
+                          queryClient.invalidateQueries({ queryKey: ['scan-request', id] })
+                        )
+                        .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
+                    }
+                  >
+                    <ScanLine />
+                    Scan again
+                  </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    Queued for scanning — its drafts appear here when it finishes
+                  </span>
+                )
               ) : (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    void requestScan(supabase, id)
+                    void requestScan(supabase, id, userId)
                       .then(() => queryClient.invalidateQueries({ queryKey: ['scan-request', id] }))
                       .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
                   }
@@ -880,6 +945,23 @@ function SegmentRow({
             {r.shabad_id ? 'shabad linked' : 'no shabad linked'}
             {r.raag ? ` · ${r.raag}` : ''}
           </span>
+          {r.source === 'scan' && (!published || r.line_timings?.length) ? (
+            // Its own line, wrapping rather than truncated: on the line above,
+            // the shadow verdict came last and was the part that got cut off.
+            <span className="block text-xs text-muted-foreground">
+              {[
+                // Until someone publishes it: the edges are a machine's guess
+                // (~5 s off at the median on prod), worth checking by ear.
+                !published && 'from the scan, check the edges',
+                r.line_timings?.length && 'lyrics timed',
+                // What it would have done had auto-publish been on — shown so
+                // a reviewer can hold the verdict against their own ear.
+                r.scan_verdict?.auto && !published && 'would auto-publish',
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          ) : null}
         </span>
         <span className="shrink-0 text-xs tabular-nums">
           <button

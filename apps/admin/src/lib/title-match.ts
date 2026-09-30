@@ -57,7 +57,10 @@ export function useTitleMatches(heading: string, enabled: boolean) {
       return [];
     },
     enabled: enabled && heading.length > 0,
-    staleTime: Infinity,
+    // 'static' so the auth recovery's invalidation (useAuth) leaves it alone:
+    // BaniDB never saw the Supabase token, and a refetch could swap the shabad
+    // pre-linked under the tagger.
+    staleTime: 'static',
     retry: 1,
   });
 }

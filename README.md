@@ -101,7 +101,9 @@ Two batch jobs turn tagging work into player features, both in
   timings, which the player's lyrics panel follows during playback.
 
 On the deployed project these run themselves — `.github/workflows/scan.yml` and
-`align.yml` nightly, `crawl.yml` weekly — once `SUPABASE_URL` and
+`align.yml` as soon as there is work (a database trigger dispatches them, given
+a `github_dispatch_token` in Vault — see `packages/aligner/README.md`) and
+nightly as a sweep, `crawl.yml` weekly — once `SUPABASE_URL` and
 `SUPABASE_SERVICE_KEY` exist as repo secrets. The weekly run covers all four
 crawler steps, artists and photos included, so a deployed project needs no
 manual seeding after the first one. Locally there is no scheduler on

@@ -10,6 +10,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_response.filePath // .tool_input.file_path'); case \"$f\" in \"$CLAUDE_PROJECT_DIR\"/*) npx prettier --write --ignore-unknown \"$f\" 2>/dev/null || true ;; esac",
+            "timeout": 60
+          }
+        ]
+      }
     ]
   }
 }

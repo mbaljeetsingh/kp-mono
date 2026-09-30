@@ -125,11 +125,19 @@ export default function PlaylistsScreen() {
           </Pressable>
         )}
         ListEmptyComponent={
-          query.isLoading ? null : (
+          query.data !== undefined ? (
             <Text className="px-3 py-8 text-sm text-muted-foreground">
               No playlists yet. Tap + to make one.
             </Text>
-          )
+          ) : query.isError ? (
+            // Not "No playlists yet": fetchPlaylists throws so a failure never
+            // reads as having none.
+            <Pressable onPress={() => void query.refetch()} className="px-3 py-8">
+              <Text className="text-sm text-destructive">
+                Could not load your playlists. Tap to try again.
+              </Text>
+            </Pressable>
+          ) : null
         }
       />
     </Screen>

@@ -1,5 +1,5 @@
 /**
- * Session state, shared by both React apps.
+ * Session state, shared by all three apps.
  *
  * Supabase pushes auth changes rather than returning them, so this subscribes
  * once and mirrors into React state. `loading` is separate from a null session
@@ -7,9 +7,10 @@
  * conflating them flashes a sign-in panel at every signed-in listener on load.
  */
 import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 
-import type { KpClient } from './client';
+import { authTrouble, type KpClient } from './client';
 
 export interface AuthState {
   session: Session | null;
@@ -18,6 +19,7 @@ export interface AuthState {
 
 export function useAuth(client: KpClient): AuthState {
   const [state, setState] = useState<AuthState>({ session: null, loading: true });
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     let live = true;
@@ -35,6 +37,58 @@ export function useAuth(client: KpClient): AuthState {
       data.subscription.unsubscribe();
     };
   }, [client]);
+
+  /*
+   * The cache has to follow the session, in two ways.
+   *
+   * A new token after auth trouble re-runs it. When a refresh fails for a
+   * moment — the laptop just woke, the network or the auth server is not back —
+   * supabase-js sends the publishable key in place of the user's token for at
+   * least the minute it waits before retrying, and nothing says so: no auth
+   * event fires and the app still shows the user signed in. What went out in
+   * that window came back wrong: 401 for anything not granted to anon
+   * (favorites, playlists, admin's `recordings`), or refused before it left
+   * (admin, see ClientConfig.tokenless). No query is keyed on the token, so
+   * without this the admin's tag page sat on its 401 until a reload, and a
+   * listener's heart stayed filled for a favorite the server refused.
+   *
+   * Only after trouble, though (authTrouble, counted by the client's fetch).
+   * Every hourly refresh replaces the token too, and re-running every query in
+   * every tab for it bought nothing: auth-js keeps a still-valid token when a
+   * refresh fails, so a routine rotation never follows an anonymous request.
+   * Worse, with a device clock an hour fast every new token looks expired, so
+   * each re-run refreshed again and the loop ran until the auth server's rate
+   * limit signed the user out. Cancelled first, because invalidating joins a
+   * first fetch already in flight rather than restarting it, and that answer
+   * was sent without the token.
+   *
+   * A different user, or none, clears it. Signing out and back in — as someone
+   * else, on the same tab — otherwise hands the next person the last one's
+   * cached rows, drafts their access would hide included. resetQueries rather
+   * than remove, so a listener's mounted public lists refetch instead of
+   * holding on to queries no longer in the cache.
+   */
+  const last = useRef<{ token: string; userId: string; trouble: number } | null>(null);
+  useEffect(() => {
+    const session = state.session;
+    const prev = last.current;
+    if (!session) {
+      if (prev) {
+        last.current = null;
+        void queryClient.resetQueries();
+      }
+      return;
+    }
+    if (prev?.token === session.access_token) return;
+    const trouble = authTrouble(client);
+    last.current = { token: session.access_token, userId: session.user.id, trouble };
+    if (!prev) return;
+    if (session.user.id !== prev.userId) {
+      void queryClient.resetQueries();
+    } else if (trouble !== prev.trouble) {
+      void queryClient.cancelQueries().then(() => queryClient.invalidateQueries());
+    }
+  }, [state.session, client, queryClient]);
 
   return state;
 }

@@ -1,4 +1,17 @@
-# Nightly: turn scan requests into draft renditions for review.
+# Turn scan requests into draft renditions for review, lyrics timed.
+#
+# Started the moment someone asks: a database trigger dispatches this workflow
+# whenever a scan request is queued or re-queued (Suggest shabads, Scan again —
+# supabase/migrations/20260930000000_dispatch_scan_and_align.sql). The nightly
+# schedule stays, as the sweep for anything a dispatch missed: no token in
+# Vault, an expired one, a GitHub hiccup.
+#
+# Run by hand (Actions -> scan -> Run workflow) with:
+#   track_id  scan just that recording now — it must already be queued (the
+#             Suggest shabads button), so its drafts get the requester as owner
+#   eval      measure the scan against every published rendition instead, on
+#             12 runners at once. Read-only: eval_scan.py only GETs, and keeps
+#             transcripts on the runner's disk. Writes nothing to the project.
 #
 # The queue is scan_requests rows with done_at null — written by the button in
 # admin, one per recording a tagger actually wants suggestions for. Deliberately
@@ -7,7 +20,9 @@
 # ~1,000 CPU-hours of suggestions going stale in the pending queue.
 #
 # Drafts land as status=shabad_linked / source=scan — invisible to the player
-# until a human reviews the boundaries and publishes. This job never publishes.
+# until a human reviews the boundaries and publishes. This job never publishes:
+# AUTO_PUBLISH is not set here, so every draft's scan_verdict says whether it
+# WOULD have published itself, and nothing more.
 name: scan
 on:
   schedule:
@@ -23,11 +38,33 @@ on:
     # another minute. Do not tidy these back to :00.
     - cron: '17 4 * * *'
   workflow_dispatch:
+    inputs:
+      track_id:
+        description: Scan only this queued recording (16-hex track id)
+        required: false
+        default: ''
+      eval:
+        description: Measure the scan against published renditions instead (read-only)
+        type: boolean
+        default: false
 
 jobs:
   scan:
+    if: ${{ !inputs.eval }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
+    # One scan at a time. The queue has no claim: a track_id run dispatched
+    # while the nightly one (often started hours late) is still going would
+    # read the same request, check for existing drafts before either wrote,
+    # and draft every shabad twice. A second run waits for the first.
+    #
+    # GitHub keeps just one WAITING run per group and cancels the older, so
+    # three requests during a long scan leave one running run and one waiting.
+    # Nothing is lost: every run drains the queue, re-reading it after each
+    # track, so whichever run comes next takes every request still queued.
+    concurrency:
+      group: scan
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: packages/aligner
@@ -54,13 +91,119 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - run: uv venv && uv pip install -e .
-      # 15s windows every 30s, each run through the model on its own: roughly
-      # RTF 0.02-0.03 over the recording, extrapolated from the align timings,
-      # not yet measured on a scan (was ~30 CPU-minutes per recording under
-      # surt). The requests so far are ragi-wise duties of ~35 minutes, ~1
-      # minute each; the worst case is a day-wise file (median ~14 hours,
-      # ~25 minutes), and 6 of those still fit inside timeout-minutes.
-      - run: uv run python scan_track.py --from-queue --limit 6
+      # Align's two passes over each whole recording (scan_track.py): ~RTF
+      # 0.24 on a runner, going by align's measured passes — ~9 minutes for a
+      # 35-minute ragi-wise duty, ~45 for a 3-hour Asa di Vaar — plus a
+      # minute of matching. No --limit: a run drains the queue. --deadline-min
+      # 120 stops STARTING requests after two hours, so one long recording
+      # begun late still ends inside timeout-minutes; the rest wait for the
+      # next run. The first run after
+      # the corpus change also fetches it (corpus.py, a few minutes) and
+      # stores it in the transcripts bucket for every later run.
+      - run: |
+          if [ -n "$TRACK_ID" ]; then
+            # An id, nothing else: this string lands in a PostgREST filter.
+            if ! printf '%s' "$TRACK_ID" | grep -Eq '^[0-9a-f]{16}$'; then
+              echo "track_id must be a 16-hex track id, got: $TRACK_ID"; exit 1
+            fi
+            uv run python scan_track.py --from-queue --track "$TRACK_ID"
+          else
+            uv run python scan_track.py --from-queue --deadline-min 120
+          fi
+        env:
+          TRACK_ID: ${{ inputs.track_id }}
+          SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+  # ── eval: the scan measured against every published rendition ──────────
+  # One job fetches the corpus, twelve transcribe and score a slice of the
+  # tracks each, one reads every slice and prints the tables. Nothing is
+  # written to the project: eval_scan.py only GETs.
+  corpus:
+    if: ${{ inputs.eval }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: packages/aligner
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/aligner/pyproject.toml
+      - run: uv venv && uv pip install -e .
+      # Once, not twelve times: 1,470 BaniDB pages per fetch, from the bucket
+      # when a scan has stored it there, otherwise from BaniDB — never stored.
+      - run: uv run python -c "import corpus; corpus.lines('cache', store=False)"
         env:
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
           SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: corpus
+          path: packages/aligner/cache/corpus_*.json
+
+  eval:
+    needs: corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    defaults:
+      run:
+        working-directory: packages/aligner
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/aligner/pyproject.toml
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-karansea-ctc-5fd2e89e
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: uv venv && uv pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          name: corpus
+          path: packages/aligner/cache
+      # 3590 is the known mistag (the aligner refuses it): published, wrong.
+      - run: uv run python eval_scan.py --shard ${{ matrix.shard }}/12 --out results --exclude-shabad 3590
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ matrix.shard }}
+          path: packages/aligner/results/*.json
+          if-no-files-found: ignore
+
+  report:
+    needs: eval
+    if: ${{ always() && inputs.eval }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: packages/aligner
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/aligner/pyproject.toml
+      - run: uv venv && uv pip install -e .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eval-*
+          path: packages/aligner/results
+          merge-multiple: true
+      - run: |
+          uv run python eval_scan.py --report results | tee report.txt
+          { echo '```'; cat report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          SB_KEY: unused-the-report-reads-only-files
