@@ -63,7 +63,7 @@ CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, li
 ## The scan → align pipeline (`packages/aligner`)
 
 - **Publishing is the only human step.** Scan drafts are `status = 'shabad_linked'`, `source = 'scan'`, invisible to the player until someone reviews the edges and publishes. Nothing sets `AUTO_PUBLISH`; `scan_verdict` records what it would have done.
-- **Rejected is kept.** Rejecting a scan draft stamps `rejected_at`; the row stays, hidden from every list and count, so the scan never re-suggests it and `scan_draft_outcomes` (the auto-publish trial's report) can count it. Queries that list renditions for people filter `rejected_at is null`.
+- **Deleting a scan draft is a rejection.** A trigger records it in `scan_rejections`; the scan never re-suggests that shabad on the recording, and `scan_draft_outcomes` (the auto-publish trial's report) counts it. `renditions` holds only live rows.
 - **Published is settled.** The scan never edits a rendition and suggests nothing mostly inside a published one. That rule lives in `write_drafts`, not the matching: `eval_scan.py` scores the scan against exactly those renditions.
 - **One scale.** Scan and align share `runtime.py` (model revision, `MIN_CONFIDENCE` 0.60). A model or decoding change means re-measuring with `eval_scan.py` (read-only; `--truth` takes a SQL-editor export) before changing any threshold.
 - Transcripts are cached on disk and in the `transcripts` bucket, keyed by model and by how the audio was cut: another model's text, or text cut differently, is a different scale, never a cache hit.

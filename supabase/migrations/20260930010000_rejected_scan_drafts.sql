@@ -1,133 +1,151 @@
--- Rejecting a scan draft keeps it.
+-- Deleting a scan draft is a rejection, and it is written down.
 --
--- A reviewer turned a wrong scan draft down by deleting it, and that lost two
--- things. The auto-publish trial (#82) needs every draft's fate — published as
--- drafted, edges moved, re-tagged, rejected — and a deleted draft leaves
--- nothing to count. And Scan again suggested the same wrong shabad straight
--- back: the scanner skips a shabad already on the recording, and a deleted one
--- no longer was.
+-- A wrong scan draft is deleted, and that lost two things. The auto-publish
+-- trial (#82) needs every draft's fate — published as drafted, edges moved,
+-- re-tagged, turned down — and a deleted draft left nothing to count. And
+-- Scan again suggested the same wrong shabad straight back: the scanner skips
+-- a shabad already on the recording, and a deleted one no longer was.
 --
--- So a rejection is a timestamp, not a delete. The row stays, naming its
--- shabad — which is all the scanner's skip needs — and counts for nothing
--- else: the admin leaves it out of the tagger's list and Review, the queue's
--- counts and coverage leave it out (the view below), and it can never be
--- published (the check). Only scan drafts are turned down this way; a
--- person's draft is still deleted, and still asks first.
+-- So a person deleting a scan draft leaves a row here: which shabad the
+-- scanner drafted, where, what it said about it, and who turned it down. The
+-- scanner reads it and never suggests that shabad on the recording again; the
+-- trial's report reads it next to the scan drafts still standing. Nothing
+-- else changes: renditions keeps only live rows, so no list or count has to
+-- filter anything out.
 
-alter table renditions
-  add column rejected_at timestamptz,
-  add column rejected_by uuid references auth.users (id) on delete set null,
-  add constraint renditions_rejected_not_published
-    check (rejected_at is null or status <> 'published');
+create table scan_rejections (
+  -- The deleted rendition's id: one rejection per draft, and the report can
+  -- list these beside the live drafts under one id type.
+  id           uuid primary key,
+  track_id     text not null references tracks (id) on delete cascade,
+  -- The shabad the scanner drafted, not whatever a tagger had re-linked it to.
+  shabad_id    int,
+  start_sec    numeric(10,2) not null,
+  end_sec      numeric(10,2) not null,
+  -- What it was when deleted: 'published' means it reached the player first.
+  status       rendition_status not null,
+  scan_verdict jsonb,
+  drafted_at   timestamptz not null,
+  rejected_at  timestamptz not null default now(),
+  rejected_by  uuid references profiles (id) on delete set null
+);
 
-comment on column renditions.rejected_at is
-  'When a person turned this scan draft down. Kept, not deleted: the '
-  'auto-publish trial counts rejections (scan_draft_outcomes), and the '
-  'scanner never suggests a shabad already on the recording. Hidden from '
-  'every list and count; never published.';
+create index scan_rejections_track_idx on scan_rejections (track_id);
 
--- The queue leaves rejected drafts out of its counts, coverage and recency: a
--- recording whose every suggestion was turned down has nothing tagged, and
--- belongs back on Not started. Otherwise unchanged from
--- 20260901000400_recordings_recent_activity.sql — the same columns, still
--- running as owner ON PURPOSE (see 20260804000200_views.sql).
-create or replace view recordings as
-select
-  t.id, t.url, t.tree, t.artist_dir, t.date, t.raw_filename, t.title,
-  t.slot_start_sec, t.slot_end_sec,
-  a.photo_path as artist_photo,
-  est.seconds as est_seconds,
-  coalesce(rc.renditions, 0) as renditions,
-  coalesce(rc.published, 0) as published,
-  case
-    when est.seconds is not null then greatest(
-      round(
-        greatest(est.seconds, coalesce(rc.max_end_sec, 0))
-          - coalesce(rc.tagged_seconds, 0)
-      )::int,
-      0
-    )
-  end as untagged_seconds,
-  t.tagged_done_at,
-  greatest(rc.last_tagged_at, t.tagged_done_at) as last_activity_at
-from tracks t
-cross join lateral (
-  select case
-    when t.slot_start_sec is not null and t.slot_end_sec > t.slot_start_sec
-      then t.slot_end_sec - t.slot_start_sec
-  end as seconds
-) est
-left join artists a on a.name = t.artist_dir
-left join (
-  select track_id,
-         count(*) as renditions,
-         count(*) filter (where status = 'published') as published,
-         sum(greatest(end_sec - greatest(start_sec, coalesce(prev_end, 0)), 0))
-           as tagged_seconds,
-         max(end_sec) as max_end_sec,
-         max(created_at) as last_tagged_at
-  from (
-    select track_id, start_sec, end_sec, status, created_at,
-           max(end_sec) over (
-             partition by track_id
-             order by start_sec, end_sec
-             rows between unbounded preceding and 1 preceding
-           ) as prev_end
-    from renditions
-    where rejected_at is null
-  ) spans
-  group by track_id
-) rc on rc.track_id = t.id
-where t.tree <> 'daywise'
-  and t.missing_since is null
-  and not (t.flags @> array['unplayable-format']);
+-- Written only by the trigger below and read only by the scanner and the owner:
+-- no API role may touch it, so a rejection can be neither forged nor undone
+-- through the app. Restoring one is a delete in the SQL editor.
+alter table scan_rejections enable row level security;
+revoke all on scan_rejections from anon, authenticated;
+grant select on scan_rejections to service_role;
 
--- The trial's report: every scan draft, what the scanner said about it, and
--- what people did with it. In the SQL editor, for example:
---
---   select auto, outcome, count(*) as drafts,
---          round(avg(start_moved_sec + end_moved_sec)
---                filter (where outcome = 'edges moved'), 1) as avg_moved_sec
---   from scan_draft_outcomes group by auto, outcome order by auto desc, outcome;
---
--- auto = the draft cleared every auto-publish gate; the question the trial
--- answers is how often those end anywhere but 'published as drafted'. Edges
--- count as moved past a second — a tagger's nudge is a tenth of one. A draft
--- written before this migration carries no drafted_shabad, so a re-tag of one
--- reads as published; and drafts deleted before it are gone for good.
+-- A person deleting a scan draft through the app, not a cascade from a
+-- track or a cleanup in the SQL editor: auth.uid() is null for both.
+create function private.record_scan_rejection() returns trigger
+language plpgsql security definer set search_path = '' as $$
+declare
+  sid int := coalesce((old.scan_verdict ->> 'shabad_id')::int, old.shabad_id);
+begin
+  if auth.uid() is null then
+    return old;
+  end if;
+  insert into public.scan_rejections
+    (id, track_id, shabad_id, start_sec, end_sec, status, scan_verdict,
+     drafted_at, rejected_by)
+  values
+    (old.id, old.track_id, sid, old.start_sec, old.end_sec, old.status,
+     old.scan_verdict, old.created_at, auth.uid())
+  on conflict (id) do nothing;
+  -- And the listen-here pointers the same scan left for that shabad. The next
+  -- scan drops them too, but nobody presses Scan again once the drafts are
+  -- dealt with, and the tag page would go on offering it. findings only:
+  -- done_at stays, so this starts no scan.
+  update public.scan_requests
+  set findings = (
+    select jsonb_agg(f)
+    from jsonb_array_elements(findings) f
+    where (f ->> 'shabad_id')::int is distinct from sid
+  )
+  where track_id = old.track_id
+    and findings @> jsonb_build_array(jsonb_build_object('shabad_id', sid));
+  return old;
+end;
+$$;
+
+revoke all on function private.record_scan_rejection() from public, anon, authenticated;
+
+create trigger renditions_record_scan_rejection
+  after delete on renditions
+  for each row when (old.source = 'scan')
+  execute function private.record_scan_rejection();
+
+-- Drafts written before the scanner put the drafted shabad in its verdict:
+-- nobody has edited these, so the row's own shabad is still the one drafted.
+update renditions
+set scan_verdict = scan_verdict || jsonb_build_object('shabad_id', shabad_id)
+where source = 'scan'
+  and scan_verdict is not null
+  and not scan_verdict ? 'shabad_id'
+  and updated_at = created_at;
+
+-- The trial's report: every scan draft with a verdict, standing or turned
+-- down, and what people did with it. The summary query is in
+-- packages/aligner/README.md.
 create view scan_draft_outcomes as
 select
-  r.id,
-  r.track_id,
-  r.created_at,
-  (r.scan_verdict ->> 'auto')::boolean as auto,
-  (r.scan_verdict ->> 'confidence')::numeric as confidence,
-  (r.scan_verdict ->> 'margin')::numeric as margin,
-  (r.scan_verdict ->> 'align_confidence')::numeric as align_confidence,
-  (r.scan_verdict ->> 'shabad_id')::int as drafted_shabad,
-  r.shabad_id,
-  abs(r.start_sec - (r.scan_verdict ->> 'start')::numeric) as start_moved_sec,
-  abs(r.end_sec - (r.scan_verdict ->> 'end')::numeric) as end_moved_sec,
+  d.id,
+  d.track_id,
+  d.drafted_at,
+  (d.v ->> 'auto')::boolean as auto,
+  (d.v ->> 'confidence')::numeric as confidence,
+  (d.v ->> 'margin')::numeric as margin,
+  (d.v ->> 'align_confidence')::numeric as align_confidence,
+  c.drafted_shabad,
+  d.shabad_id,
+  c.start_moved_sec,
+  c.end_moved_sec,
   case
-    when r.rejected_at is not null then 'rejected'
-    when r.status <> 'published' then 'waiting'
-    when r.shabad_id is distinct from (r.scan_verdict ->> 'shabad_id')::int
-         and r.scan_verdict ? 'shabad_id' then 're-tagged'
-    when abs(r.start_sec - (r.scan_verdict ->> 'start')::numeric) > 1
-         or abs(r.end_sec - (r.scan_verdict ->> 'end')::numeric) > 1 then 'edges moved'
+    when d.rejected and d.status = 'published' then 'deleted after publishing'
+    when d.rejected then 'rejected'
+    -- The scanner writes shabad_linked or published; 'draft' is an Unpublish.
+    when d.status = 'draft' then 'unpublished'
+    when d.status <> 'published' then 'waiting'
+    when c.drafted_shabad is not null and d.shabad_id is distinct from c.drafted_shabad
+      then 're-tagged'
+    -- Any change: the scanner writes the row's edges and the verdict's the same
+    -- way, so a difference is a person's edit — one nudge is exactly a second.
+    when c.start_moved_sec > 0 or c.end_moved_sec > 0 then 'edges moved'
+    -- Nobody reviewed it: AUTO_PUBLISH was on and it was an auto draft.
+    when (d.v ->> 'published')::boolean then 'published by the scanner'
     else 'published as drafted'
   end as outcome
-from renditions r
-where r.source = 'scan' and r.scan_verdict is not null;
+from (
+  select r.id, r.track_id, r.created_at as drafted_at, r.scan_verdict as v,
+         r.status, r.start_sec, r.end_sec, r.shabad_id, false as rejected
+  from renditions r
+  where r.source = 'scan' and r.scan_verdict is not null
+  union all
+  select x.id, x.track_id, x.drafted_at, x.scan_verdict, x.status,
+         x.start_sec, x.end_sec, x.shabad_id, true
+  from scan_rejections x
+  where x.scan_verdict is not null
+) d
+cross join lateral (
+  select (d.v ->> 'shabad_id')::int as drafted_shabad,
+         abs(d.start_sec - (d.v ->> 'start')::numeric) as start_moved_sec,
+         abs(d.end_sec - (d.v ->> 'end')::numeric) as end_moved_sec
+) c;
 
--- For the owner in the SQL editor, not the API: it runs as owner, past RLS, so
--- it would show every contributor's drafts to anyone who could select it.
--- Revoke-then-grant, as authz.sql does; the service key may read it for a
--- script, since it bypasses RLS anyway.
+-- For the owner in the SQL editor, not the API: it runs as owner, past RLS,
+-- and would show every contributor's drafts to anyone who could select it.
 revoke all on scan_draft_outcomes from public, anon, authenticated, service_role;
 grant select on scan_draft_outcomes to service_role;
 
+comment on table scan_rejections is
+  'Scan drafts a person deleted: the drafted shabad, span, status and verdict. '
+  'The scanner never suggests that shabad on the recording again. Written '
+  'only by the renditions delete trigger; delete a row here to restore it.';
 comment on view scan_draft_outcomes is
-  'Auto-publish trial report: every scan draft with its scan_verdict and its '
-  'fate — waiting, rejected, re-tagged, edges moved, published as drafted. '
-  'Owner-only (no API grant). See its migration for a summary query.';
+  'Auto-publish trial report: every scan draft with a verdict, live or '
+  'rejected, and its outcome. Owner-only. Summary query: '
+  'packages/aligner/README.md.';

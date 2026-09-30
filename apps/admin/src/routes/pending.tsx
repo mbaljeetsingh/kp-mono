@@ -7,7 +7,6 @@
 import {
   canPublishRendition,
   deleteRendition,
-  rejectRendition,
   setRenditionStatus,
   usePending,
   type PendingRendition,
@@ -16,7 +15,7 @@ import { Badge } from '@kp/ui/badge';
 import { Button } from '@kp/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Check, Play, Trash2, X } from 'lucide-react';
+import { Check, Play, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { LoadStatus } from '~/components/LoadStatus';
@@ -150,29 +149,7 @@ export function PendingRoute() {
                 </Button>
               ) : null}
 
-              {/* A scan draft is turned down and kept — for the auto-publish
-                  trial's count, and so Scan again never suggests it back — by
-                  whoever can edit it. A person's draft is still deleted. */}
-              {row.source === 'scan' && session && (can['renditions.review'] || mine) ? (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Reject ${row.name}`}
-                  disabled={busy === row.id}
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        `Reject “${row.name}”? The scanner won't suggest it for this recording again.`
-                      )
-                    ) {
-                      void run(row.id, () => rejectRendition(supabase, row.id, session.user.id));
-                    }
-                  }}
-                >
-                  <X />
-                </Button>
-              ) : can['renditions.delete'] ? (
+              {can['renditions.delete'] ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -181,7 +158,11 @@ export function PendingRoute() {
                   className="text-destructive hover:text-destructive"
                   onClick={() => {
                     // Rejecting throws away someone's listening, so it asks.
-                    if (window.confirm(`Reject “${row.name}”? This deletes the draft.`)) {
+                    if (
+                      window.confirm(
+                        `Reject “${row.name}”? This deletes the draft.${row.source === 'scan' ? " The scanner won't suggest it for this recording again." : ''}`
+                      )
+                    ) {
                       void run(row.id, () => deleteRendition(supabase, row.id));
                     }
                   }}
