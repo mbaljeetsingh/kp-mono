@@ -54,8 +54,11 @@ export function PendingRoute() {
       await work();
       await queryClient.invalidateQueries({ queryKey: ['pending'] });
       await queryClient.invalidateQueries({ queryKey: ['recordings'] });
-      // Rejecting a scan draft also drops the scan's pointers to that shabad,
-      // which the tag page would otherwise show from its cache.
+      // And the tag page's copies, cached for five minutes: its rows, its
+      // counts, and its scan pointers — rejecting a scan draft drops the
+      // pointers to that shabad too.
+      await queryClient.invalidateQueries({ queryKey: ['renditions'] });
+      await queryClient.invalidateQueries({ queryKey: ['recording'] });
       await queryClient.invalidateQueries({ queryKey: ['scan-request'] });
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'That did not work.');
