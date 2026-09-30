@@ -36,8 +36,10 @@ export function useShabadText(base: string, shabadId: number | null | undefined)
     queryFn: () => fetchShabadText(base, shabadId!),
     enabled: Boolean(shabadId),
     // The text of a shabad does not change. Holding it for the session is the
-    // whole point.
-    staleTime: Infinity,
+    // whole point. 'static', not Infinity: Infinity still yields to an
+    // invalidation, and useAuth invalidates the cache after auth trouble —
+    // which this request, carrying no Supabase token, never had.
+    staleTime: 'static',
     gcTime: Infinity,
     retry: 1,
   });

@@ -29,4 +29,4 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["align", "matcher", "runtime"]
+py-modules = ["align", "corpus", "matcher", "runtime", "timing"]

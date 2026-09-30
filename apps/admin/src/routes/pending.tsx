@@ -18,6 +18,7 @@ import { Link } from '@tanstack/react-router';
 import { Check, Play, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { LoadStatus } from '~/components/LoadStatus';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
@@ -80,9 +81,9 @@ export function PendingRoute() {
         </p>
       ) : null}
 
-      {query.isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+      <LoadStatus what="the review queue" queries={[query]} />
 
-      {!query.isLoading && !rows.length ? (
+      {query.data !== undefined && !rows.length ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
           Nothing waiting. Every proposed segment has been dealt with.
         </p>

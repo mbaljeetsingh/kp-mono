@@ -26,6 +26,7 @@ import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 import { useDebounceValue } from 'usehooks-ts';
 
+import { LoadStatus } from '~/components/LoadStatus';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { clock, cn } from '~/lib/utils';
@@ -174,7 +175,7 @@ export function QueueRoute() {
         />
       </div>
 
-      {query.isError ? <p className="text-sm text-destructive">Could not load the queue.</p> : null}
+      <LoadStatus what="the queue" queries={[queued, query]} />
 
       {shelf === 'queued' && !can['scans.request'] ? (
         <p className="text-xs text-muted-foreground">
@@ -231,11 +232,18 @@ export function QueueRoute() {
           );
         })}
 
-        {query.isLoading || query.isFetchingNextPage ? (
+        {query.isFetchingNextPage ? (
           <p className="px-3 py-4 text-sm text-muted-foreground">Loading…</p>
         ) : null}
+        {query.isFetchNextPageError ? (
+          <p role="alert" className="px-3 py-2 text-sm text-destructive">
+            Could not load more.
+          </p>
+        ) : null}
 
-        {!query.isLoading && items.length === 0 ? (
+        {query.data !== undefined &&
+        (shelf !== 'queued' || queued.data !== undefined) &&
+        items.length === 0 ? (
           <p className="px-3 py-8 text-sm text-muted-foreground">
             Nothing on this shelf. Try another filter.
           </p>

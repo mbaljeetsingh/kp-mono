@@ -111,6 +111,13 @@ export interface Favorites {
   ids: string[];
   has: (id: string) => boolean;
   toggle: (id: string) => void;
+  /**
+   * Signed in and the saved list could not be read. `ids` is then empty for
+   * want of an answer, not because nothing is saved, and a view should say so
+   * rather than "Nothing saved yet".
+   */
+  failed: boolean;
+  retry: () => void;
 }
 
 export function useFavorites(
@@ -225,8 +232,12 @@ export function useFavorites(
     [client, ids, queryClient, storage, userId]
   );
 
+  const failed = Boolean(userId) && remote.isError && remote.data === undefined;
+  const { refetch } = remote;
+  const retry = useCallback(() => void refetch(), [refetch]);
+
   // Memoised: both apps hold this in a context value, and a fresh object every
   // render defeats the useMemo around it — re-rendering every consumer of the
   // session for a list that did not change.
-  return useMemo(() => ({ ids, has, toggle }), [ids, has, toggle]);
+  return useMemo(() => ({ ids, has, toggle, failed, retry }), [ids, has, toggle, failed, retry]);
 }

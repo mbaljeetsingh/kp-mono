@@ -76,25 +76,104 @@ and another model's text is a different confidence scale, not a hit.
 ```bash
 pnpm scan                                        # consume the admin queue, from repo root
 SB_KEY=<key> uv run python scan_track.py --from-queue --limit 3
+SB_KEY=<key> uv run python scan_track.py --from-queue --track <track id>   # one queued recording
 SB_KEY=<key> TRACK=<track id> uv run python scan_track.py [--write-drafts]
 ```
 
-Blind identification: ASR the broadcast, search BaniDB with the distinctive
-words, score candidate shabads window-by-window, report regions where one
-dominates. Queue mode consumes `scan_requests` (the _Suggest_ button in admin
-writes rows there; _Suggest again_ re-queues a finished one), oldest first, and
-stamps `done_at` even when nothing cleared the gate — "scanned, nothing found"
-is an answer. A failing track is left queued for retry without blocking the
-rest.
+Deployed, a click is the whole step: _Suggest shabads_ (or _Scan again_) in
+admin queues the recording and a database trigger starts `scan.yml` at once
+(see Scheduling). Actions → scan → Run workflow with a `track_id` scans one
+queued recording by hand.
 
-Confident regions (confidence ≥ 0.6 **and** margin ≥ 0.05 over the runner-up)
-become renditions with `status = 'shabad_linked'`, `source = 'scan'`, named
-from the region's dominant line, owned by whoever requested the scan —
-invisible to the player until a human reviews the boundaries in the tagger and
-publishes. It never publishes anything itself.
+Blind identification, with lyrics. The scan runs align's own two passes over
+the whole recording (cached per track under `track/` in the `transcripts`
+bucket) and reads everything off that one transcript:
+
+1. **Shortlist** the 16 shabads whose lines win the most windows across the
+   Guru Granth Sahib and Bhai Gurdas Ji's Vaaran (`corpus.py`, fetched once
+   from BaniDB's ang endpoint). BaniDB word search on CTC transcripts missed
+   the right shabad on most recordings.
+2. **Regions** from per-second evidence per shortlisted shabad, smoothed over a
+   minute; a short run of one shabad between two runs of another is a quote
+   from vichar and is dropped; the same shabad either side of only weak runs
+   is one region.
+3. **Gate**: confidence ≥ 0.6, margin ≥ 0.05 over the runner-up, at least 60 s.
+4. **Edges** placed again from 5 s evidence, grown outward from inside.
+5. **Align** on the draft's span: its confidence is a second gate (below 0.6
+   the region is a pointer), its timings are the draft's `line_timings`.
+
+Drafts are renditions with `status = 'shabad_linked'`, `source = 'scan'`,
+lyrics timed, named from the line sung longest, owned by whoever requested
+the scan, and a `scan_verdict` saying whether it would have published itself
+(`AUTO_PUBLISH=1` acts on that; nothing sets it). Invisible to the player until
+a human reviews the edges and publishes — no night's wait for lyrics after.
+Published parts are left alone: the scan never edits a rendition, skips a
+shabad already tagged on the recording, and drafts nothing — nor points at
+anything — lying mostly inside a published one (`SETTLED`, in `write_drafts`
+rather than the matching, since `eval_scan.py` scores against those renditions).
+Queue mode consumes `scan_requests` oldest first, re-reading it after each
+track so one run drains it, and stamps `done_at` even when nothing cleared the
+gate; a failing track is left queued for retry.
+
+Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
+prod's published tags (25 renditions, 17 recordings) against the old sparse
+scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
+
+## Measure the scan against published tags
+
+```bash
+SB_URL=https://<ref>.supabase.co/rest/v1 SB_KEY=<key> \
+  uv run python eval_scan.py [--limit N] [--exclude-shabad ID ...]
+uv run python eval_scan.py --shard 3/8 --out results    # one of N slices
+uv run python eval_scan.py --report results             # tables over every slice
+```
+
+On prod: Actions → scan → Run workflow with `eval` ticked — 12 runners, the
+report in the run summary.
+
+Runs the scan over every track with a published rendition and replays a grid
+of `FLOOR` x `MIN_MARGIN` over the saved evidence: how many drafts name the
+published shabad, name a different one, or land where nothing is tagged, how
+far their edges sit from the human's, and how the auto-publish bands do. Read-only by
+construction — GETs only, transcripts and the corpus kept on local disk — so it
+is safe to point at prod, which has far more published tags than a local
+stack. `--exclude-shabad 3590` drops the known mistag from the truth.
+
+With no key at all, export the truth from the SQL editor and pass `--truth
+truth.json` (`SB_KEY=x` still has to be set; the transcript store just misses):
+
+```sql
+select json_agg(t) from (
+  select tr.id as track_id, tr.url, tr.tagged_done_at is not null as done,
+         json_agg(json_build_object('shabad_id', r.shabad_id, 'start', r.start_sec,
+                                    'end', r.end_sec) order by r.start_sec) as spans
+  from renditions r join tracks tr on tr.id = r.track_id
+  where r.status = 'published' and r.shabad_id is not null
+    and tr.missing_since is null
+  group by tr.id
+) t;
+```
 
 ## Scheduling
 
-Deployed: `.github/workflows/scan.yml` and `align.yml` run nightly against the
-project in the repo secrets. Locally there is no scheduler on purpose — run
-`pnpm pipeline` (scan, then align) after a tagging session.
+Deployed: `.github/workflows/scan.yml` and `align.yml` run against the project
+in the repo secrets as soon as there is work for them. A database trigger
+(`supabase/migrations/20260930000000_dispatch_scan_and_align.sql`) dispatches
+`scan.yml` when a scan request is queued or re-queued, and `align.yml` when a
+rendition enters align's queue — published, shabad linked, no timings. Both
+also run nightly, as the sweep for anything a dispatch missed.
+
+The trigger needs one secret, created once in the SQL editor:
+
+```sql
+select vault.create_secret('<token>', 'github_dispatch_token');
+```
+
+a fine-grained GitHub token for this repository only, with Actions: read and
+write. Without it nothing is dispatched and the nightly runs do the work, as
+before — which is every local database. A refused dispatch (an expired token
+answers 401) shows in `net._http_response`; replace the secret with
+`vault.update_secret`.
+
+Locally there is no scheduler on purpose — run `pnpm pipeline` (scan, then
+align) after a tagging session.

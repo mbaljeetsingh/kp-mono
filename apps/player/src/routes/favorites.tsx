@@ -6,6 +6,7 @@
  * both modes share.
  */
 import { toPlayable, type Playable } from '@kp/core';
+import { Button } from '@kp/ui/button';
 import { useQuery } from '@tanstack/react-query';
 
 import { LibraryTabs } from '~/components/LibraryTabs';
@@ -47,16 +48,36 @@ export function FavoritesRoute() {
         </p>
       </header>
 
-      <ShabadList
-        items={query.data ?? []}
-        loading={query.isLoading}
-        empty="Nothing saved yet."
-        emptyHint={
-          userId
-            ? 'Tap the heart on any shabad to keep it here.'
-            : 'Tap the heart on any shabad. Sign in to keep them across devices.'
-        }
-      />
+      {/* A failed read is not an empty list: "Nothing saved yet" over an
+          account with saved shabads reads as losing them. */}
+      {favorites.failed || (query.isError && query.data === undefined) ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p role="alert" className="text-sm text-destructive">
+            Could not load your saved shabads.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              favorites.retry();
+              void query.refetch();
+            }}
+          >
+            Try again
+          </Button>
+        </div>
+      ) : (
+        <ShabadList
+          items={query.data ?? []}
+          loading={query.isLoading}
+          empty="Nothing saved yet."
+          emptyHint={
+            userId
+              ? 'Tap the heart on any shabad to keep it here.'
+              : 'Tap the heart on any shabad. Sign in to keep them across devices.'
+          }
+        />
+      )}
 
       {!userId && ids.length > 0 ? (
         <button

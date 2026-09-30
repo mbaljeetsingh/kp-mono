@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search } from 'lucide-react';
 import { useState } from 'react';
 
+import { LoadStatus } from '~/components/LoadStatus';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { timeAgo } from '~/lib/utils';
@@ -144,10 +145,8 @@ export function UsersRoute() {
           </div>
         ))}
 
-        {query.isLoading ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">Loading…</p>
-        ) : null}
-        {!query.isLoading && !people.length ? (
+        <LoadStatus what="accounts" queries={[query]} className="px-3 py-4" />
+        {query.data !== undefined && !people.length ? (
           <p className="px-3 py-8 text-sm text-muted-foreground">No accounts match.</p>
         ) : null}
       </div>

@@ -50,11 +50,31 @@ export const renditionSchema = z.object({
   artist: z.string().nullish(),
   /** Who proposed it — the UPDATE policy lets a publisher promote only their own. */
   created_by: z.string().nullish(),
+  /** 'manual' or 'scan'. A scan's cut is a machine guess worth checking by ear. */
+  source: z.string().nullish(),
+  /** A scan draft arrives with its lyrics timed; only whether it has them matters here. */
+  line_timings: z.array(z.unknown()).nullish(),
+  /**
+   * What the scanner concluded about a draft it wrote. `auto` = it would have
+   * published itself had AUTO_PUBLISH been on — shown so a reviewer can judge
+   * that verdict against their own ear before anything is ever switched on.
+   */
+  scan_verdict: z
+    .object({
+      confidence: z.number(),
+      margin: z.number(),
+      align_confidence: z.number(),
+      auto: z.boolean(),
+      published: z.boolean(),
+    })
+    .partial()
+    .nullish(),
 });
 
 /** One list for every read and write, so a column added to the schema cannot reach one and not the others. */
 const RENDITION_COLUMNS =
-  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by';
+  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by,' +
+  'source,line_timings,scan_verdict';
 
 export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
@@ -244,8 +264,14 @@ export async function getRecording(client: KpClient, id: string): Promise<Record
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
+  // A row the view returns but the schema refuses is a bug to report, not an
+  // absent recording: as null, the tag page told the tagger this recording was
+  // one the queue leaves out.
   const parsed = recordingSchema.safeParse(data);
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) {
+    throw new Error(`Recording ${id} does not match its schema: ${parsed.error.message}`);
+  }
+  return parsed.data;
 }
 
 export function useRecordings(client: KpClient, filters: RecordingFilters) {
@@ -477,19 +503,54 @@ export async function setTaggedDone(
 /**
  * Ask the scanner to suggest shabads for a recording.
  *
- * Its own capability too. A queued scan is not free — the nightly workflow
- * budgets roughly thirty CPU-minutes per broadcast on a runner, three a night —
- * and this button is the only thing rationing it.
+ * The row is the whole request: a trigger on scan_requests starts a scan run
+ * at once (20260930000000_dispatch_scan_and_align.sql), and the nightly run
+ * sweeps up anything a dispatch missed. Its own capability too — a scan costs
+ * about a quarter of the recording's length in runner time, and this button is
+ * the only thing rationing it.
  */
-export async function requestScan(client: KpClient, trackId: string): Promise<void> {
+export async function requestScan(
+  client: KpClient,
+  trackId: string,
+  userId: string
+): Promise<void> {
   const { data, error } = await client
     .from('scan_requests')
-    .upsert({ track_id: trackId }, { onConflict: 'track_id', ignoreDuplicates: true })
+    // requested_by from the session: the INSERT policy does not default it,
+    // and the scanner makes it every draft's created_by. The Vue page set it;
+    // the React port dropped it, so drafts arrived owned by nobody — hidden
+    // from a requester without review, and unpublishable by one (a publisher
+    // may promote only their own).
+    .upsert(
+      { track_id: trackId, requested_by: userId },
+      { onConflict: 'track_id', ignoreDuplicates: true }
+    )
     .select('track_id');
   if (error) throw error;
   // An ignored duplicate comes back empty and is not a failure: the recording
   // is already in the queue, which is what the tagger wanted.
   void data;
+}
+
+/**
+ * Scan a recording again: clearing `done_at` starts a scan run at once, the
+ * same trigger as a first request. Findings stay until that scan replaces
+ * them. Same capability as asking the first time.
+ *
+ * The drafts belong to whoever asks this time — the renditions SELECT policy
+ * shows a tagger their own drafts, not the ones someone else asked for months
+ * ago. `requested_at` is the server's clock ('now()' is evaluated by Postgres),
+ * because the queue is ordered by it and a browser's clock can be a day off.
+ */
+export async function rescan(client: KpClient, trackId: string, userId: string): Promise<void> {
+  const { data, error } = await client
+    .from('scan_requests')
+    .update({ done_at: null, requested_at: 'now()', requested_by: userId })
+    .eq('track_id', trackId)
+    .select('track_id');
+  if (error) throw error;
+  // RLS refuses an UPDATE by matching nothing, so an empty answer is a refusal.
+  if (!data?.length) throw new Error('Scanning this recording again is not permitted.');
 }
 
 /** This recording's place in the scan queue, if it has one. */
@@ -535,6 +596,10 @@ export function useScanRequest(client: KpClient, trackId: string) {
     queryKey: ['scan-request', trackId],
     queryFn: () => getScanRequest(client, trackId),
     enabled: trackId.length > 0,
+    // While queued, look again every half minute: a request starts a scan run
+    // at once (the dispatch trigger), so its drafts can land while the tagger
+    // is still on the page. Visible tabs only, as refetchInterval runs.
+    refetchInterval: (query) => (query.state.data && !query.state.data.done_at ? 30_000 : false),
   });
 }
 

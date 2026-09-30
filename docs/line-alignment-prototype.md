@@ -235,8 +235,9 @@ the marker.
 
 - **Blind identification.** The benchmark ships only the correct shabad's text,
   so there is nothing to confuse the matcher against. Moot for the player since
-  tagging supplies `shabad_id`. Note BaniDB `searchtype=2` accepts Gurmukhi
-  Unicode, so an ASR-driven search is possible without a corpus download.
+  tagging supplies `shabad_id`. The scan does it anyway, and word search turned
+  out to be the weak step under the CTC model — see [the shortlist
+  note](#the-scans-shortlist-broke-in-the-swap-and-was-replaced-27-september-2026).
 - **Live radio.** The 40 stations are the hard quadrant and out of scope.
 - **Multi-shabad renditions, katha, simran.** The benchmark excludes these; our
   archive has them.
@@ -426,9 +427,46 @@ Benchmark own-vs-other margins: surt +0.16..+0.28, CTC +0.14..+0.29. So
 `MIN_CONFIDENCE = 0.60` stands. Timings from the two models agree on 90-94% of
 seconds on production renditions, boundaries within ~0.5s.
 
-**Not re-measured:** the scan's window floor (0.55) and region margin (0.05).
 The model export also fails on inputs past ~60s, so long audio goes through in
 45s chunks with 5s context either side.
+
+### The scan's shortlist broke in the swap, and was replaced (27 September 2026)
+
+Measured with `packages/aligner/eval_scan.py` on the local stack: 8 published
+renditions on 6 tracks, the 3590 mistag excluded. Small — prod has more tags,
+and the script is read-only so it can run there.
+
+The scan's floor and margin were the suspected problem. They were not: the
+**shortlist** was. BaniDB full-word search on the longest transcribed words
+missed the published shabad entirely on 4 of 5 ragi-wise recordings, because
+the longest CTC words are the misspelled or run-together ones ("ਨਾਨਕਦਾਸ").
+The scoring was fine — against its own audio the published shabad averaged
+0.72-0.95, above the best wrong candidate in the same windows. BaniDB
+first-letter search (`searchtype=1`, Unicode accepted) was tried and missed 4
+of 8.
+
+Replaced by `corpus.py`: every window against every line of the Guru Granth
+Sahib (49k lines after dropping ones under 15 folded characters), the same
+folded partial ratio, top 8 shabads by windows won. Every published SGGS
+shabad now ranks 1-6.
+
+| at FLOOR 0.55 / MIN_MARGIN 0.05       | word search | corpus shortlist |
+| ------------------------------------- | ----------- | ---------------- |
+| published renditions found as drafts  | 2 of 8      | **7 of 8**       |
+| drafts naming a different shabad      | 3           | **0**            |
+| drafts on untagged time, fully tagged | 0           | 2                |
+| shortlist + scoring, 49-min recording | ~59 s       | ~10 s            |
+
+The one miss is a 3-minute puratan recording (6 windows of old audio). The two
+drafts on untagged time of a fully tagged recording are real Gurbani the
+tagger chose not to tag — Basant ki Vaar (shabad 4234) in a February duty — and
+So Dar (40) recurs at the end of every evening duty. Whether routine banis
+should be suggested at all is a product question, not a matcher one.
+
+**Floor and margin stand.** `FLOOR` makes no difference anywhere in 0.40-0.55;
+`MIN_MARGIN` 0.05 is the lowest that keeps out two more drafts on untagged
+time. ASR on this model is RTF ~0.004-0.013 on an M-series laptop, so the
+scan's cost was never the model: it was 30 BaniDB searches.
 
 ## Prototype code
 

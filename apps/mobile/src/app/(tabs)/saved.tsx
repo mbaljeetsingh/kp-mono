@@ -86,9 +86,25 @@ export default function SavedScreen() {
           />
         )}
         ListEmptyComponent={
-          <Text className="px-3 py-8 text-sm text-muted-foreground">
-            Nothing saved yet. Open a shabad and tap the heart.
-          </Text>
+          favorites.failed || (query.isError && query.data === undefined) ? (
+            // A failed read is not an empty list: "Nothing saved yet" over an
+            // account with saved shabads reads as losing them.
+            <Pressable
+              onPress={() => {
+                favorites.retry();
+                void query.refetch();
+              }}
+              className="px-3 py-8"
+            >
+              <Text className="text-sm text-destructive">
+                Could not load your saved shabads. Tap to try again.
+              </Text>
+            </Pressable>
+          ) : (
+            <Text className="px-3 py-8 text-sm text-muted-foreground">
+              Nothing saved yet. Open a shabad and tap the heart.
+            </Text>
+          )
         }
       />
       {sheet}
