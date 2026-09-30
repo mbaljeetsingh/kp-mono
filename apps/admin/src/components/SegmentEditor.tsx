@@ -14,7 +14,6 @@ import {
   canPublishRendition,
   createRendition,
   deleteRendition,
-  rejectRendition,
   setRenditionStatus,
   updateRendition,
   useShabadText,
@@ -632,35 +631,18 @@ export function SegmentEditor({
           </Button>
         ) : null}
 
-        {editing && editing.source === 'scan' && editing.status !== 'published' ? (
-          // A scan draft is turned down, not deleted: kept for the auto-publish
-          // trial's count, and so the scanner never suggests it here again. Open
-          // to whoever can edit the draft — the requester or a reviewer — since
-          // it is an update, not a delete.
-          <Button
-            variant="ghost"
-            disabled={busy}
-            className="ml-auto text-destructive hover:text-destructive"
-            onClick={() => {
-              if (
-                confirm(
-                  `Reject “${editing.name}”? The scanner won't suggest it for this recording again.`
-                )
-              ) {
-                void run(() => rejectRendition(supabase, editing.id, userId));
-              }
-            }}
-          >
-            Reject
-          </Button>
-        ) : editing && can.remove ? (
+        {editing && can.remove ? (
           <Button
             variant="ghost"
             disabled={busy}
             className="ml-auto text-destructive hover:text-destructive"
             onClick={() => {
               // Deleting a tag throws away someone's listening, so it asks.
-              if (confirm(`Delete “${editing.name}”? This cannot be undone.`)) {
+              if (
+                confirm(
+                  `Delete “${editing.name}”? This cannot be undone.${editing.source === 'scan' ? " The scanner won't suggest it for this recording again." : ''}`
+                )
+              ) {
                 void run(() => deleteRendition(supabase, editing.id));
               }
             }}

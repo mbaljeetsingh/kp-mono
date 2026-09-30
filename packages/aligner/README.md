@@ -107,11 +107,11 @@ lyrics timed, named from the line sung longest, owned by whoever requested
 the scan, and a `scan_verdict` saying whether it would have published itself
 (`AUTO_PUBLISH=1` acts on that; nothing sets it). Invisible to the player until
 a human reviews the edges and publishes — no night's wait for lyrics after.
-Rejected drafts are kept: _Reject_ on a scan draft (the tag page, Review)
-stamps `rejected_at` instead of deleting it. It disappears from every list and
-count, can never be published, and the scan never suggests that shabad on the
-recording again. The auto-publish trial reads them back from
-`scan_draft_outcomes`, in the SQL editor:
+Deleting a scan draft is a rejection: a trigger writes it to
+`scan_rejections` (the drafted shabad, span, status, verdict, who), and the scan
+never suggests that shabad on the recording again. To restore one, delete its
+row there in the SQL editor. The auto-publish trial reads rejections beside the
+drafts still standing, in `scan_draft_outcomes`:
 
 ```sql
 select auto, outcome, count(*) as drafts,
@@ -119,6 +119,10 @@ select auto, outcome, count(*) as drafts,
              filter (where outcome = 'edges moved'), 1) as avg_moved_sec
 from scan_draft_outcomes group by auto, outcome order by auto desc, outcome;
 ```
+
+`auto` = the draft cleared every auto-publish gate; the trial asks how often
+those end anywhere but `published as drafted`. Drafts from before the scanner
+recorded its drafted shabad count a re-tag only if nobody had edited them.
 
 Published parts are left alone: the scan never edits a rendition, skips a
 shabad already tagged on the recording, and drafts nothing — nor points at
