@@ -10,7 +10,7 @@ import { toPlayable, type Playable } from '@kp/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 
-import type { KpClient } from './client';
+import { toError, type KpClient } from './client';
 import { keys } from './keys';
 import { parseRows, shabadRowSchema } from './schemas';
 
@@ -41,7 +41,7 @@ export async function fetchPlaylists(client: KpClient): Promise<Playlist[]> {
     .order('created_at', { ascending: false });
   // Throwing keeps the current list on screen. Returning [] would show
   // "No playlists yet" to someone who has ten, which reads as data loss.
-  if (error) throw error;
+  if (error) throw toError(error);
   return ((data ?? []) as RawPlaylist[]).map((p) => ({
     id: p.id,
     name: p.name,
@@ -56,7 +56,7 @@ export async function getPlaylist(client: KpClient, id: string) {
     .select('id, name, created_at')
     .eq('id', id)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw toError(error);
   return data as { id: string; name: string; created_at: string | null } | null;
 }
 
@@ -70,7 +70,7 @@ export async function fetchPlaylistItems(
     .select('*')
     .eq('playlist_id', playlistId)
     .order('position');
-  if (error) throw error;
+  if (error) throw toError(error);
   return parseRows(shabadRowSchema, data ?? []).rows.map(toPlayable);
 }
 
@@ -80,7 +80,7 @@ export async function createPlaylist(client: KpClient, userId: string, name: str
     .insert({ user_id: userId, name: name.trim() })
     .select('id, name, created_at')
     .single();
-  if (error) throw error;
+  if (error) throw toError(error);
   return {
     ...(data as { id: string; name: string; created_at: string | null }),
     count: 0,
@@ -89,12 +89,12 @@ export async function createPlaylist(client: KpClient, userId: string, name: str
 
 export async function renamePlaylist(client: KpClient, id: string, name: string) {
   const { error } = await client.from('playlists').update({ name: name.trim() }).eq('id', id);
-  if (error) throw error;
+  if (error) throw toError(error);
 }
 
 export async function deletePlaylist(client: KpClient, id: string) {
   const { error } = await client.from('playlists').delete().eq('id', id);
-  if (error) throw error;
+  if (error) throw toError(error);
 }
 
 /**
@@ -117,7 +117,7 @@ export async function addPlaylistItem(
       { onConflict: 'playlist_id,rendition_id', ignoreDuplicates: true }
     )
     .select('rendition_id');
-  if (error) throw error;
+  if (error) throw toError(error);
   return Boolean(data?.length);
 }
 
@@ -131,7 +131,7 @@ export async function removePlaylistItem(
     .delete()
     .eq('playlist_id', playlistId)
     .eq('rendition_id', renditionId);
-  if (error) throw error;
+  if (error) throw toError(error);
 }
 
 /* ── Hooks ────────────────────────────────────────────────────────────── */

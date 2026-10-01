@@ -1,6 +1,7 @@
+import { createClient, PostgrestError } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 
-import { guardFetch, type AuthWatch } from './client';
+import { guardFetch, toError, type AuthWatch } from './client';
 
 // Any project URL: only the /auth/v1/ prefix built from it matters, and
 // nothing here makes a request.
@@ -75,5 +76,31 @@ describe('guardFetch', () => {
     await fetch(new Request(`${url}/auth/v1/user`), as(key));
     expect(base).toHaveBeenCalledTimes(2);
     expect(watch.trouble).toBe(0);
+  });
+});
+
+describe('toError', () => {
+  it('turns what a real failed query hands back into an Error, message and code kept', async () => {
+    // A real client behind the guard, refusing as it does while a sign-in
+    // renews: the whole path from the 401 to what an @kp/api function throws.
+    const watch: AuthWatch = { signedIn: true, trouble: 0 };
+    const client = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: guardFetch(watch, { url, key, tokenless: 'refuse' }, vi.fn()) },
+    });
+    const { error } = await client.from('renditions').select('id');
+    // What postgrest-js returns without throwOnError: not an Error at all,
+    // which is why every page showed "Failed".
+    expect(error).not.toBeInstanceOf(Error);
+
+    const thrown = toError(error!);
+    expect(thrown).toBeInstanceOf(Error);
+    expect(thrown.message).toBe('Your sign-in is being renewed. Try again in a moment.');
+    expect((thrown as PostgrestError).code).toBe('PGRST301');
+  });
+
+  it('leaves an Error as it is', () => {
+    const error = new PostgrestError({ message: 'm', details: 'd', hint: 'h', code: 'c' });
+    expect(toError(error)).toBe(error);
   });
 });

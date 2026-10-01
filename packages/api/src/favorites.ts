@@ -12,7 +12,7 @@ import { chunk } from '@kp/core';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { KpClient } from './client';
+import { toError, type KpClient } from './client';
 import { keys } from './keys';
 
 const LOCAL_KEY = 'kp:favorites';
@@ -150,7 +150,7 @@ export function useFavorites(
       // Throwing keeps whatever is on screen. Returning [] would turn one
       // dropped request into "Nothing saved yet" over an account with hundreds
       // of favorites, and un-fill every heart in the list.
-      if (error) throw error;
+      if (error) throw toError(error);
       return ((data ?? []) as { rendition_id: string }[]).map((r) => r.rendition_id);
     },
     enabled: Boolean(userId),
