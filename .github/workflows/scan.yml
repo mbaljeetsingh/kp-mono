@@ -15,10 +15,12 @@
 #
 # The queue is scan_requests rows with done_at null — written by the button in
 # admin, one per recording a tagger wants suggestions for, and taken first.
-# Then the nightly run scans up to three recordings nobody asked for (#41):
+# Then the nightly run scans up to eight recordings nobody asked for (#41):
 # ragi-wise, untagged, the crawl's new ones first, then the backlog. Runner
-# minutes are free on a public repo; what three a night rations is a
-# reviewer's attention, since every draft waits in Review for someone.
+# minutes are free on a public repo; what the count rations is a reviewer's
+# attention, since every draft waits in Review for someone. Three a night
+# would take decades over the archive; eight still fits the 120-minute
+# deadline below, and fanning out across runners waits for auto-publish (#43).
 #
 # Drafts land as status=shabad_linked / source=scan — invisible to the player
 # until a human reviews the boundaries and publishes. This job never publishes:
@@ -49,7 +51,7 @@ on:
         type: boolean
         default: false
       backfill:
-        description: After the queue, also scan up to three recordings nobody asked for, as the nightly run does
+        description: After the queue, also scan up to eight recordings nobody asked for, as the nightly run does
         type: boolean
         default: false
 
@@ -115,7 +117,7 @@ jobs:
           elif [ "$EVENT" = schedule ] || [ "$BACKFILL" = true ]; then
             # Not on a click's run: a scan of a recording nobody asked for
             # would hold the next click behind it.
-            uv run python scan_track.py --from-queue --deadline-min 120 --backfill 3
+            uv run python scan_track.py --from-queue --deadline-min 120 --backfill 8
           else
             uv run python scan_track.py --from-queue --deadline-min 120
           fi
