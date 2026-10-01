@@ -9,6 +9,7 @@ import {
   deleteRendition,
   setRenditionStatus,
   usePending,
+  usePendingCount,
   type PendingRendition,
 } from '@kp/api';
 import { Badge } from '@kp/ui/badge';
@@ -26,6 +27,7 @@ import { clock } from '~/lib/utils';
 export function PendingRoute() {
   const { session, can } = useSession();
   const query = usePending(supabase, Boolean(session));
+  const count = usePendingCount(supabase, Boolean(session));
   const queryClient = useQueryClient();
 
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +54,8 @@ export function PendingRoute() {
     setBusy(id);
     try {
       await work();
+      // The list and its count. Every loaded page refetches at its own offset,
+      // so the row that just went drops out without losing the pages below it.
       await queryClient.invalidateQueries({ queryKey: ['pending'] });
       await queryClient.invalidateQueries({ queryKey: ['recordings'] });
       // And the tag page's copies, cached for five minutes: its rows, its
@@ -67,14 +71,20 @@ export function PendingRoute() {
     }
   }
 
-  const rows = query.data ?? [];
+  // Deduped because pages are offsets: another reviewer publishing between two
+  // fetches shifts every later row up, and the next page can repeat one.
+  const rows = [
+    ...new Map(query.data?.pages.flatMap((p) => p.items).map((r) => [r.id, r])).values(),
+  ];
 
   return (
     <section className="flex flex-col gap-4">
       <header>
         <h1 className="font-display text-3xl font-semibold">
           Review{' '}
-          <span className="text-base font-normal text-muted-foreground">({rows.length})</span>
+          {count.data !== undefined ? (
+            <span className="text-base font-normal text-muted-foreground">({count.data})</span>
+          ) : null}
         </h1>
         <p className="text-sm text-muted-foreground">
           Proposed segments, oldest first. Nothing here is in the player yet.
@@ -179,6 +189,25 @@ export function PendingRoute() {
             </div>
           );
         })}
+
+        {query.isFetchingNextPage ? (
+          <p className="px-3 py-4 text-sm text-muted-foreground">Loading…</p>
+        ) : null}
+        {query.isFetchNextPageError ? (
+          <p role="alert" className="px-3 py-2 text-sm text-destructive">
+            Could not load more.
+          </p>
+        ) : null}
+
+        {query.hasNextPage && !query.isFetchingNextPage ? (
+          <Button
+            variant="outline"
+            onClick={() => void query.fetchNextPage()}
+            className="mx-3 mt-2"
+          >
+            Show more
+          </Button>
+        ) : null}
       </div>
 
       {/* Said rather than left blank: a contributor who cannot publish should

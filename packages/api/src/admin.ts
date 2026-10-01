@@ -533,21 +533,61 @@ export interface PendingRendition extends Rendition {
   } | null;
 }
 
-export async function fetchPending(client: KpClient): Promise<PendingRendition[]> {
+/**
+ * One page of the review queue, oldest first.
+ *
+ * Paged because a fixed `.limit(100)` was exactly the list that grows fastest
+ * once contributors are active — and the nightly scan adds drafts nobody asked
+ * for. `id` breaks ties: drafts written in one transaction — a scan's, for one
+ * recording — share a `created_at`, and without a total order a page boundary
+ * could fall differently on each request and skip or repeat a row.
+ */
+export async function fetchPending(
+  client: KpClient,
+  from = 0
+): Promise<{ items: PendingRendition[]; hasMore: boolean }> {
   const { data, error } = await client
     .from('renditions')
     .select('*, tracks(artist_dir, date, url, raw_filename)')
     .neq('status', 'published')
     .order('created_at', { ascending: true })
-    .limit(100);
+    .order('id', { ascending: true })
+    .range(from, from + PAGE_SIZE - 1);
   if (error) throw toError(error);
-  return (data ?? []) as PendingRendition[];
+  return {
+    items: (data ?? []) as PendingRendition[],
+    hasMore: (data?.length ?? 0) >= PAGE_SIZE,
+  };
+}
+
+/** How many are waiting — the header's number, not the length of the pages loaded so far. */
+export async function fetchPendingCount(client: KpClient): Promise<number> {
+  const { count, error } = await client
+    .from('renditions')
+    .select('id', { count: 'exact', head: true })
+    .neq('status', 'published');
+  if (error) throw toError(error);
+  return count ?? 0;
 }
 
 export function usePending(client: KpClient, enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: ['pending', 'list'],
+    queryFn: ({ pageParam }) => fetchPending(client, pageParam as number),
+    initialPageParam: 0,
+    getNextPageParam: (last, all) => (last.hasMore ? all.length * PAGE_SIZE : undefined),
+    enabled,
+  });
+}
+
+/**
+ * Under ['pending'] like the list, so every invalidation of the list — the
+ * review page, the tag page, the segment form — refreshes the count with it.
+ */
+export function usePendingCount(client: KpClient, enabled: boolean) {
   return useQuery({
-    queryKey: ['pending'],
-    queryFn: () => fetchPending(client),
+    queryKey: ['pending', 'count'],
+    queryFn: () => fetchPendingCount(client),
     enabled,
   });
 }

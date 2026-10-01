@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { acceptScanDrafts, canPublishRendition, draftSchema, scanStatus } from './admin';
+import {
+  acceptScanDrafts,
+  canPublishRendition,
+  draftSchema,
+  fetchPending,
+  fetchPendingCount,
+  scanStatus,
+} from './admin';
 import type { KpClient } from './client';
+import { PAGE_SIZE } from './queries';
 
 const base = { track_id: 't1', name: 'Sorath Mahala 5', start_sec: 60, end_sec: 105 };
 
@@ -194,5 +202,98 @@ describe('acceptScanDrafts', () => {
     const accepting = acceptScanDrafts(client, ['a']);
     await expect(accepting).rejects.toBeInstanceOf(Error);
     await expect(accepting).rejects.toThrow('Your sign-in is being renewed');
+  });
+});
+
+describe('fetchPending', () => {
+  /** Records the chain; `range` ends it, the way PostgREST resolves it. */
+  function fakeClient(result: { data: unknown[] | null; error: unknown }) {
+    const calls: string[] = [];
+    const builder = {
+      select: (cols: string) => {
+        calls.push(`select ${cols}`);
+        return builder;
+      },
+      neq: (col: string, value: string) => {
+        calls.push(`neq ${col} ${value}`);
+        return builder;
+      },
+      order: (col: string, opts: { ascending: boolean }) => {
+        calls.push(`order ${col} ${opts.ascending ? 'asc' : 'desc'}`);
+        return builder;
+      },
+      range: (from: number, to: number) => {
+        calls.push(`range ${from} ${to}`);
+        return Promise.resolve(result);
+      },
+    };
+    const client = {
+      from: (table: string) => {
+        calls.push(`from ${table}`);
+        return builder;
+      },
+    };
+    return { client: client as unknown as KpClient, calls };
+  }
+
+  const full = Array.from({ length: PAGE_SIZE }, (_, i) => ({ id: `r${i}` }));
+
+  it('pages by offset, oldest first, with id breaking ties so a boundary cannot shift', async () => {
+    const { client, calls } = fakeClient({ data: full, error: null });
+    await fetchPending(client, PAGE_SIZE);
+    expect(calls).toEqual([
+      'from renditions',
+      'select *, tracks(artist_dir, date, url, raw_filename)',
+      'neq status published',
+      'order created_at asc',
+      'order id asc',
+      `range ${PAGE_SIZE} ${2 * PAGE_SIZE - 1}`,
+    ]);
+  });
+
+  it('starts at the first row when no offset is given', async () => {
+    const { client, calls } = fakeClient({ data: [], error: null });
+    await fetchPending(client);
+    expect(calls.at(-1)).toBe(`range 0 ${PAGE_SIZE - 1}`);
+  });
+
+  it('has more after a full page and stops after a short one', async () => {
+    expect((await fetchPending(fakeClient({ data: full, error: null }).client)).hasMore).toBe(true);
+    const short = await fetchPending(fakeClient({ data: full.slice(1), error: null }).client);
+    expect(short.hasMore).toBe(false);
+    expect(short.items).toHaveLength(PAGE_SIZE - 1);
+  });
+
+  it('throws the server error as an Error', async () => {
+    const { client } = fakeClient({ data: null, error: { code: 'PGRST000', message: 'down' } });
+    await expect(fetchPending(client)).rejects.toBeInstanceOf(Error);
+  });
+});
+
+describe('fetchPendingCount', () => {
+  it('counts everything unpublished without fetching a row', async () => {
+    const calls: string[] = [];
+    const client = {
+      from: (table: string) => {
+        calls.push(`from ${table}`);
+        return {
+          select: (cols: string, opts: unknown) => {
+            calls.push(`select ${cols} ${JSON.stringify(opts)}`);
+            return {
+              neq: (col: string, value: string) => {
+                calls.push(`neq ${col} ${value}`);
+                return Promise.resolve({ count: 137, error: null });
+              },
+            };
+          },
+        };
+      },
+    } as unknown as KpClient;
+    expect(await fetchPendingCount(client)).toBe(137);
+    expect(calls).toEqual([
+      'from renditions',
+      'select id {"count":"exact","head":true}',
+      'neq status published',
+    ]);
   });
 });
