@@ -72,9 +72,11 @@ export function authTrouble(client: KpClient): number {
   return watches.get(client)?.trouble ?? 0;
 }
 
+const RENEWING = 'Your sign-in is being renewed. Try again in a moment.';
+
 const REFUSED = JSON.stringify({
   code: 'PGRST301',
-  message: 'Your sign-in is being renewed. Try again in a moment.',
+  message: RENEWING,
   details: null,
   hint: null,
 });
@@ -147,17 +149,26 @@ export function createKpClient({
  * did any refusal Postgres explained. This is the PostgrestError throwOnError
  * would have thrown — an Error, with its code, details and hint still on it.
  *
- * Its message only when that is a sentence. A response PostgREST did not write
- * comes through as its raw body: empty from a gateway's 502, which left every
- * alert blank where it used to say "Failed", or a whole HTML error page.
+ * Its message only when PostgREST wrote it, which its code says. Without one
+ * the "message" is whatever else happened: a network failure ("TypeError:
+ * Failed to fetch"), or the raw body of a response PostgREST never wrote —
+ * empty from a gateway's 502, which left every alert blank, or an HTML page.
+ * An expired token (PGRST303, a clock running behind) reads as what it is
+ * for the user: the same renewal guardFetch answers for.
  */
 export function toError(error: PostgrestError): PostgrestError {
+  const code = typeof error?.code === 'string' ? error.code : '';
   const message = typeof error?.message === 'string' ? error.message.trim() : '';
-  const readable = message !== '' && message.length <= 300 && !message.startsWith('<');
+  const readable = code !== '' && message !== '';
   return new PostgrestError({
-    message: readable ? message : 'Something went wrong on the server. Try again in a moment.',
-    details: readable ? error.details : JSON.stringify(error).slice(0, 500),
+    message:
+      code === 'PGRST303'
+        ? RENEWING
+        : readable
+          ? message
+          : "Couldn't reach the server, or it didn't answer properly. Try again in a moment.",
+    details: readable ? error.details : (JSON.stringify(error) ?? '').slice(0, 500),
     hint: error?.hint ?? '',
-    code: error?.code ?? '',
+    code,
   });
 }
