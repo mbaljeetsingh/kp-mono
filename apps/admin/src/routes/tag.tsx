@@ -279,11 +279,14 @@ function Workbench({ id }: { id: string }) {
    * Who may revise which row, mirroring the UPDATE policy: review edits
    * anything, everyone else only their own unpublished work. An update RLS
    * filters out comes back with no error, so offering it to everyone would
-   * mean a form that clears itself while the row sits unchanged.
+   * mean a form that clears itself while the row sits unchanged. And only
+   * with the editor to do it in: an open row's list buttons are the editor's,
+   * so opening one with no form on the page left it with neither.
    */
   const canEdit = useCallback(
     (r: Rendition) =>
-      can['renditions.review'] || (r.created_by === userId && r.status !== 'published'),
+      can['renditions.propose'] &&
+      (can['renditions.review'] || (r.created_by === userId && r.status !== 'published')),
     [can, userId]
   );
 
@@ -1068,7 +1071,9 @@ function SegmentRow({
 
         {/* Publishing without reopening the row. A reviewer can go both ways; a
             publisher without review can only promote their own draft, once —
-            the policy stops matching the row as soon as it is published. */}
+            the policy stops matching the row as soon as it is published. The
+            open row's status is the editor's, both ways: unpublished from the
+            list, the editor's copy still said published and offered neither. */}
         {canPublish ? (
           <Button
             variant="outline"
@@ -1078,7 +1083,7 @@ function SegmentRow({
           >
             <Send className="size-3" /> Publish
           </Button>
-        ) : published && canReview ? (
+        ) : published && canReview && !open ? (
           <Button
             variant="ghost"
             size="sm"
