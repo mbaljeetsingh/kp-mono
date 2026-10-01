@@ -15,6 +15,36 @@
       name="description"
       content="Search, play, and tag 20 years of kirtan from Sri Harmandir Sahib."
     />
+    <!--
+      The card a shared link unfurls into — on WhatsApp, which is how most
+      listeners arrive. Site-wide and static: this is a single-page app, so
+      every path, /r/<shabad> included, is served this same file, and the
+      crawlers that read these tags run no JavaScript. Absolute URLs because
+      crawlers will not resolve a relative image. A PNG because WhatsApp draws
+      no SVG preview: it is the mobile app's icon, the only raster of the mark.
+      No og:url, deliberately: with one file behind every path it would name
+      Home as the canonical page of every /r/ link, and some sites then send
+      the card's click there instead of to the shabad.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Kirtan Player" />
+    <meta property="og:title" content="Kirtan Player" />
+    <meta
+      property="og:description"
+      content="Search and play 20 years of kirtan from Sri Harmandir Sahib."
+    />
+    <meta property="og:image" content="https://kirtanplayer.beejaysoft.com/brand/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1024" />
+    <meta property="og:image:height" content="1024" />
+    <meta property="og:image:alt" content="The Kirtan Player mark" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Kirtan Player" />
+    <meta
+      name="twitter:description"
+      content="Search and play 20 years of kirtan from Sri Harmandir Sahib."
+    />
+    <meta name="twitter:image" content="https://kirtanplayer.beejaysoft.com/brand/og-image.png" />
   </head>
   <!-- theme-preload:start -->
   <script>

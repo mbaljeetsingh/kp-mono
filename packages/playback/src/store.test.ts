@@ -170,6 +170,46 @@ describe('hydrate', () => {
     await s.getState().hydrate();
     expect(s.getState().items).toEqual([]);
   });
+
+  it('does not restore over something cued while storage was being read', async () => {
+    const storage = memoryStorage({
+      'kp:queue': JSON.stringify({ items: [whole('old')], index: 0 }),
+      'kp:repeat': 'all',
+    });
+    const s = createPlayerStore({ storage });
+    s.getState().attach(fake.driver);
+
+    const pending = s.getState().hydrate();
+    s.getState().cue(segment('linked', 60, 105), 90);
+    await pending;
+
+    expect(s.getState().current?.id).toBe('linked');
+    expect(s.getState().position).toBe(90);
+    expect(s.getState().repeat).toBe('all');
+    expect(fake.calls).not.toContain('load https://x/old.mp3@0');
+  });
+});
+
+describe('cue', () => {
+  it('loads the item at the given position without playing it', () => {
+    store.getState().cue(segment('a', 60, 105), 90);
+    expect(fake.calls).toEqual(['pause', 'load https://x/a.mp3@90']);
+    expect(store.getState().current?.id).toBe('a');
+    expect(store.getState().position).toBe(90);
+    expect(store.getState().playing).toBe(false);
+    expect(store.getState().starting).toBeNull();
+  });
+
+  it('replaces the queue, and toggle then plays from where it was cued', () => {
+    store.getState().play(whole('x'));
+    store.getState().cue(segment('a', 60, 105), 90);
+    expect(store.getState().items.map((i) => i.id)).toEqual(['a']);
+    fake.calls.length = 0;
+
+    store.getState().toggle();
+
+    expect(fake.calls).toEqual(['play']);
+  });
 });
 
 describe('queue edits', () => {

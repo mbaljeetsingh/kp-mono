@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   elapsedIn,
   hasReachedEnd,
+  linkStartPosition,
   progressPct,
   seekTargetForPct,
   segmentEnd,
@@ -134,5 +135,34 @@ describe('startPositionFor', () => {
 
   it('starts at zero with neither', () => {
     expect(startPositionFor(whole)).toBe(0);
+  });
+});
+
+describe('linkStartPosition', () => {
+  it('reads t on the shabad`s clock, not the file`s', () => {
+    expect(linkStartPosition(segment, 30)).toBe(2560);
+    // TanStack's search parser hands back a string when it is not plain JSON.
+    expect(linkStartPosition(segment, '30')).toBe(2560);
+  });
+
+  it('drops fractions, which a shared link never needs', () => {
+    expect(linkStartPosition(segment, 30.9)).toBe(2560);
+  });
+
+  it('starts from the beginning when t is missing, junk or negative', () => {
+    for (const t of [undefined, null, '', 'abc', '1:30', -5, Number.NaN, {}]) {
+      expect(linkStartPosition(segment, t)).toBe(2530);
+    }
+  });
+
+  it('starts from the beginning rather than parking at or past the end', () => {
+    // Parked on the end, the first tick after Play would skip the shabad.
+    expect(linkStartPosition(segment, 45)).toBe(2530);
+    expect(linkStartPosition(segment, 9999)).toBe(2530);
+    expect(linkStartPosition(segment, 44)).toBe(2574);
+  });
+
+  it('has no end to clamp to on a whole file', () => {
+    expect(linkStartPosition(whole, 600)).toBe(600);
   });
 });

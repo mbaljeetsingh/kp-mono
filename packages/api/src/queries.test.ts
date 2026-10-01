@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { KpClient } from './client';
-import { ilikePattern, shabadsByIds } from './queries';
+import { ilikePattern, shabadById, shabadsByIds } from './queries';
 
 describe('ilikePattern', () => {
   it('quotes the pattern so a comma cannot end the or() filter', () => {
@@ -72,5 +72,63 @@ describe('shabadsByIds', () => {
     const { client, batches } = fakeClient(new Set());
     expect(await shabadsByIds(client, [])).toEqual([]);
     expect(batches).toEqual([]);
+  });
+});
+
+describe('shabadById', () => {
+  const ID = '73368cfa-a6cd-4d34-83b9-5873f0c284f6';
+
+  /** Answers `eq('id', …).maybeSingle()` with whatever it is handed. */
+  function fakeClient(answer: { data: unknown; error: unknown }) {
+    const asked: string[] = [];
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: (_col: string, id: string) => {
+            asked.push(id);
+            return { maybeSingle: () => Promise.resolve(answer) };
+          },
+        }),
+      }),
+    };
+    return { client: client as unknown as KpClient, asked };
+  }
+
+  it('maps a published row to a Playable on the file`s clock', async () => {
+    const { client, asked } = fakeClient({
+      data: {
+        id: ID,
+        name: 'Mauli Dharati',
+        url: 'https://example.test/set.mp3',
+        start_sec: '109.33',
+        end_sec: '495.00',
+      },
+      error: null,
+    });
+    const found = await shabadById(client, ID);
+    expect(asked).toEqual([ID]);
+    expect(found).toMatchObject({ id: ID, title: 'Mauli Dharati', startSec: 109.33, endSec: 495 });
+  });
+
+  it('is null for an id the view does not hold — unpublished, or never was', async () => {
+    const { client } = fakeClient({ data: null, error: null });
+    expect(await shabadById(client, ID)).toBeNull();
+  });
+
+  it('is null for a malformed id, without asking — Postgres would refuse it as a uuid', async () => {
+    const { client, asked } = fakeClient({ data: null, error: null });
+    expect(await shabadById(client, 'not-a-uuid')).toBeNull();
+    expect(await shabadById(client, '')).toBeNull();
+    expect(asked).toEqual([]);
+  });
+
+  it('is null for a row that fails the schema, rather than a half-built Playable', async () => {
+    const { client } = fakeClient({ data: { id: ID, name: 'No url' }, error: null });
+    expect(await shabadById(client, ID)).toBeNull();
+  });
+
+  it('throws a real failure, so a link that could not load is not called missing', async () => {
+    const { client } = fakeClient({ data: null, error: { code: '08006', message: 'down' } });
+    await expect(shabadById(client, ID)).rejects.toThrow('down');
   });
 });

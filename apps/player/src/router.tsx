@@ -21,6 +21,7 @@ import { RagisRoute } from '~/routes/ragis';
 import { RootLayout } from '~/routes/root';
 import { SearchRoute } from '~/routes/search';
 import { ShabadsRoute } from '~/routes/shabads';
+import { openSharedLink } from '~/routes/shared';
 
 const rootRoute = createRootRoute({ component: RootLayout });
 
@@ -73,6 +74,14 @@ const playlistRoute = createRoute({
   path: '/playlists/$id',
   component: PlaylistRoute,
 });
+const sharedRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/r/$id',
+  // `t` is passed through raw; what counts as a usable one is core's call.
+  validateSearch: (s: Record<string, unknown>): { t?: unknown } => ({ t: s.t }),
+  loaderDeps: ({ search }) => ({ t: search.t }),
+  loader: ({ params, deps }) => openSharedLink(params.id, deps.t),
+});
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -84,6 +93,7 @@ const routeTree = rootRoute.addChildren([
   favoritesRoute,
   playlistsRoute,
   playlistRoute,
+  sharedRoute,
 ]);
 
 export const router = createRouter({ routeTree });
