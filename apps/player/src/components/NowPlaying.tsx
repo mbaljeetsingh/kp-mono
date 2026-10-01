@@ -19,6 +19,7 @@ import { LyricsPanel } from '~/components/LyricsPanel';
 import { PlayerControls } from '~/components/PlayerControls';
 import { QueueList } from '~/components/QueueList';
 import { SeekBar } from '~/components/SeekBar';
+import { ShareButton } from '~/components/ShareButton';
 import { usePlayer } from '~/lib/player';
 
 /**
@@ -67,6 +68,11 @@ function Body({
             )}
             {current.isLive ? <LiveBadge /> : null}
           </div>
+          {/* Up here with the title, not mirroring the heart down in the
+              transport: the right-hand end of that row is repeat's, and on a
+              320px phone a button pinned there sat on top of it. Sharing is
+              done once, not while listening, so the reach costs little. */}
+          {current.isLive ? null : <ShareButton item={current} className="size-10 shrink-0" />}
         </div>
       ) : null}
 

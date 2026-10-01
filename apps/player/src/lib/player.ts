@@ -79,6 +79,7 @@ export function usePlayer<T>(selector: (state: PlayerState) => T): T {
 /** Actions never change identity, so reading them causes no re-renders. */
 export const playerActions = {
   play: (...args: Parameters<PlayerState['play']>) => playerStore.getState().play(...args),
+  cue: (...args: Parameters<PlayerState['cue']>) => playerStore.getState().cue(...args),
   toggle: () => playerStore.getState().toggle(),
   next: () => playerStore.getState().next(),
   previous: () => playerStore.getState().previous(),

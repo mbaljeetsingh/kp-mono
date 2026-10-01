@@ -15,6 +15,7 @@ import { LiveBadge } from '~/components/LiveBadge';
 import { NowPlayingSheet } from '~/components/NowPlaying';
 import { PlayerControls } from '~/components/PlayerControls';
 import { SeekBar } from '~/components/SeekBar';
+import { ShareButton } from '~/components/ShareButton';
 import { usePlayer } from '~/lib/player';
 
 export function PlayerBar() {
@@ -83,6 +84,14 @@ export function PlayerBar() {
             <div className="sm:hidden">
               <PlayerControls compact />
             </div>
+            {/* Share takes the empty end of the wide bar rather than a slot
+                beside the heart: that column is the title's, and at tablet
+                widths the transport has already squeezed it to a few letters —
+                one more icon there took the last of them. On a phone the sheet
+                carries Share, up by the title. */}
+            {current.isLive ? null : (
+              <ShareButton item={current} className="hidden sm:inline-flex" />
+            )}
           </div>
         </div>
       </footer>
