@@ -35,14 +35,6 @@ from runtime import MIN_CONFIDENCE, SB, api, paged
 # The windows, BLEND, FLOOR and SHIFT live in timing.py, shared with
 # scan_track.py, which aligns its drafts on the same transcript.
 
-# What transcribing a recording costs per second of its audio, both passes,
-# measured on a CI runner (4 vCPU, run 36318552033) rather than estimated:
-# sliced long pass RTF 0.075 + per-window short pass 0.164. Rounded up for
-# headroom; the audio fetch was 6s per 10 minutes, noise beside it.
-# surt-small-v3 measured RTF 9.1 on the same runner — if this number ever
-# looks too good, that is the comparison, not a typo.
-CI_RTF = 0.3
-
 ap = argparse.ArgumentParser()
 ap.add_argument("--dry-run", action="store_true",
                 help="align but write nothing to the project — no timings, no "
@@ -88,10 +80,11 @@ timed = args.deadline_min is not None and not args.only
 
 
 def asr_minutes(url):
-    """What transcribing this recording would cost on a runner, at CI_RTF.
+    """What transcribing this recording would cost on a runner, at
+    timing.CI_RTF.
     None when its length cannot be read."""
     seconds = timing.duration(url)
-    return seconds * CI_RTF / 60.0 if seconds else None
+    return seconds * timing.CI_RTF / 60.0 if seconds else None
 
 
 def agreement(old, new):

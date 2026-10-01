@@ -16,6 +16,7 @@ Two ways to run it:
 
     SB_KEY=... TRACK=<id> python scan_track.py [--write-drafts]
     SB_KEY=... python scan_track.py --from-queue [--limit N] [--track <id>]
+                                    [--deadline-min M] [--backfill N]
 
 Queue mode consumes scan_requests (the admin button writes rows there), oldest
 first — failed ones last — and stamps done_at whether or not anything was
@@ -23,7 +24,8 @@ confident enough to draft: "scanned, nothing found" must not look like "still
 waiting". It writes started_at, run_url and, on failure, error for the tag
 page. It re-reads the queue after every track, so a run drains it, requests
 made while it runs included. `--track` limits it to one request, for scanning
-one recording on demand.
+one recording on demand. `--backfill N` then scans up to N recordings nobody
+asked for (see backfill_pick); requests always go first.
 
 Method, measured against prod's published renditions (eval_scan.py):
 
@@ -52,6 +54,7 @@ import re
 import subprocess
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 from rapidfuzz import fuzz, process
@@ -440,6 +443,69 @@ def write_drafts(track_id, found, shabads, owner=None):
     return drafted, findings
 
 
+# Background scanning (#41): when nobody has asked, a nightly run scans up to
+# --backfill N recordings itself. Runner minutes are free (the repo is
+# public); a reviewer's attention is not, which is what N rations. Ragi-wise
+# only: a puratan file is one shabad, which its tag page names from the
+# filename the moment it opens. The crawl's new ones first, newest first, then
+# the backlog — in id order, which is a stable shuffle: ids are hashes.
+BACKFILL_NEW_DAYS = 14
+# No longer than this: a click made while a background scan runs waits for it,
+# and SGPC filenames carry typos ("3.00 am to 6.05 pm" for a 6.05 am start)
+# that read as a 15-hour broadcast.
+BACKFILL_MAX_SEC = 120 * 60
+
+
+def next_request(only, tried):
+    """The next queued request — someone's click before anything the scanner
+    queued for itself, however long ago that was, and failed ones after the
+    rest within each. A background request that failed is not retried by
+    itself: a person's Scan again makes it theirs, and a run follows."""
+    q = (f"{SB}/scan_requests?done_at=is.null"
+         + (f"&track_id=eq.{only}" if only else "")
+         + (f"&track_id=not.in.({','.join(tried)})" if tried else "")
+         + "&order=error.asc.nullsfirst,requested_at.asc&limit=1"
+         "&select=track_id,requested_by")
+    return (api(q + "&requested_by=not.is.null")
+            or api(q + "&requested_by=is.null&error=is.null"))
+
+
+def backfill_pick(left_min):
+    """Queue the next recording nobody asked for: ragi-wise, nothing tagged,
+    never requested, still on sgpc.net, and short enough to finish in what is
+    left of the run. True when one was queued.
+
+    Into scan_requests with no requester, and the loop takes it like any
+    other: the row keeps it from being picked again, and it starts no run of
+    its own (dispatch_scan fires for requested rows only)."""
+    # Z, not +00:00: a "+" in a query string arrives as a space.
+    since = (datetime.now(timezone.utc) - timedelta(days=BACKFILL_NEW_DAYS)
+             ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    q = (f"{SB}/tracks?tree=eq.ragiwise&missing_since=is.null"
+         f"&slot_start_sec=not.is.null&slot_end_sec=not.is.null"
+         f"&select=id,slot_start_sec,slot_end_sec,renditions(id),"
+         f"scan_requests(track_id)&renditions=is.null&scan_requests=is.null"
+         f"&limit=50")
+    for tier in (f"&first_seen_at=gt.{since}&order=date.desc.nullslast,id.asc",
+                 "&order=id.asc"):
+        for t in api(q + tier):
+            seconds = float(t["slot_end_sec"]) - float(t["slot_start_sec"])
+            # The scan of a recording starts only if it ends before the
+            # deadline: what is left after it is the headroom under
+            # timeout-minutes, and a click's own scan may need it.
+            if not 0 < seconds <= BACKFILL_MAX_SEC or (
+                    left_min is not None
+                    and seconds * timing.CI_RTF / 60 > left_min):
+                continue
+            api(f"{SB}/scan_requests", method="POST",
+                body={"track_id": t["id"]},
+                extra={"Prefer": "resolution=ignore-duplicates"})
+            print(f"── queued {t['id']} by itself ({seconds / 60:.0f} min, "
+                  f"nobody asked)")
+            return True
+    return False
+
+
 # Where this run is, for the tag page's "view run" (scan_requests.run_url):
 # GitHub sets these in every step's environment. None off a runner.
 RUN_URL = (f"{os.environ['GITHUB_SERVER_URL']}/"
@@ -497,10 +563,15 @@ if __name__ == "__main__":
         # requests past the deadline; the rest wait for the next run.
         deadline = int(sys.argv[sys.argv.index("--deadline-min") + 1]) \
             if "--deadline-min" in sys.argv else None
+        # --backfill N: once the requests are done, up to N recordings nobody
+        # asked for (scan.yml's nightly run). Never with --track.
+        backfill = int(sys.argv[sys.argv.index("--backfill") + 1]) \
+            if "--backfill" in sys.argv and not only else 0
         print(f"scan queue: oldest first"
               f"{f', at most {limit}' if limit else ''}"
               f"{f', only {only}' if only else ''}"
               f"{f', starting nothing after {deadline} min' if deadline else ''}"
+              f"{f', then up to {backfill} nobody asked for' if backfill else ''}"
               f"{'  AUTO_PUBLISH on' if AUTO_PUBLISH else ''}\n")
         started = time.monotonic()
         tried = []
@@ -520,12 +591,16 @@ if __name__ == "__main__":
             # Failed requests after the rest: a track that fails slowly —
             # partway through a long ASR — sat at the head of every run, and
             # every new click waited behind it. It is still retried, last.
-            nxt = api(f"{SB}/scan_requests?done_at=is.null"
-                      + (f"&track_id=eq.{only}" if only else "")
-                      + (f"&track_id=not.in.({','.join(tried)})" if tried
-                         else "")
-                      + "&order=error.asc.nullsfirst,requested_at.asc&limit=1"
-                      "&select=track_id,requested_by")
+            nxt = next_request(only, tried)
+            # Nothing asked for: queue one the scanner picks itself, and take
+            # it on the next pass like any request — which also lets a click
+            # on that very recording, landed meanwhile, keep its requester.
+            if not nxt and backfill:
+                left = (deadline - (time.monotonic() - started) / 60
+                        if deadline else None)
+                if backfill_pick(left):
+                    backfill -= 1
+                    continue
             if not nxt:
                 break
             q = nxt[0]
