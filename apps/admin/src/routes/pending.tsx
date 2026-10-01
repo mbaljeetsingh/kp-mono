@@ -54,8 +54,9 @@ export function PendingRoute() {
     setBusy(id);
     try {
       await work();
-      // The list and its count. Every loaded page refetches at its own offset,
-      // so the row that just went drops out without losing the pages below it.
+      // The list and its count. Every loaded page refetches in turn, each after
+      // the last row of the one before, so the row that just went drops out
+      // without losing the pages below it.
       await queryClient.invalidateQueries({ queryKey: ['pending'] });
       await queryClient.invalidateQueries({ queryKey: ['recordings'] });
       // And the tag page's copies, cached for five minutes: its rows, its
@@ -71,8 +72,8 @@ export function PendingRoute() {
     }
   }
 
-  // Deduped because pages are offsets: another reviewer publishing between two
-  // fetches shifts every later row up, and the next page can repeat one.
+  // Deduped by id, though pages continue after a row and should never repeat
+  // one: a duplicate key would make React drop or reorder a row's controls.
   const rows = [
     ...new Map(query.data?.pages.flatMap((p) => p.items).map((r) => [r.id, r])).values(),
   ];
