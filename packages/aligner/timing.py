@@ -37,8 +37,9 @@ BLEND, FLOOR = 0.4, 0.35
 SHIFT = 0.75
 CACHE = "cache"
 # A fetched recording shorter than this share of what ffprobe reads from
-# sgpc.net was cut short. Measured on six recordings: the decoded length was
-# ffprobe's exactly, or up to 0.5% longer, never shorter.
+# sgpc.net was cut short. Measured on 41 recordings, 21 hours, 3 to 182
+# minutes long: the decoded length was ffprobe's exactly, or up to 0.5%
+# longer, never shorter.
 WHOLE = 0.98
 
 
