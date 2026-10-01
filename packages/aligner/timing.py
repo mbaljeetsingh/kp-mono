@@ -1,17 +1,25 @@
-"""The aligner's core — windows in, line timings out — importable.
+"""The aligner's core — a recording's transcript in, line timings out.
 
-write_timings.py aligns published renditions from their own cut audio;
-scan_track.py aligns its drafts from the recording's transcript, so a draft
-arrives with its lyrics already timed. Both go through here, so they can never
-align two different ways. Everything that survived measurement is documented
-in docs/line-alignment-prototype.md.
+Both scripts read one transcript per recording: scan_track.py aligns its drafts
+on their span of it, so a draft arrives with its lyrics already timed, and
+write_timings.py aligns a published rendition on its own span. Whichever needs
+a recording first transcribes it, once. Both go through here, so they can never
+align two different ways, nor on two different window grids. Everything that
+survived measurement is documented in docs/line-alignment-prototype.md.
 """
 
+import json
+import os
 import statistics
+import subprocess
+import time
+
+import soundfile as sf
 
 import align
 import matcher
-from runtime import banidb
+import runtime
+from runtime import SR, banidb
 
 WIN, HOP = 15.0, 5.0
 SHORT_WIN, SHORT_HOP, ALPHA = 8.0, 2.0, 0.5
@@ -27,6 +35,69 @@ BLEND, FLOOR = 0.4, 0.35
 # the shift chosen held-out (on the other three benchmark recordings each time)
 # was +0.5 to +1.0s, and applying it took boundary MAE from 1.38s to 1.10s.
 SHIFT = 0.75
+CACHE = "cache"
+
+
+def transcribe(track_id, url, store=True, timings=None, asr=True):
+    """Both of align's passes over the whole recording, cached per track.
+
+    (long, short) windows in track seconds, raw — shifted is applied per span,
+    by within. Keys name the model and how the text was cut, like every other
+    transcript key, and never a rendition's edges: a re-cut or a re-tag reads
+    the same transcript again. `store=False` keeps them on local disk only
+    (eval_scan.py and a dry run point at prod and must not write to it);
+    `timings`, when given, receives fetch/asr seconds and the duration for
+    whatever this call actually transcribed. `asr=False` answers from the
+    caches alone — None if either pass would need the model."""
+    os.makedirs(CACHE, exist_ok=True)
+    keys = {"long": f"{track_id}_{WIN:g}s{HOP:g}s_{runtime.SLICED_TAG}",
+            "short": f"{track_id}_{SHORT_WIN:g}s{SHORT_HOP:g}s_"
+                     f"{runtime.WINDOWED_TAG}"}
+    out, decoded = {}, []
+
+    def audio():
+        # Fetched only past both caches, and decoded once: re-matching an
+        # already-scanned archive must not re-download every recording.
+        if not decoded:
+            wav = f"{CACHE}/track_{track_id}.wav"
+            t = time.monotonic()
+            if not os.path.exists(wav):
+                print("  fetching audio…", flush=True)
+                subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", url,
+                                "-ar", str(SR), "-ac", "1", wav], check=True)
+            decoded.append(sf.read(wav, dtype="float32")[0])
+            if timings is not None:
+                timings.update(fetch=time.monotonic() - t,
+                               duration=len(decoded[0]) / SR, asr=0.0)
+        return decoded[0]
+
+    for name, key in keys.items():
+        path = f"{CACHE}/track_{key}.json"
+        if os.path.exists(path):
+            out[name] = json.load(open(path))["windows"]
+            continue
+        remote = runtime.fetch_transcript(f"track/{key}.json")
+        if remote:
+            json.dump(remote, open(path, "w"), ensure_ascii=False)
+            print(f"  {name} pass: from storage", flush=True)
+            out[name] = remote["windows"]
+            continue
+        if not asr:
+            return None
+        a = audio()
+        t = time.monotonic()
+        if name == "long":
+            w = runtime.transcribe_sliced(a, WIN, HOP)
+        else:
+            w = runtime.transcribe_windows(a, SHORT_WIN, SHORT_HOP,
+                                           label="short windows")
+        if timings is not None:
+            timings["asr"] += time.monotonic() - t
+        json.dump({"windows": w}, open(path, "w"), ensure_ascii=False)
+        if store:
+            runtime.store_transcript(f"track/{key}.json", {"windows": w})
+        out[name] = w
+    return out["long"], out["short"]
 
 
 def shifted(windows):
@@ -133,6 +204,34 @@ def confidence(windows, lines, cand):
     return statistics.mean(
         max(align.score(w["text"], lines[j]["text"], True) for j in cand)
         for w in windows)
+
+
+def within(windows, t0, t1):
+    """The windows wholly inside [t0, t1], rebased to it and shifted: a span's
+    own view of the recording's transcript."""
+    return shifted([{**w, "start": w["start"] - t0, "end": w["end"] - t0}
+                    for w in windows
+                    if w["start"] >= t0 and w["end"] <= t1])
+
+
+def align_span(long_w, short_w, shabad, t0, t1):
+    """(confidence, line timings) for [t0, t1] of a recording, read off its
+    transcript — a scan draft and a published rendition alike.
+
+    Measured against audio cut at the same edges, its own two passes (what
+    write_timings did until #83), on the local stack's 11 published
+    renditions: confidence moved +0.008 on average and 0.050 at most (an
+    87-second rendition), no rendition crossed MIN_CONFIDENCE either way, and
+    the lyrics sat on the same line for 94% of the seconds. Line starts moved
+    0.2 s at the median, 3.8 s at the 90th percentile. Only windows wholly
+    inside count, so the first line starts 0-3 s later and up to 2 s more of
+    the tail is blank."""
+    verses, lines, cand = shabad
+    lw, sw = within(long_w, t0, t1), within(short_w, t0, t1)
+    if not lw:
+        return 0.0, []
+    return (confidence(lw, lines, cand),
+            line_timings(lw, sw or None, verses, lines, cand, t0, t1))
 
 
 def line_timings(windows, short_windows, verses, lines, cand, off, end,

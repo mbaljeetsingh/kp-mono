@@ -42,34 +42,39 @@ compute waits for, and re-cutting a rendition's boundaries re-queues it
 automatically (a trigger clears its timings). Renditions whose audio does not
 match their tagged shabad (confidence < 0.6) are **skipped and reported**, not
 written — that gate has already caught one real mistag. Flags: `--dry-run`
-prints without writing; `--limit N` caps how many renditions a run ALIGNS
+writes nothing anywhere — no timings, no transcripts — so it is safe to point
+at prod, and with `--all` it says how far each re-time moved from the stored
+timings; `--limit N` caps how many renditions a run ALIGNS
 (refused ones do not count against it, so a permanently mistagged row cannot
 starve the queue); `--deadline-min N` stops starting renditions that will not
 fit in N minutes, which is the bound a CI timeout actually enforces; `--all`
 re-aligns already-timed renditions (after a matcher improvement); `--only
 <id-prefix>` restricts to one and overrides `--limit`, so a targeted run cannot
-silently miss a rendition that is not among the oldest rows; `--single` skips
-the second ASR pass (~3x cheaper, blurrier boundaries — not recommended for
-publishing).
+silently miss a rendition that is not among the oldest rows.
 
 A run that aligns nothing because every rendition at the head of the queue was
 refused reports `JAMMED` and exits non-zero: nothing behind those rows can be
 reached until a human reviews their tags.
 
-Cost is ~0.24x the rendition's duration on a CI runner (measured: long pass
-RTF 0.075, short pass 0.164), so a 10-minute set takes 2-3 minutes. The long
-pass is one forward pass over the recording with each window sliced out of it;
-the short pass runs every 8s window on its own, because sliced frames hear
-past the window's edge and put transitions early. `--single` skips the short
-pass. The model it replaced, surt-small-v3 (Whisper), was RTF ~9 on the same
-runner — every window padded to a 30s mel input — which is why the nightly
-limits in `align.yml` were once 3 renditions in 330 minutes.
+Each rendition is read off its recording's transcript: the scan's two passes
+over the whole recording, sliced to the rendition's span. A recording nobody
+has scanned is transcribed by the first rendition that needs it, ~0.24x the
+recording's length on a CI runner (measured: long pass RTF 0.075, short pass
+0.164) — 8-9 minutes for a 35-minute duty. Every rendition, re-cut, re-tag and
+scan of it after that costs seconds of matching. The long pass is one forward
+pass over the recording with each window sliced out of it; the short pass runs
+every 8s window on its own, because sliced frames hear past the window's edge
+and put transitions early. The model it replaced, surt-small-v3 (Whisper), was
+RTF ~9 on the same runner — every window padded to a 30s mel input — which is
+why the nightly limits in `align.yml` were once 3 renditions in 330 minutes.
 
-ASR output caches in `cache/` and in the `transcripts` bucket, so re-running the
-matcher is free — but only at the same boundaries and the same model. The key
-includes both (`{id}_{start}_{end}_{pass}_{runtime.MODEL_TAG}`), deliberately:
-the wav is cut at fetch time, so re-cutting a rendition MUST miss the cache,
-and another model's text is a different confidence scale, not a hit.
+Transcripts cache in `cache/` and in the `transcripts` bucket, keyed by
+recording, model and how the text was cut (`track/{id}_15s5s_{SLICED_TAG}`,
+`track/{id}_8s2s_{WINDOWED_TAG}`), never by a rendition's edges. Another
+model's text, or text cut differently, is a different confidence scale, not a
+hit. Until #83 align transcribed each rendition's own cut audio, keyed by its
+edges, so every re-cut paid a full ASR; those `align/` objects are still in the
+bucket, unread.
 
 ## Suggest shabads for untagged recordings
 
