@@ -68,6 +68,29 @@ export async function shabadsByIds(client: KpClient, ids: string[]): Promise<Pla
   });
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One published shabad, by rendition id — what a shared link opens.
+ *
+ * Null for anything the view does not hold: never published, unpublished
+ * since, or its recording gone missing. The id comes from a URL anyone can
+ * edit, so a malformed one is answered here without a round trip — sent on,
+ * Postgres refuses it as an invalid uuid, and "not found" would surface as a
+ * failure.
+ */
+export async function shabadById(client: KpClient, id: string): Promise<Playable | null> {
+  if (!UUID.test(id)) return null;
+  const { data, error } = await client
+    .from('shabads')
+    .select(SHABAD_COLUMNS)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw toError(error);
+  const [row] = parseRows(shabadRowSchema, data ? [data] : []).rows;
+  return row ? toPlayable(row) : null;
+}
+
 /** The orders a listener can put the archive in. */
 export type ShabadSort = 'newest' | 'popular';
 

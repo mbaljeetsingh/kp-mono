@@ -112,6 +112,27 @@ export function startPositionFor(item: Playable | null, resume?: number): number
 }
 
 /**
+ * Where a shared link should park the player: `t` seconds into the shabad, on
+ * the file's clock.
+ *
+ * `t` is the listener's clock — 0:00 is where the shabad starts, as the seek
+ * bar shows it — because that is the number someone sharing "from 2:30" sees.
+ * It arrives from a URL, so it may be anything: a number, a numeric string, or
+ * junk. Junk and negatives start the shabad from its beginning rather than
+ * failing the link. So does a `t` at or past the end, which would otherwise
+ * trip `hasReachedEnd` on the first tick after Play and skip straight past the
+ * shabad the link was for.
+ */
+export function linkStartPosition(item: Playable, t: unknown): number {
+  const start = segmentStart(item);
+  const raw = typeof t === 'number' ? t : typeof t === 'string' && t.trim() ? Number(t) : NaN;
+  if (!Number.isFinite(raw) || raw <= 0) return start;
+  const into = Math.floor(raw);
+  if (item.endSec != null && start + into >= item.endSec) return start;
+  return start + into;
+}
+
+/**
  * Seconds as m:ss — the transport's clock, on every surface.
  *
  * Here rather than in each app's `utils`: it was written out four times over,
