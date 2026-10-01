@@ -9,7 +9,7 @@ import { DONE_SLACK_SECONDS } from '@kp/core';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 
-import type { KpClient } from './client';
+import { toError, type KpClient } from './client';
 // One page size for the whole app — a queue that pages differently from the
 // player is a difference nobody chose.
 import { PAGE_SIZE } from './queries';
@@ -150,7 +150,7 @@ export async function fetchScanStates(client: KpClient): Promise<ScanStates> {
   // RLS returning nothing is an empty map, not an error. A real error — a
   // dropped request, a renamed column — must not look identical to it, or
   // every row offers Suggest on recordings already queued.
-  if (error) throw error;
+  if (error) throw toError(error);
   type Row = {
     track_id: string;
     done_at: string | null;
@@ -200,7 +200,7 @@ export function useSuggestedCount(client: KpClient, enabled: boolean) {
         .from('recordings')
         .select('id', { count: 'exact', head: true })
         .gt('scan_drafts', 0);
-      if (error) throw error;
+      if (error) throw toError(error);
       return count ?? 0;
     },
     enabled,
@@ -290,7 +290,7 @@ export async function listRecordings(
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) throw toError(error);
 
   const { rows } = parseRows(recordingSchema, data ?? []);
   return { items: rows, hasMore: (data?.length ?? 0) >= PAGE_SIZE };
@@ -302,7 +302,7 @@ export async function listRenditions(client: KpClient, trackId: string): Promise
     .select(RENDITION_COLUMNS)
     .eq('track_id', trackId)
     .order('start_sec', { ascending: true });
-  if (error) throw error;
+  if (error) throw toError(error);
   return parseRows(renditionSchema, data ?? []).rows;
 }
 
@@ -312,7 +312,7 @@ export async function getRecording(client: KpClient, id: string): Promise<Record
     .select(RECORDING_COLUMNS)
     .eq('id', id)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw toError(error);
   if (!data) return null;
   // A row the view returns but the schema refuses is a bug to report, not an
   // absent recording: as null, the tag page told the tagger this recording was
@@ -402,7 +402,7 @@ export async function createRendition(
     .insert({ ...parsed, created_by: userId })
     .select(RENDITION_COLUMNS)
     .single();
-  if (error) throw error;
+  if (error) throw toError(error);
   return renditionSchema.parse(data);
 }
 
@@ -416,10 +416,17 @@ export async function updateRendition(
     .from('renditions')
     .update({ ...parsed, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .select(RENDITION_COLUMNS)
-    .single();
-  if (error) throw error;
-  return renditionSchema.parse(data);
+    .select(RENDITION_COLUMNS);
+  if (error) throw toError(error);
+  // Counted, as setRenditionStatus does: with .single() a row RLS filtered out
+  // (published or deleted while the form was open) read as "Cannot coerce the
+  // result to a single JSON object".
+  if (!data?.length) {
+    throw new Error(
+      'That change was not permitted — it may have been published or deleted meanwhile.'
+    );
+  }
+  return renditionSchema.parse(data[0]);
 }
 
 /**
@@ -444,7 +451,7 @@ export async function setRenditionStatus(
     // like a successful one — the button would report success and the shabad
     // would never appear in the player.
     .select('id');
-  if (error) throw error;
+  if (error) throw toError(error);
   if (!data?.length) {
     throw new Error('That change was not permitted — your trust level may not allow it.');
   }
@@ -488,7 +495,7 @@ export async function deleteRendition(client: KpClient, id: string): Promise<voi
   // Same as the status change: a DELETE the policy filters out succeeds with
   // nothing deleted.
   const { data, error } = await client.from('renditions').delete().eq('id', id).select('id');
-  if (error) throw error;
+  if (error) throw toError(error);
   if (!data?.length) {
     throw new Error('That delete was not permitted.');
   }
@@ -536,7 +543,7 @@ export async function fetchPending(client: KpClient): Promise<PendingRendition[]
     .neq('status', 'published')
     .order('created_at', { ascending: true })
     .limit(100);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []) as PendingRendition[];
 }
 
@@ -571,7 +578,7 @@ export async function setTaggedDone(
     // rather than rejecting it, so without asking for the row back a refusal
     // looks exactly like success.
     .select('id');
-  if (error) throw error;
+  if (error) throw toError(error);
   if (!data?.length) throw new Error('Marking this recording is not permitted.');
 }
 
@@ -601,7 +608,7 @@ export async function requestScan(
       { onConflict: 'track_id', ignoreDuplicates: true }
     )
     .select('track_id');
-  if (error) throw error;
+  if (error) throw toError(error);
   // An ignored duplicate comes back empty and is not a failure: the recording
   // is already in the queue, which is what the tagger wanted.
   void data;
@@ -625,7 +632,7 @@ export async function rescan(client: KpClient, trackId: string, userId: string):
     .update({ done_at: null, requested_at: 'now()', requested_by: userId, error: null })
     .eq('track_id', trackId)
     .select('track_id');
-  if (error) throw error;
+  if (error) throw toError(error);
   // RLS refuses an UPDATE by matching nothing, so an empty answer is a refusal.
   if (!data?.length) throw new Error('Scanning this recording again is not permitted.');
 }
@@ -673,7 +680,7 @@ export async function getScanRequest(
     .select('track_id,requested_at,started_at,done_at,run_url,error,findings')
     .eq('track_id', trackId)
     .maybeSingle();
-  if (error) throw error;
+  if (error) throw toError(error);
   if (!data) return null;
   const row = data as Omit<ScanRequest, 'findings' | 'ahead'> & { findings: ScanFinding[] | null };
   // One run scans at a time (scan.yml's concurrency group), and it takes the
@@ -689,7 +696,7 @@ export async function getScanRequest(
       .is('error', null)
       .gt('started_at', new Date(Date.now() - SCAN_RUN_MAX_MS).toISOString())
       .limit(1);
-    if (aheadError) throw aheadError;
+    if (aheadError) throw toError(aheadError);
     const first = (running ?? [])[0] as { run_url: string | null } | undefined;
     ahead = first ? { run_url: first.run_url } : null;
   }
@@ -787,14 +794,14 @@ export async function nextUntaggedPuratan(
       .eq('artist_dir', ragi)
       .order('title')
       .limit(1);
-    if (error) throw error;
+    if (error) throw toError(error);
     if (data?.[0]) return (data[0] as { id: string }).id;
   }
   const { data, error } = await untaggedPuratan(client, exclude)
     .order('artist_dir')
     .order('title')
     .limit(1);
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data?.[0] as { id: string } | undefined)?.id ?? null;
 }
 
@@ -808,7 +815,7 @@ export function usePuratanLeft(client: KpClient, exclude: string[], enabled: boo
     queryKey: ['puratan-left', exclude],
     queryFn: async () => {
       const { count, error } = await untaggedPuratan(client, exclude, true);
-      if (error) throw error;
+      if (error) throw toError(error);
       return count ?? 0;
     },
     enabled,

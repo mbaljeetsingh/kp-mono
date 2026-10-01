@@ -1,5 +1,7 @@
+import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 
+import { setRenditionStatus } from './admin';
 import { guardFetch, type AuthWatch } from './client';
 
 // Any project URL: only the /auth/v1/ prefix built from it matters, and
@@ -75,5 +77,69 @@ describe('guardFetch', () => {
     await fetch(new Request(`${url}/auth/v1/user`), as(key));
     expect(base).toHaveBeenCalledTimes(2);
     expect(watch.trouble).toBe(0);
+  });
+});
+
+describe('toError', () => {
+  /** A real client whose every request gets `respond`'s answer. */
+  const answering = (respond: () => Response) =>
+    createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: async () => respond() },
+    });
+
+  it('is what an @kp/api function throws: an Error with the message and code', async () => {
+    // A real client behind the guard, refusing as it does while a sign-in
+    // renews. The base answers, so a guard that stopped refusing fails here at
+    // once rather than on postgrest-js's retries.
+    const watch: AuthWatch = { signedIn: true, trouble: 0 };
+    const client = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: guardFetch(watch, { url, key, tokenless: 'refuse' }, async () => new Response('[]')),
+      },
+    });
+    // What postgrest-js hands back: not an Error, which is why every page
+    // showed "Failed".
+    const { error } = await client.from('renditions').select('id');
+    expect(error).not.toBeInstanceOf(Error);
+
+    // `toThrow` alone passes on any object with a message; the class is the point.
+    const publishing = setRenditionStatus(client, 'r1', 'published');
+    await expect(publishing).rejects.toBeInstanceOf(Error);
+    await expect(publishing).rejects.toThrow(
+      'Your sign-in is being renewed. Try again in a moment.'
+    );
+    await expect(publishing).rejects.toMatchObject({ code: 'PGRST301' });
+  });
+
+  it('puts a sentence in place of anything PostgREST did not write', async () => {
+    // A gateway's empty 502 left every alert blank, its HTML page filled one,
+    // and a dropped connection read "TypeError: Failed to fetch".
+    const answers = [
+      () => new Response('', { status: 502 }),
+      () => new Response('<!DOCTYPE html><html><body>Bad gateway</body></html>', { status: 520 }),
+      () => new Response('error code: 522', { status: 522 }),
+      () => {
+        throw new TypeError('Failed to fetch');
+      },
+    ];
+    for (const answer of answers) {
+      await expect(setRenditionStatus(answering(answer), 'r1', 'published')).rejects.toThrow(
+        "Couldn't reach the server, or it didn't answer properly. Try again in a moment."
+      );
+    }
+  });
+
+  it('reads an expired token as the renewal it is', async () => {
+    // A clock running behind sends a token the server already counts expired.
+    const expired = () =>
+      new Response(JSON.stringify({ code: 'PGRST303', message: 'JWT expired' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    await expect(setRenditionStatus(answering(expired), 'r1', 'published')).rejects.toThrow(
+      'Your sign-in is being renewed. Try again in a moment.'
+    );
   });
 });

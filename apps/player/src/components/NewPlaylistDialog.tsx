@@ -52,19 +52,29 @@ function NewPlaylistForm({ onCreated }: { onCreated: () => void }) {
     event.preventDefault();
     if (!name.trim() || !userId) return;
     setError(null);
+    let playlist;
     try {
-      const playlist = await create.mutateAsync(name);
-      // The whole point of the pending pick: the listener asked to file a
-      // shabad and had no playlist to file it into.
-      if (pendingPick) {
+      playlist = await create.mutateAsync(name);
+    } catch {
+      // Its own words, not the server's: since @kp/api throws real Errors, the
+      // message would be Postgres's — "violates check constraint …" for a
+      // listener who typed a long name.
+      setError('Could not create the playlist. Try again in a moment.');
+      return;
+    }
+    // The whole point of the pending pick: the listener asked to file a shabad
+    // and had no playlist to file it into. Its own step: a failure here, read
+    // as "could not create", got Create pressed again and made a second one.
+    if (pendingPick) {
+      try {
         await addItem.mutateAsync({ playlistId: playlist.id, renditionId: pendingPick.id });
         toast.success(`Added “${pendingPick.name}” to ${playlist.name}`);
-        setPendingPick(null);
+      } catch {
+        toast.error(`Created ${playlist.name}, but couldn't add “${pendingPick.name}” to it.`);
       }
-      onCreated();
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not create the playlist');
+      setPendingPick(null);
     }
+    onCreated();
   }
 
   return (
@@ -84,6 +94,8 @@ function NewPlaylistForm({ onCreated }: { onCreated: () => void }) {
             value={name}
             autoFocus
             onChange={(e) => setName(e.target.value)}
+            // playlists_name_check: 1 to 120 characters.
+            maxLength={120}
             placeholder="Morning kirtan"
           />
         </div>

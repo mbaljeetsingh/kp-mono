@@ -13,8 +13,9 @@
  * did not already name.
  */
 import { toPlayable, type Playable } from '@kp/core';
+import type { PostgrestError } from '@supabase/supabase-js';
 
-import type { KpClient } from './client';
+import { toError, type KpClient } from './client';
 import { parseRows, shabadRowSchema } from './schemas';
 
 /** Per group. Enough to be worth a heading, few enough to stay a shelf. */
@@ -63,13 +64,13 @@ export async function fetchSuggestionGroups(
     }
     const { data, error } = (await (q as { limit: Chained }).limit(PER_GROUP)) as {
       data: unknown[] | null;
-      error: unknown;
+      error: PostgrestError | null;
     };
     // Thrown, not swallowed. A silent `return` here made a failed query
     // indistinguishable from an empty archive, which is exactly how a station
     // id in a uuid filter went unnoticed: Up next said there was nothing
     // published to suggest while every request was coming back 400.
-    if (error) throw error;
+    if (error) throw toError(error);
 
     const { rows } = parseRows(shabadRowSchema, data ?? []);
     if (!rows.length) return;
