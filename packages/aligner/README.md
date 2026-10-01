@@ -129,6 +129,10 @@ Published parts are left alone: the scan never edits a rendition, skips a
 shabad already tagged on the recording, and drafts nothing — nor points at
 anything — lying mostly inside a published one (`SETTLED`, in `write_drafts`
 rather than the matching, since `eval_scan.py` scores against those renditions).
+Routine banis — So Dar, the Pavan Guru salok, Anand Sahib, Basant ki Vaar —
+are pointed at, never drafted (`ROUTINE`, in `write_drafts` too): sung in
+nearly every program, they are rarely made renditions of, and a draft deleted
+would count as a rejection in the auto-publish trial.
 Queue mode consumes `scan_requests` oldest first, re-reading it after each
 track so one run drains it, and stamps `done_at` even when nothing cleared the
 gate; a failing track is left queued for retry.
