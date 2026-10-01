@@ -229,22 +229,38 @@ def banidb(path):
 # costs seconds of matching instead of minutes of ASR. Keys mirror the local
 # filenames: one transcript per recording, model and cut (`track/…`).
 
+# A miss means transcribing a whole recording again, minutes to most of an
+# hour on a runner, so storage gets the patience BaniDB gets — and a timeout,
+# because a half-open socket would otherwise hold the run until its job dies.
+STORE_TIMEOUT = 30
+STORE_TRIES = 3
+
+
 def _object_url(key):
     base = SB[:-len("/rest/v1")] if SB.endswith("/rest/v1") else SB
     return f"{base}/storage/v1/object/transcripts/{key}"
 
 
 def fetch_transcript(key):
-    """The stored windows for `key`, or None. Any storage failure means
-    'not cached' — the caller transcribes, which is always safe."""
+    """The stored windows for `key`, or None. Storage answers a missing object
+    with a 4xx, which is a miss at once; a 5xx, a reset or a timeout is retried
+    first, and only then taken for one — the caller transcribes, which is
+    always safe, just slow."""
     k = _key()
     req = urllib.request.Request(_object_url(key), headers={
         "apikey": k, "Authorization": f"Bearer {k}"})
-    try:
-        with urllib.request.urlopen(req) as r:
-            return json.loads(r.read())
-    except Exception:
-        return None
+    for attempt in range(STORE_TRIES):
+        try:
+            with urllib.request.urlopen(req, timeout=STORE_TIMEOUT) as r:
+                return json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            if e.code != 429 and e.code < 500:
+                return None
+        except Exception:
+            pass
+        if attempt < STORE_TRIES - 1:
+            time.sleep(1.5 * (2 ** attempt))
+    return None
 
 
 def store_transcript(key, payload):
@@ -258,6 +274,6 @@ def store_transcript(key, payload):
                  "x-upsert": "true"},
         method="POST")
     try:
-        urllib.request.urlopen(req).read()
+        urllib.request.urlopen(req, timeout=STORE_TIMEOUT).read()
     except Exception as e:
         print(f"  (transcript upload failed, disk cache only: {e})", flush=True)

@@ -150,32 +150,3 @@ def score_matrix(windows, lines, blend):
                      + blend * idf_recall(wt, lt[j], idf)
                      for j, l in enumerate(lines)])
     return rows
-
-
-def align_case(case, asr, blend, floor, cand=None):
-    """One case -> submission dict. `cand` is the candidate line set from
-    candidate_lines(lines, shabad_info); passing it is not optional in spirit —
-    deriving it here without shabad_info would silently fall back to the
-    word-count heading heuristic that is documented above as wrong."""
-    uem_s, uem_e = case["uem"]["start"], case["uem"]["end"]
-    lines = case["lines"]
-    ws = [w for w in asr["windows"] if w["start"] >= uem_s - 1e-6]
-    rows = score_matrix(ws, lines, blend)
-
-    n = int(uem_e) + 2
-    acc, cnt = accumulate_frames(ws, rows, n, len(lines))
-
-    if cand is None:
-        cand = candidate_lines(lines)
-    lab = []
-    for t in range(n):
-        if not cnt[t]:
-            lab.append(-1)
-            continue
-        b = max(cand, key=lambda j: acc[t][j])
-        lab.append(b if acc[t][b] >= floor else -1)
-    for t in range(n):
-        if t < uem_s or t > uem_e:
-            lab[t] = -1
-    return {"video_id": case["video_id"],
-            "segments": align.labels_to_segments(lab)}
