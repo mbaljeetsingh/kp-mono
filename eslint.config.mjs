@@ -72,6 +72,23 @@ export default tseslint.config(
       // An underscore-prefixed catch binding is a deliberate discard; an `any`
       // in a .d.ts shim is not worth a rewrite.
       '@typescript-eslint/no-explicit-any': 'warn',
+
+      // A query's error is a plain object, though postgrest-js types it as an
+      // Error, so tsc lets `throw error` through — and 41 of them made every
+      // page's `instanceof Error` show "Failed". toError is how one is thrown.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ThrowStatement > Identifier[name=/[eE]rror$/]',
+          message:
+            "A query's error is a plain object, not an Error: throw toError(error) from @kp/api.",
+        },
+        {
+          selector: 'ThrowStatement > MemberExpression[property.name=/[eE]rror$/]',
+          message:
+            "A query's error is a plain object, not an Error: throw toError(…) from @kp/api.",
+        },
+      ],
     },
   }
 );

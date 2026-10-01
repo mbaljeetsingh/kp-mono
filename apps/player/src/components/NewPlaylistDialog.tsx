@@ -62,8 +62,11 @@ function NewPlaylistForm({ onCreated }: { onCreated: () => void }) {
         setPendingPick(null);
       }
       onCreated();
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not create the playlist');
+    } catch {
+      // Its own words, not the server's: since @kp/api throws real Errors, the
+      // message would be Postgres's — "violates check constraint …" for a
+      // listener who typed a long name.
+      setError('Could not create the playlist. Try again in a moment.');
     }
   }
 
@@ -84,6 +87,8 @@ function NewPlaylistForm({ onCreated }: { onCreated: () => void }) {
             value={name}
             autoFocus
             onChange={(e) => setName(e.target.value)}
+            // playlists_name_check: 1 to 120 characters.
+            maxLength={120}
             placeholder="Morning kirtan"
           />
         </div>
