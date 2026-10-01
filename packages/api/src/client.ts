@@ -5,7 +5,7 @@
  * Expo exposes `process.env.EXPO_PUBLIC_*` — so this package takes the values
  * rather than reaching for them. It also means a test can hand over a stub.
  */
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, PostgrestError, type SupabaseClient } from '@supabase/supabase-js';
 
 export type KpClient = SupabaseClient;
 
@@ -136,4 +136,18 @@ export function createKpClient({
   });
   watches.set(client, watch);
   return client;
+}
+
+/**
+ * What a failed query throws.
+ *
+ * postgrest-js hands a query's error back as a plain object unless the query
+ * opts into throwOnError, and the apps read anything that is not an Error as
+ * "Failed": the sign-in-renewed message guardFetch writes never reached the
+ * screen, and nor did any refusal Postgres explained. This is the
+ * PostgrestError throwOnError would have thrown — an Error, with its code,
+ * details and hint still on it.
+ */
+export function toError(error: PostgrestError): Error {
+  return error instanceof Error ? error : new PostgrestError(error);
 }

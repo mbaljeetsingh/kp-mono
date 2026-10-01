@@ -7,7 +7,7 @@
  */
 import { toPlayable, type Playable } from '@kp/core';
 
-import type { KpClient } from './client';
+import { toError, type KpClient } from './client';
 import { artistSchema, parseRows, shabadRowSchema, type Artist } from './schemas';
 
 /** Rows per page. The archive is far too large to fetch whole. */
@@ -58,7 +58,7 @@ export async function listShabads(
   const { data, error } = await shabads(client, from)
     .order(SORT_COLUMN[sort], { ascending: false })
     .order('id');
-  if (error) throw error;
+  if (error) throw toError(error);
   return toPage(data);
 }
 
@@ -70,7 +70,7 @@ export async function shabadsByArtist(
   const { data, error } = await shabads(client, from)
     .eq('artist', artist)
     .order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) throw toError(error);
   return toPage(data);
 }
 
@@ -108,13 +108,13 @@ export async function searchShabads(
   const { data, error } = await shabads(client, from).or(
     `name.ilike.${like},artist_display.ilike.${like}`
   );
-  if (error) throw error;
+  if (error) throw toError(error);
   return toPage(data);
 }
 
 export async function listArtists(client: KpClient): Promise<Artist[]> {
   const { data, error } = await client.rpc('artist_directory');
-  if (error) throw error;
+  if (error) throw toError(error);
   return parseRows(artistSchema, (data as unknown[]) ?? []).rows;
 }
 
@@ -127,7 +127,7 @@ export async function listArtists(client: KpClient): Promise<Artist[]> {
  */
 export async function randomShabads(client: KpClient, n: number): Promise<Playable[]> {
   const { data, error } = await client.rpc('random_shabads', { n });
-  if (error) throw error;
+  if (error) throw toError(error);
   return parseRows(shabadRowSchema, (data as unknown[]) ?? []).rows.map(toPlayable);
 }
 
@@ -150,7 +150,7 @@ export async function shelfShabads(
     .select(SHABAD_COLUMNS)
     .order(SORT_COLUMN[sort], { ascending: false })
     .limit(limit);
-  if (error) throw error;
+  if (error) throw toError(error);
   return parseRows(shabadRowSchema, data ?? []).rows.map(toPlayable);
 }
 
@@ -162,5 +162,5 @@ export async function shelfShabads(
  */
 export async function registerPlay(client: KpClient, renditionId: string): Promise<void> {
   const { error } = await client.rpc('register_play', { rendition: renditionId });
-  if (error) throw error;
+  if (error) throw toError(error);
 }
