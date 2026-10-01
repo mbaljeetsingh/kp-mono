@@ -54,6 +54,11 @@ export interface PlayerState {
   onStatus(status: DriverStatus): void;
 
   play(item: Playable, replaceQueue?: boolean): void;
+  /**
+   * Load one item as the whole queue, parked at `at` (file seconds), and do
+   * not start it — what a shared link does, since browsers block autoplay.
+   */
+  cue(item: Playable, at: number): void;
   /** Load a whole shelf as the queue and start at one of its rows. */
   playList(items: Playable[], index: number): void;
   playAt(index: number): void;
@@ -187,6 +192,14 @@ export function createPlayerStore({ storage, artworkUrl }: PlayerStoreOptions) {
           /* a corrupt queue is an empty queue */
         }
 
+        // Something was loaded while storage was being read — a shared link
+        // cued on arrival. That is what the listener came for; restoring last
+        // session's queue over it would swap the shabad out from under them.
+        if (get().current) {
+          set({ repeat: parseRepeatMode(rawRepeat) });
+          return;
+        }
+
         // Restore, but never auto-play: resuming sound on launch is hostile,
         // and browsers block it outright.
         const current = items[index] ?? null;
@@ -234,6 +247,15 @@ export function createPlayerStore({ storage, artworkUrl }: PlayerStoreOptions) {
         const items = [...get().items, item];
         set({ items });
         start(item, items.length - 1);
+      },
+
+      cue(item, at) {
+        // Paused first: a new src on a playing element is not guaranteed to
+        // stop it, and a cue must never start sound by itself.
+        driver?.pause();
+        set({ items: [item], index: 0, current: item, position: at, playing: false });
+        driver?.load(item.url, at, nowPlaying(item));
+        persistQueue();
       },
 
       playList(items, index) {
