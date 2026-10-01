@@ -18,6 +18,8 @@ import {
   SHELF_SORTS,
   useRecordings,
   useScanStates,
+  useSuggestedCount,
+  type ScanRequestState,
   type Shelf,
   type Sort,
 } from '@kp/api';
@@ -26,7 +28,7 @@ import { Button } from '@kp/ui/button';
 import { Input } from '@kp/ui/input';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { Search, Sparkles } from 'lucide-react';
+import { ChevronRight, ListChecks, Search, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { useDebounceValue } from 'usehooks-ts';
 
@@ -38,6 +40,9 @@ import { clock, cn } from '~/lib/utils';
 const SHELVES: { id: Shelf; label: string; hint: string }[] = [
   { id: 'todo', label: 'Not started', hint: 'Nothing tagged yet' },
   { id: 'started', label: 'In progress', hint: 'Tagged, but not covered' },
+  // Not "review": the Review page is every draft waiting for approval, and two
+  // names that close read as one place.
+  { id: 'suggested', label: 'Suggested', hint: 'Scan drafts waiting for someone' },
   { id: 'done', label: 'Done', hint: 'Published and covered' },
   { id: 'all', label: 'All', hint: 'Everything crawlable' },
 ];
@@ -47,7 +52,29 @@ const SORT_LABELS: Record<Sort, string> = {
   shortest: 'Shortest first',
   least: 'Least left',
   random: 'Mixed',
+  drafts: 'Most drafts',
 };
+
+/**
+ * When a recording was scanned and who asked, as the Suggested shelf says it:
+ * "scanned today, nobody asked" is how a reviewer tells the nightly scan's
+ * picks from a tagger's click. Nothing when no request is on record.
+ */
+function scanNote(request: ScanRequestState | undefined, userId: string | null): string {
+  if (!request?.done_at) return '';
+  const days = Math.floor(
+    (startOfDay(Date.now()) - startOfDay(Date.parse(request.done_at))) / 86_400_000
+  );
+  const when =
+    days <= 0 ? 'scanned today' : days === 1 ? 'scanned yesterday' : `scanned ${days} days ago`;
+  const who = !request.requested_by
+    ? 'nobody asked'
+    : request.requested_by === userId
+      ? 'you asked'
+      : 'a tagger asked';
+  return `${when}, ${who}`;
+}
+const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0);
 
 const TREES = [
   { id: null, label: 'All' },
@@ -59,7 +86,13 @@ export function QueueRoute() {
   const navigate = useNavigate({ from: '/' });
   const search = useSearch({ from: '/' });
 
-  const shelf: Shelf = search.shelf ?? 'todo';
+  const { can, userId, permissionsLoading } = useSession();
+  // Reviewers' shelf: the drafts on it belong to nobody when the nightly scan
+  // picked the recording, and only reviewers can see — or publish — those. A
+  // link to it for anyone else lands on the default shelf.
+  const canReview = can['renditions.review'];
+  const asked: Shelf = search.shelf ?? 'todo';
+  const shelf: Shelf = asked === 'suggested' && !permissionsLoading && !canReview ? 'todo' : asked;
   const tree = search.tree ?? null;
   // An explicit pick, or whatever fits the shelf. A pick that the new shelf
   // cannot answer falls back rather than ordering by something with no button.
@@ -75,19 +108,19 @@ export function QueueRoute() {
    */
   const [term] = useDebounceValue(search.q ?? '', 300);
 
-  const { can, userId } = useSession();
-
   // Requesting a scan is its own capability (20260826000100). RLS refuses it
   // anyway; hiding the control keeps the list from offering an action that
   // could only come back as an error.
   const canScan = can['scans.request'];
-  const scans = useScanStates(supabase, canScan);
+  // Read by the Suggested shelf too, for when each was scanned and who asked.
+  const scans = useScanStates(supabase, canScan || canReview);
+  const suggestedCount = useSuggestedCount(supabase, canReview);
   const queryClient = useQueryClient();
   const [asking, setAsking] = useState<string | null>(null);
   // Keyed by track: a refusal belongs to the row that earned it, not to a line
   // at the top of a list the tagger has scrolled a long way down.
   const [askError, setAskError] = useState<Record<string, string>>({});
-  const scanState = (id: string): ScanState => scans.data?.[id] ?? 'none';
+  const scanState = (id: string): ScanState => scans.data?.[id]?.state ?? 'none';
   const suggest = (id: string, again: boolean) => {
     if (!userId) return;
     setAsking(id);
@@ -137,7 +170,7 @@ export function QueueRoute() {
        * thing you actually work.
        */}
       <div className="flex flex-wrap gap-1 rounded-lg border border-border p-1">
-        {SHELVES.map((s) => (
+        {SHELVES.filter((s) => s.id !== 'suggested' || canReview).map((s) => (
           <button
             key={s.id}
             type="button"
@@ -145,14 +178,28 @@ export function QueueRoute() {
             aria-pressed={shelf === s.id}
             onClick={() => set({ shelf: s.id, sort: SHELF_DEFAULT_SORT[s.id] })}
             className={cn(
-              'rounded-md px-3 py-1.5 text-sm',
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm',
               shelf === s.id ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
             )}
           >
             {s.label}
+            {/* The nightly scan fills this shelf with nobody asking, so it says
+            how much is there before anyone opens it. */}
+            {s.id === 'suggested' && suggestedCount.data ? (
+              <span className="rounded-full border border-current/30 px-1.5 text-[11px] leading-4 tabular-nums">
+                {suggestedCount.data}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
+
+      {shelf === 'suggested' ? (
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Recordings the scanner suggested shabads for. Check the edges and publish, or delete the
+          ones that are wrong.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
         <label className="flex items-center gap-1.5">
@@ -186,7 +233,7 @@ export function QueueRoute() {
             >
               {SHELF_SORTS[shelf].map((s) => (
                 <option key={s} value={s}>
-                  {SORT_LABELS[s]}
+                  {shelf === 'suggested' && s === 'recent' ? 'Newest drafts' : SORT_LABELS[s]}
                 </option>
               ))}
             </select>
@@ -211,6 +258,7 @@ export function QueueRoute() {
       <div className="flex flex-col gap-0.5">
         {items.map((r) => {
           const open = coverageOpen(r.untagged_seconds);
+          const suggested = shelf === 'suggested';
           return (
             <div key={r.id}>
               <div className="flex items-center rounded-lg hover:bg-accent/50">
@@ -228,10 +276,24 @@ export function QueueRoute() {
                       {r.artist_dir ?? 'Unknown'}
                       {r.date ? ` · ${r.date}` : ''}
                       {` · ${r.tree}`}
+                      {suggested && scanNote(scans.data?.[r.id], userId)
+                        ? ` · ${scanNote(scans.data?.[r.id], userId)}`
+                        : ''}
                     </p>
                   </div>
 
-                  {r.tagged_done_at ? (
+                  {suggested ? (
+                    <>
+                      <Badge className="shrink-0 bg-primary/15 text-primary">
+                        {r.scan_drafts} {r.scan_drafts === 1 ? 'draft' : 'drafts'}
+                      </Badge>
+                      {r.published > 0 ? (
+                        <Badge variant="secondary" className="shrink-0">
+                          {r.published} published
+                        </Badge>
+                      ) : null}
+                    </>
+                  ) : r.tagged_done_at ? (
                     <Badge variant="secondary" className="shrink-0">
                       marked done
                     </Badge>
@@ -243,7 +305,7 @@ export function QueueRoute() {
 
                   {/* The measure the shelves turn on, shown so a tagger can see why
                   a recording is where it is. */}
-                  {r.untagged_seconds != null && open ? (
+                  {!suggested && r.untagged_seconds != null && open ? (
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                       {clock(r.untagged_seconds)} left
                     </span>
@@ -254,10 +316,14 @@ export function QueueRoute() {
                   <span className="w-14 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
                     {r.est_seconds ? clock(r.est_seconds) : '—'}
                   </span>
+                  {suggested ? (
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  ) : null}
                 </Link>
                 {/* Not for puratan: a puratan file is one shabad, and its tag page
                 names it from the filename the moment it opens. */}
-                {canScan && scans.data !== undefined && r.tree !== 'puratan' ? (
+                {/* Scanned already, and the row is the way in: no Suggest here. */}
+                {!suggested && canScan && scans.data !== undefined && r.tree !== 'puratan' ? (
                   <SuggestButton
                     name={r.title ?? r.raw_filename ?? r.id}
                     state={scanState(r.id)}
@@ -285,9 +351,20 @@ export function QueueRoute() {
         ) : null}
 
         {query.data !== undefined && items.length === 0 ? (
-          <p className="px-3 py-8 text-sm text-muted-foreground">
-            Nothing on this shelf. Try another filter.
-          </p>
+          shelf === 'suggested' && !term ? (
+            <div className="flex flex-col items-center gap-1 rounded-lg bg-muted/40 px-3 py-8 text-center">
+              <ListChecks className="size-5 text-muted-foreground" aria-hidden />
+              <p className="text-sm font-medium">No suggestions waiting</p>
+              <p className="text-xs text-muted-foreground">
+                Each night the scanner suggests shabads for up to three recordings nobody asked for.
+                They show up here.
+              </p>
+            </div>
+          ) : (
+            <p className="px-3 py-8 text-sm text-muted-foreground">
+              Nothing on this shelf. Try another filter.
+            </p>
+          )
         ) : null}
 
         {query.hasNextPage && !query.isFetchingNextPage ? (

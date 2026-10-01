@@ -22,7 +22,7 @@ const rootRoute = createRootRoute({ component: RootLayout });
 // No 'queued': a request is scanned in minutes now and shows on its own row, so
 // the shelf went. An old ?shelf=queued link fails this list and lands on the
 // default shelf.
-const SHELVES = ['todo', 'started', 'done', 'all'] as const;
+const SHELVES = ['todo', 'started', 'suggested', 'done', 'all'] as const;
 
 /**
  * Explicitly optional keys. Without the `?` the validated type has every key
