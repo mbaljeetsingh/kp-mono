@@ -14,10 +14,11 @@
 #             transcripts on the runner's disk. Writes nothing to the project.
 #
 # The queue is scan_requests rows with done_at null — written by the button in
-# admin, one per recording a tagger actually wants suggestions for. Deliberately
-# request-driven rather than archive-driven: a suggestion is only useful when a
-# human is about to review it, and scanning all ~thousands of tracks would be
-# ~1,000 CPU-hours of suggestions going stale in the pending queue.
+# admin, one per recording a tagger wants suggestions for, and taken first.
+# Then the nightly run scans up to three recordings nobody asked for (#41):
+# ragi-wise, untagged, the crawl's new ones first, then the backlog. Runner
+# minutes are free on a public repo; what three a night rations is a
+# reviewer's attention, since every draft waits in Review for someone.
 #
 # Drafts land as status=shabad_linked / source=scan — invisible to the player
 # until a human reviews the boundaries and publishes. This job never publishes:
@@ -45,6 +46,10 @@ on:
         default: ''
       eval:
         description: Measure the scan against published renditions instead (read-only)
+        type: boolean
+        default: false
+      backfill:
+        description: After the queue, also scan up to three recordings nobody asked for, as the nightly run does
         type: boolean
         default: false
 
@@ -107,11 +112,17 @@ jobs:
               echo "track_id must be a 16-hex track id, got: $TRACK_ID"; exit 1
             fi
             uv run python scan_track.py --from-queue --track "$TRACK_ID"
+          elif [ "$EVENT" = schedule ] || [ "$BACKFILL" = true ]; then
+            # Not on a click's run: a scan of a recording nobody asked for
+            # would hold the next click behind it.
+            uv run python scan_track.py --from-queue --deadline-min 120 --backfill 3
           else
             uv run python scan_track.py --from-queue --deadline-min 120
           fi
         env:
           TRACK_ID: ${{ inputs.track_id }}
+          EVENT: ${{ github.event_name }}
+          BACKFILL: ${{ inputs.backfill }}
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
           SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
