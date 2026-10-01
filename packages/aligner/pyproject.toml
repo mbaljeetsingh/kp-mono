@@ -21,9 +21,10 @@ dependencies = [
 # Flat modules, no package directory — setuptools auto-discovery refuses that
 # layout and produces an EMPTY wheel (dist-info only), so `uv pip install -e .`
 # fails in a clean environment and both nightly workflows would die at the
-# install step. Declaring the modules explicitly is the whole fix. The two
-# scripts are not listed: they are entry points run from this directory, not
-# importable modules.
+# install step. Declaring the modules explicitly is the whole fix. The scripts
+# (scan_track, write_timings, eval_scan, fill_names) are not listed: they are
+# entry points run from this directory, not importable modules. names.py is
+# both: the scripts import it, and `python names.py` is its parity check.
 [build-system]
 requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"

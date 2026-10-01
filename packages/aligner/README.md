@@ -161,8 +161,8 @@ scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
 ## Title renditions from their anchor line
 
 ```bash
-SB_KEY=<key> python fill_names.py            # list what would change
-SB_KEY=<key> python fill_names.py --apply    # and change it
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py           # list what would change
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py --apply   # and change it
 ```
 
 A rendition with a shabad linked is titled from its anchor line

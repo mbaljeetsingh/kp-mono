@@ -23,7 +23,7 @@ describe('titlesFor', () => {
 
   it('never leaves the roman name empty, and leaves a missing Gurmukhi null', () => {
     // `name` is NOT NULL and a blank one is an unclickable row; a missing
-    // Gurmukhi is what the player's fallback to roman is for.
+    // Gurmukhi is null, which leaves the roman name as the only title.
     expect(titlesFor({}, 4064)).toEqual({ name: 'Shabad 4064', gurmukhi: null });
   });
 });

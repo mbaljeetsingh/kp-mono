@@ -19,10 +19,12 @@
  *   - a USING clause that hides the row: no error, zero rows — so every such
  *     case also re-reads the row to show it did not change;
  *   - a definer function's own guard (set_trust, set_role_permission): P0001;
- *   - a rule about the row itself, the same for every role (publishing needs
- *     a shabad, renditions_publish_needs_shabad): 23514. A BEFORE trigger
- *     runs ahead of RLS, so a fixture that breaks it is refused for that and
- *     never reaches the policy the row was meant to test.
+ *   - a rule about the row itself, not the role (publishing needs a shabad
+ *     and its main verse, renditions_publish_needs_shabad): 23514. A row
+ *     trigger runs after the grants are checked and the USING clause has
+ *     picked the rows, but before WITH CHECK — so a fixture that breaks the
+ *     rule is refused for that, and never reaches the WITH CHECK the row was
+ *     meant to test.
  *
  * Runs against the local stack only (vitest.db.config.ts), as the seed
  * accounts. Every row it writes carries this run's tag and is removed in
@@ -81,7 +83,7 @@ function raised(res: Result, message: RegExp) {
   expect(res.error?.message).toMatch(message);
 }
 
-/** Refused by a rule about the row itself, whoever asks. */
+/** Refused by a rule about the row itself, for any role that reaches it. */
 function invalid(res: Result, message: RegExp) {
   expect(res.error, 'expected the row to be refused').not.toBeNull();
   expect(res.error?.code).toBe('23514');
@@ -94,7 +96,7 @@ function invalid(res: Result, message: RegExp) {
  * trigger would try to start a workflow for. An empty timing list is "timed,
  * nothing to show", so the fixture stays out of the queue.
  */
-const LINKED = { shabad_id: 1, line_timings: [] };
+const LINKED = { shabad_id: 1, main_verse_id: 1, line_timings: [] };
 
 /** Allowed, and touched exactly `n` rows. */
 function allowed(res: Result, n?: number) {
@@ -496,10 +498,25 @@ describe('publishing needs a shabad', () => {
     );
   });
 
-  it('nor unlink one that is published', async () => {
+  it('nor one with a shabad but no main verse, the line both titles come from', async () => {
+    invalid(
+      await admin.from('renditions').insert({
+        track_id: trackId,
+        start_sec: 120,
+        end_sec: 180,
+        name: `${TAG} unanchored`,
+        status: 'published',
+        created_by: adminId,
+        shabad_id: LINKED.shabad_id,
+      }),
+      /main verse/
+    );
+  });
+
+  it('nor unlink one that is published, and says that is the rule', async () => {
     invalid(
       await admin.from('renditions').update({ shabad_id: null }).eq('id', published),
-      /Link a shabad/
+      /keeps its link/
     );
     expect((await rendition(published))?.shabad_id).toBe(LINKED.shabad_id);
   });

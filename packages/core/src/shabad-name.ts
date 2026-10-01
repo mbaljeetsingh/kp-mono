@@ -16,8 +16,11 @@
 const RULES: [RegExp, string][] = [
   // The rahao marker, and the second one. It labels the line in the book; a
   // title that ends in "Rahau" is the label read out. First, while it is
-  // still spelled the way BaniDB spells it.
-  [/\brahaau(\s+dhoojaa)?\b/gi, ''],
+  // still spelled the way BaniDB spells it, and only right after a verse bar:
+  // rahaau is also a word ("I remain"), five times in the Guru Granth Sahib,
+  // and never after a bar, where every one of the 2,680 markers stands. The
+  // bar is put back for the next rule to turn into a space.
+  [/([|॥।]\s*)rahaau(?:\s+dhoojaa)?\b/gi, '$1'],
   [/\|+|॥|।/g, ' '], // verse bars, single ones too: Bhai Gurdas's lines end in |
   [/\d+/g, ''], // verse numbers
   [/\(n\)/gi, 'n'], // nasal marker: too(n) -> toon
@@ -46,7 +49,12 @@ export function prettyShabadName(transliteration: string): string {
       // "kooR kapaT" arrived as "KuR KapaT" — meaningful in a transliteration
       // scheme, noise in a title. Matching on letter runs rather than splitting
       // on spaces also capitalises after a hyphen ("Ik-Oankar").
-      .replace(/[\p{L}\p{M}']+/gu, (w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase())
+      //
+      // ASCII letters, exactly names.py's rule. BaniDB's transliteration is
+      // ASCII, and Python's standard regex has no \p{L}: a letter class the
+      // two copies read differently is one line titled two ways. It did — a
+      // quoted heading came out "'pavan" here and "'Pavan" there.
+      .replace(/[A-Za-z][A-Za-z']*/g, (w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase())
   );
 }
 
@@ -57,11 +65,14 @@ export function prettyShabadName(transliteration: string): string {
  *
  * Only what labels the line comes off — the verse bars, the verse numbers and
  * the rahao marker. The spelling is scripture and stays exactly as BaniDB has
- * it. `\b` cannot find the marker, because in JavaScript it only knows ASCII
- * word characters, so it is bounded by spaces, bars or the ends instead.
+ * it, which is why the marker must follow a bar, as in the roman rule:
+ * ਰਹਾਉ is a word too, and taking it off "ਭਾਈ ਰੇ ਗੁਰਮਤਿ ਸਾਚਿ ਰਹਾਉ ॥" would cut
+ * the line short. ਰਹਾੳ is how BaniDB spells one real marker (shabad 1416).
+ * Bounded by bars, spaces or the end rather than `\b`, which in JavaScript
+ * only knows ASCII word characters.
  */
 const GURMUKHI_RULES: [RegExp, string][] = [
-  [/(^|[\s॥।|])ਰਹਾਉ(?:\s+ਦੂਜਾ)?(?=[\s॥।|]|$)/gu, '$1'],
+  [/([॥।|]\s*)ਰਹਾ[ਉੳ](?:\s+ਦੂਜਾ)?(?=[\s॥।|]|$)/gu, '$1'],
   [/[॥।|]/g, ' '],
   [/[੦-੯0-9]+/g, ''],
   [/\s+/g, ' '],
@@ -91,8 +102,8 @@ export interface RenditionTitles {
  * Every writer names a linked rendition through this or names.py's `titles`,
  * so the workbench, the scanner and fill_names.py cannot disagree about one
  * line. `Shabad 4064` stands in for a roman name BaniDB did not send, because
- * `name` may not be empty; a missing Gurmukhi is null instead, which the
- * player reads as "show the roman one".
+ * `name` may not be empty; a missing Gurmukhi is null instead, which leaves the
+ * roman `name` as the rendition's only title.
  */
 export function titlesFor(line: TitledLine, shabadId: number): RenditionTitles {
   return {

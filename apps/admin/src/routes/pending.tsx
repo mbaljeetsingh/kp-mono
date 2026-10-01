@@ -5,8 +5,8 @@
  * until somebody publishes it, which is the only thing the trust ladder gates.
  */
 import {
-  canPublishRendition,
   deleteRendition,
+  publishRefusal,
   setRenditionStatus,
   usePending,
   usePendingCount,
@@ -109,7 +109,7 @@ export function PendingRoute() {
       <div className="flex flex-col gap-0.5">
         {rows.map((row) => {
           const mine = row.created_by === session?.user.id;
-          const publishable = canPublishRendition(
+          const refusal = publishRefusal(
             row,
             { review: can['renditions.review'], publish: can['renditions.publish'] },
             session?.user.id
@@ -132,8 +132,8 @@ export function PendingRoute() {
                 >
                   {row.name}
                 </Link>
-                {/* Both titles the player can show, so the one under review is
-                    the one that goes out. */}
+                {/* Both titles the rendition goes out with, so the one under
+                    review is the one that is published. */}
                 {row.name_gurmukhi ? (
                   <p lang="pa" className="truncate font-gurbani text-sm">
                     {row.name_gurmukhi}
@@ -160,7 +160,7 @@ export function PendingRoute() {
                 <Play />
               </Button>
 
-              {publishable ? (
+              {refusal === null ? (
                 <Button
                   size="sm"
                   disabled={busy === row.id}
@@ -171,11 +171,13 @@ export function PendingRoute() {
                   <Check />
                   Publish
                 </Button>
-              ) : can['renditions.publish'] && row.shabad_id == null ? (
+              ) : refusal === 'needs-shabad' || refusal === 'needs-line' ? (
                 // Where the button would be, so its absence explains itself:
-                // the draft opens on the tag page, where the shabad is linked.
+                // the draft opens on the tag page, where the line is chosen.
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  Link a shabad to publish
+                  {refusal === 'needs-shabad'
+                    ? 'Link a shabad to publish'
+                    : 'Choose its main verse to publish'}
                 </span>
               ) : null}
 
