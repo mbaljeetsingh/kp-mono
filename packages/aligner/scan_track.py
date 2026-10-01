@@ -153,7 +153,15 @@ def evidence(long_w, short_w, shabads, n):
                     cnt[a:b] += 1
                     acc[:, a:b] += row[:, None]
         halves.append(acc / np.maximum(cnt, 1))
-    return sids, 0.5 * halves[0] + 0.5 * halves[1]
+    # Less each shabad's chance above a typical one's (corpus.chance): Oankar
+    # loses 0.15, a shabad of ordinary length ~0. Measured on prod's 52
+    # published renditions, puratan found went 13/18 -> 17/18 and precision
+    # 0.92 -> 0.95; the drafts it then got "wrong" were second shabads sung
+    # inside a recording tagged whole as one (#84).
+    excess = corpus.chance({s: lines[a:b] for s, a, b in
+                            zip(sids, starts, starts[1:] + [len(lines)])}, CACHE)
+    ev = 0.5 * halves[0] + 0.5 * halves[1]
+    return sids, ev - np.array([excess[s] for s in sids])[:, None]
 
 
 def _smooth(v, width):
