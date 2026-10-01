@@ -34,6 +34,8 @@ export const recordingSchema = z.object({
   /** A tagger's mark that the rest is not shabads. Overrides the coverage measure. */
   tagged_done_at: z.string().nullish(),
   last_activity_at: z.string().nullish(),
+  /** Scan drafts not yet published: what the Suggested shelf turns on. */
+  scan_drafts: z.number(),
 });
 
 export const renditionSchema = z.object({
@@ -79,11 +81,14 @@ const RENDITION_COLUMNS =
 export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
 
-/** Which shelf of the queue. Each is a different question about coverage. */
-export type Shelf = 'todo' | 'started' | 'done' | 'all';
+/**
+ * Which shelf of the queue. Each is a different question about coverage — and
+ * Suggested, which recordings the scanner has drafts waiting on.
+ */
+export type Shelf = 'todo' | 'started' | 'suggested' | 'done' | 'all';
 
 /** How a shelf is ordered. */
-export type Sort = 'recent' | 'shortest' | 'least' | 'random';
+export type Sort = 'recent' | 'shortest' | 'least' | 'random' | 'drafts';
 
 /**
  * Each shelf offers only the sorts it can answer, and its default must appear
@@ -92,6 +97,7 @@ export type Sort = 'recent' | 'shortest' | 'least' | 'random';
 export const SHELF_SORTS: Record<Shelf, Sort[]> = {
   todo: ['shortest', 'random'],
   started: ['recent', 'least'],
+  suggested: ['recent', 'drafts', 'shortest'],
   done: ['recent'],
   all: ['recent', 'shortest', 'random'],
 };
@@ -99,6 +105,7 @@ export const SHELF_SORTS: Record<Shelf, Sort[]> = {
 export const SHELF_DEFAULT_SORT: Record<Shelf, Sort> = {
   todo: 'random',
   started: 'recent',
+  suggested: 'recent',
   done: 'recent',
   all: 'recent',
 };
@@ -106,7 +113,7 @@ export const SHELF_DEFAULT_SORT: Record<Shelf, Sort> = {
 const RECORDING_COLUMNS =
   'id,url,tree,title,artist_dir,artist_photo,date,raw_filename,' +
   'slot_start_sec,slot_end_sec,est_seconds,renditions,published,' +
-  'untagged_seconds,tagged_done_at,last_activity_at';
+  'untagged_seconds,tagged_done_at,last_activity_at,scan_drafts';
 
 /**
  * Escape a term for a PostgREST `or` list.
@@ -121,24 +128,44 @@ export function escapeFilterValue(term: string): string {
 }
 
 /**
- * Every scan request, by track: queued while it waits or runs, failed when its
+ * A recording's scan request: queued while it waits or runs, failed when its
  * last attempt did (it stays queued for a retry, last in line), done once
- * scanned.
+ * scanned — and who asked, null for one the nightly scan picked itself.
  */
-export type ScanStates = Record<string, 'queued' | 'failed' | 'done'>;
+export interface ScanRequestState {
+  state: 'queued' | 'failed' | 'done';
+  done_at: string | null;
+  requested_by: string | null;
+}
+
+/** Every scan request, by track. */
+export type ScanStates = Record<string, ScanRequestState>;
 
 export async function fetchScanStates(client: KpClient): Promise<ScanStates> {
   // Fetched rather than joined into the view: the table is small — one row per
   // request, ever — and a second query keeps the view SQL untouched.
-  const { data, error } = await client.from('scan_requests').select('track_id,done_at,error');
+  const { data, error } = await client
+    .from('scan_requests')
+    .select('track_id,done_at,error,requested_by');
   // RLS returning nothing is an empty map, not an error. A real error — a
   // dropped request, a renamed column — must not look identical to it, or
   // every row offers Suggest on recordings already queued.
   if (error) throw error;
+  type Row = {
+    track_id: string;
+    done_at: string | null;
+    error: string | null;
+    requested_by: string | null;
+  };
   return Object.fromEntries(
-    ((data ?? []) as { track_id: string; done_at: string | null; error: string | null }[]).map(
-      (r) => [r.track_id, r.done_at ? 'done' : r.error ? 'failed' : 'queued']
-    )
+    ((data ?? []) as Row[]).map((r) => [
+      r.track_id,
+      {
+        state: r.done_at ? 'done' : r.error ? 'failed' : 'queued',
+        done_at: r.done_at,
+        requested_by: r.requested_by,
+      },
+    ])
   );
 }
 
@@ -155,7 +182,28 @@ export function useScanStates(client: KpClient, enabled: boolean) {
     queryFn: () => fetchScanStates(client),
     enabled,
     refetchInterval: (query) =>
-      Object.values(query.state.data ?? {}).some((state) => state === 'queued') ? 60_000 : false,
+      Object.values(query.state.data ?? {}).some((r) => r.state === 'queued') ? 60_000 : false,
+  });
+}
+
+/**
+ * How many recordings the Suggested shelf holds, for the count on its tab: the
+ * nightly scan fills it without anyone asking, so without a number nobody
+ * would know to look. Under ['recordings'], so whatever refreshes the shelves
+ * after a publish or a delete refreshes this too.
+ */
+export function useSuggestedCount(client: KpClient, enabled: boolean) {
+  return useQuery({
+    queryKey: ['recordings', 'suggested-count'],
+    queryFn: async () => {
+      const { count, error } = await client
+        .from('recordings')
+        .select('id', { count: 'exact', head: true })
+        .gt('scan_drafts', 0);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled,
   });
 }
 
@@ -202,6 +250,10 @@ export async function listRecordings(
     query = query
       .gt('published', 0)
       .or(`untagged_seconds.lte.${DONE_SLACK_SECONDS},tagged_done_at.not.is.null`);
+  } else if (filters.shelf === 'suggested') {
+    // Across the coverage shelves on purpose: a recording mostly tagged by
+    // hand can still have a scan draft waiting at its edge.
+    query = query.gt('scan_drafts', 0);
   }
 
   /*
@@ -223,6 +275,10 @@ export async function listRecordings(
     query = query.order('est_seconds', { ascending: true, nullsFirst: false });
   } else if (filters.sort === 'least') {
     query = query.order('untagged_seconds', { ascending: true, nullsFirst: false });
+  } else if (filters.sort === 'drafts') {
+    query = query
+      .order('scan_drafts', { ascending: false })
+      .order('last_activity_at', { ascending: false, nullsFirst: false });
   } else if (filters.sort === 'random') {
     // Without this the same finished recordings sit at the top of the Todo
     // shelf forever and two taggers arriving on the same day get handed the
