@@ -30,7 +30,7 @@ import argparse
 import time
 
 import timing
-from runtime import MIN_CONFIDENCE, SB, api
+from runtime import MIN_CONFIDENCE, SB, api, paged
 
 # The windows, BLEND, FLOOR and SHIFT live in timing.py, shared with
 # scan_track.py, which aligns its drafts on the same transcript.
@@ -75,7 +75,8 @@ if not args.all:
     where += "&line_timings=is.null"
 select = ("id,name,shabad_id,main_verse_id,start_sec,end_sec,track_id,"
           "line_timings,tracks(url)")
-todo = api(f"{SB}/renditions?{where}&select={select}&order=created_at.asc")
+todo = paged(f"{SB}/renditions?{where}&select={select}"
+             f"&order=created_at.asc,id.asc")
 
 # A dry run is a measurement: it may transcribe, but uploads nothing, so
 # pointing one at prod writes nothing there.

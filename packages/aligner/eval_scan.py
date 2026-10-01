@@ -38,11 +38,10 @@ import time
 
 import scan_track
 import timing
-from runtime import MIN_CONFIDENCE, SB, api
+from runtime import MIN_CONFIDENCE, SB, api, paged
 
 FLOORS = (0.55, 0.60, 0.65)
 MARGINS = (0.03, 0.05, 0.08, 0.10)
-PAGE = 1000            # PostgREST's default max-rows; paging past it is not optional
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--limit", type=int, default=None,
@@ -60,16 +59,6 @@ ap.add_argument("--out", default=f"{scan_track.CACHE}/eval",
 ap.add_argument("--report", metavar="DIR",
                 help="skip the run; report over the results in DIR")
 args = ap.parse_args()
-
-
-def paged(url):
-    out, offset = [], 0
-    while True:
-        rows = api(f"{url}&limit={PAGE}&offset={offset}")
-        out += rows
-        if len(rows) < PAGE:
-            return out
-        offset += PAGE
 
 
 def truth():

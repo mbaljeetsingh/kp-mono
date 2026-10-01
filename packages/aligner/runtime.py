@@ -177,6 +177,22 @@ def api(url, method="GET", body=None, extra=None):
         return json.loads(raw) if raw else None
 
 
+# PostgREST's default max-rows: past it an answer is cut off, and says nothing.
+PAGE = 1000
+
+
+def paged(url):
+    """Every row a GET matches, a page at a time. `url` must carry an order
+    that never ties, or rows can slip between pages."""
+    out, offset = [], 0
+    while True:
+        rows = api(f"{url}&limit={PAGE}&offset={offset}")
+        out += rows
+        if len(rows) < PAGE:
+            return out
+        offset += PAGE
+
+
 # BaniDB is a public API reached over the open internet, and the calls that
 # need it come AFTER the expensive part of a run.
 BANIDB_TIMEOUT = 20
