@@ -132,6 +132,13 @@ export function PendingRoute() {
                 >
                   {row.name}
                 </Link>
+                {/* Both titles the player can show, so the one under review is
+                    the one that goes out. */}
+                {row.name_gurmukhi ? (
+                  <p lang="pa" className="truncate font-gurbani text-sm">
+                    {row.name_gurmukhi}
+                  </p>
+                ) : null}
                 <p className="truncate text-xs text-muted-foreground">
                   {row.tracks?.artist_dir ?? 'Unknown'}
                   {row.tracks?.date ? ` · ${row.tracks.date}` : ''}
@@ -164,6 +171,12 @@ export function PendingRoute() {
                   <Check />
                   Publish
                 </Button>
+              ) : can['renditions.publish'] && row.shabad_id == null ? (
+                // Where the button would be, so its absence explains itself:
+                // the draft opens on the tag page, where the shabad is linked.
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  Link a shabad to publish
+                </span>
               ) : null}
 
               {can['renditions.delete'] ? (

@@ -25,7 +25,10 @@ import { cn } from '../../lib/utils';
 export interface ShabadPick {
   shabadId: number;
   verseId: number;
+  /** The line for display: Unicode when BaniDB sent it, its Gurbani-font ASCII when not. */
   firstLine: string;
+  /** The line in Unicode only, never the ASCII, because a title is stored from it. */
+  unicode: string;
   transliteration: string;
 }
 
@@ -123,6 +126,7 @@ export function ShabadSearch({
                 shabadId: hit.shabadId,
                 verseId: hit.verseId,
                 firstLine: hit.verse?.unicode ?? hit.verse?.gurmukhi ?? '',
+                unicode: hit.verse?.unicode ?? '',
                 transliteration: hit.transliteration?.english ?? '',
               })
             }

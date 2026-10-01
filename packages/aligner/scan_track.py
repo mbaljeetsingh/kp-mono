@@ -50,7 +50,6 @@ a tag.
 """
 
 import os
-import re
 import subprocess
 import sys
 import time
@@ -62,6 +61,7 @@ from rapidfuzz import fuzz, process
 import align
 import corpus
 import timing
+from names import titles
 from runtime import MIN_CONFIDENCE, SB, api
 
 FLOOR = 0.60            # per-second evidence a shabad needs to hold a region
@@ -101,24 +101,6 @@ AUTO_MIN_MARGIN = 0.12
 AUTO_MIN_SEC = 180
 AUTO_MIN_ALIGN = 0.78
 AUTO_PUBLISH = os.environ.get("AUTO_PUBLISH") == "1"
-
-
-def pretty_name(transliteration):
-    """prettyShabadName from apps/admin/app/composables/useShabadName.ts, in
-    Python — the same normalisation the tagger sees when admin auto-fills a
-    name, so scan drafts read like hand-made ones. Keep the rule lists in sync.
-    """
-    out = transliteration
-    for pat, rep in [
-        (r"\|\||॥|।", ""), (r"\d+", ""), (r"\(nn?\)", "n"),
-        (r"aa", "a"), (r"oo", "u"), (r"ee", "i"),
-        (r"dh\b", "d"), (r"\bth\b", "t"), (r"\s+", " "),
-    ]:
-        out = re.sub(pat, rep, out, flags=re.IGNORECASE)
-    # Title case; the rest of each word lowered, because BaniDB capitalises
-    # mid-word to mark retroflex letters — meaningful there, noise in a title.
-    return re.sub(r"[A-Za-z][A-Za-z']*",
-                  lambda m: m[0][0].upper() + m[0][1:].lower(), out).strip()
 
 
 def shortlist(long_w, store=True):
@@ -333,10 +315,10 @@ def merge_regions(regions):
 
 
 def _name(verse, sid):
-    tr = verse.get("transliteration") or ""
-    if isinstance(tr, dict):
-        tr = tr.get("english") or next(iter(tr.values()), "")
-    return (pretty_name(tr) or f"Shabad {sid}")[:80]
+    """The roman title, exactly as the workbench names this line: names.py is
+    shabad-name.ts's copy. No longer cut to 80 characters, which made a second
+    name for the same line; the player truncates on screen anyway."""
+    return titles(verse, sid)[0]
 
 
 def settled_share(t0, t1, spans):
@@ -413,13 +395,18 @@ def write_drafts(track_id, found, shabads, owner=None):
                 + t["end"] - t["start"]
         by_id = {v["verseId"]: v for v in verses}
         verse = by_id[max(held, key=held.get)] if held else verses[cand[0]]
+        name, gurmukhi = titles(verse, sid)
         auto = verdict(g, align_conf)
         publish = AUTO_PUBLISH and auto
         row = api(f"{SB}/renditions", method="POST", body={
             "track_id": track_id,
             "start_sec": round(t0, 2), "end_sec": round(t1, 2),
-            "name": _name(verse, sid), "shabad_id": sid,
+            "name": name, "shabad_id": sid,
             "main_verse_id": verse["verseId"],
+            # The anchor's own line, so a draft accepted from the tag page —
+            # in bulk, without opening the editor — reaches the player with
+            # its Gurmukhi title (20261001030000_rendition_gurmukhi_names.sql).
+            "name_gurmukhi": gurmukhi,
             "status": "published" if publish else "shabad_linked",
             "source": "scan",
             # Lyrics now, not after publish and a night's align run. The
@@ -447,7 +434,7 @@ def write_drafts(track_id, found, shabads, owner=None):
               f'{t0:6.0f}-{t1:6.0f}s  shabad {sid}  conf {conf:.2f}  '
               f'align {align_conf:.2f}  {len(timings)} lines timed'
               f'{"  (would auto-publish)" if auto and not publish else ""}'
-              f'  "{_name(verse, sid)[:44]}"')
+              f'  "{name[:44]}"')
     return drafted, findings
 
 

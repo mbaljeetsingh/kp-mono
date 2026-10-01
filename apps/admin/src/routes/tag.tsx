@@ -1011,8 +1011,13 @@ function SegmentRow({
         </Button>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm">{r.name}</span>
+          {r.name_gurmukhi ? (
+            <span lang="pa" className="block truncate font-gurbani text-sm">
+              {r.name_gurmukhi}
+            </span>
+          ) : null}
           <span className="block truncate text-xs text-muted-foreground">
-            {r.shabad_id ? 'shabad linked' : 'no shabad linked'}
+            {r.shabad_id ? 'shabad linked' : 'no shabad linked · link one to publish'}
             {r.raag ? ` · ${r.raag}` : ''}
           </span>
           {r.source === 'scan' && (!published || r.line_timings?.length) ? (

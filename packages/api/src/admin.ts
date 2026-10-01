@@ -47,6 +47,8 @@ export const renditionSchema = z.object({
   status: z.string(),
   shabad_id: z.number().nullish(),
   main_verse_id: z.number().nullish(),
+  /** The anchor line in Gurmukhi, beside `name` in roman. Null with no shabad linked. */
+  name_gurmukhi: z.string().nullish(),
   raag: z.string().nullish(),
   taal: z.string().nullish(),
   artist: z.string().nullish(),
@@ -75,8 +77,8 @@ export const renditionSchema = z.object({
 
 /** One list for every read and write, so a column added to the schema cannot reach one and not the others. */
 const RENDITION_COLUMNS =
-  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by,' +
-  'source,line_timings,scan_verdict';
+  'id,track_id,name,name_gurmukhi,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,' +
+  'artist,created_by,source,line_timings,scan_verdict';
 
 export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
@@ -350,9 +352,11 @@ export function useRenditions(client: KpClient, trackId: string) {
 /**
  * What a contributor actually fills in.
  *
- * `name` is the only required tag, and deliberately so: typing what you hear
- * needs no Gurbani literacy, which is what keeps the highest-volume task open
- * to anyone. Everything else is additive.
+ * A draft needs only boundaries and a name, and deliberately so: typing what
+ * you hear needs no Gurbani literacy, which is what keeps the highest-volume
+ * task open to anyone. With a shabad linked the name is not typed at all — it
+ * and `name_gurmukhi` are both read off the anchor line (`titlesFor`) — and
+ * publishing needs that link (`canPublishRendition`).
  */
 export const draftSchema = z
   .object({
@@ -362,6 +366,7 @@ export const draftSchema = z
     end_sec: z.number(),
     shabad_id: z.number().nullish(),
     main_verse_id: z.number().nullish(),
+    name_gurmukhi: z.string().trim().nullish(),
     raag: z.string().trim().nullish(),
     taal: z.string().trim().nullish(),
     /*
@@ -505,15 +510,21 @@ export async function deleteRendition(client: KpClient, id: string): Promise<voi
  * their own unpublished work, and only once: the UPDATE policy stops matching
  * the row the moment it goes published, which is why those accounts get a
  * one-way button where a reviewer gets a two-state control.
+ *
+ * And never with no shabad linked: there is no line to title it from, so it
+ * would reach the player with a typed roman name and no Gurmukhi. The
+ * database refuses it too (renditions_publish_needs_shabad); here is where
+ * every Publish button learns not to offer it.
  */
 export function canPublishRendition(
-  row: { status: string; created_by?: string | null },
+  row: { status: string; created_by?: string | null; shabad_id?: number | null },
   perms: { review: boolean; publish: boolean },
   // Undefined as well as null: "we do not know who you are yet" must fall
   // through to the same answer as "you are nobody" — no button.
   userId: string | null | undefined
 ): boolean {
   if (!perms.publish || row.status === 'published') return false;
+  if (row.shabad_id == null) return false;
   if (perms.review) return true;
   // Both sides have to be a real id. `undefined === undefined` is true, and
   // that is the loading state — the comment above promised no button and the
