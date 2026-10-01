@@ -68,6 +68,14 @@ MIN_DRAFT_SEC = 60      # shorter regions are pointers (see is_draft)
 QUOTE_MAX_SEC = 90      # a run this short inside another shabad is a quote
 MERGE_ACROSS_SEC = 300  # one shabad either side of only pointers is one draft
 SETTLED = 0.5           # this much inside published renditions: not suggested
+# Routine banis, sung in nearly every program rather than chosen for it: So
+# Dar closing the evening (27 in Japji, 40 opening Rehras — they read alike,
+# so either can win), the Pavan Guru salok (39), Anand Sahib (333375) closing
+# most programs, Basant ki Vaar (4234) through its season. The scan finds them
+# right, but taggers rarely make renditions of them: as drafts they only
+# fill Review, and each one deleted would count as a rejection in the
+# auto-publish trial. So they are pointed at, never drafted.
+ROUTINE = {27, 39, 40, 333375, 4234}
 REGION_SMOOTH = 61      # seconds of evidence averaged to find regions
 MIN_RUN_SEC = 10        # a run shorter than this is noise, not a region
 # Edges, placed again per draft: evidence smoothed over EDGE_SMOOTH s, walked
@@ -450,10 +458,11 @@ def write_drafts(track_id, found, shabads, owner=None):
             print(f"  not suggesting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
                   f"rejected on this recording")
             continue
-        if align_conf is None:
+        if align_conf is None or sid in ROUTINE:
             print(f"  not drafting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
-                  f"conf {conf:.2f} margin {margin:+.2f}, {t1 - t0:.0f}s "
-                  f"below gate")
+                  + ("a routine bani, pointed at" if sid in ROUTINE else
+                     f"conf {conf:.2f} margin {margin:+.2f}, {t1 - t0:.0f}s "
+                     f"below gate"))
             # Refusing to draft must not mean refusing to tell: this becomes a
             # listen-here pointer in the tagger (scan_requests.findings).
             findings.append({"shabad_id": sid,
