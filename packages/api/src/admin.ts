@@ -454,7 +454,7 @@ export async function setRenditionStatus(
  * One-click accept: publish the scan drafts a reviewer has checked, together.
  *
  * One statement, so the align dispatch trigger fires once for the batch, not
- * once per draft whose re-cut cleared its timings. By id rather than "every
+ * once per draft a re-cut sent back to align's queue. By id rather than "every
  * scan draft on the recording", so it publishes only the drafts the page
  * showed. Counted, because RLS can filter part of the batch as silently as
  * all of it.
@@ -466,9 +466,10 @@ export async function acceptScanDrafts(client: KpClient, ids: string[]): Promise
     // keeps a row that is already published a no-op rather than an edit.
     .update({ status: 'published' })
     .in('id', ids)
-    // Already published counts as done — a second tab, a press repeated over
-    // stale rows. A draft somebody pulled back since the page loaded is left
-    // alone, and reported.
+    // For a reviewer, already published counts as done — a second tab, a press
+    // repeated over stale rows. (RLS hides a published row from anyone else,
+    // so for them it is reported as changed.) A draft somebody pulled back
+    // since the page loaded is left alone, and reported.
     .in('status', ['shabad_linked', 'published'])
     .select('id');
   // postgrest-js hands its error back as a plain object, which the page's
