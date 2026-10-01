@@ -433,6 +433,13 @@ describe('publishing through UPDATE', () => {
       1
     );
     expect((await rendition(toPublish))?.status).toBe('published');
+    // That publish can be the contributor's 20th, and maybe_promote would make
+    // them trusted — every row below would then test a trusted account while
+    // saying "contributor". Put them back before anything else runs.
+    if ((await trustOf(contributorId)) !== 'contributor') {
+      allowed(await admin.rpc('set_trust', { target: contributorId, level: 'contributor' }));
+    }
+    expect(await trustOf(contributorId)).toBe('contributor');
   });
 
   it('and once it is published, its author can no longer edit it', async () => {
