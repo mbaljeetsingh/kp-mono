@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { canPublishRendition, draftSchema } from './admin';
+import { canPublishRendition, draftSchema, scanStatus } from './admin';
 
 const base = { track_id: 't1', name: 'Sorath Mahala 5', start_sec: 60, end_sec: 105 };
 
@@ -74,5 +74,68 @@ describe('canPublishRendition', () => {
   it('never offers it for something already published, or without the permission', () => {
     expect(canPublishRendition({ status: 'published', created_by: ME }, reviewer, ME)).toBe(false);
     expect(canPublishRendition({ status: 'draft', created_by: ME }, contributor, ME)).toBe(false);
+  });
+});
+
+describe('scanStatus', () => {
+  const asked = '2026-10-01T10:00:00Z';
+  const at = (iso: string) => Date.parse(iso);
+  const base = {
+    requested_at: asked,
+    started_at: null,
+    done_at: null,
+    run_url: null,
+    error: null,
+    findings: [],
+    ahead: null,
+  };
+  const run = 'https://github.com/o/r/actions/runs/1';
+
+  it('is done once done_at lands, whatever else the row says', () => {
+    expect(scanStatus({ ...base, done_at: '2026-10-01T10:09:00Z', error: 'x' }, 0).kind).toBe(
+      'done'
+    );
+  });
+
+  it('is starting for the first minutes, then waiting when no run has taken it', () => {
+    expect(scanStatus(base, at('2026-10-01T10:02:00Z')).kind).toBe('starting');
+    expect(scanStatus(base, at('2026-10-01T10:06:00Z')).kind).toBe('waiting');
+  });
+
+  it('is next in line, not waiting, while a run is busy with another request', () => {
+    const s = scanStatus({ ...base, ahead: { run_url: run } }, at('2026-10-01T10:30:00Z'));
+    expect(s).toEqual({ kind: 'behind', runUrl: run });
+  });
+
+  it('is scanning once a run takes it, and says which run', () => {
+    const s = scanStatus(
+      { ...base, started_at: '2026-10-01T10:01:00Z', run_url: run },
+      at('2026-10-01T10:20:00Z')
+    );
+    expect(s).toEqual({ kind: 'scanning', runUrl: run });
+  });
+
+  it('is failed with the reason, when the attempt for this ask failed', () => {
+    const s = scanStatus(
+      { ...base, started_at: '2026-10-01T10:01:00Z', error: 'could not fetch the recording' },
+      at('2026-10-01T10:20:00Z')
+    );
+    expect(s).toEqual({ kind: 'failed', error: 'could not fetch the recording', runUrl: null });
+  });
+
+  it('ignores a start from before the latest ask: that was an earlier attempt', () => {
+    const s = scanStatus(
+      { ...base, started_at: '2026-10-01T09:00:00Z' },
+      at('2026-10-01T10:01:00Z')
+    );
+    expect(s.kind).toBe('starting');
+  });
+
+  it('is stopped when a run took it longer ago than a run may last', () => {
+    const s = scanStatus(
+      { ...base, started_at: '2026-10-01T10:01:00Z', run_url: run },
+      at('2026-10-01T13:02:00Z')
+    );
+    expect(s).toEqual({ kind: 'stopped', runUrl: run });
   });
 });

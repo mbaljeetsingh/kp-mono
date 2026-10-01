@@ -120,22 +120,25 @@ export function escapeFilterValue(term: string): string {
   return `%${term.replace(/[(),]/g, '%')}%`;
 }
 
-/** Every scan request, by track: null while it waits or runs, done_at once scanned. */
-export type ScanStates = Record<string, string | null>;
+/**
+ * Every scan request, by track: queued while it waits or runs, failed when its
+ * last attempt did (it stays queued for a retry, last in line), done once
+ * scanned.
+ */
+export type ScanStates = Record<string, 'queued' | 'failed' | 'done'>;
 
 export async function fetchScanStates(client: KpClient): Promise<ScanStates> {
   // Fetched rather than joined into the view: the table is small — one row per
   // request, ever — and a second query keeps the view SQL untouched.
-  const { data, error } = await client.from('scan_requests').select('track_id,done_at');
+  const { data, error } = await client.from('scan_requests').select('track_id,done_at,error');
   // RLS returning nothing is an empty map, not an error. A real error — a
   // dropped request, a renamed column — must not look identical to it, or
   // every row offers Suggest on recordings already queued.
   if (error) throw error;
   return Object.fromEntries(
-    ((data ?? []) as { track_id: string; done_at: string | null }[]).map((r) => [
-      r.track_id,
-      r.done_at,
-    ])
+    ((data ?? []) as { track_id: string; done_at: string | null; error: string | null }[]).map(
+      (r) => [r.track_id, r.done_at ? 'done' : r.error ? 'failed' : 'queued']
+    )
   );
 }
 
@@ -152,7 +155,7 @@ export function useScanStates(client: KpClient, enabled: boolean) {
     queryFn: () => fetchScanStates(client),
     enabled,
     refetchInterval: (query) =>
-      Object.values(query.state.data ?? {}).some((done) => done === null) ? 60_000 : false,
+      Object.values(query.state.data ?? {}).some((state) => state === 'queued') ? 60_000 : false,
   });
 }
 
@@ -527,7 +530,9 @@ export async function requestScan(
 export async function rescan(client: KpClient, trackId: string, userId: string): Promise<void> {
   const { data, error } = await client
     .from('scan_requests')
-    .update({ done_at: null, requested_at: 'now()', requested_by: userId })
+    // The last attempt's error goes with it: this is a new ask, and until a
+    // run takes it the page must say queued, not failed.
+    .update({ done_at: null, requested_at: 'now()', requested_by: userId, error: null })
     .eq('track_id', trackId)
     .select('track_id');
   if (error) throw error;
@@ -551,9 +556,23 @@ export interface ScanFinding {
 }
 
 export interface ScanRequest {
+  requested_at: string;
+  /** When a run last took it; before requested_at = an earlier attempt's. */
+  started_at: string | null;
   done_at: string | null;
+  /** That run, on GitHub (a check constraint keeps it one). */
+  run_url: string | null;
+  /** Why the last attempt failed. */
+  error: string | null;
   findings: ScanFinding[];
+  /** The request a run is scanning right now, when it is another one: this one is next. */
+  ahead: { run_url: string | null } | null;
 }
+
+/** scan.yml's timeout-minutes: a start this old and unfinished is a run that died. */
+export const SCAN_RUN_MAX_MS = 180 * 60_000;
+/** A dispatched run takes its request within a minute or two; this long with no start, none did. */
+export const SCAN_START_WAIT_MS = 5 * 60_000;
 
 export async function getScanRequest(
   client: KpClient,
@@ -561,16 +580,68 @@ export async function getScanRequest(
 ): Promise<ScanRequest | null> {
   const { data, error } = await client
     .from('scan_requests')
-    .select('track_id,done_at,findings')
+    .select('track_id,requested_at,started_at,done_at,run_url,error,findings')
     .eq('track_id', trackId)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const row = data as { done_at: string | null; findings: ScanFinding[] | null };
+  const row = data as Omit<ScanRequest, 'findings' | 'ahead'> & { findings: ScanFinding[] | null };
+  // One run scans at a time (scan.yml's concurrency group), and it takes the
+  // next request when it finishes the one in hand. A request asked for during
+  // a long scan waits behind it, which is not the same as no run coming.
+  let ahead: ScanRequest['ahead'] = null;
+  if (!row.done_at) {
+    const { data: running, error: aheadError } = await client
+      .from('scan_requests')
+      .select('run_url')
+      .neq('track_id', trackId)
+      .is('done_at', null)
+      .is('error', null)
+      .gt('started_at', new Date(Date.now() - SCAN_RUN_MAX_MS).toISOString())
+      .limit(1);
+    if (aheadError) throw aheadError;
+    const first = (running ?? [])[0] as { run_url: string | null } | undefined;
+    ahead = first ? { run_url: first.run_url } : null;
+  }
   return {
+    requested_at: row.requested_at,
+    started_at: row.started_at,
     done_at: row.done_at,
+    run_url: row.run_url,
+    error: row.error,
     findings: [...(row.findings ?? [])].sort((a, b) => a.start - b.start),
+    ahead,
   };
+}
+
+export type ScanStatus =
+  | { kind: 'done' }
+  | { kind: 'scanning'; runUrl: string | null }
+  | { kind: 'failed'; error: string; runUrl: string | null }
+  /** Taken, then its run ended without a word — cancelled, or past its timeout. */
+  | { kind: 'stopped'; runUrl: string | null }
+  /** Next after the scan a run has in hand. */
+  | { kind: 'behind'; runUrl: string | null }
+  | { kind: 'starting' }
+  /** No run has taken it: the dispatch did not start one, and the nightly sweep will. */
+  | { kind: 'waiting' };
+
+/**
+ * Where a scan request stands, from its row and the time now. Times compared
+ * with each other are all the server's; only how long ago is the browser's.
+ */
+export function scanStatus(r: ScanRequest, now: number): ScanStatus {
+  if (r.done_at) return { kind: 'done' };
+  const asked = Date.parse(r.requested_at);
+  const started = r.started_at ? Date.parse(r.started_at) : null;
+  if (started !== null && started >= asked) {
+    if (r.error) return { kind: 'failed', error: r.error, runUrl: r.run_url };
+    return now - started < SCAN_RUN_MAX_MS
+      ? { kind: 'scanning', runUrl: r.run_url }
+      : { kind: 'stopped', runUrl: r.run_url };
+  }
+  if (r.ahead) return { kind: 'behind', runUrl: r.ahead.run_url };
+  return now - asked < SCAN_START_WAIT_MS ? { kind: 'starting' } : { kind: 'waiting' };
 }
 
 export function useScanRequest(client: KpClient, trackId: string) {
