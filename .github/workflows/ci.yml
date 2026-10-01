@@ -7,6 +7,8 @@
 # One job rather than four in parallel: the whole thing takes about two minutes,
 # and turbo's cache means a second run over untouched packages is nearly free.
 # Four jobs would each pay the install cost to save less than the install costs.
+# The permission matrix is the exception, and has its own job below: it needs
+# Docker and a Supabase stack, which cost more than the install it repeats.
 name: ci
 on:
   push:
