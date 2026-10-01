@@ -92,8 +92,8 @@ the whole recording (cached per track under `track/` in the `transcripts`
 bucket) and reads everything off that one transcript:
 
 1. **Shortlist** the 16 shabads whose lines win the most windows across the
-   Guru Granth Sahib and Bhai Gurdas Ji's Vaaran (`corpus.py`, fetched once
-   from BaniDB's ang endpoint). BaniDB word search on CTC transcripts missed
+   Guru Granth Sahib and Bhai Gurdas Ji's Vaaran and Kabit (`corpus.py`,
+   fetched once from BaniDB). BaniDB word search on CTC transcripts missed
    the right shabad on most recordings.
 2. **Regions** from per-second evidence per shortlisted shabad, smoothed over a
    minute; a short run of one shabad between two runs of another is a quote
