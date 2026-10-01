@@ -450,6 +450,40 @@ export async function setRenditionStatus(
   }
 }
 
+/**
+ * One-click accept: publish the scan drafts a reviewer has checked, together.
+ *
+ * One statement, so the align dispatch trigger fires once for the batch, not
+ * once per draft a re-cut sent back to align's queue. By id rather than "every
+ * scan draft on the recording", so it publishes only the drafts the page
+ * showed. Counted, because RLS can filter part of the batch as silently as
+ * all of it.
+ */
+export async function acceptScanDrafts(client: KpClient, ids: string[]): Promise<void> {
+  const { data, error } = await client
+    .from('renditions')
+    // No updated_at: the touch trigger stamps real changes, and leaving it out
+    // keeps a row that is already published a no-op rather than an edit.
+    .update({ status: 'published' })
+    .in('id', ids)
+    // For a reviewer, already published counts as done — a second tab, a press
+    // repeated over stale rows. (RLS hides a published row from anyone else,
+    // so for them it is reported as changed.) A draft somebody pulled back
+    // since the page loaded is left alone, and reported.
+    .in('status', ['shabad_linked', 'published'])
+    .select('id');
+  // postgrest-js hands its error back as a plain object, which the page's
+  // `instanceof Error` reads as "Failed" — losing "your sign-in is being
+  // renewed" and every message like it.
+  if (error) throw new Error(error.message, { cause: error });
+  const done = data?.length ?? 0;
+  if (done < ids.length) {
+    throw new Error(
+      `${done} of ${ids.length} published. The rest weren't permitted, or changed since this page loaded.`
+    );
+  }
+}
+
 export async function deleteRendition(client: KpClient, id: string): Promise<void> {
   // Same as the status change: a DELETE the policy filters out succeeds with
   // nothing deleted.
