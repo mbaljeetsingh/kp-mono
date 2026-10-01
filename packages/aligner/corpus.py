@@ -124,3 +124,51 @@ def shortlist(windows, k, cache_dir, store=True):
         if row.max() >= VOTE_FLOOR:
             votes[int(shabads[row.argmax()])] += 1
     return votes.most_common(k)
+
+
+# How well a shabad's lines match Gurbani they are not: its score on text that
+# is not it. A shabad scores its best line, so a long composition (Oankar,
+# 399 lines) finds a near match for almost anything — on one puratan
+# recording it held 60-75 on every window while the shabad being sung fell to
+# 50-60 between its own lines, and won the recording (#84). The scan
+# subtracts only what a shabad gets above a typical one, so a shabad of
+# ordinary length keeps its score and the thresholds keep their scale.
+BG_N, REF_N = 300, 400
+_bg, _ref = None, None
+
+
+def _background(cache_dir):
+    """BG_N pieces of Gurbani a window's length (two consecutive lines),
+    drawn at random but the same every run: [(shabad_id, folded text)]."""
+    rows = source_lines("G", cache_dir, store=False)
+    rng = np.random.default_rng(84)
+    out = []
+    for i in rng.choice(len(rows) - 1, BG_N, replace=False):
+        out.append((rows[i][0], align.fold(rows[i][1] + " " + rows[i + 1][1])))
+    return out
+
+
+def _chance_one(bg, sid, lines):
+    texts = [t for s, t in bg if s != sid]
+    m = process.cdist(texts, lines, scorer=fuzz.partial_ratio, workers=-1)
+    return float(m.max(axis=1).mean()) / 100.0
+
+
+def chance(blocks, cache_dir):
+    """{shabad_id: excess chance (0-1)} for {shabad_id: [folded lines]}: how
+    much more than a typical shabad its best line matches unrelated text."""
+    global _bg, _ref
+    if _bg is None:
+        _bg = _background(cache_dir)
+        by = collections.defaultdict(list)
+        for sid, text in lines(cache_dir, store=False):
+            f = align.fold(text)
+            if len(f) >= MIN_CHARS:
+                by[sid].append(f)
+        rng = np.random.default_rng(85)
+        keys = sorted(by)
+        pick = rng.choice(len(keys), REF_N, replace=False)
+        _ref = float(np.median([_chance_one(_bg, keys[i], by[keys[i]])
+                                for i in pick]))
+    return {sid: max(0.0, _chance_one(_bg, sid, ls) - _ref)
+            for sid, ls in blocks.items()}
