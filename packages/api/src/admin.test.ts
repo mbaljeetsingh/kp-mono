@@ -186,10 +186,10 @@ describe('acceptScanDrafts', () => {
 
   it('throws the server error as an Error, so the page can show its message', async () => {
     // postgrest-js returns a plain object; the page reads anything that is not
-    // an Error as "Failed".
+    // an Error as "Failed". The code is what marks the message as PostgREST's.
     const { client } = fakeClient({
       data: null,
-      error: { message: 'Your sign-in is being renewed. Try again in a moment.' },
+      error: { code: 'PGRST301', message: 'Your sign-in is being renewed. Try again in a moment.' },
     });
     const accepting = acceptScanDrafts(client, ['a']);
     await expect(accepting).rejects.toBeInstanceOf(Error);

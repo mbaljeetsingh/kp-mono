@@ -5,8 +5,7 @@
  * move them into.
  */
 
-import { toPlayable, type Playable } from '@kp/core';
-import { signOut, toError } from '@kp/api';
+import { shabadsByIds, signOut } from '@kp/api';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -27,19 +26,7 @@ export default function SavedScreen() {
 
   const query = useQuery({
     queryKey: ['favorites', 'rows', ids],
-    queryFn: async (): Promise<Playable[]> => {
-      if (!ids.length) return [];
-      const { data, error } = await supabase.from('shabads').select('*').in('id', ids);
-      if (error) throw toError(error);
-      const rows = (data ?? []) as Record<string, unknown>[];
-      // Ordered by the saved list: somebody put these in an order and an
-      // `in.()` filter does not preserve it.
-      const byId = new Map(rows.map((r) => [r.id as string, r]));
-      return ids
-        .map((id) => byId.get(id))
-        .filter(Boolean)
-        .map((r) => toPlayable(r as never));
-    },
+    queryFn: () => shabadsByIds(supabase, ids),
     enabled: ids.length > 0,
   });
 

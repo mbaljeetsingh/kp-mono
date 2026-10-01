@@ -111,6 +111,12 @@ export function PlaylistsRoute() {
                   onClick={() => {
                     const name = window.prompt('Rename playlist', playlist.name);
                     if (name && name.trim() && name !== playlist.name) {
+                      // playlists_name_check, which a prompt has no maxLength
+                      // for: past it, the rename failed with no reason given.
+                      if (name.trim().length > 120) {
+                        toast.error('A playlist name can be up to 120 characters.');
+                        return;
+                      }
                       void rename
                         .mutateAsync({ id: playlist.id, name })
                         .catch(() => toast.error('Could not rename'));
