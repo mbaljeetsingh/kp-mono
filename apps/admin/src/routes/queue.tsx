@@ -356,7 +356,7 @@ export function QueueRoute() {
               <ListChecks className="size-5 text-muted-foreground" aria-hidden />
               <p className="text-sm font-medium">No suggestions waiting</p>
               <p className="text-xs text-muted-foreground">
-                Each night the scanner suggests shabads for up to three recordings nobody asked for.
+                Each night the scanner suggests shabads for up to eight recordings nobody asked for.
                 They show up here.
               </p>
             </div>
