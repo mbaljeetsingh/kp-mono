@@ -20,10 +20,15 @@
 --    and the same line can be two verses: 33 shabads in the Guru Granth Sahib
 --    repeat a line (shabad 54's refrain is four), and six are near-copies of
 --    another (52 and 510). Moving between two copies sends the same, correct
---    text, and the guard threw it away. What only a writer that does not know
---    the column does is rename the row for its new line and leave the old
---    Gurmukhi beside it — the workbench before this change did exactly that
---    when a line was clicked — so that is what clears it now. And with no
+--    text, and the guard threw it away. It now tells the cases apart as far
+--    as a trigger can. Another shabad with the Gurmukhi unchanged is still
+--    cleared: that is a writer that does not know the column re-linking — an
+--    old workbench tab keeps a typed name across a re-link, so the name tells
+--    nothing — and another shabad's Gurmukhi is worse than none; the six
+--    near-copies are the price. Another line of the same shabad is cleared
+--    only when the row was renamed for it and the Gurmukhi was not, which is
+--    what the old workbench did on a line click. Moving between identical
+--    lines of one shabad renames nothing, and keeps its title. And with no
 --    shabad there is no line: unlinking clears it, whoever does it.
 --
 -- A correction to the earlier file's comments, which cannot be edited: they
@@ -71,10 +76,10 @@ language plpgsql set search_path = '' as $$
 begin
   if new.shabad_id is null then
     new.name_gurmukhi := null;
-  elsif (new.shabad_id is distinct from old.shabad_id
-         or new.main_verse_id is distinct from old.main_verse_id)
-        and new.name is distinct from old.name
-        and new.name_gurmukhi is not distinct from old.name_gurmukhi then
+  elsif new.name_gurmukhi is not distinct from old.name_gurmukhi
+        and (new.shabad_id is distinct from old.shabad_id
+             or (new.main_verse_id is distinct from old.main_verse_id
+                 and new.name is distinct from old.name)) then
     new.name_gurmukhi := null;
   end if;
   return new;
@@ -82,7 +87,7 @@ end;
 $$;
 
 comment on function private.gurmukhi_follows_anchor() is
-  'Clears name_gurmukhi when a rendition loses its shabad, or when an update '
-  'moves the anchor and renames the row but leaves name_gurmukhi as it was: '
-  'a writer that does not know the column. Moving between identical lines, '
-  'which renames nothing, keeps it.';
+  'Clears name_gurmukhi when a rendition loses its shabad, moves to another '
+  'shabad without it, or moves to another line of its shabad and is renamed '
+  'without it: a writer that does not know the column. Moving between '
+  'identical lines of one shabad, which renames nothing, keeps it.';
