@@ -41,20 +41,17 @@ The queue is the data: every **published** rendition with `shabad_id` set and
 compute waits for, and re-cutting a rendition's boundaries re-queues it
 automatically (a trigger clears its timings). Renditions whose audio does not
 match their tagged shabad (confidence < 0.6) are **skipped and reported**, not
-written — that gate has already caught one real mistag. Flags: `--dry-run`
-writes nothing anywhere — no timings, no transcripts — so it is safe to point
-at prod, and with `--all` it says how far each re-time moved from the stored
-timings; `--limit N` caps how many renditions a run ALIGNS
-(refused ones do not count against it, so a permanently mistagged row cannot
-starve the queue); `--deadline-min N` stops starting renditions that will not
-fit in N minutes, which is the bound a CI timeout actually enforces; `--all`
-re-aligns already-timed renditions (after a matcher improvement); `--only
-<id-prefix>` restricts to one and overrides `--limit`, so a targeted run cannot
-silently miss a rendition that is not among the oldest rows.
-
-A run that aligns nothing because every rendition at the head of the queue was
-refused reports `JAMMED` and exits non-zero: nothing behind those rows can be
-reached until a human reviews their tags.
+written — that gate has already caught one real mistag. A refused rendition
+stays queued and is reported every run; once its recording is transcribed it
+costs seconds, so nothing waits behind it. Flags: `--dry-run` writes nothing to
+the project — no timings, no transcript uploads — so it is safe to point at
+prod (what it transcribes stays in the local `cache/`); `--limit N` caps how
+many renditions a run ALIGNS (refused ones do not count against it);
+`--deadline-min N` starts no transcription that would not finish within N
+minutes, which is the bound a CI timeout actually enforces; `--all` re-aligns
+already-timed renditions (after a matcher improvement) and says how far each
+one moved from its stored timings; `--only <id-prefix>` restricts to one and
+overrides `--limit` and the deadline, so a targeted run is never cut short.
 
 Each rendition is read off its recording's transcript: the scan's two passes
 over the whole recording, sliced to the rendition's span. A recording nobody

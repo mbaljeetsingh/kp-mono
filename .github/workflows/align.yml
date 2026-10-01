@@ -23,16 +23,17 @@
 # So --limit 20 --deadline-min 60. Two different bounds, because neither is
 # sufficient alone:
 #
-#   --limit 20 bounds renditions ALIGNED, not rows fetched. A rendition the
-#   confidence gate refuses never gets timings, so it stays at the head of a
-#   created_at.asc queue forever; counted against the limit it would retire one
-#   of the night's slots permanently (see SKIP_BUDGET in write_timings.py).
+#   --limit 20 bounds renditions ALIGNED. A rendition the confidence gate
+#   refuses never gets timings, so it stays queued forever; counted against
+#   the limit it would retire one of the night's slots permanently. Once its
+#   recording is transcribed it costs seconds a run.
 #
 #   --deadline-min 60 bounds the clock, which is what this timeout actually
 #   enforces. The job projects what each recording it would have to
-#   transcribe costs from its length (CI_RTF, rounded up) and defers what will
-#   not fit. The first one of a run always goes; a 3-hour recording (~45
-#   minutes) still ends inside timeout-minutes.
+#   transcribe costs from its length (CI_RTF, rounded up) and starts it only
+#   if that fits what is left of the 60 minutes — or, for the run's first,
+#   all 60. A 3-hour recording (~45 minutes measured, 54 projected) still
+#   ends inside timeout-minutes; one too long for any run never starts.
 #
 # History worth keeping: under surt-small-v3 (Whisper) this job was RTF ~6-9 —
 # every window padded to a 30s mel input and re-encoded by both passes — and
