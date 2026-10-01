@@ -244,6 +244,8 @@ export function SegmentEditor({
     void queryClient.invalidateQueries({ queryKey: ['recording', trackId] });
     // Everything this form does changes what is waiting for review.
     void queryClient.invalidateQueries({ queryKey: ['pending'] });
+    // Deleting a scan draft also drops the scan's pointers to that shabad.
+    void queryClient.invalidateQueries({ queryKey: ['scan-request', trackId] });
   }
 
   async function run(work: () => Promise<unknown>, done = onSaved) {
@@ -638,7 +640,11 @@ export function SegmentEditor({
             className="ml-auto text-destructive hover:text-destructive"
             onClick={() => {
               // Deleting a tag throws away someone's listening, so it asks.
-              if (confirm(`Delete “${editing.name}”? This cannot be undone.`)) {
+              if (
+                confirm(
+                  `Delete “${editing.name}”? This cannot be undone.${editing.source === 'scan' ? " The scanner won't suggest it for this recording again." : ''}`
+                )
+              ) {
                 void run(() => deleteRendition(supabase, editing.id));
               }
             }}
