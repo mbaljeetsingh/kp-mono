@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { canPublishRendition, draftSchema, scanStatus } from './admin';
+import { acceptScanDrafts, canPublishRendition, draftSchema, scanStatus } from './admin';
+import type { KpClient } from './client';
 
 const base = { track_id: 't1', name: 'Sorath Mahala 5', start_sec: 60, end_sec: 105 };
 
@@ -137,5 +138,61 @@ describe('scanStatus', () => {
       at('2026-10-01T13:02:00Z')
     );
     expect(s).toEqual({ kind: 'stopped', runUrl: run });
+  });
+});
+
+describe('acceptScanDrafts', () => {
+  /** Records the one statement the call builds, and answers with `result`. */
+  function fakeClient(result: { data: { id: string }[] | null; error: unknown }) {
+    const calls: string[] = [];
+    const builder = {
+      update: (values: unknown) => {
+        calls.push(`update ${JSON.stringify(values)}`);
+        return builder;
+      },
+      in: (col: string, values: string[]) => {
+        calls.push(`in ${col} ${values.join(',')}`);
+        return builder;
+      },
+      select: () => Promise.resolve(result),
+    };
+    const client = {
+      from: (table: string) => {
+        calls.push(`from ${table}`);
+        return builder;
+      },
+    };
+    return { client: client as unknown as KpClient, calls };
+  }
+
+  it('publishes the batch in one statement, by id, counting rows already published as done', async () => {
+    const { client, calls } = fakeClient({ data: [{ id: 'a' }, { id: 'b' }], error: null });
+    await acceptScanDrafts(client, ['a', 'b']);
+    expect(calls).toEqual([
+      'from renditions',
+      'update {"status":"published"}',
+      'in id a,b',
+      'in status shabad_linked,published',
+    ]);
+  });
+
+  it('says how many went through when RLS filters part or all of the batch', async () => {
+    // A filtered batch comes back without an error, exactly like a whole one.
+    const part = fakeClient({ data: [{ id: 'a' }], error: null }).client;
+    await expect(acceptScanDrafts(part, ['a', 'b'])).rejects.toThrow('1 of 2 published');
+    const none = fakeClient({ data: [], error: null }).client;
+    await expect(acceptScanDrafts(none, ['a', 'b'])).rejects.toThrow('0 of 2 published');
+  });
+
+  it('throws the server error as an Error, so the page can show its message', async () => {
+    // postgrest-js returns a plain object; the page reads anything that is not
+    // an Error as "Failed".
+    const { client } = fakeClient({
+      data: null,
+      error: { message: 'Your sign-in is being renewed. Try again in a moment.' },
+    });
+    const accepting = acceptScanDrafts(client, ['a']);
+    await expect(accepting).rejects.toBeInstanceOf(Error);
+    await expect(accepting).rejects.toThrow('Your sign-in is being renewed');
   });
 });

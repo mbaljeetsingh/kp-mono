@@ -7,6 +7,7 @@
  * and that is exactly the behaviour a tagger needs turned off.
  */
 import {
+  acceptScanDrafts,
   canPublishRendition,
   nextUntaggedPuratan,
   requestScan,
@@ -114,6 +115,9 @@ function Workbench({ id }: { id: string }) {
   }, [scanQueued, scanDoneAt, queryClient, id]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
+  /** One-click accept, below the segments heading. */
+  const [accepting, setAccepting] = useState(false);
+  const [acceptError, setAcceptError] = useState<string | null>(null);
   const scanAgain = () =>
     void rescan(supabase, id, userId)
       .then(() => queryClient.invalidateQueries({ queryKey: ['scan-request', id] }))
@@ -328,6 +332,8 @@ function Workbench({ id }: { id: string }) {
    * segments should be one mark each.
    */
   const onSaved = useCallback(() => {
+    // Any change through the editor makes a batch's "4 of 5" out of date.
+    setAcceptError(null);
     if (editing || wholeFile) newForm(null, null);
     else newForm(end, null);
   }, [editing, wholeFile, end, newForm]);
@@ -463,23 +469,72 @@ function Workbench({ id }: { id: string }) {
   };
 
   function refreshRows() {
-    void queryClient.invalidateQueries({ queryKey: ['renditions', id] });
-    void queryClient.invalidateQueries({ queryKey: ['recordings'] });
-    void queryClient.invalidateQueries({ queryKey: ['pending'] });
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['renditions', id] }),
+      queryClient.invalidateQueries({ queryKey: ['recordings'] }),
+      queryClient.invalidateQueries({ queryKey: ['pending'] }),
+    ]);
   }
 
   /** Publishing is reversible: only `published` is visible, so pulling one back loses nothing. */
   async function setPublished(r: Rendition, published: boolean) {
     setRowError(({ [r.id]: _, ...rest }) => rest);
+    // A partial batch's "4 of 5" stops being true once a row changes by hand.
+    setAcceptError(null);
     try {
       await setRenditionStatus(supabase, r.id, published ? 'published' : 'draft');
     } catch (e) {
       setRowError((m) => ({ ...m, [r.id]: e instanceof Error ? e.message : 'Failed' }));
     }
-    refreshRows();
+    void refreshRows();
   }
 
   const perms = { review: can['renditions.review'], publish: can['renditions.publish'] };
+  /**
+   * The open row publishes through the editor's Update and publish: its moved
+   * edges live in this page until saved, and publishing it from the list put
+   * the old ones live.
+   */
+  const publishableFromList = (r: Rendition) =>
+    r.id !== editing?.id && canPublishRendition(r, perms, userId);
+
+  /*
+   * One-click accept: the scan drafts this reviewer can publish, offered
+   * together from two up — one has its own row button. shabad_linked is what
+   * the scanner writes; a scan row at 'draft' is one somebody unpublished, and
+   * pulling it out of the player was a decision. Not while one of them is open
+   * in the editor, for the reason above, nor while this recording is being
+   * scanned: a rescan adds drafts for shabads it newly finds, and they would
+   * join a batch the reviewer had already checked, the count changing under
+   * the button.
+   */
+  const suggestions = rows.filter(
+    (r) =>
+      r.source === 'scan' && r.status === 'shabad_linked' && canPublishRendition(r, perms, userId)
+  );
+  const scanKind =
+    scan.data && !scan.data.done_at ? scanStatus(scan.data, scan.dataUpdatedAt).kind : null;
+  const scanUnderway = scanKind === 'starting' || scanKind === 'scanning' || scanKind === 'behind';
+  const offerAccept =
+    suggestions.length >= 2 && !suggestions.some((r) => r.id === editing?.id) && !scanUnderway;
+
+  async function acceptSuggestions() {
+    const ids = suggestions.map((r) => r.id);
+    setAccepting(true);
+    setAcceptError(null);
+    // A row's earlier failure is about to be retried, so it stops being news.
+    setRowError((m) => Object.fromEntries(Object.entries(m).filter(([k]) => !ids.includes(k))));
+    try {
+      await acceptScanDrafts(supabase, ids);
+    } catch (e) {
+      setAcceptError(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      // Busy until the rows are back, so the bar doesn't offer the same
+      // drafts again in between.
+      await refreshRows();
+      setAccepting(false);
+    }
+  }
 
   return (
     <section className="flex flex-col gap-5">
@@ -762,6 +817,28 @@ function Workbench({ id }: { id: string }) {
               ) : null}
             </div>
 
+            {offerAccept ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2">
+                <Sparkles className="size-4 shrink-0 text-primary" />
+                <p className="min-w-56 flex-1 text-sm">
+                  {suggestions.length} suggestions from the scan.{' '}
+                  <span className="text-muted-foreground">
+                    Listen across the edges, fix or delete any that are wrong, then publish the rest
+                    together.
+                  </span>
+                </p>
+                <Button size="sm" disabled={accepting} onClick={() => void acceptSuggestions()}>
+                  <Send className="size-3.5" />
+                  {accepting ? 'Publishing…' : `Publish all ${suggestions.length}`}
+                </Button>
+              </div>
+            ) : null}
+            {acceptError ? (
+              <p role="alert" className="text-xs text-destructive">
+                {acceptError}
+              </p>
+            ) : null}
+
             {rows.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
                 {wholeFile
@@ -807,7 +884,7 @@ function Workbench({ id }: { id: string }) {
                       error={rowError[item.r.id]}
                       canEdit={canEdit(item.r)}
                       canReview={perms.review}
-                      canPublish={canPublishRendition(item.r, perms, userId)}
+                      canPublish={publishableFromList(item.r)}
                       onPlay={() => playFrom(Number(item.r.start_sec))}
                       onAudition={player.auditionBoundary}
                       onEdit={() => editRendition(item.r)}
