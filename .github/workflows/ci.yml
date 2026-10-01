@@ -62,3 +62,34 @@ jobs:
       # Last, because it is the slowest and a broken build is nearly always a
       # symptom of something the three steps above already caught.
       - run: pnpm build
+
+  # The permission matrix (packages/api/src/permissions.db.test.ts), against a
+  # database built from nothing on this runner: every migration, then the
+  # committed seed, exactly as `supabase db reset` would — so a migration that
+  # no longer applies from scratch fails here, not on the next fresh project.
+  #
+  # Its own job, in parallel with the one above: it pays for Docker images,
+  # which that job has no use for. No secrets at all — it talks only to the
+  # stack it starts, with that stack's own local keys, and the config refuses
+  # any URL that is not 127.0.0.1.
+  permissions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Only what the matrix talks to: Postgres, PostgREST, Auth and the
+      # gateway in front of them. Storage stays, since a migration creates
+      # buckets. Everything else is minutes of image pulls for nothing.
+      - run: >-
+          pnpm exec supabase start
+          -x studio,imgproxy,edge-runtime,logflare,vector,realtime,mailpit,postgres-meta,supavisor
+
+      - run: pnpm test:db

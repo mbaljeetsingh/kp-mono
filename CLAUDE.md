@@ -27,11 +27,12 @@ pnpm --filter @kp/mobile ios                 # native build + simulator; then `n
 pnpm db:start                                # local Supabase: API :54521, DB :54522, Studio :54523
 pnpm lint && pnpm typecheck && pnpm test     # CI runs these, plus the checks below
 pnpm format:check && pnpm tokens:check && pnpm theme:check && pnpm build
+pnpm test:db                                 # RLS permission matrix against the local stack (cleans up after itself)
 pnpm pipeline                                # scan then align against the local stack
 cd packages/aligner && uv venv && uv pip install -e .   # once, for the Python tools
 ```
 
-CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, lint, typecheck, test and build on every PR. `scan.yml`/`align.yml` start as soon as there is work — a database trigger dispatches them (`supabase/migrations/20260930000000_dispatch_scan_and_align.sql`) — and also run nightly as a sweep; the nightly scan then scans up to eight recordings nobody asked for (ragi-wise, untagged: #41). `crawl.yml` runs weekly. All run against the deployed project. `scan.yml` can also be run by hand with a `track_id` (one queued recording), `backfill` (the nightly eight) or `eval` (read-only measurement of the scan against published tags).
+CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, lint, typecheck, test and build on every PR, and in a second job starts a fresh local Supabase (every migration plus the seed) and runs the permission matrix (`packages/api/src/permissions.db.test.ts`): each RLS rule asked in both directions. A new policy, grant or definer function gets a row there. `scan.yml`/`align.yml` start as soon as there is work — a database trigger dispatches them (`supabase/migrations/20260930000000_dispatch_scan_and_align.sql`) — and also run nightly as a sweep; the nightly scan then scans up to eight recordings nobody asked for (ragi-wise, untagged: #41). `crawl.yml` runs weekly. All run against the deployed project. `scan.yml` can also be run by hand with a `track_id` (one queued recording), `backfill` (the nightly eight) or `eval` (read-only measurement of the scan against published tags).
 
 ## Supabase — read this before touching the database
 
@@ -55,7 +56,7 @@ CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, li
 - **Data access goes through `@kp/api`** (queries, schemas, hooks); domain rules through `@kp/core`. Apps don't talk to Supabase or re-derive those rules themselves.
 - **ESLint enforces the rules of hooks** — that's where this codebase's bugs have lived. Don't write refs during render; see the known-warnings note in architecture.md before "fixing" one.
 - **Comments explain why**, often with the incident that forced the code. Match the density of the file you're in; keep a comment accurate when the code under it changes.
-- **Tests**: Vitest, in `core`, `playback` and `api`. There is no E2E; UI changes are verified in the browser (preview tools / Simulator) before they're called done.
+- **Tests**: Vitest, in `core`, `playback` and `api` (`*.db.test.ts` only under `pnpm test:db`, never `pnpm test`). There is no E2E; UI changes are verified in the browser (preview tools / Simulator) before they're called done.
 - **Design**: gold palette, Newsreader for Latin and Noto Serif Gurmukhi for Gurbani (Google Fonts), three text tiers; mockup first for new UI.
 - **Commits and PR titles**: `area[, area]: what changed, in plain words` — e.g. `aligner: …`, `player, mobile: …`, lowercase area, no conventional-commit prefixes.
 - Don't add dependencies without asking. Formatting is Prettier; a PostToolUse hook formats edited files.
