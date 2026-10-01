@@ -210,7 +210,7 @@ for r in sorted(rends, key=lambda x: x["name"]):
             need = (f"~{projected:.0f} min" if projected is not None
                     else "an unknown time")
             print(f"── deferring {r['name']} — its recording needs {need} of "
-                  f"ASR, {left:.0f} min left in the {args.deadline_min}-minute "
+                  f"ASR, {max(left, 0):.0f} min left in the {args.deadline_min}-minute "
                   f"budget\n")
             deferred += 1
             continue
@@ -257,6 +257,7 @@ for r in sorted(rends, key=lambda x: x["name"]):
         for t in timings[:4]:
             print(f"    {t['start']:.0f}-{t['end']:.0f}s  verse {t['verse_id']}")
         print()
+        written += 1
         continue
 
     # Only onto the rendition these timings are for. A re-cut or re-tag since
