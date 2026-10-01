@@ -415,8 +415,18 @@ def settled_share(t0, t1, spans):
 
 def write_drafts(track_id, found, shabads, owner=None):
     rows = api(f"{SB}/renditions?track_id=eq.{track_id}"
-               f"&select=shabad_id,status,start_sec,end_sec")
-    existing = {r["shabad_id"] for r in rows}
+               f"&select=shabad_id,status,start_sec,end_sec,source,scan_verdict")
+    # Already here: as people have it, and as the scanner drafted it — a scan
+    # draft a tagger re-linked still records what was suggested, and that
+    # suggestion has had its answer.
+    existing = {r["shabad_id"] for r in rows} | {
+        (r.get("scan_verdict") or {}).get("shabad_id")
+        for r in rows if r.get("source") == "scan"}
+    # A scan draft a person deleted is a rejection: that shabad is not
+    # suggested here again, as a draft or as a pointer
+    # (20260930010000_rejected_scan_drafts.sql).
+    rejected = {x["shabad_id"] for x in api(
+        f"{SB}/scan_rejections?track_id=eq.{track_id}&select=shabad_id")}
     # What a person published is settled. The scan still hears those minutes —
     # the transcript is the recording's, and the edges of a shabad beside a
     # published one are placed from the audio around them — but it does not
@@ -435,6 +445,10 @@ def write_drafts(track_id, found, shabads, owner=None):
         if settled_share(t0, t1, published) >= SETTLED:
             print(f"  leaving {t0:.0f}-{t1:.0f}s alone (shabad {sid}): "
                   f"it lies inside a published rendition")
+            continue
+        if sid in rejected:
+            print(f"  not suggesting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
+                  f"rejected on this recording")
             continue
         if align_conf is None:
             print(f"  not drafting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
@@ -476,7 +490,10 @@ def write_drafts(track_id, found, shabads, owner=None):
             "line_timings": timings or None,
             # The edges are in it: a tagger who re-cuts the draft changes
             # start_sec/end_sec, and the verdict must still say what it judged.
+            # shabad_id too: a tagger who re-tags the draft changes the row's,
+            # and the trial (scan_draft_outcomes) has to see that it did.
             "scan_verdict": {"start": round(t0, 2), "end": round(t1, 2),
+                             "shabad_id": sid,
                              "confidence": round(conf, 3),
                              "margin": round(margin, 3),
                              "align_confidence": round(align_conf, 3),
