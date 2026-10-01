@@ -6,15 +6,25 @@
  * programme it appears as "Man Bairagi Ja Sabad Bhau Khai", not
  * "man bairaagee jaa sabadh bhau khai ||".
  *
- * This normalises toward the common spelling so an auto-filled name is one a
- * person would recognise. It is a starting point, not an authority — spellings
- * genuinely vary, so the tagger can always edit what lands in the field.
+ * This normalises toward the common spelling. With a shabad linked it is the
+ * name, not a suggestion: the workbench stopped offering a field to type one
+ * (#77), because a typed name could drift from the Gurmukhi beside it. So a
+ * spelling worth fixing is fixed here, once, for every rendition — and in
+ * packages/aligner/names.py, which the scanner and fill_names.py use, and
+ * which shabad-name.cases.json holds to the same answers.
  */
 const RULES: [RegExp, string][] = [
-  [/\|\||॥|।/g, ''], // verse bars
+  // The rahao marker, and the second one. It labels the line in the book; a
+  // title that ends in "Rahau" is the label read out. First, while it is
+  // still spelled the way BaniDB spells it.
+  [/\brahaau(\s+dhoojaa)?\b/gi, ''],
+  [/\|+|॥|।/g, ' '], // verse bars, single ones too: Bhai Gurdas's lines end in |
   [/\d+/g, ''], // verse numbers
   [/\(n\)/gi, 'n'], // nasal marker: too(n) -> toon
   [/\(nn\)/gi, 'n'],
+  // Subscript ha (ਨ੍ਹ): jin(h)aa -> jinha. Left alone, title case turned it
+  // into "Jin(H)A", which the scanner's pointers showed.
+  [/\(h\)/gi, 'h'],
   [/aa/gi, 'a'], // bairaagee -> bairagi
   [/oo/gi, 'u'], // too -> tu
   [/ee/gi, 'i'], // bairaagee -> bairagi
@@ -38,4 +48,55 @@ export function prettyShabadName(transliteration: string): string {
       // on spaces also capitalises after a hyphen ("Ik-Oankar").
       .replace(/[\p{L}\p{M}']+/gu, (w) => w[0]!.toUpperCase() + w.slice(1).toLowerCase())
   );
+}
+
+/**
+ * The same line as a Gurmukhi title: BaniDB's `verse.unicode`, cleaned the way
+ * `prettyShabadName` cleans its roman twin, so the two scripts carry the same
+ * words and nothing else.
+ *
+ * Only what labels the line comes off — the verse bars, the verse numbers and
+ * the rahao marker. The spelling is scripture and stays exactly as BaniDB has
+ * it. `\b` cannot find the marker, because in JavaScript it only knows ASCII
+ * word characters, so it is bounded by spaces, bars or the ends instead.
+ */
+const GURMUKHI_RULES: [RegExp, string][] = [
+  [/(^|[\s॥।|])ਰਹਾਉ(?:\s+ਦੂਜਾ)?(?=[\s॥।|]|$)/gu, '$1'],
+  [/[॥।|]/g, ' '],
+  [/[੦-੯0-9]+/g, ''],
+  [/\s+/g, ' '],
+];
+
+export function prettyGurmukhiName(unicode: string): string {
+  let out = unicode;
+  for (const [pattern, replacement] of GURMUKHI_RULES) out = out.replace(pattern, replacement);
+  return out.trim();
+}
+
+/** A BaniDB line as far as naming goes — a search hit and a shabad verse both fit. */
+export interface TitledLine {
+  verse?: { unicode?: string };
+  transliteration?: { english?: string };
+}
+
+/** The two titles of a rendition: `name` and `name_gurmukhi`. */
+export interface RenditionTitles {
+  name: string;
+  gurmukhi: string | null;
+}
+
+/**
+ * What a rendition anchored on this line is called, in both scripts.
+ *
+ * Every writer names a linked rendition through this or names.py's `titles`,
+ * so the workbench, the scanner and fill_names.py cannot disagree about one
+ * line. `Shabad 4064` stands in for a roman name BaniDB did not send, because
+ * `name` may not be empty; a missing Gurmukhi is null instead, which the
+ * player reads as "show the roman one".
+ */
+export function titlesFor(line: TitledLine, shabadId: number): RenditionTitles {
+  return {
+    name: prettyShabadName(line.transliteration?.english ?? '') || `Shabad ${shabadId}`,
+    gurmukhi: prettyGurmukhiName(line.verse?.unicode ?? '') || null,
+  };
 }
