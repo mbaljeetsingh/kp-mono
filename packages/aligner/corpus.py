@@ -1,4 +1,4 @@
-"""The Guru Granth Sahib (and Bhai Gurdas Ji's Vaaran) on local disk, so the
+"""The Guru Granth Sahib (and Bhai Gurdas Ji's Vaaran and Kabit) on local disk, so the
 scan shortlists shabads by scoring the audio against every line instead of
 asking BaniDB's word search.
 
@@ -11,7 +11,7 @@ itself was never the problem: against its own audio the right shabad scored
 line with that same folded partial ratio put every published shabad in the top
 6. eval_scan.py is the measurement.
 
-Fetched once from BaniDB's ang endpoint (1,470 pages, a few minutes), so the
+Fetched once from BaniDB (1,470 pages and 684 shabads, a few minutes), so the
 ids are BaniDB's own and match renditions.shabad_id. Kept on local disk and in
 the transcripts bucket, so a CI runner pays for the fetch once, not per run.
 """
@@ -32,8 +32,13 @@ import runtime
 # published prod rendition of a vaar pauri was drafted as the nearest SGGS
 # shabad before it was here. Dasam Bani is left out on purpose — rarely sung
 # at Darbar Sahib, and ~1,400 more pages of lines to win votes they have not
-# earned. Bhai Gurdas Ji's Kabit and Bhai Nand Lal have no pages to fetch.
+# earned. Bhai Nand Lal has no pages to fetch.
 SOURCES = {"G": 1430, "B": 40}
+# Corpus key -> (first, last) BaniDB shabad id, for what has no pages at all.
+# Bhai Gurdas Ji's Kabit Savaiye: BaniDB files them under B with pageNo null,
+# so the ang fetch above never saw them, and a puratan Kabit (205, "ਆਜ ਮੋਰੇ
+# ਆਏ ਹੈਂ") was a miss the scan could not have found (#84).
+SHABAD_RANGES = {"K": (41028, 41711)}
 # Folded length a line needs to take part. Short lines ("ਰਹਾਉ", "ਮਹਲਾ ੫")
 # partial-match inside almost any window and would win votes they have not
 # earned; every shabad keeps plenty of longer lines to be found by.
@@ -43,7 +48,7 @@ MIN_CHARS = 15
 VOTE_FLOOR = 60
 # In every cache key derived from a shortlist: a change to either knob is a
 # different shortlist, not a cache hit.
-TAG = f"{''.join(SOURCES)}{MIN_CHARS}v{VOTE_FLOOR}"
+TAG = f"{''.join(SOURCES)}{''.join(SHABAD_RANGES)}{MIN_CHARS}v{VOTE_FLOOR}"
 
 _index = None
 
@@ -56,13 +61,8 @@ def source_lines(source, cache_dir, store=True):
     key = f"corpus/{source}.json"
     data = runtime.fetch_transcript(key)
     if not data:
-        print(f"  fetching corpus {source}: {SOURCES[source]} pages from "
-              f"BaniDB…", flush=True)
-        data = []
-        for page in range(1, SOURCES[source] + 1):
-            for v in runtime.banidb(f"/angs/{page}/{source}")["page"]:
-                data.append([v["shabadId"], v["verse"]["unicode"]])
-            time.sleep(0.1)
+        data = (_by_shabad(*SHABAD_RANGES[source]) if source in SHABAD_RANGES
+                else _by_page(source, SOURCES[source]))
         if store:
             runtime.store_transcript(key, data)
     os.makedirs(cache_dir, exist_ok=True)
@@ -70,8 +70,29 @@ def source_lines(source, cache_dir, store=True):
     return data
 
 
+def _by_page(source, pages):
+    print(f"  fetching corpus {source}: {pages} pages from BaniDB…", flush=True)
+    data = []
+    for page in range(1, pages + 1):
+        for v in runtime.banidb(f"/angs/{page}/{source}")["page"]:
+            data.append([v["shabadId"], v["verse"]["unicode"]])
+        time.sleep(0.1)
+    return data
+
+
+def _by_shabad(first, last):
+    print(f"  fetching corpus: shabads {first}-{last} from BaniDB…", flush=True)
+    data = []
+    for sid in range(first, last + 1):
+        for v in runtime.banidb(f"/shabads/{sid}")["verses"]:
+            data.append([sid, v["verse"]["unicode"]])
+        time.sleep(0.1)
+    return data
+
+
 def lines(cache_dir, store=True):
-    return [row for s in SOURCES for row in source_lines(s, cache_dir, store)]
+    return [row for s in [*SOURCES, *SHABAD_RANGES]
+            for row in source_lines(s, cache_dir, store)]
 
 
 def _build(data):
