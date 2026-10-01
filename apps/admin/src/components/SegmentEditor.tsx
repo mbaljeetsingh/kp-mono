@@ -623,7 +623,9 @@ export function SegmentEditor({
           </Button>
         )}
 
-        {editing && editing.status === 'published' && can.publish ? (
+        {/* Review, as the policy and the list's own Unpublish require: a role
+            with review and no publish lost its only way to pull the open row. */}
+        {editing && editing.status === 'published' && can.review ? (
           <Button
             variant="outline"
             disabled={busy}

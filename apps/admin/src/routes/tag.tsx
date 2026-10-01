@@ -493,20 +493,14 @@ function Workbench({ id }: { id: string }) {
   }
 
   const perms = { review: can['renditions.review'], publish: can['renditions.publish'] };
-  /**
-   * The open row publishes through the editor's Update and publish: its moved
-   * edges live in this page until saved, and publishing it from the list put
-   * the old ones live.
-   */
-  const publishableFromList = (r: Rendition) =>
-    r.id !== editing?.id && canPublishRendition(r, perms, userId);
 
   /*
    * One-click accept: the scan drafts this reviewer can publish, offered
    * together from two up — one has its own row button. shabad_linked is what
    * the scanner writes; a scan row at 'draft' is one somebody unpublished, and
    * pulling it out of the player was a decision. Not while one of them is open
-   * in the editor, for the reason above, nor while this recording is being
+   * in the editor, whose moved edges live in this page until saved and would
+   * go out as the old ones, nor while this recording is being
    * scanned: a rescan adds drafts for shabads it newly finds, and they would
    * join a batch the reviewer had already checked, the count changing under
    * the button.
@@ -887,7 +881,7 @@ function Workbench({ id }: { id: string }) {
                       error={rowError[item.r.id]}
                       canEdit={canEdit(item.r)}
                       canReview={perms.review}
-                      canPublish={publishableFromList(item.r)}
+                      canPublish={canPublishRendition(item.r, perms, userId)}
                       onPlay={() => playFrom(Number(item.r.start_sec))}
                       onAudition={player.auditionBoundary}
                       onEdit={() => editRendition(item.r)}
@@ -1071,10 +1065,12 @@ function SegmentRow({
 
         {/* Publishing without reopening the row. A reviewer can go both ways; a
             publisher without review can only promote their own draft, once —
-            the policy stops matching the row as soon as it is published. The
-            open row's status is the editor's, both ways: unpublished from the
-            list, the editor's copy still said published and offered neither. */}
-        {canPublish ? (
+            the policy stops matching the row as soon as it is published. Never
+            the open row, whose status is the editor's: its moved edges live in
+            the page until saved, so Publish here put the old ones live, and
+            Unpublish here left the editor's copy saying published, offering
+            neither. */}
+        {open ? null : canPublish ? (
           <Button
             variant="outline"
             size="sm"
@@ -1083,7 +1079,7 @@ function SegmentRow({
           >
             <Send className="size-3" /> Publish
           </Button>
-        ) : published && canReview && !open ? (
+        ) : published && canReview ? (
           <Button
             variant="ghost"
             size="sm"
