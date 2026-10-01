@@ -72,6 +72,8 @@ export default function PlaylistsScreen() {
                   value={name}
                   onChangeText={setName}
                   autoFocus
+                  // playlists_name_check: 1 to 120 characters.
+                  maxLength={120}
                   placeholder="Morning kirtan"
                   placeholderTextColor={colors.mutedForeground}
                   className="h-12"

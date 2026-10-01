@@ -479,10 +479,7 @@ export async function acceptScanDrafts(client: KpClient, ids: string[]): Promise
     // since the page loaded is left alone, and reported.
     .in('status', ['shabad_linked', 'published'])
     .select('id');
-  // postgrest-js hands its error back as a plain object, which the page's
-  // `instanceof Error` reads as "Failed" — losing "your sign-in is being
-  // renewed" and every message like it.
-  if (error) throw new Error(error.message, { cause: error });
+  if (error) throw toError(error);
   const done = data?.length ?? 0;
   if (done < ids.length) {
     throw new Error(
