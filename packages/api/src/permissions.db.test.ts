@@ -18,7 +18,11 @@
  *   - a missing GRANT, or a WITH CHECK that fails: error 42501;
  *   - a USING clause that hides the row: no error, zero rows — so every such
  *     case also re-reads the row to show it did not change;
- *   - a definer function's own guard (set_trust, set_role_permission): P0001.
+ *   - a definer function's own guard (set_trust, set_role_permission): P0001;
+ *   - a rule about the row itself, the same for every role (publishing needs
+ *     a shabad, renditions_publish_needs_shabad): 23514. A BEFORE trigger
+ *     runs ahead of RLS, so a fixture that breaks it is refused for that and
+ *     never reaches the policy the row was meant to test.
  *
  * Runs against the local stack only (vitest.db.config.ts), as the seed
  * accounts. Every row it writes carries this run's tag and is removed in
@@ -76,6 +80,21 @@ function raised(res: Result, message: RegExp) {
   expect(res.error?.code).toBe('P0001');
   expect(res.error?.message).toMatch(message);
 }
+
+/** Refused by a rule about the row itself, whoever asks. */
+function invalid(res: Result, message: RegExp) {
+  expect(res.error, 'expected the row to be refused').not.toBeNull();
+  expect(res.error?.code).toBe('23514');
+  expect(res.error?.message).toMatch(message);
+}
+
+/**
+ * Linked, and already timed. Publishing needs a shabad, and a published
+ * rendition with one and no line_timings is align's queue, which the dispatch
+ * trigger would try to start a workflow for. An empty timing list is "timed,
+ * nothing to show", so the fixture stays out of the queue.
+ */
+const LINKED = { shabad_id: 1, line_timings: [] };
 
 /** Allowed, and touched exactly `n` rows. */
 function allowed(res: Result, n?: number) {
@@ -153,9 +172,9 @@ beforeAll(async () => {
     // An artist nothing else has, so the public aggregates can be asked
     // whether a draft leaks into them.
     artist: TAG,
-    // No shabad: a published rendition with one queues alignment, and the
-    // dispatch trigger would try to start a workflow.
-    shabad_id: null,
+    // The admin's row is published here and the contributor's later, and
+    // neither may be without a shabad; see LINKED.
+    ...LINKED,
     ...extra,
   });
 
@@ -349,11 +368,14 @@ describe('the role permission matrix itself', () => {
 });
 
 describe('inserting a published rendition', () => {
+  // Linked, so a refusal below is the policy's (42501) and not the
+  // shabad rule's (23514), which a BEFORE trigger would hit first.
   const row = (extra: object) => ({
     track_id: trackId,
     start_sec: 60,
     end_sec: 120,
     name: `${TAG} insert`,
+    ...LINKED,
     ...extra,
   });
 
@@ -451,6 +473,51 @@ describe('publishing through UPDATE', () => {
         .select('id')
     );
     expect((await rendition(toPublish))?.status).toBe('published');
+  });
+});
+
+/*
+ * Not a permission: a rule about the row (#77), the same for every role — a
+ * published rendition is titled from its shabad's line, so it must have one.
+ * Asked of the admin, who passes every policy, so only the rule can refuse.
+ */
+describe('publishing needs a shabad', () => {
+  it('not even an admin can insert one published without a shabad', async () => {
+    invalid(
+      await admin.from('renditions').insert({
+        track_id: trackId,
+        start_sec: 120,
+        end_sec: 180,
+        name: `${TAG} unlinked`,
+        status: 'published',
+        created_by: adminId,
+      }),
+      /Link a shabad/
+    );
+  });
+
+  it('nor unlink one that is published', async () => {
+    invalid(
+      await admin.from('renditions').update({ shabad_id: null }).eq('id', published),
+      /Link a shabad/
+    );
+    expect((await rendition(published))?.shabad_id).toBe(LINKED.shabad_id);
+  });
+
+  it('while a draft still saves without one', async () => {
+    allowed(
+      await contributor
+        .from('renditions')
+        .insert({
+          track_id: trackId,
+          start_sec: 180,
+          end_sec: 240,
+          name: `${TAG} unlinked draft`,
+          created_by: contributorId,
+        })
+        .select('id'),
+      1
+    );
   });
 });
 
