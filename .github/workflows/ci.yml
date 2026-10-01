@@ -7,6 +7,8 @@
 # One job rather than four in parallel: the whole thing takes about two minutes,
 # and turbo's cache means a second run over untouched packages is nearly free.
 # Four jobs would each pay the install cost to save less than the install costs.
+# The permission matrix is the exception, and has its own job below: it needs
+# Docker and a Supabase stack, which cost more than the install it repeats.
 name: ci
 on:
   push:
@@ -69,3 +71,40 @@ jobs:
       # Last, because it is the slowest and a broken build is nearly always a
       # symptom of something the three steps above already caught.
       - run: pnpm build
+
+  # The permission matrix (packages/api/src/permissions.db.test.ts), against a
+  # database built from nothing on this runner: every migration, then the
+  # committed seed, exactly as `supabase db reset` would — so a migration that
+  # no longer applies from scratch fails here, not on the next fresh project.
+  #
+  # Its own job, in parallel with the one above: it pays for Docker images,
+  # which that job has no use for. No secrets at all — it talks only to the
+  # stack it starts, with that stack's own local keys, and the config refuses
+  # any URL that is not 127.0.0.1.
+  permissions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # First, before anything opens a connection: the stack's ports
+      # (54521-54529, supabase/config.toml) sit inside Linux's ephemeral range,
+      # and one run failed because an outbound socket from an earlier step held
+      # 54522 when Postgres went to bind it. Reserved, the kernel never hands
+      # them out.
+      - run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54520-54530
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Only what the matrix talks to: Postgres, PostgREST, Auth and the
+      # gateway in front of them. Storage stays, since a migration creates
+      # buckets. Everything else is minutes of image pulls for nothing.
+      - run: >-
+          pnpm exec supabase start
+          -x studio,imgproxy,edge-runtime,logflare,vector,realtime,mailpit,postgres-meta,supavisor
+
+      - run: pnpm test:db
