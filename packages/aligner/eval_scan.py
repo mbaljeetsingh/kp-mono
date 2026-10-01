@@ -37,11 +37,11 @@ import time
 
 
 import scan_track
-from runtime import MIN_CONFIDENCE, SB, api
+import timing
+from runtime import MIN_CONFIDENCE, SB, api, paged
 
 FLOORS = (0.55, 0.60, 0.65)
 MARGINS = (0.03, 0.05, 0.08, 0.10)
-PAGE = 1000            # PostgREST's default max-rows; paging past it is not optional
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--limit", type=int, default=None,
@@ -59,16 +59,6 @@ ap.add_argument("--out", default=f"{scan_track.CACHE}/eval",
 ap.add_argument("--report", metavar="DIR",
                 help="skip the run; report over the results in DIR")
 args = ap.parse_args()
-
-
-def paged(url):
-    out, offset = [], 0
-    while True:
-        rows = api(f"{url}&limit={PAGE}&offset={offset}")
-        out += rows
-        if len(rows) < PAGE:
-            return out
-        offset += PAGE
 
 
 def truth():
@@ -116,8 +106,8 @@ def run():
         print(f"── {k}  ({len(tr['spans'])} published"
               f"{', fully tagged' if tr['done'] else ''})", flush=True)
         t = {}
-        long_w, short_w = scan_track.transcribe(k, tr["url"], store=False,
-                                                timings=t)
+        long_w, short_w = timing.transcribe(k, tr["url"], store=False,
+                                            timings=t)
         if not long_w:
             continue
         s0 = time.monotonic()

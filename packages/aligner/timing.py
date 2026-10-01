@@ -1,17 +1,25 @@
-"""The aligner's core — windows in, line timings out — importable.
+"""The aligner's core — a recording's transcript in, line timings out.
 
-write_timings.py aligns published renditions from their own cut audio;
-scan_track.py aligns its drafts from the recording's transcript, so a draft
-arrives with its lyrics already timed. Both go through here, so they can never
-align two different ways. Everything that survived measurement is documented
-in docs/line-alignment-prototype.md.
+Both scripts read one transcript per recording: scan_track.py aligns its drafts
+on their span of it, so a draft arrives with its lyrics already timed, and
+write_timings.py aligns a published rendition on its own span. Whichever needs
+a recording first transcribes it, once. Both go through here, so they can never
+align two different ways, nor on two different window grids. Everything that
+survived measurement is documented in docs/line-alignment-prototype.md.
 """
 
+import json
+import os
 import statistics
+import subprocess
+import time
+
+import soundfile as sf
 
 import align
 import matcher
-from runtime import banidb
+import runtime
+from runtime import SR, banidb
 
 WIN, HOP = 15.0, 5.0
 SHORT_WIN, SHORT_HOP, ALPHA = 8.0, 2.0, 0.5
@@ -27,13 +35,117 @@ BLEND, FLOOR = 0.4, 0.35
 # the shift chosen held-out (on the other three benchmark recordings each time)
 # was +0.5 to +1.0s, and applying it took boundary MAE from 1.38s to 1.10s.
 SHIFT = 0.75
+CACHE = "cache"
+# A fetched recording shorter than this share of what ffprobe reads from
+# sgpc.net was cut short. Measured on 41 recordings, 21 hours, 3 to 182
+# minutes long: the decoded length was ffprobe's exactly, or up to 0.5%
+# longer, never shorter.
+WHOLE = 0.98
 
 
-def shifted(windows):
-    """SHIFT applied, with ends clamped to the audio: the raw grid's last end
-    IS the duration, and a window past it would push the frame grid — and
-    every timing derived from it — beyond the end of the rendition."""
-    dur = max((w["end"] for w in windows), default=0.0)
+def duration(url):
+    """The recording's length in seconds as ffprobe reads it from sgpc.net, or
+    None when it cannot tell."""
+    try:
+        out = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                              "format=duration", "-of", "csv=p=0", url],
+                             capture_output=True, text=True, timeout=60,
+                             check=True).stdout
+        return float(out)
+    except Exception:
+        return None
+
+
+def _save(path, payload):
+    """Written whole or not at all: a run killed mid-write must not leave half
+    a file that every later run on the machine reads first and chokes on."""
+    with open(f"{path}.part", "w") as f:
+        json.dump(payload, f, ensure_ascii=False)
+    os.replace(f"{path}.part", path)
+
+
+def transcribe(track_id, url, store=True, timings=None, asr=True):
+    """Both of align's passes over the whole recording, cached per track.
+
+    (long, short) windows in track seconds, raw — shifted is applied per span,
+    by within. Keys name the model and how the text was cut, like every other
+    transcript key, and never a rendition's edges: a re-cut or a re-tag reads
+    the same transcript again. `store=False` keeps them on local disk only
+    (eval_scan.py and a dry run point at prod and must not write to it);
+    `timings`, when given, receives fetch/asr seconds and the duration for
+    whatever this call actually transcribed. `asr=False` answers from the
+    caches alone — None if either pass would need the model."""
+    os.makedirs(CACHE, exist_ok=True)
+    keys = {"long": f"{track_id}_{WIN:g}s{HOP:g}s_{runtime.SLICED_TAG}",
+            "short": f"{track_id}_{SHORT_WIN:g}s{SHORT_HOP:g}s_"
+                     f"{runtime.WINDOWED_TAG}"}
+    out, decoded = {}, []
+
+    def audio():
+        # Fetched only past both caches, and decoded once: re-matching an
+        # already-scanned archive must not re-download every recording.
+        if not decoded:
+            wav = f"{CACHE}/track_{track_id}.wav"
+            t = time.monotonic()
+            if not os.path.exists(wav):
+                print("  fetching audio…", flush=True)
+                # To a side name, renamed once complete: an interrupted fetch
+                # must not leave a wav the next run takes for the recording.
+                subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", url,
+                                "-ar", str(SR), "-ac", "1", "-f", "wav",
+                                f"{wav}.part"], check=True)
+                os.replace(f"{wav}.part", wav)
+            a = sf.read(wav, dtype="float32")[0]
+            # ffmpeg ends a dropped download as if the file had ended, exit 0,
+            # and a short transcript is the recording's for good: everything
+            # past the cut would read as a mistag, and no re-cut heals it, the
+            # key holding no edges. So the audio must be as long as sgpc.net
+            # says before any of it is transcribed.
+            want = duration(url)
+            if want and len(a) / SR < WHOLE * want:
+                os.remove(wav)
+                raise RuntimeError(f"fetched {len(a) / SR:.0f}s of a "
+                                   f"{want:.0f}s recording: the download was "
+                                   f"cut short")
+            decoded.append(a)
+            if timings is not None:
+                timings.update(fetch=time.monotonic() - t,
+                               duration=len(decoded[0]) / SR, asr=0.0)
+        return decoded[0]
+
+    for name, key in keys.items():
+        path = f"{CACHE}/track_{key}.json"
+        if os.path.exists(path):
+            out[name] = json.load(open(path))["windows"]
+            continue
+        remote = runtime.fetch_transcript(f"track/{key}.json")
+        if remote:
+            _save(path, remote)
+            print(f"  {name} pass: from storage", flush=True)
+            out[name] = remote["windows"]
+            continue
+        if not asr:
+            return None
+        a = audio()
+        t = time.monotonic()
+        if name == "long":
+            w = runtime.transcribe_sliced(a, WIN, HOP)
+        else:
+            w = runtime.transcribe_windows(a, SHORT_WIN, SHORT_HOP,
+                                           label="short windows")
+        if timings is not None:
+            timings["asr"] += time.monotonic() - t
+        _save(path, {"windows": w})
+        if store:
+            runtime.store_transcript(f"track/{key}.json", {"windows": w})
+        out[name] = w
+    return out["long"], out["short"]
+
+
+def shifted(windows, dur):
+    """SHIFT applied, with ends clamped to `dur`, the end of the audio the
+    windows came from: a window past it would push the frame grid — and every
+    timing derived from it — beyond the end of the span."""
     return [{**w, "start": min(w["start"] + SHIFT, dur),
              "end": min(w["end"] + SHIFT, dur)} for w in windows]
 
@@ -135,21 +247,48 @@ def confidence(windows, lines, cand):
         for w in windows)
 
 
-def line_timings(windows, short_windows, verses, lines, cand, off, end,
-                 video_id="x"):
-    """Rendition-relative windows (already shifted) -> absolute line timings,
-    [{verse_id, start, end}] in track seconds. Two-scale with crossing
-    refinement when short windows are given, single scale otherwise."""
-    span = max(w["end"] for w in windows)
-    case = {"video_id": video_id, "uem": {"start": 0, "end": span},
+def within(windows, t0, t1):
+    """The windows wholly inside [t0, t1], rebased to it and shifted: a span's
+    own view of the recording's transcript. Clamped to the span, not to the
+    last window in it — the audio runs on to t1, and clamping short of it
+    left the last window's shift, and the tail with it, unlit."""
+    return shifted([{**w, "start": w["start"] - t0, "end": w["end"] - t0}
+                    for w in windows
+                    if w["start"] >= t0 and w["end"] <= t1], t1 - t0)
+
+
+def align_span(long_w, short_w, shabad, t0, t1):
+    """(confidence, line timings) for [t0, t1] of a recording, read off its
+    transcript — a scan draft and a published rendition alike.
+
+    Measured against audio cut at the same edges, its own two passes (what
+    write_timings did until #83), on the local stack's 11 published
+    renditions: confidence moved +0.008 on average and 0.050 at most (an
+    87-second rendition), no rendition crossed MIN_CONFIDENCE either way, and
+    the lyrics sat on the same line for 94% of the seconds. Line starts moved
+    0.2 s at the median, 3.6 s at the 90th percentile. Only windows wholly
+    inside count, so the first line starts 0-3 s later — the price of hearing
+    none of the neighbouring audio — and the tail ends within 1 s of where
+    cut audio ended it."""
+    verses, lines, cand = shabad
+    lw, sw = within(long_w, t0, t1), within(short_w, t0, t1)
+    if not lw:
+        return 0.0, []
+    return (confidence(lw, lines, cand),
+            line_timings(lw, sw, verses, lines, cand, t0, t1))
+
+
+def line_timings(windows, short_windows, verses, lines, cand, off, end):
+    """Span-relative windows (already shifted) -> absolute line timings,
+    [{verse_id, start, end}] in track seconds: both scales, then the crossing
+    refinement."""
+    # The frame grid is the span, not the long pass's last window: in a slice
+    # of a recording that window can end seconds before the span does, and
+    # the short pass's evidence after it would never be read.
+    case = {"video_id": "x", "uem": {"start": 0, "end": end - off},
             "lines": lines}
-    if short_windows:
-        sub = align_two_scale(case, windows, short_windows, cand)
-        sub["segments"] = refine_boundaries(sub["segments"], short_windows,
-                                            lines)
-    else:
-        sub = matcher.align_case(case, {"windows": windows}, BLEND,
-                                 FLOOR, cand=cand)
+    sub = align_two_scale(case, windows, short_windows, cand)
+    sub["segments"] = refine_boundaries(sub["segments"], short_windows, lines)
 
     # Rendition-relative -> absolute seconds into the track, so re-cutting the
     # rendition's boundaries later does not shift every line.
