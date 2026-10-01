@@ -18,11 +18,12 @@ Two ways to run it:
     SB_KEY=... python scan_track.py --from-queue [--limit N] [--track <id>]
 
 Queue mode consumes scan_requests (the admin button writes rows there), oldest
-first, and stamps done_at whether or not anything was confident enough to
-draft — "scanned, nothing found" must not look like "still waiting". It
-re-reads the queue after every track, so a run drains it, requests made while
-it runs included. `--track` limits it to one request, for scanning one
-recording on demand.
+first — failed ones last — and stamps done_at whether or not anything was
+confident enough to draft: "scanned, nothing found" must not look like "still
+waiting". It writes started_at, run_url and, on failure, error for the tag
+page. It re-reads the queue after every track, so a run drains it, requests
+made while it runs included. `--track` limits it to one request, for scanning
+one recording on demand.
 
 Method, measured against prod's published renditions (eval_scan.py):
 
@@ -48,6 +49,7 @@ a tag.
 
 import os
 import re
+import subprocess
 import sys
 import time
 
@@ -438,6 +440,22 @@ def write_drafts(track_id, found, shabads, owner=None):
     return drafted, findings
 
 
+# Where this run is, for the tag page's "view run" (scan_requests.run_url):
+# GitHub sets these in every step's environment. None off a runner.
+RUN_URL = (f"{os.environ['GITHUB_SERVER_URL']}/"
+           f"{os.environ['GITHUB_REPOSITORY']}/actions/runs/"
+           f"{os.environ['GITHUB_RUN_ID']}"
+           if os.environ.get("GITHUB_RUN_ID") else None)
+
+
+def reason(e):
+    """Why a request failed, in words a tagger can act on. The tag page shows
+    it beside Scan again; ffmpeg's own message is its whole command line."""
+    if isinstance(e, subprocess.CalledProcessError) and "ffmpeg" in str(e.cmd):
+        return "could not fetch the recording from sgpc.net"
+    return str(e)[:300] or type(e).__name__
+
+
 def scan(track_id, drafts, owner=None):
     rows = api(f"{SB}/tracks?id=eq.{track_id}"
                f"&select=url,artist_dir,date,missing_since")
@@ -498,11 +516,15 @@ if __name__ == "__main__":
             # cancels the older, so a click during a run may end up with no run
             # of its own — this loop is what still scans it. Tracks tried here
             # are skipped, so a failure is not retried in a loop.
+            #
+            # Failed requests after the rest: a track that fails slowly —
+            # partway through a long ASR — sat at the head of every run, and
+            # every new click waited behind it. It is still retried, last.
             nxt = api(f"{SB}/scan_requests?done_at=is.null"
                       + (f"&track_id=eq.{only}" if only else "")
                       + (f"&track_id=not.in.({','.join(tried)})" if tried
                          else "")
-                      + "&order=requested_at.asc&limit=1"
+                      + "&order=error.asc.nullsfirst,requested_at.asc&limit=1"
                       "&select=track_id,requested_by")
             if not nxt:
                 break
@@ -512,17 +534,28 @@ if __name__ == "__main__":
             # wedge the whole queue: the oldest request would otherwise be
             # retried first every night, and everything behind it starves.
             # No done_at on failure — a transient error deserves a retry.
+            # Taken, and by which run, first: the tag page says "Scanning…
+            # (view run)" from this, and a stale error from the last attempt
+            # must not still be showing while this one runs.
+            row = f"{SB}/scan_requests?track_id=eq.{q['track_id']}"
             try:
+                api(row, method="PATCH", body={
+                    "started_at": "now()", "run_url": RUN_URL, "error": None})
                 n, found = scan(q["track_id"], drafts=True,
                                 owner=q["requested_by"])
             except Exception as e:
                 print(f"  FAILED, leaving queued for retry: {e}\n")
+                # Best-effort: the reason is for the tag page, and a database
+                # that is down cannot be told anyway.
+                try:
+                    api(row, method="PATCH", body={"error": reason(e)})
+                except Exception:
+                    pass
                 continue
             # Done even when nothing was drafted — "scanned, nothing found"
             # must not look like "still waiting" or it re-queues forever.
             # Findings replace wholesale: they describe THIS scan.
-            api(f"{SB}/scan_requests?track_id=eq.{q['track_id']}",
-                method="PATCH",
+            api(row, method="PATCH",
                 body={"done_at": "now()", "findings": found or None})
             print(f"  marked done ({n} draft(s), "
                   f"{len(found)} listen-here pointer(s))\n")

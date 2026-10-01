@@ -11,6 +11,7 @@ import {
   nextUntaggedPuratan,
   requestScan,
   rescan,
+  scanStatus,
   setRenditionStatus,
   setTaggedDone,
   usePuratanLeft,
@@ -19,6 +20,7 @@ import {
   useScanRequest,
   type Rendition,
   type ScanFinding,
+  type ScanStatus,
 } from '@kp/api';
 import { clock, coverageOpen, untaggedGaps, untaggedSeconds, type TimelineSegment } from '@kp/core';
 import { Button } from '@kp/ui/button';
@@ -112,6 +114,10 @@ function Workbench({ id }: { id: string }) {
   }, [scanQueued, scanDoneAt, queryClient, id]);
   const [actionError, setActionError] = useState<string | null>(null);
   const [rowError, setRowError] = useState<Record<string, string>>({});
+  const scanAgain = () =>
+    void rescan(supabase, id, userId)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['scan-request', id] }))
+      .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'));
 
   const player = useTagPlayer(recording.data?.url);
   const { position, duration } = player;
@@ -835,24 +841,14 @@ function Workbench({ id }: { id: string }) {
             {can['scans.request'] ? (
               scan.data ? (
                 scan.data.done_at ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      void rescan(supabase, id, userId)
-                        .then(() =>
-                          queryClient.invalidateQueries({ queryKey: ['scan-request', id] })
-                        )
-                        .catch((e) => setActionError(e instanceof Error ? e.message : 'Failed'))
-                    }
-                  >
-                    <ScanLine />
-                    Scan again
-                  </Button>
+                  <ScanAgainButton onClick={scanAgain} />
                 ) : (
-                  <span className="text-xs text-muted-foreground">
-                    Queued for scanning — its drafts appear here when it finishes
-                  </span>
+                  // The time of the last poll as "now": a value React can render
+                  // twice, and it moves on every 30-second refetch anyway.
+                  <ScanProgress
+                    status={scanStatus(scan.data, scan.dataUpdatedAt)}
+                    onAgain={scanAgain}
+                  />
                 )
               ) : (
                 <Button
@@ -1036,4 +1032,82 @@ function SegmentRow({
       ) : null}
     </li>
   );
+}
+
+function ScanAgainButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="outline" size="sm" onClick={onClick}>
+      <ScanLine />
+      Scan again
+    </Button>
+  );
+}
+
+/**
+ * Where an unfinished scan stands (#81). A run that never started, one still
+ * going and one that failed on a dead sgpc.net URL all read "queued" before,
+ * for as long as anyone waited.
+ */
+function ScanProgress({ status, onAgain }: { status: ScanStatus; onAgain: () => void }) {
+  // The database lets run_url be nothing but a GitHub Actions run.
+  const run = (url: string | null) =>
+    url ? (
+      <>
+        {' · '}
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          view run
+        </a>
+      </>
+    ) : null;
+  const note = 'text-xs text-muted-foreground';
+  switch (status.kind) {
+    case 'starting':
+      return <span className={note}>Starting a scan run…</span>;
+    case 'scanning':
+      return (
+        <span className={note}>
+          Scanning — its drafts appear here when it finishes{run(status.runUrl)}
+        </span>
+      );
+    case 'behind':
+      return (
+        <span className={note}>Next in line, after the scan running now{run(status.runUrl)}</span>
+      );
+    case 'waiting':
+      return (
+        <>
+          <span className={note}>
+            No scan run has taken it yet — tonight&rsquo;s run will, or ask again
+          </span>
+          <ScanAgainButton onClick={onAgain} />
+        </>
+      );
+    case 'failed':
+      return (
+        <>
+          <span className="text-xs text-destructive">
+            Scan failed: {status.error}
+            {run(status.runUrl)}
+          </span>
+          <ScanAgainButton onClick={onAgain} />
+        </>
+      );
+    case 'stopped':
+      return (
+        <>
+          <span className={note}>
+            The scan run stopped before it finished{run(status.runUrl)} — tonight&rsquo;s run tries
+            again
+          </span>
+          <ScanAgainButton onClick={onAgain} />
+        </>
+      );
+    case 'done':
+      return null;
+  }
 }
