@@ -27,7 +27,8 @@ recording on demand.
 Method, measured against prod's published renditions (eval_scan.py):
 
 1. Align's own two passes over the WHOLE recording — 15 s windows every 5 s
-   sliced from one forward pass, 8 s every 2 s run alone — cached per track.
+   sliced from one forward pass, 8 s every 2 s run alone — cached per track
+   (timing.transcribe; write_timings.py reads the same transcript).
    The old sparse grid (15 s every 30 s) heard half the audio; its edges were
    off by 19 s at the median and cut ~77 s off each shabad.
 2. Shortlist the shabads whose lines win the most windows across the Guru
@@ -45,22 +46,18 @@ Margin matters as much as confidence: a 0.61/+0.01 region is a coin flip, not
 a tag.
 """
 
-import json
 import os
 import re
-import subprocess
 import sys
 import time
 
 import numpy as np
-import soundfile as sf
 from rapidfuzz import fuzz, process
 
 import align
 import corpus
-import runtime
 import timing
-from runtime import MIN_CONFIDENCE, SB, SR, api
+from runtime import MIN_CONFIDENCE, SB, api
 
 FLOOR = 0.60            # per-second evidence a shabad needs to hold a region
 MIN_MARGIN = 0.05       # the floor itself is runtime.MIN_CONFIDENCE
@@ -77,7 +74,7 @@ EDGE_SMOOTH, EDGE_FLOOR, EDGE_GAP = 5, 0.60, 10
 # Each shortlisted shabad costs one BaniDB fetch; 8 crowded a real shabad off
 # the list on a prod recording whose shortlist was full of routine banis.
 TOP_CANDIDATES = 16
-CACHE = "cache"
+CACHE = timing.CACHE
 
 # Auto-publish verdict. Recorded on every draft (scan_verdict), acted on only
 # with AUTO_PUBLISH=1 — the shadow period compares what it WOULD have
@@ -109,66 +106,6 @@ def pretty_name(transliteration):
     # mid-word to mark retroflex letters — meaningful there, noise in a title.
     return re.sub(r"[A-Za-z][A-Za-z']*",
                   lambda m: m[0][0].upper() + m[0][1:].lower(), out).strip()
-
-
-def transcribe(track_id, url, store=True, timings=None):
-    """Both of align's passes over the whole recording, cached per track.
-
-    (long, short) windows in track seconds, raw — timing.shifted is applied
-    per draft, as write_timings applies it per rendition. Keys name the model
-    and how the text was cut, like every other transcript key. `store=False`
-    keeps them on local disk only (eval_scan.py runs against prod and must not
-    write to it); `timings`, when given, receives fetch/asr seconds and the
-    duration for whatever this call actually transcribed."""
-    os.makedirs(CACHE, exist_ok=True)
-    keys = {"long": f"{track_id}_{timing.WIN:g}s{timing.HOP:g}s_"
-                    f"{runtime.SLICED_TAG}",
-            "short": f"{track_id}_{timing.SHORT_WIN:g}s{timing.SHORT_HOP:g}s_"
-                     f"{runtime.WINDOWED_TAG}"}
-    out, decoded = {}, []
-
-    def audio():
-        # Fetched only past both caches, and decoded once: re-matching an
-        # already-scanned archive must not re-download every recording.
-        if not decoded:
-            wav = f"{CACHE}/track_{track_id}.wav"
-            t = time.monotonic()
-            if not os.path.exists(wav):
-                print("  fetching audio…", flush=True)
-                subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", url,
-                                "-ar", str(SR), "-ac", "1", wav], check=True)
-            decoded.append(sf.read(wav, dtype="float32")[0])
-            if timings is not None:
-                timings.update(fetch=time.monotonic() - t,
-                               duration=len(decoded[0]) / SR, asr=0.0)
-        return decoded[0]
-
-    for name, key in keys.items():
-        path = f"{CACHE}/track_{key}.json"
-        if os.path.exists(path):
-            out[name] = json.load(open(path))["windows"]
-            continue
-        remote = runtime.fetch_transcript(f"track/{key}.json")
-        if remote:
-            json.dump(remote, open(path, "w"), ensure_ascii=False)
-            print(f"  {name} pass: from storage", flush=True)
-            out[name] = remote["windows"]
-            continue
-        a = audio()
-        t = time.monotonic()
-        if name == "long":
-            w = runtime.transcribe_sliced(a, timing.WIN, timing.HOP)
-        else:
-            w = runtime.transcribe_windows(a, timing.SHORT_WIN,
-                                           timing.SHORT_HOP,
-                                           label="short windows")
-        if timings is not None:
-            timings["asr"] += time.monotonic() - t
-        json.dump({"windows": w}, open(path, "w"), ensure_ascii=False)
-        if store:
-            runtime.store_transcript(f"track/{key}.json", {"windows": w})
-        out[name] = w
-    return out["long"], out["short"]
 
 
 def shortlist(long_w, store=True):
@@ -277,28 +214,6 @@ def refine_edges(drafts, sids, ev):
     return out
 
 
-def within(windows, t0, t1):
-    """The windows wholly inside [t0, t1], rebased to it and shifted — what
-    write_timings sees for a rendition cut at those boundaries."""
-    return timing.shifted([{**w, "start": w["start"] - t0,
-                            "end": w["end"] - t0}
-                           for w in windows
-                           if w["start"] >= t0 and w["end"] <= t1])
-
-
-def align_draft(g, long_w, short_w, shabad):
-    """(align confidence, line timings) for a draft, on its span of the
-    recording's transcript. On 7 tagged renditions, confidence from a slice of
-    the whole-recording transcript matched confidence on cut audio to ±0.03."""
-    verses, lines, cand = shabad
-    lw, sw = within(long_w, g[0], g[1]), within(short_w, g[0], g[1])
-    if not lw:
-        return 0.0, []
-    return (timing.confidence(lw, lines, cand),
-            timing.line_timings(lw, sw or None, verses, lines, cand,
-                                g[0], g[1]))
-
-
 def verdict(g, align_conf):
     """Would this draft publish itself? Every gate, with margin to spare."""
     t0, t1, _, conf, margin = g
@@ -319,7 +234,8 @@ def find_drafts(sids, ev, long_w, short_w, shabads, floor=FLOOR):
         if not is_draft(g):
             out.append((g, None, []))
             continue
-        conf, timings = align_draft(g, long_w, short_w, shabads[g[2]])
+        conf, timings = timing.align_span(long_w, short_w, shabads[g[2]],
+                                          g[0], g[1])
         # Align is the second gate: a region the scan believes but align,
         # reading the same audio line by line, does not, is a pointer.
         out.append((g, conf, timings) if conf >= MIN_CONFIDENCE
@@ -521,7 +437,7 @@ def scan(track_id, drafts, owner=None):
         return 0, []
     track = rows[0]
     print(f"── {track['artist_dir']}  {track['date']}  ({track_id})")
-    long_w, short_w = transcribe(track_id, track["url"])
+    long_w, short_w = timing.transcribe(track_id, track["url"])
     if not long_w:
         return 0, []
     shabads = shortlist(long_w)

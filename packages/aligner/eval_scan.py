@@ -37,6 +37,7 @@ import time
 
 
 import scan_track
+import timing
 from runtime import MIN_CONFIDENCE, SB, api
 
 FLOORS = (0.55, 0.60, 0.65)
@@ -116,8 +117,8 @@ def run():
         print(f"── {k}  ({len(tr['spans'])} published"
               f"{', fully tagged' if tr['done'] else ''})", flush=True)
         t = {}
-        long_w, short_w = scan_track.transcribe(k, tr["url"], store=False,
-                                                timings=t)
+        long_w, short_w = timing.transcribe(k, tr["url"], store=False,
+                                            timings=t)
         if not long_w:
             continue
         s0 = time.monotonic()

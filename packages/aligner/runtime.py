@@ -225,9 +225,9 @@ def banidb(path):
 # ── transcript store ─────────────────────────────────────────────────────────
 # Local disk in front, the private `transcripts` bucket behind it. Disk keeps
 # laptop runs fast and offline; the bucket is what survives a CI runner, so a
-# re-run (matcher improvement, re-cut boundaries, model upgrade) costs seconds
-# of matching instead of minutes of ASR. Keys mirror the local filenames, so
-# the boundary-keyed naming keeps doing its job remotely too.
+# re-run (matcher improvement, a re-cut or re-tag, a scan after an align)
+# costs seconds of matching instead of minutes of ASR. Keys mirror the local
+# filenames: one transcript per recording, model and cut (`track/…`).
 
 def _object_url(key):
     base = SB[:-len("/rest/v1")] if SB.endswith("/rest/v1") else SB
