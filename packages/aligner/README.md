@@ -141,6 +141,16 @@ gate. Each request it takes gets `started_at` and its run's `run_url`, and a
 failing one an `error` the tag page shows beside Scan again; it stays queued
 for a retry, after every request that has not failed.
 
+With `--backfill N` (scan.yml's nightly run), once the requests are done it
+queues and scans up to N recordings nobody asked for: ragi-wise, nothing
+tagged, at most two hours, the crawl's new ones newest first, then the backlog
+in id order (ids are hashes, so that is a stable shuffle). A pick starts only
+if its scan would end before `--deadline-min`. Its `scan_requests` row has no
+requester: it starts no run of its own, keeps that recording from being picked
+again, and its drafts belong to nobody, so reviewers see them in Review. A
+click always goes before them; a background request that fails is retried only
+when someone asks again.
+
 Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
 prod's published tags (25 renditions, 17 recordings) against the old sparse
 scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
