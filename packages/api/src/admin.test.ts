@@ -206,7 +206,7 @@ describe('acceptScanDrafts', () => {
 });
 
 describe('fetchPending', () => {
-  /** Records the chain; `range` ends it, the way PostgREST resolves it. */
+  /** Records the chain; `limit` ends it, the way PostgREST resolves it. */
   function fakeClient(result: { data: unknown[] | null; error: unknown }) {
     const calls: string[] = [];
     const builder = {
@@ -218,12 +218,16 @@ describe('fetchPending', () => {
         calls.push(`neq ${col} ${value}`);
         return builder;
       },
+      or: (filter: string) => {
+        calls.push(`or ${filter}`);
+        return builder;
+      },
       order: (col: string, opts: { ascending: boolean }) => {
         calls.push(`order ${col} ${opts.ascending ? 'asc' : 'desc'}`);
         return builder;
       },
-      range: (from: number, to: number) => {
-        calls.push(`range ${from} ${to}`);
+      limit: (n: number) => {
+        calls.push(`limit ${n}`);
         return Promise.resolve(result);
       },
     };
@@ -238,23 +242,26 @@ describe('fetchPending', () => {
 
   const full = Array.from({ length: PAGE_SIZE }, (_, i) => ({ id: `r${i}` }));
 
-  it('pages by offset, oldest first, with id breaking ties so a boundary cannot shift', async () => {
-    const { client, calls } = fakeClient({ data: full, error: null });
-    await fetchPending(client, PAGE_SIZE);
+  it('starts at the oldest draft, with id breaking ties', async () => {
+    const { client, calls } = fakeClient({ data: [], error: null });
+    await fetchPending(client);
     expect(calls).toEqual([
       'from renditions',
       'select *, tracks(artist_dir, date, url, raw_filename)',
       'neq status published',
       'order created_at asc',
       'order id asc',
-      `range ${PAGE_SIZE} ${2 * PAGE_SIZE - 1}`,
+      `limit ${PAGE_SIZE}`,
     ]);
   });
 
-  it('starts at the first row when no offset is given', async () => {
-    const { client, calls } = fakeClient({ data: [], error: null });
-    await fetchPending(client);
-    expect(calls.at(-1)).toBe(`range 0 ${PAGE_SIZE - 1}`);
+  it('continues just after the last row, not at an offset a removal would shift', async () => {
+    const { client, calls } = fakeClient({ data: full, error: null });
+    await fetchPending(client, { created_at: '2026-10-01T12:00:00.5+00:00', id: 'abc' });
+    expect(calls).toContain(
+      'or created_at.gt."2026-10-01T12:00:00.5+00:00",' +
+        'and(created_at.eq."2026-10-01T12:00:00.5+00:00",id.gt.abc)'
+    );
   });
 
   it('has more after a full page and stops after a short one', async () => {

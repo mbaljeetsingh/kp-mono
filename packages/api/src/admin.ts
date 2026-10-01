@@ -533,26 +533,45 @@ export interface PendingRendition extends Rendition {
   } | null;
 }
 
+/** Where the next page of the review queue starts: just after this row. */
+export interface PendingCursor {
+  created_at: string;
+  id: string;
+}
+
 /**
  * One page of the review queue, oldest first.
  *
  * Paged because a fixed `.limit(100)` was exactly the list that grows fastest
  * once contributors are active — and the nightly scan adds drafts nobody asked
  * for. `id` breaks ties: drafts written in one transaction — a scan's, for one
- * recording — share a `created_at`, and without a total order a page boundary
- * could fall differently on each request and skip or repeat a row.
+ * recording — share a `created_at`.
+ *
+ * After a row, not at an offset: new drafts land at the end, so the only thing
+ * that moves the list is a draft ahead of the loaded pages going (another
+ * reviewer publishing or rejecting it), and that shifted every later row up
+ * one — an offset's next page then started one row late and skipped a draft.
  */
 export async function fetchPending(
   client: KpClient,
-  from = 0
+  after: PendingCursor | null = null
 ): Promise<{ items: PendingRendition[]; hasMore: boolean }> {
-  const { data, error } = await client
+  let query = client
     .from('renditions')
     .select('*, tracks(artist_dir, date, url, raw_filename)')
-    .neq('status', 'published')
+    .neq('status', 'published');
+  if (after) {
+    // Quoted: a timestamptz carries ':' and '+', and PostgREST reads an
+    // unquoted value in or() up to the next delimiter.
+    query = query.or(
+      `created_at.gt."${after.created_at}",` +
+        `and(created_at.eq."${after.created_at}",id.gt.${after.id})`
+    );
+  }
+  const { data, error } = await query
     .order('created_at', { ascending: true })
     .order('id', { ascending: true })
-    .range(from, from + PAGE_SIZE - 1);
+    .limit(PAGE_SIZE);
   if (error) throw toError(error);
   return {
     items: (data ?? []) as PendingRendition[],
@@ -573,9 +592,12 @@ export async function fetchPendingCount(client: KpClient): Promise<number> {
 export function usePending(client: KpClient, enabled: boolean) {
   return useInfiniteQuery({
     queryKey: ['pending', 'list'],
-    queryFn: ({ pageParam }) => fetchPending(client, pageParam as number),
-    initialPageParam: 0,
-    getNextPageParam: (last, all) => (last.hasMore ? all.length * PAGE_SIZE : undefined),
+    queryFn: ({ pageParam }) => fetchPending(client, pageParam),
+    initialPageParam: null as PendingCursor | null,
+    getNextPageParam: (last) => {
+      const end = last.items.at(-1);
+      return last.hasMore && end ? { created_at: end.created_at, id: end.id } : undefined;
+    },
     enabled,
   });
 }
