@@ -13,7 +13,7 @@
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import type { KpClient } from './client';
+import { toError, type KpClient } from './client';
 
 export const PERMISSIONS = [
   'renditions.propose',
@@ -45,7 +45,7 @@ export async function fetchPermissions(client: KpClient): Promise<PermissionMap>
       // client knows and the database's enum does not yet, as on a project a
       // migration behind. Throwing on that would take every other permission
       // down with it, Save draft included.
-      if (error && error.code !== '22P02') throw error;
+      if (error && error.code !== '22P02') throw toError(error);
       return [requested, data === true] as const;
     })
   );
@@ -83,7 +83,7 @@ export function usePermissions(client: KpClient, userId: string | null | undefin
  */
 export async function fetchAllPermissions(client: KpClient): Promise<string[]> {
   const { data, error } = await client.rpc('app_permissions');
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data as string[]) ?? [];
 }
 
@@ -94,7 +94,7 @@ export interface RolePermission {
 
 export async function fetchRolePermissions(client: KpClient): Promise<RolePermission[]> {
   const { data, error } = await client.from('role_permissions').select('role,permission');
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data ?? []) as RolePermission[];
 }
 
@@ -129,7 +129,7 @@ export function useSetRolePermission(client: KpClient) {
         target_permission: vars.permission,
         enabled: vars.enabled,
       });
-      if (error) throw error;
+      if (error) throw toError(error);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['role-permissions'] });
@@ -158,7 +158,7 @@ export interface AdminUser {
  */
 export async function fetchAdminUsers(client: KpClient): Promise<AdminUser[]> {
   const { data, error } = await client.rpc('admin_users');
-  if (error) throw error;
+  if (error) throw toError(error);
   return (data as AdminUser[]) ?? [];
 }
 
@@ -183,7 +183,7 @@ export function useSetTrust(client: KpClient) {
         target: vars.target,
         level: vars.level,
       });
-      if (error) throw error;
+      if (error) throw toError(error);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
   });

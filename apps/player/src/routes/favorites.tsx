@@ -5,6 +5,7 @@
  * move them into. The list is fetched by id because that is the only shape
  * both modes share.
  */
+import { toError } from '@kp/api';
 import { toPlayable, type Playable } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { useQuery } from '@tanstack/react-query';
@@ -23,7 +24,7 @@ export function FavoritesRoute() {
     queryFn: async (): Promise<Playable[]> => {
       if (!ids.length) return [];
       const { data, error } = await supabase.from('shabads').select('*').in('id', ids);
-      if (error) throw error;
+      if (error) throw toError(error);
       const rows = (data ?? []) as Record<string, unknown>[];
       // Ordered by the saved list, not by what Postgres returned: the listener
       // put these in an order and an `in.()` filter does not preserve it.
