@@ -194,6 +194,15 @@ jobs:
           name: eval-${{ matrix.shard }}
           path: packages/aligner/results/*.json
           if-no-files-found: ignore
+      # The transcripts the shard scored, so a matcher change can be measured
+      # on a laptop (eval_scan.py --truth, no ASR, no key) instead of another
+      # hour of runners. ASR text of public broadcasts; nothing private.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: transcripts-${{ matrix.shard }}
+          path: packages/aligner/cache/track_*.json
+          if-no-files-found: ignore
+          retention-days: 30
 
   report:
     needs: eval
