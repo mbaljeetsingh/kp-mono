@@ -12,23 +12,28 @@
 # waits for publish (verify first, then spend compute); see issue #30.
 #
 # CPU maths, measured on this runner type (run 36318552033, 4 vCPU) rather
-# than estimated. The ASR model is a CTC conformer on onnxruntime: the long
-# pass is one forward pass over the rendition (RTF 0.075), the short pass runs
-# each 8s window on its own (RTF 0.164) — ~0.24x the rendition's duration in
-# all, 2-3 minutes for a 10-minute set. The audio fetch is seconds.
+# than estimated. A rendition is read off its recording's transcript — the
+# scan's, in the transcripts bucket — and costs seconds. A recording with no
+# transcript yet is transcribed once, whole, by the first rendition on it. The
+# ASR model is a CTC conformer on onnxruntime: the long pass is one forward
+# pass over the recording (RTF 0.075), the short pass runs each 8s window on
+# its own (RTF 0.164) — ~0.24x the recording's duration in all, 8-9 minutes
+# for a 35-minute duty, ~45 for a 3-hour Asa di Vaar. The fetch is seconds.
 #
 # So --limit 20 --deadline-min 60. Two different bounds, because neither is
 # sufficient alone:
 #
-#   --limit 20 bounds renditions ALIGNED, not rows fetched. A rendition the
-#   confidence gate refuses never gets timings, so it stays at the head of a
-#   created_at.asc queue forever; counted against the limit it would retire one
-#   of the night's slots permanently (see SKIP_BUDGET in write_timings.py).
+#   --limit 20 bounds renditions ALIGNED. A rendition the confidence gate
+#   refuses never gets timings, so it stays queued forever; counted against
+#   the limit it would retire one of the night's slots permanently. Once its
+#   recording is transcribed it costs seconds a run.
 #
 #   --deadline-min 60 bounds the clock, which is what this timeout actually
-#   enforces. The job projects each rendition's cost from its duration
-#   (CI_RTF, rounded up) and defers what will not fit, leaving 30 minutes of
-#   headroom under timeout-minutes for the one already in flight.
+#   enforces. The job projects what each recording it would have to
+#   transcribe costs from its length (CI_RTF, rounded up) and starts it only
+#   if that fits what is left of the 60 minutes — or, for the run's first,
+#   all 60. A 3-hour recording (~45 minutes measured, 54 projected) still
+#   ends inside timeout-minutes; one too long for any run never starts.
 #
 # History worth keeping: under surt-small-v3 (Whisper) this job was RTF ~6-9 —
 # every window padded to a 30s mel input and re-encoded by both passes — and
