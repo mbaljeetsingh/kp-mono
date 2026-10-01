@@ -170,5 +170,9 @@ def chance(blocks, cache_dir):
         pick = rng.choice(len(keys), REF_N, replace=False)
         _ref = float(np.median([_chance_one(_bg, keys[i], by[keys[i]])
                                 for i in pick]))
-    return {sid: max(0.0, _chance_one(_bg, sid, ls) - _ref)
+    # The same MIN_CHARS as the reference: a short line partial-matches inside
+    # any background piece, and unfiltered it cost a 16-line shabad 0.10
+    # (0.03 filtered) while Oankar barely moved.
+    return {sid: max(0.0, _chance_one(
+                _bg, sid, [f for f in ls if len(f) >= MIN_CHARS] or ls) - _ref)
             for sid, ls in blocks.items()}

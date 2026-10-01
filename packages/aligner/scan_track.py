@@ -154,10 +154,10 @@ def evidence(long_w, short_w, shabads, n):
                     acc[:, a:b] += row[:, None]
         halves.append(acc / np.maximum(cnt, 1))
     # Less each shabad's chance above a typical one's (corpus.chance): Oankar
-    # loses 0.15, a shabad of ordinary length ~0. Measured on prod's 52
-    # published renditions, puratan found went 13/18 -> 17/18 and precision
-    # 0.92 -> 0.95; the drafts it then got "wrong" were second shabads sung
-    # inside a recording tagged whole as one (#84).
+    # loses 0.13, the published shabads 0-0.06. With the Kabit in the corpus,
+    # on prod's published renditions (three coarse tags split by hand, #84):
+    # found 0.88 -> 0.96, puratan 15/22 -> 20/22, wrong drafts 1 -> 0, and
+    # the auto-publish band still 0 wrong.
     excess = corpus.chance({s: lines[a:b] for s, a, b in
                             zip(sids, starts, starts[1:] + [len(lines)])}, CACHE)
     ev = 0.5 * halves[0] + 0.5 * halves[1]
