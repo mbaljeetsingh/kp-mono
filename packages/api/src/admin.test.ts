@@ -6,6 +6,7 @@ import {
   draftSchema,
   fetchPending,
   fetchPendingCount,
+  publishRefusal,
   scanStatus,
 } from './admin';
 import type { KpClient } from './client';
@@ -60,7 +61,7 @@ describe('canPublishRendition', () => {
   const trusted = { review: false, publish: true };
   const contributor = { review: false, publish: false };
   const ME = 'user-1';
-  const linked = { shabad_id: 4064 };
+  const linked = { shabad_id: 4064, main_verse_id: 50909 };
 
   it('lets a reviewer publish anyone’s draft', () => {
     expect(
@@ -101,6 +102,45 @@ describe('canPublishRendition', () => {
     // database refuses it as well; this is what keeps the button away.
     expect(canPublishRendition({ status: 'draft', shabad_id: null }, reviewer, ME)).toBe(false);
     expect(canPublishRendition({ status: 'draft', created_by: ME }, trusted, ME)).toBe(false);
+  });
+
+  it('nor with a shabad but no main verse, the line both titles come from', () => {
+    expect(
+      canPublishRendition({ status: 'draft', shabad_id: 4064, main_verse_id: null }, reviewer, ME)
+    ).toBe(false);
+  });
+});
+
+describe('publishRefusal', () => {
+  const reviewer = { review: true, publish: true };
+  const trusted = { review: false, publish: true };
+  const contributor = { review: false, publish: false };
+  const ME = 'user-1';
+  const unlinked = { status: 'draft', shabad_id: null, main_verse_id: null };
+
+  it('says "needs a shabad" only to someone for whom linking is all that is missing', () => {
+    // A hint that tells a contributor, or a trusted account looking at someone
+    // else's draft, to link a shabad promises a Publish that would not come.
+    expect(publishRefusal({ ...unlinked, created_by: ME }, trusted, ME)).toBe('needs-shabad');
+    expect(publishRefusal({ ...unlinked, created_by: 'other' }, reviewer, ME)).toBe('needs-shabad');
+    expect(publishRefusal({ ...unlinked, created_by: 'other' }, trusted, ME)).toBe('permission');
+    expect(publishRefusal({ ...unlinked, created_by: ME }, contributor, ME)).toBe('permission');
+  });
+
+  it('asks for the main verse once the shabad is there', () => {
+    expect(
+      publishRefusal({ status: 'draft', shabad_id: 4064, main_verse_id: null }, reviewer, ME)
+    ).toBe('needs-line');
+  });
+
+  it('calls a published row published, linked or not', () => {
+    expect(publishRefusal({ ...unlinked, status: 'published' }, reviewer, ME)).toBe('published');
+  });
+
+  it('answers null when nothing stands in the way', () => {
+    expect(
+      publishRefusal({ status: 'draft', shabad_id: 4064, main_verse_id: 50909 }, reviewer, ME)
+    ).toBeNull();
   });
 });
 
@@ -180,6 +220,10 @@ describe('acceptScanDrafts', () => {
         calls.push(`in ${col} ${values.join(',')}`);
         return builder;
       },
+      not: (col: string, op: string, value: unknown) => {
+        calls.push(`not ${col} ${op} ${String(value)}`);
+        return builder;
+      },
       select: () => Promise.resolve(result),
     };
     const client = {
@@ -199,6 +243,10 @@ describe('acceptScanDrafts', () => {
       'update {"status":"published"}',
       'in id a,b',
       'in status shabad_linked,published',
+      // Left out rather than refused: one unlinked since the page loaded must
+      // not stop the rest publishing.
+      'not shabad_id is null',
+      'not main_verse_id is null',
     ]);
   });
 

@@ -314,13 +314,6 @@ def merge_regions(regions):
     return out
 
 
-def _name(verse, sid):
-    """The roman title, exactly as the workbench names this line: names.py is
-    shabad-name.ts's copy. No longer cut to 80 characters, which made a second
-    name for the same line; the player truncates on screen anyway."""
-    return titles(verse, sid)[0]
-
-
 def settled_share(t0, t1, spans):
     """How much of [t0, t1] lies inside `spans`, counting an overlap once."""
     covered, edge = 0.0, t0
@@ -377,7 +370,7 @@ def write_drafts(track_id, found, shabads, owner=None):
             # Refusing to draft must not mean refusing to tell: this becomes a
             # listen-here pointer in the tagger (scan_requests.findings).
             findings.append({"shabad_id": sid,
-                             "name": _name(verses[cand[0]], sid),
+                             "name": titles(verses[cand[0]], sid)[0],
                              "start": round(t0, 1), "end": round(t1, 1),
                              "confidence": round(conf, 2),
                              "margin": round(margin, 2)})
@@ -404,8 +397,8 @@ def write_drafts(track_id, found, shabads, owner=None):
             "name": name, "shabad_id": sid,
             "main_verse_id": verse["verseId"],
             # The anchor's own line, so a draft accepted from the tag page —
-            # in bulk, without opening the editor — reaches the player with
-            # its Gurmukhi title (20261001030000_rendition_gurmukhi_names.sql).
+            # in bulk, without opening the editor — is published with its
+            # Gurmukhi title (20261001030000_rendition_gurmukhi_names.sql).
             "name_gurmukhi": gurmukhi,
             "status": "published" if publish else "shabad_linked",
             "source": "scan",

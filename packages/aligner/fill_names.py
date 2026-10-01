@@ -7,8 +7,11 @@ write them that way; this brings the rows written before into line. A typed
 name becomes BaniDB's, "...Rahau" loses the marker, and every empty
 name_gurmukhi is filled, including one the anchor trigger cleared.
 
-    SB_KEY=... python fill_names.py            # list what would change
-    SB_KEY=... python fill_names.py --apply    # and change it
+    SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py
+    SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py --apply
+
+The first lists what would change; the second changes it. SB_URL defaults to
+the local stack, so leaving it out against prod reads your laptop instead.
 
 Dry unless told otherwise: it rewrites titles people typed, so the list gets
 read before anything on prod is touched. Safe to run again — a row that
@@ -48,10 +51,14 @@ def plan():
         try:
             verses = {v["verseId"]: v for v in banidb(f"/shabads/{sid}")["verses"]}
         except urllib.error.HTTPError as e:
-            # banidb() retries what is worth retrying and raises the rest. A 4xx
-            # is an answer — this id is not in BaniDB — so it is listed, not
-            # fatal. Anything else (BaniDB down) stops the run: half a fill is
-            # fine to resume, but not worth silently reporting as done.
+            # banidb() retries what is worth retrying and raises the rest. A
+            # 404 is an answer — this id is not in BaniDB — so it is listed, not
+            # fatal. Any other refusal (a 403 from a firewall, say) says nothing
+            # about the shabad and would list every one as missing, so it stops
+            # the run, as BaniDB being down does: half a fill is fine to resume,
+            # but not worth silently reporting as done.
+            if e.code != 404:
+                raise
             missing.append((sid, len(group), e.code))
             continue
         for r in group:
@@ -88,9 +95,13 @@ def write(r, name, gurmukhi):
 
 def main(apply):
     changes, unanchored, missing, rows = plan()
+    # Rows under a shabad BaniDB did not return were never compared, so they
+    # are not "already right" — the count the owner reads before --apply.
+    unchecked = sum(n for _, n, _ in missing)
     print(f"{len(rows)} renditions with a shabad linked; "
           f"{len(changes)} to rename, "
-          f"{len(rows) - len(changes) - len(unanchored)} already right")
+          f"{len(rows) - len(changes) - len(unanchored) - unchecked} already right"
+          + (f", {unchecked} not checked" if unchecked else ""))
     for c in changes:
         show(*c)
 

@@ -22,15 +22,13 @@ import { Input } from '../ui/input';
 import { GurmukhiKeyboard } from './gurmukhi-keyboard';
 import { cn } from '../../lib/utils';
 
-export interface ShabadPick {
-  shabadId: number;
-  verseId: number;
-  /** The line for display: Unicode when BaniDB sent it, its Gurbani-font ASCII when not. */
-  firstLine: string;
-  /** The line in Unicode only, never the ASCII, because a title is stored from it. */
-  unicode: string;
-  transliteration: string;
-}
+/**
+ * The line picked: BaniDB's own hit, whole. A caller that titles it (the
+ * workbench) then reads it exactly as it reads a filename match, which is the
+ * same hit from the same search — a flattened copy was a second way to turn
+ * one line into a title, free to drift from the first.
+ */
+export type ShabadPick = BaniDbHit;
 
 export function ShabadSearch({
   base,
@@ -118,18 +116,10 @@ export function ShabadSearch({
           <button
             key={hit.verseId}
             type="button"
-            onClick={() =>
-              // The line somebody searched for and clicked is a stronger signal
-              // than any heuristic — they were looking for that line. It
-              // becomes the anchor.
-              onSelect({
-                shabadId: hit.shabadId,
-                verseId: hit.verseId,
-                firstLine: hit.verse?.unicode ?? hit.verse?.gurmukhi ?? '',
-                unicode: hit.verse?.unicode ?? '',
-                transliteration: hit.transliteration?.english ?? '',
-              })
-            }
+            // The line somebody searched for and clicked is a stronger signal
+            // than any heuristic — they were looking for that line. It becomes
+            // the anchor.
+            onClick={() => onSelect(hit)}
             className="rounded-lg px-2 py-2 text-left hover:bg-accent/50"
           >
             <p className="text-sm">{hit.verse?.unicode ?? hit.verse?.gurmukhi}</p>

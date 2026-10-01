@@ -11,9 +11,9 @@
  * had to be opened first made it the second.
  */
 import {
-  canPublishRendition,
   createRendition,
   deleteRendition,
+  publishRefusal,
   setRenditionStatus,
   updateRendition,
   useShabadText,
@@ -166,9 +166,14 @@ export function SegmentEditor({
    * The link, three ways. `undefined` is "nobody has chosen": the filename's
    * best match stands in, and follows it if the match arrives late. `null` is
    * "deliberately unlinked". Anything else was picked.
+   *
+   * A name counts as a choice. A scan pointer brings one and deliberately no
+   * link, so its form opens unlinked rather than letting a cached filename
+   * match link it and take the name away; typing one does the same (see the
+   * Name field), so a match that lands mid-word cannot unmount the field.
    */
   const [link, setLink] = useState<ShabadLink | null | undefined>(() => {
-    if (!editing) return undefined;
+    if (!editing) return seedName ? null : undefined;
     return editing.shabad_id
       ? {
           shabadId: editing.shabad_id,
@@ -185,14 +190,13 @@ export function SegmentEditor({
    *
    * Linked, the name is the anchor line's and there is no field to type in
    * (#77): a typed name could name a different line than the Gurmukhi beside
-   * it, and the player shows either one. Unlinked, a typed name is still all a
-   * draft needs — that keeps marking and naming by ear open to anyone.
-   * Seeded from a row saved unlinked, or from a scan pointer, which deliberately
-   * brings a name and not a link.
+   * it, and both are titles the rendition goes out with. Unlinked, a typed name
+   * is still all a draft needs — that keeps marking and naming by ear open to
+   * anyone. Seeded from the row being edited, linked or not, so unlinking a
+   * wrong shabad leaves its name to correct rather than a blank to retype; or
+   * from a scan pointer, which brings a name and not a link.
    */
-  const [typedName, setTypedName] = useState(() =>
-    editing ? (editing.shabad_id ? '' : editing.name) : (seedName ?? '')
-  );
+  const [typedName, setTypedName] = useState(() => (editing ? editing.name : (seedName ?? '')));
 
   const [raag, setRaag] = useState(editing?.raag ?? '');
   const [taal, setTaal] = useState(editing?.taal ?? '');
@@ -235,7 +239,10 @@ export function SegmentEditor({
    * in place (renditions_publish_needs_shabad) — it would leave the player a
    * title with nothing behind it — so the form says so before anyone presses.
    */
-  const unlinkingPublished = editing?.status === 'published' && !linked;
+  // Only a row that had a link: one published unlinked before #77 has none to
+  // lose, and stays editable, as the trigger leaves it.
+  const unlinkingPublished =
+    editing?.status === 'published' && editing.shabad_id != null && !linked;
   const canSave = ordered && name.trim().length > 0 && can.propose && !unlinkingPublished;
 
   /** Said, not implied by a greyed-out button — the reason it looked like publishing was missing. */
@@ -253,20 +260,22 @@ export function SegmentEditor({
           : null;
 
   /**
-   * Whether this form can end with the shabad in the player: the permission,
-   * judged against the link as it stands in the form rather than as saved,
-   * since publishing needs one (canPublishRendition).
+   * Why this form cannot end with the shabad in the player, or null if it can:
+   * the one rule every Publish button reads (publishRefusal), asked of the row
+   * as this form would save it — the link and main verse as they stand here,
+   * and for a new row, a draft in this account's name, which is what
+   * createRendition inserts.
    */
-  const publishable =
-    can.publish &&
-    Boolean(linked) &&
-    (editing
-      ? canPublishRendition(
-          { ...editing, shabad_id: linked?.shabadId ?? null },
-          { review: can.review, publish: can.publish },
-          userId
-        )
-      : true);
+  const refusal = publishRefusal(
+    {
+      ...(editing ?? { status: 'draft', created_by: userId }),
+      shabad_id: linked?.shabadId ?? null,
+      main_verse_id: linked?.verseId ?? null,
+    },
+    { review: can.review, publish: can.publish },
+    userId
+  );
+  const publishable = refusal === null;
 
   function refresh() {
     void queryClient.invalidateQueries({ queryKey: ['renditions', trackId] });
@@ -335,6 +344,20 @@ export function SegmentEditor({
       await persist(publishable);
       await loop?.next();
     });
+
+  /**
+   * Enter in any of the form's fields does what the primary button does. It
+   * lived on the Name field alone, which a linked shabad no longer shows, so
+   * Publish & next lost its key in exactly the loop that is all keyboard.
+   * The key rather than the event, so no React event type shadows the DOM's.
+   */
+  function enterSaves(key: string) {
+    if (key !== 'Enter' || !canSave || busy) return;
+    // The primary button's action, whichever it is. In the puratan loop a bare
+    // publish would leave the recording unmarked — and with no slot, nothing
+    // else can ever count it done.
+    void (loop ? saveAndNext() : save(publishable));
+  }
 
   async function skip() {
     setBusy(true);
@@ -463,11 +486,19 @@ export function SegmentEditor({
         {linked ? (
           <div className="flex items-center gap-2 rounded-lg bg-accent/50 px-3 py-2">
             <Link2 className="size-4 shrink-0 text-primary" />
-            {/* The Gurmukhi title exactly as the player will show it — the
-                line, less its verse bars, numbers and rahao marker. */}
-            <span lang="pa" className="min-w-0 flex-1 truncate font-gurbani text-base">
-              {titles?.gurmukhi || (text.isLoading ? '…' : `Shabad ${linked.shabadId}`)}
-            </span>
+            {/* The Gurmukhi title exactly as it is saved — the line, less its
+                verse bars, numbers and rahao marker. Marked Punjabi only when
+                it is: the stand-ins are English, and a screen reader would
+                read "Shabad 4064" in a Punjabi voice. */}
+            {titles?.gurmukhi ? (
+              <span lang="pa" className="min-w-0 flex-1 truncate font-gurbani text-base">
+                {titles.gurmukhi}
+              </span>
+            ) : (
+              <span className="min-w-0 flex-1 truncate text-sm">
+                {text.isLoading ? '…' : `Shabad ${linked.shabadId}`}
+              </span>
+            )}
             <Button
               variant="ghost"
               size="icon-sm"
@@ -480,15 +511,10 @@ export function SegmentEditor({
         ) : searching ? (
           <ShabadSearch
             base={BANIDB_BASE}
-            onSelect={(pick) => {
+            onSelect={(hit) => {
               // The line they searched for and clicked is the anchor: people
               // recognise a rendition by its rahao, not the first line.
-              setLink(
-                linkTo(pick.shabadId, pick.verseId, {
-                  verse: { unicode: pick.unicode },
-                  transliteration: { english: pick.transliteration },
-                })
-              );
+              setLink(linkFromHit(hit));
               setSearching(false);
             }}
           />
@@ -542,9 +568,7 @@ export function SegmentEditor({
                   className="h-7 max-w-full px-2 text-xs"
                   onClick={() => setLink(linkFromHit(m))}
                 >
-                  <span lang="pa" className="truncate font-gurbani">
-                    {titlesFor(m, m.shabadId).gurmukhi ?? m.transliteration?.english}
-                  </span>
+                  <MatchTitle hit={m} />
                 </Button>
               ))}
             </div>
@@ -568,14 +592,14 @@ export function SegmentEditor({
           <Input
             id="segment-name"
             value={typedName}
-            onChange={(e) => setTypedName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter' || !canSave || busy) return;
-              // The primary button's action, whichever it is. In the puratan
-              // loop a bare publish would leave the recording unmarked — and
-              // with no slot, nothing else can ever count it done.
-              void (loop ? saveAndNext() : save(publishable));
+            onChange={(e) => {
+              setTypedName(e.target.value);
+              // Typing is choosing to name it by ear: a filename match landing
+              // now must not link the form and unmount the field mid-word. It
+              // stays one click away among the matches above.
+              if (link === undefined) setLink(null);
             }}
+            onKeyDown={(e) => enterSaves(e.key)}
             placeholder="Type what you hear, or link a shabad above"
           />
           <p className="text-xs text-muted-foreground">
@@ -593,6 +617,7 @@ export function SegmentEditor({
             id="segment-raag"
             value={raag}
             onChange={(e) => setRaag(e.target.value)}
+            onKeyDown={(e) => enterSaves(e.key)}
             placeholder="Optional, e.g. Asa"
           />
         </div>
@@ -602,6 +627,7 @@ export function SegmentEditor({
             id="segment-taal"
             value={taal}
             onChange={(e) => setTaal(e.target.value)}
+            onKeyDown={(e) => enterSaves(e.key)}
             placeholder="Optional, e.g. Teentaal"
           />
         </div>
@@ -702,14 +728,28 @@ export function SegmentEditor({
             : (waiting ??
               // Said where Publish would be: a publisher who finds only Save
               // draft should not have to guess why.
-              (can.publish && !linked && editing?.status !== 'published'
+              (refusal === 'needs-shabad'
                 ? 'Link a shabad to publish. A draft saves without one.'
-                : publishable || loop
-                  ? 'Only published shabads appear in the player.'
-                  : ''))}
+                : refusal === 'needs-line'
+                  ? 'Click the line it’s known by to publish.'
+                  : publishable || loop
+                    ? 'Only published shabads appear in the player.'
+                    : ''))}
         </span>
       </div>
     </div>
+  );
+}
+
+/** A filename match's line: in Gurmukhi, marked as Punjabi, or its roman when BaniDB sent none. */
+function MatchTitle({ hit }: { hit: BaniDbHit }) {
+  const gurmukhi = titlesFor(hit, hit.shabadId).gurmukhi;
+  return gurmukhi ? (
+    <span lang="pa" className="truncate font-gurbani">
+      {gurmukhi}
+    </span>
+  ) : (
+    <span className="truncate">{hit.transliteration?.english}</span>
   );
 }
 
