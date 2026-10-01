@@ -78,6 +78,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # First, before anything opens a connection: the stack's ports
+      # (54521-54529, supabase/config.toml) sit inside Linux's ephemeral range,
+      # and one run failed because an outbound socket from an earlier step held
+      # 54522 when Postgres went to bind it. Reserved, the kernel never hands
+      # them out.
+      - run: sudo sysctl -w net.ipv4.ip_local_reserved_ports=54520-54530
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v5
