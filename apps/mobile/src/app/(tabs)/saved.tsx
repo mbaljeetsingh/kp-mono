@@ -6,7 +6,7 @@
  */
 
 import { toPlayable, type Playable } from '@kp/core';
-import { signOut } from '@kp/api';
+import { signOut, toError } from '@kp/api';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -30,7 +30,7 @@ export default function SavedScreen() {
     queryFn: async (): Promise<Playable[]> => {
       if (!ids.length) return [];
       const { data, error } = await supabase.from('shabads').select('*').in('id', ids);
-      if (error) throw error;
+      if (error) throw toError(error);
       const rows = (data ?? []) as Record<string, unknown>[];
       // Ordered by the saved list: somebody put these in an order and an
       // `in.()` filter does not preserve it.

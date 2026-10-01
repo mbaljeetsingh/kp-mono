@@ -416,10 +416,17 @@ export async function updateRendition(
     .from('renditions')
     .update({ ...parsed, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .select(RENDITION_COLUMNS)
-    .single();
+    .select(RENDITION_COLUMNS);
   if (error) throw toError(error);
-  return renditionSchema.parse(data);
+  // Counted, as setRenditionStatus does: with .single() a row RLS filtered out
+  // (published or deleted while the form was open) read as "Cannot coerce the
+  // result to a single JSON object".
+  if (!data?.length) {
+    throw new Error(
+      'That change was not permitted — it may have been published or deleted meanwhile.'
+    );
+  }
+  return renditionSchema.parse(data[0]);
 }
 
 /**

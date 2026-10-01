@@ -1,7 +1,8 @@
-import { createClient, PostgrestError } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 
-import { guardFetch, toError, type AuthWatch } from './client';
+import { setRenditionStatus } from './admin';
+import { guardFetch, type AuthWatch } from './client';
 
 // Any project URL: only the /auth/v1/ prefix built from it matters, and
 // nothing here makes a request.
@@ -80,27 +81,52 @@ describe('guardFetch', () => {
 });
 
 describe('toError', () => {
-  it('turns what a real failed query hands back into an Error, message and code kept', async () => {
+  /** A real client whose every request gets `respond`'s answer. */
+  const answering = (respond: () => Response) =>
+    createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch: async () => respond() },
+    });
+
+  it('is what an @kp/api function throws: an Error with the message and code', async () => {
     // A real client behind the guard, refusing as it does while a sign-in
-    // renews: the whole path from the 401 to what an @kp/api function throws.
+    // renews. The base answers, so a guard that stopped refusing fails here at
+    // once rather than on postgrest-js's retries.
     const watch: AuthWatch = { signedIn: true, trouble: 0 };
     const client = createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
-      global: { fetch: guardFetch(watch, { url, key, tokenless: 'refuse' }, vi.fn()) },
+      global: {
+        fetch: guardFetch(watch, { url, key, tokenless: 'refuse' }, async () => new Response('[]')),
+      },
     });
+    // What postgrest-js hands back: not an Error, which is why every page
+    // showed "Failed".
     const { error } = await client.from('renditions').select('id');
-    // What postgrest-js returns without throwOnError: not an Error at all,
-    // which is why every page showed "Failed".
     expect(error).not.toBeInstanceOf(Error);
 
-    const thrown = toError(error!);
-    expect(thrown).toBeInstanceOf(Error);
-    expect(thrown.message).toBe('Your sign-in is being renewed. Try again in a moment.');
-    expect((thrown as PostgrestError).code).toBe('PGRST301');
+    // `toThrow` alone passes on any object with a message; the class is the point.
+    const publishing = setRenditionStatus(client, 'r1', 'published');
+    await expect(publishing).rejects.toBeInstanceOf(Error);
+    await expect(publishing).rejects.toThrow(
+      'Your sign-in is being renewed. Try again in a moment.'
+    );
+    await expect(publishing).rejects.toMatchObject({ code: 'PGRST301' });
   });
 
-  it('leaves an Error as it is', () => {
-    const error = new PostgrestError({ message: 'm', details: 'd', hint: 'h', code: 'c' });
-    expect(toError(error)).toBe(error);
+  it('puts a sentence in place of a body nobody can read', async () => {
+    // A gateway's empty 502 left every alert blank; its HTML page filled one.
+    const bodies = [
+      new Response('', { status: 502 }),
+      new Response('<!DOCTYPE html><html><body>Bad gateway</body></html>', { status: 520 }),
+    ];
+    for (const body of bodies) {
+      await expect(
+        setRenditionStatus(
+          answering(() => body),
+          'r1',
+          'published'
+        )
+      ).rejects.toThrow('Something went wrong on the server. Try again in a moment.');
+    }
   });
 });

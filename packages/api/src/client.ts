@@ -141,13 +141,23 @@ export function createKpClient({
 /**
  * What a failed query throws.
  *
- * postgrest-js hands a query's error back as a plain object unless the query
- * opts into throwOnError, and the apps read anything that is not an Error as
- * "Failed": the sign-in-renewed message guardFetch writes never reached the
- * screen, and nor did any refusal Postgres explained. This is the
- * PostgrestError throwOnError would have thrown — an Error, with its code,
- * details and hint still on it.
+ * postgrest-js hands a query's error back as a plain object (its types say
+ * otherwise), and the apps read anything that is not an Error as "Failed": the
+ * sign-in-renewed message guardFetch writes never reached the screen, and nor
+ * did any refusal Postgres explained. This is the PostgrestError throwOnError
+ * would have thrown — an Error, with its code, details and hint still on it.
+ *
+ * Its message only when that is a sentence. A response PostgREST did not write
+ * comes through as its raw body: empty from a gateway's 502, which left every
+ * alert blank where it used to say "Failed", or a whole HTML error page.
  */
-export function toError(error: PostgrestError): Error {
-  return error instanceof Error ? error : new PostgrestError(error);
+export function toError(error: PostgrestError): PostgrestError {
+  const message = typeof error?.message === 'string' ? error.message.trim() : '';
+  const readable = message !== '' && message.length <= 300 && !message.startsWith('<');
+  return new PostgrestError({
+    message: readable ? message : 'Something went wrong on the server. Try again in a moment.',
+    details: readable ? error.details : JSON.stringify(error).slice(0, 500),
+    hint: error?.hint ?? '',
+    code: error?.code ?? '',
+  });
 }
