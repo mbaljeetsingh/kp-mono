@@ -87,11 +87,7 @@ export function QueueRoute() {
   // Keyed by track: a refusal belongs to the row that earned it, not to a line
   // at the top of a list the tagger has scrolled a long way down.
   const [askError, setAskError] = useState<Record<string, string>>({});
-  const scanState = (id: string): ScanState => {
-    const states = scans.data;
-    if (!states || !(id in states)) return 'none';
-    return states[id] === null ? 'queued' : 'done';
-  };
+  const scanState = (id: string): ScanState => scans.data?.[id] ?? 'none';
   const suggest = (id: string, again: boolean) => {
     if (!userId) return;
     setAsking(id);
@@ -266,7 +262,7 @@ export function QueueRoute() {
                     name={r.title ?? r.raw_filename ?? r.id}
                     state={scanState(r.id)}
                     busy={asking === r.id}
-                    onAsk={() => suggest(r.id, scanState(r.id) === 'done')}
+                    onAsk={() => suggest(r.id, scanState(r.id) !== 'none')}
                   />
                 ) : null}
               </div>
@@ -314,7 +310,7 @@ export function QueueRoute() {
   );
 }
 
-type ScanState = 'none' | 'queued' | 'done';
+type ScanState = 'none' | 'queued' | 'failed' | 'done';
 
 /**
  * A quiet side door on the row, as the Vue queue had: ask the scanner to
@@ -345,24 +341,34 @@ function SuggestButton({
     );
   }
   // A finished scan is an answer, not a dead end: "nothing found" is worth
-  // asking again once the scanner improves.
-  const again = state === 'done';
+  // asking again once the scanner improves. A failed one read "queued" for
+  // good before, with no way to ask again from here.
+  const again = state === 'done' || state === 'failed';
+  const failed = state === 'failed';
   return (
     <Button
       variant="ghost"
       size="sm"
-      className="mr-1 h-7 shrink-0 px-2 text-[11px] text-muted-foreground"
+      className={`mr-1 h-7 shrink-0 px-2 text-[11px] ${failed ? 'text-destructive' : 'text-muted-foreground'}`}
       disabled={busy}
       onClick={onAsk}
-      aria-label={again ? `Scan ${name} again` : `Suggest shabads for ${name}`}
+      aria-label={
+        failed
+          ? `Scan of ${name} failed; scan it again`
+          : again
+            ? `Scan ${name} again`
+            : `Suggest shabads for ${name}`
+      }
       title={
-        again
-          ? 'Scanned already — ask again (the scanner may have improved since)'
-          : 'Scan this recording for shabad suggestions'
+        failed
+          ? 'The last scan failed — the recording’s page says why. Ask again'
+          : again
+            ? 'Scanned already — ask again (the scanner may have improved since)'
+            : 'Scan this recording for shabad suggestions'
       }
     >
       <Sparkles className="size-3.5" />
-      {again ? 'Suggest again' : 'Suggest'}
+      {failed ? 'Scan failed, retry' : again ? 'Suggest again' : 'Suggest'}
     </Button>
   );
 }
