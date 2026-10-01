@@ -137,7 +137,9 @@ nearly every program, they are rarely made renditions of, and a draft deleted
 would count as a rejection in the auto-publish trial.
 Queue mode consumes `scan_requests` oldest first, re-reading it after each
 track so one run drains it, and stamps `done_at` even when nothing cleared the
-gate; a failing track is left queued for retry.
+gate. Each request it takes gets `started_at` and its run's `run_url`, and a
+failing one an `error` the tag page shows beside Scan again; it stays queued
+for a retry, after every request that has not failed.
 
 Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
 prod's published tags (25 renditions, 17 recordings) against the old sparse
