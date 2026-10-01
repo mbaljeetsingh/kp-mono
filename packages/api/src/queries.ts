@@ -5,7 +5,7 @@
  * prefetch, or a test, and every one of those wants the same query. The hooks
  * in `hooks.ts` are thin wrappers around these.
  */
-import { toPlayable, type Playable } from '@kp/core';
+import { chunk, toPlayable, type Playable } from '@kp/core';
 
 import { toError, type KpClient } from './client';
 import { artistSchema, parseRows, shabadRowSchema, type Artist } from './schemas';
@@ -40,6 +40,32 @@ function shabads(client: KpClient, from: number) {
     .from('shabads')
     .select(SHABAD_COLUMNS)
     .range(from, from + PAGE_SIZE - 1);
+}
+
+/**
+ * Saved shabads, by id, in the order they were saved.
+ *
+ * Batched: the ids travel in the query string, and past about 250 the URL
+ * crosses the gateway's limit, so a long saved list failed to load at all.
+ * Ordered here, because an `in.()` filter returns rows in its own order. An id
+ * that is no longer published simply drops out.
+ */
+export async function shabadsByIds(client: KpClient, ids: string[]): Promise<Playable[]> {
+  if (!ids.length) return [];
+  const batches = await Promise.all(
+    chunk(ids).map((batch) => client.from('shabads').select(SHABAD_COLUMNS).in('id', batch))
+  );
+  const failed = batches.find((b) => b.error);
+  if (failed?.error) throw toError(failed.error);
+  const { rows } = parseRows(
+    shabadRowSchema,
+    batches.flatMap((b) => b.data ?? [])
+  );
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [toPlayable(row)] : [];
+  });
 }
 
 /** The orders a listener can put the archive in. */
