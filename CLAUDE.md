@@ -31,7 +31,7 @@ pnpm pipeline                                # scan then align against the local
 cd packages/aligner && uv venv && uv pip install -e .   # once, for the Python tools
 ```
 
-CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, lint, typecheck, test and build on every PR. `scan.yml`/`align.yml` start as soon as there is work — a database trigger dispatches them (`supabase/migrations/20260930000000_dispatch_scan_and_align.sql`) — and also run nightly as a sweep; `crawl.yml` runs weekly. All run against the deployed project. `scan.yml` can also be run by hand with a `track_id` (one queued recording) or `eval` (read-only measurement of the scan against published tags).
+CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, lint, typecheck, test and build on every PR. `scan.yml`/`align.yml` start as soon as there is work — a database trigger dispatches them (`supabase/migrations/20260930000000_dispatch_scan_and_align.sql`) — and also run nightly as a sweep; the nightly scan then scans up to three recordings nobody asked for (ragi-wise, untagged: #41). `crawl.yml` runs weekly. All run against the deployed project. `scan.yml` can also be run by hand with a `track_id` (one queued recording), `backfill` (the nightly three) or `eval` (read-only measurement of the scan against published tags).
 
 ## Supabase — read this before touching the database
 

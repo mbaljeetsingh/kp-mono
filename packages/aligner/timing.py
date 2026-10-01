@@ -36,6 +36,14 @@ BLEND, FLOOR = 0.4, 0.35
 # was +0.5 to +1.0s, and applying it took boundary MAE from 1.38s to 1.10s.
 SHIFT = 0.75
 CACHE = "cache"
+# What transcribing a recording costs per second of its audio, both passes,
+# measured on a CI runner (4 vCPU, run 36318552033) rather than estimated:
+# sliced long pass RTF 0.075 + per-window short pass 0.164. Rounded up for
+# headroom; the audio fetch was 6s per 10 minutes, noise beside it. Both
+# scripts size their deadlines with it. surt-small-v3 measured RTF 9.1 on the
+# same runner — if this number ever looks too good, that is the comparison,
+# not a typo.
+CI_RTF = 0.3
 # A fetched recording shorter than this share of what ffprobe reads from
 # sgpc.net was cut short. Measured on 41 recordings, 21 hours, 3 to 182
 # minutes long: the decoded length was ffprobe's exactly, or up to 0.5%
