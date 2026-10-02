@@ -24,6 +24,8 @@
   --color-subtle-foreground: var(--subtle-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-live: var(--live);
@@ -53,77 +55,116 @@
 
 :root {
   /*
-   * Sacred Navy — warm paper canvas, deep navy ink and primary,
-   * gold reserved for highlights (sun, active line, now-playing).
+   * Gurdwara gold on warm paper — the same gold the dark palette glows with,
+   * deepened until ivory text reads on it.
+   *
+   * Gold is the primary in both modes; what changes is the ground. By day it
+   * sits on paper with warm ink; at night on midnight navy. A navy primary was
+   * tried here first and fought the cream — blue on paper read cold and
+   * muted next to a dark mode that glowed — so navy now belongs to the night
+   * canvas alone, and the two modes read as one theme.
+   *
+   * The accent is spent on one thing per screen: the play control, the lit
+   * line, the selected tab. Everything else is a step on a low-chroma warm
+   * ladder, so the artwork and the Gurmukhi carry the colour, not the chrome.
+   *
+   * Three text tiers, not two. `muted-foreground` is secondary copy;
+   * `subtle-foreground` is metadata — timestamps, counts, the "· raag" tail.
+   * Every text token clears 4.5:1 on each surface text sits on.
    */
   --radius: 0.75rem;
+
+  /*
+   * Tells the browser which way its own chrome should go — form controls, the
+   * caret, and the default scrollbar where the custom one does not apply.
+   * Without it a light page keeps dark native widgets (and vice versa). The
+   * player switches palettes at runtime, so this switches with it.
+   */
   color-scheme: light;
 
-  --background: #f7f4ed; /* Warm paper */
-  --foreground: #172033; /* Navy ink */
-  --card: #fffcf7; /* Ivory */
-  --card-foreground: #172033;
-  --popover: #fffcf7;
-  --popover-foreground: #172033;
-  --primary: #263b63; /* Sacred Navy */
-  --primary-foreground: #fffcf7;
-  --secondary: #e9e5db; /* Sand */
-  --secondary-foreground: #263b63;
-  --muted: #f0ece3; /* Pothi cream */
-  --muted-foreground: #667085; /* Slate — secondary text */
-  --accent: #e9e5db; /* Hover / active surface */
-  --accent-foreground: #172033;
-  --highlight: #c99a3e; /* Gurdwara gold */
-  --highlight-foreground: #172033;
+  --background: #faf6ec; /* warm paper */
+  --foreground: #2a2218; /* warm ink, 14.5:1 */
+  --card: #fffdf8; /* ivory — the raised surface */
+  --card-foreground: #2a2218;
+  --popover: #fffdf8;
+  --popover-foreground: #2a2218;
+  --primary: #7d5a12; /* deep gold, 5.8:1 on paper; ivory text on it 6.2:1 */
+  --primary-foreground: #fffdf8;
+  --primary-soft: #f3e4bf; /* gold tint for chips and the active segment; gold on it 5:1 */
+  --secondary: #f0e9d8; /* sand */
+  --secondary-foreground: #5c4310;
+  --muted: #f4eee2; /* pothi cream */
+  --muted-foreground: #5c5244; /* secondary copy, 7.1:1 (6.3 on sand) */
+  --subtle-foreground: #6b6052; /* metadata, 5.7:1 (5.1 on sand) */
+  --accent: #e7dec9; /* hover / pressed — a notch below secondary, so a hovered sand pill moves */
+  --accent-foreground: #2a2218;
+  /*
+   * A brighter gold for marks rather than text — the lit-line bar, the
+   * now-playing dot, the sun. 3.6:1 on paper, over the 3:1 a mark needs.
+   */
+  --highlight: #a87a22;
+  --highlight-foreground: #0e1420; /* midnight ink, 4.8:1 */
   --destructive: #b42318;
-  --destructive-foreground: #fffcf7;
-  --border: #ddd7cb; /* Quiet warm separator */
-  --input: #d3ccbd; /* Field / outline stroke */
-  --ring: #263b63;
+  --destructive-foreground: #fffdf8;
+  --live: #c4302b; /* the broadcast dot, 5.1:1 */
+  --success: #2e6a45; /* aligned, tagged, saved, 6:1 */
+  --border: #e6dcc8; /* hairline — separates, never outlines */
+  --input: #cdc2aa; /* form strokes want a touch more than a hairline */
+  --ring: #7d5a12;
 
-  --chart-1: #263b63;
-  --chart-2: #c99a3e;
-  --chart-3: #5b6b8c;
-  --chart-4: #8a6a2e;
-  --chart-5: #a9b1c2;
+  --chart-1: #7d5a12;
+  --chart-2: #1f3c78; /* navy — the night canvas, as the second series */
+  --chart-3: #a87a22;
+  --chart-4: #5b6b8c;
+  --chart-5: #a89c88;
 
-  --sidebar: #fffcf7;
-  --sidebar-foreground: #172033;
-  --sidebar-primary: #263b63;
-  --sidebar-primary-foreground: #fffcf7;
-  --sidebar-accent: #e9e5db;
-  --sidebar-accent-foreground: #172033;
-  --sidebar-border: #e6e0d4;
-  --sidebar-ring: #263b63;
+  --sidebar: #fffdf8;
+  --sidebar-foreground: #2a2218;
+  --sidebar-primary: #7d5a12;
+  --sidebar-primary-foreground: #fffdf8;
+  --sidebar-accent: #e7dec9;
+  --sidebar-accent-foreground: #2a2218;
+  --sidebar-border: #ebe3d2;
+  --sidebar-ring: #7d5a12;
 }
 
 .dark {
-  /*
-   * Midnight Gold — night-sky navy canvas, warm ivory text,
-   * gold primary that glows like a diya on dark surfaces.
-   */
   color-scheme: dark;
 
-  --background: #0e1420; /* Midnight */
-  --foreground: #f4f0e6; /* Warm ivory */
-  --card: #161e2d; /* Raised navy */
+  /*
+   * Midnight Gold — night-sky navy canvas, warm ivory text, and the same gold
+   * primary, brightened to glow on the dark ground like a diya. It takes dark
+   * ink for its own text, the canonical dark-mode button.
+   *
+   * Surfaces climb from the canvas in visible steps (card → popover/muted →
+   * secondary → accent), each a little more than the last, so a sheet over a
+   * card reads as raised. Hover is a quiet navy, not the bright #34445f first
+   * shipped, which looked like a selection and left muted text at 4.5:1.
+   */
+  --background: #0e1420; /* midnight */
+  --foreground: #f4f0e6; /* warm ivory, 16.2:1 */
+  --card: #161e2d; /* surface 1 */
   --card-foreground: #f4f0e6;
-  --popover: #1d2738; /* One lift above card */
+  --popover: #1e2838; /* surface 2 — sheets, menus */
   --popover-foreground: #f4f0e6;
-  --primary: #d1a64a; /* Midnight Gold */
-  --primary-foreground: #0e1420; /* Dark ink on gold */
-  --secondary: #222c3d;
+  --primary: #d1a64a; /* midnight gold, 8.1:1 on the canvas */
+  --primary-foreground: #0e1420; /* 8.1:1 */
+  --primary-soft: #3a3222; /* gold tint for chips and the raag badge; gold on it 5.6:1 */
+  --secondary: #243045; /* surface 3 — pills, tracks */
   --secondary-foreground: #f4f0e6;
-  --muted: #1d2738;
-  --muted-foreground: #a8b0bf; /* Mist — secondary text */
-  --accent: #34445f; /* Hover / active surface */
+  --muted: #1e2838;
+  --muted-foreground: #a8b0bf; /* secondary copy, 7.7:1 on card */
+  --subtle-foreground: #8e98aa; /* metadata, 5.7:1 on card (4.6 on secondary) */
+  --accent: #2b3850; /* hover / pressed — a notch above secondary */
   --accent-foreground: #f4f0e6;
   --highlight: #d1a64a;
   --highlight-foreground: #0e1420;
-  --destructive: #e0605a;
+  --destructive: #ef6461; /* 5.3:1 on card; #e0605a was 4.8 and fell under 4.5 on a sheet */
   --destructive-foreground: #0e1420;
-  --border: #2d394c;
-  --input: #3a475c;
+  --live: #ff6159;
+  --success: #7cc49a;
+  --border: #2d394c; /* hairline — visible against the canvas, quiet on a card */
+  --input: #3d4a61;
   --ring: #d1a64a;
 
   --chart-1: #d1a64a;
@@ -136,7 +177,7 @@
   --sidebar-foreground: #f4f0e6;
   --sidebar-primary: #d1a64a;
   --sidebar-primary-foreground: #0e1420;
-  --sidebar-accent: #34445f;
+  --sidebar-accent: #2b3850;
   --sidebar-accent-foreground: #f4f0e6;
   --sidebar-border: #2d394c;
   --sidebar-ring: #d1a64a;
