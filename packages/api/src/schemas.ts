@@ -23,6 +23,8 @@ export const lineTimingSchema = z.object({
 export const shabadRowSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /** The same title in Gurmukhi; null with no shabad linked (#77). */
+  name_gurmukhi: z.string().nullish(),
   url: z.string(),
   track_id: z.string().nullish(),
   tree: z.string().nullish(),

@@ -5,24 +5,37 @@
  * and grey placeholder squares are what makes a music app look broken. The
  * gradient comes from the name, so an artist looks the same on every page.
  */
-import { artworkFor, type Playable } from '@kp/core';
+import { artworkFor, showsGurmukhi, titleInitials, type Playable } from '@kp/core';
 import { useState } from 'react';
 
+import { useTitleScript } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
 
 interface Props {
   name: string;
   /** What picks the colour, when that should not be the name itself. */
   seed?: string;
+  /** Letters to draw instead of the name's own initials. */
+  initials?: string;
+  /** Those letters are Gurmukhi: drawn in the Gurbani face. */
+  gurmukhi?: boolean;
   /** A real photo when SGPC published one; the gradient is the fallback. */
   src?: string | null;
   className?: string;
   rounded?: 'md' | 'lg' | 'full';
 }
 
-export function ArtTile({ name, seed, src, className, rounded = 'md' }: Props) {
+export function ArtTile({
+  name,
+  seed,
+  initials: given,
+  gurmukhi,
+  src,
+  className,
+  rounded = 'md',
+}: Props) {
   const art = artworkFor(seed ?? name);
-  const initials = seed === undefined ? art.initials : artworkFor(name).initials;
+  const initials = given ?? (seed === undefined ? art.initials : artworkFor(name).initials);
 
   /**
    * Photos are seeded as paths only — the images themselves are not in git, and
@@ -58,7 +71,11 @@ export function ArtTile({ name, seed, src, className, rounded = 'md' }: Props) {
       ) : (
         <span
           aria-hidden
-          className="select-none text-[0.7em] font-semibold tracking-wide text-white/90"
+          className={cn(
+            'select-none text-[0.7em] font-semibold text-white/90',
+            // Letter-spacing pulls a Gurmukhi headline apart; the roman keeps it.
+            gurmukhi ? 'font-gurbani' : 'tracking-wide'
+          )}
         >
           {initials}
         </span>
@@ -72,9 +89,19 @@ export function ArtTile({ name, seed, src, className, rounded = 'md' }: Props) {
  * ragi. A ragi's tile on every row made one ragi's list a column of identical
  * squares, while the same shabad sung by two ragis looked unrelated; keyed on
  * the BaniDB id it is the other way round.
+ *
+ * The initials follow the script the title is shown in — ਜਜ beside ਜਗਿ ਜੀਵਨੁ —
+ * while the colour stays the shabad's, whichever script is chosen.
  */
 export function PlayableArt({ item, className }: { item: Playable; className?: string }) {
+  const [script] = useTitleScript();
   return (
-    <ArtTile name={item.title} seed={String(item.shabadId ?? item.title)} className={className} />
+    <ArtTile
+      name={item.title}
+      seed={String(item.shabadId ?? item.title)}
+      initials={titleInitials(item, script)}
+      gurmukhi={showsGurmukhi(item, script)}
+      className={className}
+    />
   );
 }

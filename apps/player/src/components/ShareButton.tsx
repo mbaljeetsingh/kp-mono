@@ -11,15 +11,17 @@ import { Share2 } from 'lucide-react';
 
 import { playerStore } from '~/lib/player';
 import { shareRendition } from '~/lib/share';
+import { useShownTitle } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
 
 export function ShareButton({ item, className }: { item: Playable; className?: string }) {
+  const title = useShownTitle(item);
   return (
     <Button
       variant="ghost"
       size="icon-sm"
-      aria-label={`Share ${item.title}`}
-      onClick={() => void shareRendition(item, playerStore.getState().position)}
+      aria-label={`Share ${title}`}
+      onClick={() => void shareRendition(item, playerStore.getState().position, title)}
       className={cn('rounded-full', className)}
     >
       <Share2 />

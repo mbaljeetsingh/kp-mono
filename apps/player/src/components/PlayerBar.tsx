@@ -15,12 +15,16 @@ import { LiveBadge } from '~/components/LiveBadge';
 import { NowPlayingSheet } from '~/components/NowPlaying';
 import { PlayerControls } from '~/components/PlayerControls';
 import { SeekBar } from '~/components/SeekBar';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { ShareButton } from '~/components/ShareButton';
 import { usePlayer } from '~/lib/player';
+import { useTitleScript } from '~/lib/title-script';
+import { titleIn } from '@kp/core';
 
 export function PlayerBar() {
   const current = usePlayer((s) => s.current);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [script] = useTitleScript();
 
   // Nothing loaded means no bar at all, rather than a dead strip of controls.
   if (!current) return null;
@@ -41,7 +45,9 @@ export function PlayerBar() {
             >
               <PlayableArt item={current} className="size-10 text-lg" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{current.title}</span>
+                <span className="block truncate text-sm font-medium">
+                  <ShabadTitle item={current} />
+                </span>
                 {/* Inline with the subtitle, not under it: on its own line the
                   badge wrapped below the transport and pushed the whole strip
                   out of alignment whenever a station was playing. */}
@@ -64,7 +70,9 @@ export function PlayerBar() {
                 only way to save what is playing without opening the sheet.
                 A broadcast is not something to save — there is no rendition
                 behind it. */}
-            {current.isLive ? null : <FavoriteButton id={current.id} name={current.title} />}
+            {current.isLive ? null : (
+              <FavoriteButton id={current.id} name={titleIn(current, script)} />
+            )}
           </div>
 
           {/* The height is the column's, not the seek bar's — a live feed draws

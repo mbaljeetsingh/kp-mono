@@ -234,3 +234,39 @@ describe('queue edits', () => {
     expect(await storage.getItem('kp:queue')).not.toContain('lineTimings');
   });
 });
+
+describe('titles in the chosen script', () => {
+  it('loads an item under the title the app picks, and re-announces it on retitle', () => {
+    let script = 'en';
+    const announced: string[] = [];
+    const titles = createPlayerStore({
+      storage: memoryStorage(),
+      titleOf: (item) => (script === 'pa' ? `ਪੰ ${item.title}` : item.title),
+    });
+    const loaded: string[] = [];
+    titles.getState().attach({
+      load: (_url, _at, now) => loaded.push(now?.title ?? ''),
+      play: () => {},
+      pause: () => {},
+      seek: () => {},
+      announce: (now) => announced.push(now.title),
+    });
+
+    titles.getState().play(whole('a'));
+    expect(loaded).toEqual(['a']);
+
+    // Switched mid-shabad: the lock screen hears the new title, nothing reloads.
+    script = 'pa';
+    titles.getState().retitle();
+    expect(announced).toEqual(['ਪੰ a']);
+    expect(loaded).toEqual(['a']);
+  });
+
+  it('does nothing with nothing playing, or a driver that cannot announce', () => {
+    store.getState().retitle();
+    store.getState().play(whole('a'));
+    fake.calls.length = 0;
+    store.getState().retitle();
+    expect(fake.calls).toEqual([]);
+  });
+});

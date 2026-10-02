@@ -26,7 +26,14 @@ export interface LineTiming {
 export interface Playable {
   /** Stable track id — never the URL, which changes when SGPC reorganises. */
   id: string;
+  /** The roman title: every rendition has one, and search reads it. */
   title: string;
+  /**
+   * The same line in Gurmukhi (`name_gurmukhi`), for a listener who chose
+   * ਪੰਜਾਬੀ. Null with no shabad linked, and absent on a queue persisted before
+   * the column existed — `titleIn` falls back to `title` in both cases.
+   */
+  titleGurmukhi?: string | null;
   subtitle?: string;
   /** Kept separate from `subtitle` so the player bar can link to the artist. */
   artist?: string;

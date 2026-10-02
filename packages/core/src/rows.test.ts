@@ -10,6 +10,13 @@ const base: RenditionRow = {
 };
 
 describe('toPlayable', () => {
+  it('carries the Gurmukhi title, and null where there is none', () => {
+    expect(toPlayable({ ...base, name_gurmukhi: 'ਸੋਰਠਿ ਮਹਲਾ ੫' }).titleGurmukhi).toBe(
+      'ਸੋਰਠਿ ਮਹਲਾ ੫'
+    );
+    expect(toPlayable(base).titleGurmukhi).toBeNull();
+  });
+
   it('maps a tagged segment', () => {
     const p = toPlayable({ ...base, start_sec: 2530, end_sec: 2575 });
     expect(p.startSec).toBe(2530);
