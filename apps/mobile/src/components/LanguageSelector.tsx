@@ -8,15 +8,16 @@
  * mid-shabad also retitles the lock screen.
  */
 import { TITLE_SCRIPTS, titleScriptOption, type TitleScript } from '@kp/core';
-import { colors } from '@kp/tokens/colors';
 import { Check, ChevronDown, Languages, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import { playerActions } from '~/lib/player';
 import { useTitleScript } from '~/lib/title-script';
+import { useColors } from '~/lib/theme';
 
 export function LanguageSelector() {
+  const colors = useColors();
   const [script, setScript] = useTitleScript();
   const [open, setOpen] = useState(false);
   const current = titleScriptOption(script);
