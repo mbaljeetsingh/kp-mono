@@ -7,7 +7,7 @@
  * the same as on the web: `artworkFor` hands both surfaces the same three sRGB
  * stops, and only the way they are painted differs.
  */
-import { artworkFor, showsGurmukhi, titleInitials, type Playable } from '@kp/core';
+import { artworkFor, playableTile, type Playable } from '@kp/core';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
@@ -109,15 +109,7 @@ export function ArtTile({
   );
 }
 
-/**
- * A shabad's tile, the same as the web's: its own initials, coloured by the
- * shabad rather than the ragi. A ragi's tile on every row made one ragi's list
- * a column of identical squares, while the same shabad sung by two ragis looked
- * unrelated; keyed on the BaniDB id it is the other way round.
- *
- * The initials follow the script the title is shown in — ਜਜ beside ਜਗਿ ਜੀਵਨੁ —
- * while the colour stays the shabad's, whichever script is chosen.
- */
+/** A shabad's tile, by @kp/core's `playableTile` — the same tile the web draws. */
 export function PlayableArt({
   item,
   size,
@@ -129,13 +121,6 @@ export function PlayableArt({
 }) {
   const [script] = useTitleScript();
   return (
-    <ArtTile
-      name={item.title}
-      seed={String(item.shabadId ?? item.title)}
-      initials={titleInitials(item, script)}
-      gurmukhi={showsGurmukhi(item, script)}
-      size={size}
-      rounded={rounded}
-    />
+    <ArtTile name={item.title} {...playableTile(item, script)} size={size} rounded={rounded} />
   );
 }

@@ -15,9 +15,33 @@ import type { Playable } from './types';
 
 export type TitleScript = 'en' | 'pa';
 
+export interface TitleScriptOption {
+  value: TitleScript;
+  /** The language in its own script, so a listener finds theirs without reading the rest. */
+  label: string;
+  /** What a selector's button shows where there is no room for the label. */
+  short: string;
+  /** BCP 47 tag for text in this script, when it is not the page's own. */
+  lang?: string;
+}
+
+/**
+ * Every script on offer, in np-mono's order — one list for the web's selector
+ * and the phone's, so हिन्दी is one more entry here, not a change in each app.
+ */
+export const TITLE_SCRIPTS: readonly TitleScriptOption[] = [
+  { value: 'pa', label: 'ਪੰਜਾਬੀ', short: 'ਪੰ', lang: 'pa' },
+  { value: 'en', label: 'English', short: 'En' },
+];
+
 /** Anything else — a stale or hand-edited stored value — reads as roman. */
 export function parseTitleScript(value: unknown): TitleScript {
-  return value === 'pa' ? 'pa' : 'en';
+  return TITLE_SCRIPTS.find((option) => option.value === value)?.value ?? 'en';
+}
+
+/** The option a selector names as current. */
+export function titleScriptOption(script: TitleScript): TitleScriptOption {
+  return TITLE_SCRIPTS.find((option) => option.value === script) ?? TITLE_SCRIPTS[1]!;
 }
 
 type Titled = Pick<Playable, 'title' | 'titleGurmukhi'>;
@@ -51,4 +75,31 @@ export function titleInitials(item: Titled, script: TitleScript): string {
     .slice(0, 2)
     .map((word) => [...word][0] ?? '')
     .join('');
+}
+
+/** What a shabad's tile draws, before either app paints it. */
+export interface PlayableTile {
+  /** Picks the gradient: the shabad, so one shabad has one colour whoever sings it. */
+  seed: string;
+  initials: string;
+  /** The initials are Gurmukhi, for the Gurbani face. */
+  gurmukhi: boolean;
+}
+
+/**
+ * A rendition's tile — coloured by the shabad rather than the ragi, lettered
+ * from the title as shown. A ragi's tile on every row made one ragi's list a
+ * column of identical squares, while the same shabad sung by two ragis looked
+ * unrelated; keyed on the BaniDB id it is the other way round. The colour
+ * stays the shabad's whichever script is chosen.
+ */
+export function playableTile(
+  item: Titled & Pick<Playable, 'shabadId'>,
+  script: TitleScript
+): PlayableTile {
+  return {
+    seed: String(item.shabadId ?? item.title),
+    initials: titleInitials(item, script),
+    gurmukhi: showsGurmukhi(item, script),
+  };
 }

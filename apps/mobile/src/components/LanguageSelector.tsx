@@ -6,7 +6,7 @@
  * offers choices, and a thumb reaches the bottom of the screen. Switching
  * mid-shabad also retitles the lock screen.
  */
-import type { TitleScript } from '@kp/core';
+import { TITLE_SCRIPTS, titleScriptOption, type TitleScript } from '@kp/core';
 import { colors } from '@kp/tokens/colors';
 import { Check, ChevronDown, Languages, X } from 'lucide-react-native';
 import { useState } from 'react';
@@ -15,16 +15,10 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { playerActions } from '~/lib/player';
 import { useTitleScript } from '~/lib/title-script';
 
-/** In np-mono's order, each named in its own script. */
-const LANGUAGES: { value: TitleScript; label: string; short: string; gurmukhi?: boolean }[] = [
-  { value: 'pa', label: 'ਪੰਜਾਬੀ', short: 'ਪੰ', gurmukhi: true },
-  { value: 'en', label: 'English', short: 'En' },
-];
-
 export function LanguageSelector() {
   const [script, setScript] = useTitleScript();
   const [open, setOpen] = useState(false);
-  const current = LANGUAGES.find((l) => l.value === script) ?? LANGUAGES[1]!;
+  const current = titleScriptOption(script);
 
   function choose(next: TitleScript) {
     setOpen(false);
@@ -43,9 +37,9 @@ export function LanguageSelector() {
         className="flex-row items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 active:bg-accent"
       >
         <Text
-          accessibilityLanguage={current.gurmukhi ? 'pa' : undefined}
+          accessibilityLanguage={current.lang}
           className={
-            current.gurmukhi
+            current.lang === 'pa'
               ? 'font-gurbani text-[15px] text-foreground'
               : 'text-sm font-medium text-foreground'
           }
@@ -72,7 +66,7 @@ export function LanguageSelector() {
                 <X size={18} color={colors.mutedForeground} />
               </Pressable>
             </View>
-            {LANGUAGES.map(({ value, label, gurmukhi }) => (
+            {TITLE_SCRIPTS.map(({ value, label, lang }) => (
               <Pressable
                 key={value}
                 onPress={() => choose(value)}
@@ -84,9 +78,9 @@ export function LanguageSelector() {
                   {script === value ? <Check size={18} color={colors.primary} /> : null}
                 </View>
                 <Text
-                  accessibilityLanguage={gurmukhi ? 'pa' : undefined}
+                  accessibilityLanguage={lang}
                   className={
-                    gurmukhi ? 'font-gurbani text-[17px] text-foreground' : 'text-foreground'
+                    lang === 'pa' ? 'font-gurbani text-[17px] text-foreground' : 'text-foreground'
                   }
                 >
                   {label}
