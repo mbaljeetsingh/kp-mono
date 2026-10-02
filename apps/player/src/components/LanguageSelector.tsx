@@ -1,5 +1,5 @@
 /**
- * The language titles are shown in.
+ * The listener's language — for now, the script shabad titles are shown in.
  *
  * The same control as np-mono's language selector: one button naming the
  * current language in its own script — two letters on a phone, the whole name
@@ -9,7 +9,7 @@
  * be one more row, not a redesign. Switching mid-shabad also retitles what the
  * lock screen shows.
  */
-import type { TitleScript } from '@kp/core';
+import { TITLE_SCRIPTS, titleScriptOption, type TitleScript } from '@kp/core';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,15 +24,9 @@ import { playerActions } from '~/lib/player';
 import { useTitleScript } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
 
-/** In np-mono's order, each named in its own script. */
-const LANGUAGES: { value: TitleScript; label: string; lang?: string }[] = [
-  { value: 'pa', label: 'ਪੰਜਾਬੀ', lang: 'pa' },
-  { value: 'en', label: 'English' },
-];
-
 export function LanguageSelector() {
   const [script, setScript] = useTitleScript();
-  const current = LANGUAGES.find((l) => l.value === script) ?? LANGUAGES[1]!;
+  const current = titleScriptOption(script);
 
   function choose(next: TitleScript) {
     if (next === script) return;
@@ -43,23 +37,29 @@ export function LanguageSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={`Titles in ${current.label}`}
+        aria-label={`Language: ${current.label}`}
         className="flex shrink-0 items-center gap-1 rounded-md bg-muted/60 px-2.5 py-1.5 text-sm font-medium hover:bg-muted"
       >
-        <span lang={current.lang} className={cn(current.lang && 'font-gurbani')}>
-          {/* Code points, not UTF-16 units: ਪੰ is a letter and its tippi. */}
-          <span className="md:hidden">{[...current.label].slice(0, 2).join('')}</span>
+        <span lang={current.lang} className={cn(current.lang === 'pa' && 'font-gurbani')}>
+          <span className="md:hidden">{current.short}</span>
           <span className="hidden md:inline">{current.label}</span>
         </span>
         <ChevronDown className="size-3 opacity-50" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel className="flex items-center gap-1.5">
-          <Languages className="size-3.5 opacity-60" />
-          Show titles in
+      <DropdownMenuContent align="end" className="min-w-44">
+        <DropdownMenuLabel>
+          <span className="flex items-center gap-1.5">
+            <Languages className="size-3.5 opacity-60" />
+            Language
+          </span>
+          {/* "Language" because the app's own words follow it later; until
+              then a listener should not expect the buttons to change. */}
+          <span className="mt-0.5 block whitespace-nowrap text-xs font-normal text-muted-foreground">
+            Shabad titles for now
+          </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {LANGUAGES.map(({ value, label, lang }) => (
+        {TITLE_SCRIPTS.map(({ value, label, lang }) => (
           /* `onClick`, not `onSelect`: see ThemeToggle — Base UI's item has
              no `onSelect`, and the DOM one never fires. */
           <DropdownMenuItem
@@ -70,7 +70,7 @@ export function LanguageSelector() {
             <span className="w-4 shrink-0">
               {script === value ? <Check className="size-4" /> : null}
             </span>
-            <span lang={lang} className={cn(lang && 'font-gurbani')}>
+            <span lang={lang} className={cn(lang === 'pa' && 'font-gurbani')}>
               {label}
             </span>
           </DropdownMenuItem>

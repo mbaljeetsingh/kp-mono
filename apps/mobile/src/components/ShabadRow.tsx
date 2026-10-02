@@ -9,10 +9,11 @@ import { colors } from '@kp/tokens/colors';
 import { Heart, MoreHorizontal } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { useSession } from '~/lib/session';
-import { artistPhotoUrl } from '~/lib/supabase';
+import { useShownTitle } from '~/lib/title-script';
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -33,6 +34,7 @@ export function ShabadRow({
   const { favorites } = useSession();
   const length = segmentTotal(item, 0);
   const saved = favorites.has(item.id);
+  const title = useShownTitle(item);
 
   return (
     <PressableScale
@@ -45,20 +47,14 @@ export function ShabadRow({
           : 'flex-row items-center gap-3 rounded-xl px-2 py-2 active:bg-card'
       }
     >
-      <ArtTile
-        name={item.artist ?? item.title}
-        src={artistPhotoUrl(item.artistPhoto)}
-        size={52}
-        rounded={10}
-      />
+      <PlayableArt item={item} size={52} rounded={10} />
 
       <View className="min-w-0 flex-1">
-        <Text
+        <ShabadTitle
+          item={item}
           numberOfLines={1}
           className={isCurrent ? 'font-medium text-primary' : 'font-medium text-foreground'}
-        >
-          {item.title}
-        </Text>
+        />
         <Text numberOfLines={1} className="text-[13px] leading-[18px] text-muted-foreground">
           {item.subtitle ?? item.artist}
           {item.raag ? ` · ${item.raag}` : ''}
@@ -76,7 +72,7 @@ export function ShabadRow({
       {onMore ? (
         <Pressable
           onPress={() => onMore(item)}
-          accessibilityLabel={`More for ${item.title}`}
+          accessibilityLabel={`More for ${title}`}
           hitSlop={8}
           className="size-8 items-center justify-center"
         >
