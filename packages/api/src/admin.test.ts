@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   acceptScanDrafts,
+  canDeleteRendition,
   canPublishRendition,
   draftSchema,
   fetchPending,
@@ -53,6 +54,40 @@ describe('draftSchema', () => {
   it('never carries a status — publishing is a separate act and permission', () => {
     const parsed = draftSchema.parse({ ...base, status: 'published' } as never);
     expect('status' in parsed).toBe(false);
+  });
+});
+
+describe('canDeleteRendition', () => {
+  const reviewer = { propose: true, delete: true };
+  const contributor = { propose: true, delete: false };
+  const blocked = { propose: false, delete: false };
+  const ME = 'user-1';
+
+  it('lets a contributor delete their own hand-made draft', () => {
+    expect(
+      canDeleteRendition({ status: 'draft', source: 'manual', created_by: ME }, contributor, ME)
+    ).toBe(true);
+  });
+
+  it('keeps everything else with the permission', () => {
+    // Someone else's draft, a published row, and a scan draft the account
+    // requested: deleting that last one is a rejection, a reviewer's call.
+    for (const row of [
+      { status: 'draft', source: 'manual', created_by: 'other' },
+      { status: 'published', source: 'manual', created_by: ME },
+      { status: 'shabad_linked', source: 'scan', created_by: ME },
+    ]) {
+      expect(canDeleteRendition(row, contributor, ME)).toBe(false);
+      expect(canDeleteRendition(row, reviewer, ME)).toBe(true);
+    }
+  });
+
+  it('offers nothing to a blocked account or while the session is loading', () => {
+    const own = { status: 'draft', source: 'manual', created_by: ME };
+    expect(canDeleteRendition(own, blocked, ME)).toBe(false);
+    expect(canDeleteRendition({ ...own, created_by: undefined }, contributor, undefined)).toBe(
+      false
+    );
   });
 });
 

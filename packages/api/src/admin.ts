@@ -551,6 +551,32 @@ export function publishRefusal(
   return null;
 }
 
+/**
+ * Whether this account may delete this row. Every Delete and Reject button
+ * reads it, mirroring the two DELETE policies on renditions.
+ *
+ * `renditions.delete` reaches anything. Without it, an author may still throw
+ * away their own unpublished, hand-made draft: it is not live, nobody else's
+ * listening goes with it, and drafts never count toward the trust ladder. A
+ * scan draft stays with the permission even for the account that requested
+ * the scan, because deleting one is a rejection the scanner learns from.
+ */
+export function canDeleteRendition(
+  row: { status: string; source?: string | null; created_by?: string | null },
+  perms: { propose: boolean; delete: boolean },
+  // As in publishRefusal: an unknown user is nobody, never a match.
+  userId: string | null | undefined
+): boolean {
+  if (perms.delete) return true;
+  return (
+    perms.propose &&
+    Boolean(userId) &&
+    row.created_by === userId &&
+    row.status !== 'published' &&
+    row.source !== 'scan'
+  );
+}
+
 /** Whether this row can be promoted to published by this account: `publishRefusal` is null. */
 export function canPublishRendition(
   row: Parameters<typeof publishRefusal>[0],
