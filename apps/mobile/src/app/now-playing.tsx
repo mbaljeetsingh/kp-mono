@@ -5,7 +5,6 @@
  * transport is pinned below the scrolling text for the reason every music app
  * puts it there: the bottom third of a phone is where a thumb already rests.
  */
-import { colors } from '@kp/tokens/colors';
 import { useShabadText } from '@kp/api';
 import { artworkFor, clock, highlightVerseId, isAligned, REPEAT_LABELS, titleIn } from '@kp/core';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -35,10 +34,12 @@ import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
+import { useColors } from '~/lib/theme';
 
 /** BaniDB, direct on native: there is no browser origin to be blocked by CORS. */
 
 export default function NowPlayingScreen() {
+  const colors = useColors();
   const router = useRouter();
 
   const current = usePlayer((s) => s.current);

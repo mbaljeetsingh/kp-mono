@@ -6,19 +6,21 @@
  */
 import { randomShabads, useShabads } from '@kp/api';
 import { DEFAULT_STATION, stationPlayable, type Playable } from '@kp/core';
-import { colors } from '@kp/tokens/colors';
 import { useMutation } from '@tanstack/react-query';
 import { Play, Radio, Shuffle } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { LanguageSelector } from '~/components/LanguageSelector';
 import { Screen } from '~/components/Screen';
+import { ThemeSelector } from '~/components/ThemeSelector';
 import { ShabadRow } from '~/components/ShabadRow';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export default function ShabadsScreen() {
+  const colors = useColors();
   const { onMore, sheet } = useShabadActions();
   const query = useShabads(supabase);
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
@@ -44,13 +46,16 @@ export default function ShabadsScreen() {
         ListHeaderComponent={
           <View className="gap-4 px-3 pb-2 pt-3">
             <View className="gap-1">
-              {/* The language beside the name, as the web puts it in the
-                  phone header: the one setting a listener reaches for here. */}
+              {/* The language and the theme beside the name, as the web puts
+                  them in the phone header: the settings a listener reaches for. */}
               <View className="flex-row items-center justify-between gap-3">
                 <Text className="font-display text-[34px] leading-10 text-foreground">
                   Kirtan Player
                 </Text>
-                <LanguageSelector />
+                <View className="flex-row items-center gap-2">
+                  <LanguageSelector />
+                  <ThemeSelector />
+                </View>
               </View>
               <Text className="text-[15px] leading-5 text-muted-foreground">
                 Twenty years of kirtan from Sri Harmandir Sahib.
