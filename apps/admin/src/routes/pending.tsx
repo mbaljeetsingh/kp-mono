@@ -6,6 +6,7 @@
  */
 import {
   deleteRendition,
+  canDeleteRendition,
   publishRefusal,
   setRenditionStatus,
   usePending,
@@ -272,7 +273,11 @@ export function PendingRoute() {
                   </span>
                 ) : null}
 
-                {can['renditions.delete'] ? (
+                {canDeleteRendition(
+                  row,
+                  { propose: can['renditions.propose'], delete: can['renditions.delete'] },
+                  session?.user.id
+                ) ? (
                   <Button
                     variant="ghost"
                     size="icon-sm"
