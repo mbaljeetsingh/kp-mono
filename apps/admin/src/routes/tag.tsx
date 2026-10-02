@@ -1041,8 +1041,9 @@ function SegmentRow({
                 !published && 'from the scan, check the edges',
                 r.line_timings?.length && 'lyrics timed',
                 // What it would have done had auto-publish been on — shown so
-                // a reviewer can hold the verdict against their own ear.
-                r.scan_verdict?.auto && !published && 'would auto-publish',
+                // a reviewer can hold the verdict against their own ear. Called
+                // a candidate: "would auto-publish" read as if it were on.
+                r.scan_verdict?.auto && !published && 'auto-publish candidate',
               ]
                 .filter(Boolean)
                 .join(' · ')}
