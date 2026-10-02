@@ -21,7 +21,7 @@ const NAV = [
   // Only for those who can manage users: for anyone else the page is a dead
   // end that says so. Permissions stays for everyone — the read-only matrix
   // is how a contributor sees what the next rung unlocks.
-  { to: '/users', label: 'Users', icon: Users, needs: 'users.manage' },
+  { to: '/users', label: 'Users', icon: Users, permission: 'users.manage' },
   { to: '/permissions', label: 'Permissions', icon: ShieldCheck },
 ] as const;
 
@@ -58,7 +58,7 @@ export function RootLayout() {
           <span className="font-display text-lg font-semibold">Contribute</span>
         </Link>
 
-        {NAV.filter((item) => !('needs' in item) || can[item.needs]).map(
+        {NAV.filter((item) => !('permission' in item) || can[item.permission]).map(
           ({ to, label, icon: Icon }) => (
             <Link
               key={to}
