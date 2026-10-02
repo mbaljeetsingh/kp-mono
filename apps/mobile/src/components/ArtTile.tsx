@@ -7,14 +7,22 @@
  * the same as on the web: `artworkFor` hands both surfaces the same three sRGB
  * stops, and only the way they are painted differs.
  */
-import { artworkFor } from '@kp/core';
+import { artworkFor, showsGurmukhi, titleInitials, type Playable } from '@kp/core';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
+import { useTitleScript } from '~/lib/title-script';
+
 interface Props {
   name: string;
+  /** What picks the colour, when that should not be the name itself. */
+  seed?: string;
+  /** Letters to draw instead of the name's own initials. */
+  initials?: string;
+  /** Those letters are Gurmukhi: drawn in the Gurbani face. */
+  gurmukhi?: boolean;
   src?: string | null;
   size?: number;
   rounded?: number;
@@ -35,8 +43,17 @@ function endpoints(angleDeg: number) {
   };
 }
 
-export function ArtTile({ name, src, size = 48, rounded = 8 }: Props) {
-  const art = artworkFor(name);
+export function ArtTile({
+  name,
+  seed,
+  initials: given,
+  gurmukhi,
+  src,
+  size = 48,
+  rounded = 8,
+}: Props) {
+  const art = artworkFor(seed ?? name);
+  const initials = given ?? (seed === undefined ? art.initials : artworkFor(name).initials);
 
   // Photos are seeded as paths only, so a miss is the normal state of a fresh
   // clone and the gradient has to take over silently.
@@ -76,14 +93,49 @@ export function ArtTile({ name, src, size = 48, rounded = 8 }: Props) {
           <Text
             style={{
               color: 'rgba(255,255,255,0.9)',
-              fontWeight: '600',
               fontSize: size * 0.3,
+              // The Gurbani face has one weight, registered as its own family:
+              // asking it for 600 would fall back to the system font.
+              ...(gurmukhi
+                ? { fontFamily: 'NotoSerifGurmukhi-Regular' }
+                : { fontWeight: '600' as const }),
             }}
           >
-            {art.initials}
+            {initials}
           </Text>
         </LinearGradient>
       )}
     </View>
+  );
+}
+
+/**
+ * A shabad's tile, the same as the web's: its own initials, coloured by the
+ * shabad rather than the ragi. A ragi's tile on every row made one ragi's list
+ * a column of identical squares, while the same shabad sung by two ragis looked
+ * unrelated; keyed on the BaniDB id it is the other way round.
+ *
+ * The initials follow the script the title is shown in — ਜਜ beside ਜਗਿ ਜੀਵਨੁ —
+ * while the colour stays the shabad's, whichever script is chosen.
+ */
+export function PlayableArt({
+  item,
+  size,
+  rounded,
+}: {
+  item: Playable;
+  size?: number;
+  rounded?: number;
+}) {
+  const [script] = useTitleScript();
+  return (
+    <ArtTile
+      name={item.title}
+      seed={String(item.shabadId ?? item.title)}
+      initials={titleInitials(item, script)}
+      gurmukhi={showsGurmukhi(item, script)}
+      size={size}
+      rounded={rounded}
+    />
   );
 }

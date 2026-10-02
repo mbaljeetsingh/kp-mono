@@ -9,12 +9,11 @@ import { colors } from '@kp/tokens/colors';
 import { Heart, MoreHorizontal } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { useSession } from '~/lib/session';
 import { useShownTitle } from '~/lib/title-script';
-import { artistPhotoUrl } from '~/lib/supabase';
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -48,12 +47,7 @@ export function ShabadRow({
           : 'flex-row items-center gap-3 rounded-xl px-2 py-2 active:bg-card'
       }
     >
-      <ArtTile
-        name={item.artist ?? item.title}
-        src={artistPhotoUrl(item.artistPhoto)}
-        size={52}
-        rounded={10}
-      />
+      <PlayableArt item={item} size={52} rounded={10} />
 
       <View className="min-w-0 flex-1">
         <ShabadTitle

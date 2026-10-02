@@ -25,7 +25,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { QueueList } from '~/components/QueueList';
 import { ReadAlongLine } from '~/components/ReadAlongLine';
 import { SeekBar } from '~/components/SeekBar';
@@ -35,7 +35,6 @@ import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
-import { artistPhotoUrl } from '~/lib/supabase';
 
 /** BaniDB, direct on native: there is no browser origin to be blocked by CORS. */
 
@@ -230,12 +229,7 @@ export default function NowPlayingScreen() {
       </View>
 
       <View className="flex-row items-center gap-4 px-5 pb-4 pt-3">
-        <ArtTile
-          name={current.artist ?? current.title}
-          src={artistPhotoUrl(current.artistPhoto)}
-          size={112}
-          rounded={16}
-        />
+        <PlayableArt item={current} size={112} rounded={16} />
         <View className="min-w-0 flex-1 gap-1.5">
           <ShabadTitle
             item={current}
