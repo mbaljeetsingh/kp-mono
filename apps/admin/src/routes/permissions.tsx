@@ -5,7 +5,7 @@
  * because "why can't I publish?" is answered by this table, and a contributor
  * who can see the ladder can see what they are working towards.
  */
-import { useRolePermissions, useSetRolePermission } from '@kp/api';
+import { useRolePermissions, useSetRolePermission, useStanding } from '@kp/api';
 import { TRUST_LADDER } from '@kp/shared/types';
 import { Button } from '@kp/ui/button';
 import { Switch } from '@kp/ui/switch';
@@ -18,8 +18,12 @@ import { supabase } from '~/lib/supabase';
 import { cn } from '~/lib/utils';
 
 export function PermissionsRoute() {
-  const { session, can, permissionsLoading: loading } = useSession();
+  const { session, userId, can, permissionsLoading: loading } = useSession();
   const editable = can['users.manage'];
+  // The viewer's own rung, so a read-only reader finds where they stand and
+  // what the next column adds. Admins edit the matrix rather than read it.
+  const { data: standing } = useStanding(supabase, userId);
+  const mine = editable ? undefined : standing?.trust;
   // Locked until asked: every switch applies the moment it moves, and the
   // matrix is a page people open to read, so a stray click or scroll-tap
   // should not change what a whole role may do.
@@ -39,7 +43,7 @@ export function PermissionsRoute() {
           <p className="text-sm text-muted-foreground">
             {editable
               ? 'What each rung of the ladder may do. Unlock to change it; changes apply immediately.'
-              : 'What each rung of the ladder may do. Your own row is highlighted.'}
+              : 'What each rung of the ladder may do. Your own column is highlighted.'}
           </p>
         </div>
         {editable ? (
@@ -79,8 +83,19 @@ export function PermissionsRoute() {
               <tr className="border-b border-border">
                 <th className="py-2 pr-4 text-left font-medium">Permission</th>
                 {TRUST_LADDER.map((role) => (
-                  <th key={role} className="px-3 py-2 text-center font-medium capitalize">
+                  <th
+                    key={role}
+                    className={cn(
+                      'px-3 py-2 text-center font-medium capitalize',
+                      role === mine && 'rounded-t-md bg-primary/10'
+                    )}
+                  >
                     {role}
+                    {role === mine ? (
+                      <span className="block text-xs font-normal text-primary normal-case">
+                        You
+                      </span>
+                    ) : null}
                   </th>
                 ))}
               </tr>
@@ -100,7 +115,10 @@ export function PermissionsRoute() {
                     const locked = role === 'admin' && permission === 'users.manage';
 
                     return (
-                      <td key={role} className="px-3 py-2 text-center">
+                      <td
+                        key={role}
+                        className={cn('px-3 py-2 text-center', role === mine && 'bg-primary/10')}
+                      >
                         {editable && !locked ? (
                           <Switch
                             checked={on}

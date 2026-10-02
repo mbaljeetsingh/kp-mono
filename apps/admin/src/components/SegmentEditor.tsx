@@ -13,6 +13,7 @@
 import {
   createRendition,
   deleteRendition,
+  canDeleteRendition,
   publishRefusal,
   setRenditionStatus,
   updateRendition,
@@ -702,7 +703,8 @@ export function SegmentEditor({
           </Button>
         ) : null}
 
-        {editing && can.remove ? (
+        {editing &&
+        canDeleteRendition(editing, { propose: can.propose, delete: can.remove }, userId) ? (
           <Button
             variant="ghost"
             disabled={busy}
