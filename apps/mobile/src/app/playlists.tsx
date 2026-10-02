@@ -11,15 +11,16 @@ import { useRouter } from 'expo-router';
 import { ListMusic, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
-import { colors } from '@kp/tokens/colors';
 
 import { Input } from '@kp/ui-native/input';
 
 import { Screen } from '~/components/Screen';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export default function PlaylistsScreen() {
+  const colors = useColors();
   const router = useRouter();
   const { userId } = useSession();
   const query = usePlaylists(supabase, Boolean(userId));

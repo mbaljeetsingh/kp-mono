@@ -1,5 +1,4 @@
 import { usePlaylist, usePlaylistItems } from '@kp/api';
-import { colors } from '@kp/tokens/colors';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, Play } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
@@ -9,8 +8,10 @@ import { ShabadRow } from '~/components/ShabadRow';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export default function PlaylistScreen() {
+  const colors = useColors();
   const { onMore, sheet } = useShabadActions();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();

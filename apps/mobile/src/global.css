@@ -7,7 +7,7 @@
 @import 'tailwindcss/utilities.css';
 @import 'nativewind/theme';
 
-/* The shared palette, applied to :root — see the note in tokens-native.css. */
+/* The shared palette: light on :root, dark under prefers-color-scheme — see tokens-native.css. */
 @import '@kp/tokens/tokens-native.css';
 
 /*

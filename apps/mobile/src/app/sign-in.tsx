@@ -8,7 +8,6 @@
 import { signInWithPassword, signUp } from '@kp/api';
 import { Button } from '@kp/ui-native/button';
 import { Text as UIText } from '@kp/ui-native/text';
-import { colors } from '@kp/tokens/colors';
 import { useRouter } from 'expo-router';
 import { ChevronDown } from 'lucide-react-native';
 import { useState } from 'react';
@@ -18,8 +17,10 @@ import { Input } from '@kp/ui-native/input';
 
 import { Screen } from '~/components/Screen';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export default function SignInScreen() {
+  const colors = useColors();
   const router = useRouter();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
