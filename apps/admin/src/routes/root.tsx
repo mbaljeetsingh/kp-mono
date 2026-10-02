@@ -18,12 +18,15 @@ import { supabase } from '~/lib/supabase';
 const NAV = [
   { to: '/', label: 'Queue', icon: ListChecks },
   { to: '/pending', label: 'Review', icon: ClipboardCheck },
-  { to: '/users', label: 'Users', icon: Users },
+  // Only for those who can manage users: for anyone else the page is a dead
+  // end that says so. Permissions stays for everyone — the read-only matrix
+  // is how a contributor sees what the next rung unlocks.
+  { to: '/users', label: 'Users', icon: Users, needs: 'users.manage' },
   { to: '/permissions', label: 'Permissions', icon: ShieldCheck },
 ] as const;
 
 export function RootLayout() {
-  const { session, loading } = useSession();
+  const { session, loading, can } = useSession();
 
   if (loading) {
     return (
@@ -55,19 +58,21 @@ export function RootLayout() {
           <span className="font-display text-lg font-semibold">Contribute</span>
         </Link>
 
-        {NAV.map(({ to, label, icon: Icon }) => (
-          <Link
-            key={to}
-            to={to}
-            search={{}}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-            activeProps={{ className: 'bg-accent text-foreground' }}
-            activeOptions={{ exact: to === '/' }}
-          >
-            <Icon className="size-4" />
-            {label}
-          </Link>
-        ))}
+        {NAV.filter((item) => !('needs' in item) || can[item.needs]).map(
+          ({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              search={{}}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              activeProps={{ className: 'bg-accent text-foreground' }}
+              activeOptions={{ exact: to === '/' }}
+            >
+              <Icon className="size-4" />
+              {label}
+            </Link>
+          )
+        )}
 
         {/* The same account menu the player carries, rather than loose text and
             a bare button: which account the tagging is attributed to matters
