@@ -47,6 +47,8 @@ export const renditionSchema = z.object({
   status: z.string(),
   shabad_id: z.number().nullish(),
   main_verse_id: z.number().nullish(),
+  /** The anchor line in Gurmukhi, beside `name` in roman. Null with no shabad linked. */
+  name_gurmukhi: z.string().nullish(),
   raag: z.string().nullish(),
   taal: z.string().nullish(),
   artist: z.string().nullish(),
@@ -75,8 +77,8 @@ export const renditionSchema = z.object({
 
 /** One list for every read and write, so a column added to the schema cannot reach one and not the others. */
 const RENDITION_COLUMNS =
-  'id,track_id,name,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,artist,created_by,' +
-  'source,line_timings,scan_verdict';
+  'id,track_id,name,name_gurmukhi,start_sec,end_sec,status,shabad_id,main_verse_id,raag,taal,' +
+  'artist,created_by,source,line_timings,scan_verdict';
 
 export type Recording = z.infer<typeof recordingSchema>;
 export type Rendition = z.infer<typeof renditionSchema>;
@@ -350,9 +352,11 @@ export function useRenditions(client: KpClient, trackId: string) {
 /**
  * What a contributor actually fills in.
  *
- * `name` is the only required tag, and deliberately so: typing what you hear
- * needs no Gurbani literacy, which is what keeps the highest-volume task open
- * to anyone. Everything else is additive.
+ * A draft needs only boundaries and a name, and deliberately so: typing what
+ * you hear needs no Gurbani literacy, which is what keeps the highest-volume
+ * task open to anyone. With a shabad linked the name is not typed at all — it
+ * and `name_gurmukhi` are both read off the anchor line (`titlesFor`) — and
+ * publishing needs that link (`canPublishRendition`).
  */
 export const draftSchema = z
   .object({
@@ -362,6 +366,7 @@ export const draftSchema = z
     end_sec: z.number(),
     shabad_id: z.number().nullish(),
     main_verse_id: z.number().nullish(),
+    name_gurmukhi: z.string().trim().nullish(),
     raag: z.string().trim().nullish(),
     taal: z.string().trim().nullish(),
     /*
@@ -478,6 +483,11 @@ export async function acceptScanDrafts(client: KpClient, ids: string[]): Promise
     // so for them it is reported as changed.) A draft somebody pulled back
     // since the page loaded is left alone, and reported.
     .in('status', ['shabad_linked', 'published'])
+    // So is one unlinked or unanchored since then, in another tab. Matched,
+    // it would make renditions_publish_needs_shabad refuse the whole
+    // statement, and none of the batch would publish.
+    .not('shabad_id', 'is', null)
+    .not('main_verse_id', 'is', null)
     .select('id');
   if (error) throw toError(error);
   const done = data?.length ?? 0;
@@ -498,27 +508,56 @@ export async function deleteRendition(client: KpClient, id: string): Promise<voi
   }
 }
 
+/** Why a rendition cannot be published by this account right now. */
+export type PublishRefusal = 'permission' | 'published' | 'needs-shabad' | 'needs-line';
+
 /**
- * Whether this row can be promoted to published by this account.
+ * Why this row cannot be promoted to published by this account, or null if it
+ * can. Every Publish button and every "why not" hint reads this one answer, so
+ * none of them can drift from the rule.
  *
  * Reviewers can do it to anything. Publish-without-review can only do it to
  * their own unpublished work, and only once: the UPDATE policy stops matching
  * the row the moment it goes published, which is why those accounts get a
  * one-way button where a reviewer gets a two-state control.
+ *
+ * And never without the line a rendition is titled from: a linked shabad
+ * (#77), and the main verse within it, both titles being read off that verse.
+ * Without it the rendition would go out with a typed roman name and no
+ * Gurmukhi. The database refuses it too (renditions_publish_needs_shabad).
+ * Permission is asked first, so "link a shabad" is only ever said to someone
+ * for whom linking it is the one thing missing.
  */
-export function canPublishRendition(
-  row: { status: string; created_by?: string | null },
+export function publishRefusal(
+  row: {
+    status: string;
+    created_by?: string | null;
+    shabad_id?: number | null;
+    main_verse_id?: number | null;
+  },
   perms: { review: boolean; publish: boolean },
   // Undefined as well as null: "we do not know who you are yet" must fall
   // through to the same answer as "you are nobody" — no button.
   userId: string | null | undefined
-): boolean {
-  if (!perms.publish || row.status === 'published') return false;
-  if (perms.review) return true;
+): PublishRefusal | null {
+  if (!perms.publish) return 'permission';
+  if (row.status === 'published') return 'published';
   // Both sides have to be a real id. `undefined === undefined` is true, and
   // that is the loading state — the comment above promised no button and the
   // comparison alone handed one out.
-  return Boolean(userId) && row.created_by === userId;
+  if (!perms.review && !(Boolean(userId) && row.created_by === userId)) return 'permission';
+  if (row.shabad_id == null) return 'needs-shabad';
+  if (row.main_verse_id == null) return 'needs-line';
+  return null;
+}
+
+/** Whether this row can be promoted to published by this account: `publishRefusal` is null. */
+export function canPublishRendition(
+  row: Parameters<typeof publishRefusal>[0],
+  perms: { review: boolean; publish: boolean },
+  userId: string | null | undefined
+): boolean {
+  return publishRefusal(row, perms, userId) === null;
 }
 
 /** Everything a contributor has proposed and nobody has published yet. */

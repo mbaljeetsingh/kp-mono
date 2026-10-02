@@ -107,7 +107,8 @@ bucket) and reads everything off that one transcript:
    the region is a pointer), its timings are the draft's `line_timings`.
 
 Drafts are renditions with `status = 'shabad_linked'`, `source = 'scan'`,
-lyrics timed, named from the line sung longest, owned by whoever requested
+lyrics timed, titled in roman and Gurmukhi from the line sung longest
+(`names.py`, as the workbench titles one), owned by whoever requested
 the scan, and a `scan_verdict` saying whether it would have published itself
 (`AUTO_PUBLISH=1` acts on that; nothing sets it). Invisible to the player until
 a human reviews the edges and publishes — no night's wait for lyrics after.
@@ -156,6 +157,32 @@ when someone asks again.
 Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
 prod's published tags (25 renditions, 17 recordings) against the old sparse
 scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
+
+## Title renditions from their anchor line
+
+```bash
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py           # list what would change
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py --apply   # and change it
+```
+
+A rendition with a shabad linked is titled from its anchor line
+(`main_verse_id`): `name` in roman, `name_gurmukhi` in Unicode Gurmukhi, both
+without verse bars, numbers or the rahao marker. Nobody types either — the
+workbench, the scanner and this script all derive them (#77). This brings rows
+saved before that into line: typed names become BaniDB's, `…Rahau` loses the
+marker, and every empty `name_gurmukhi` is filled, including one the database
+cleared because the anchor moved without it.
+
+Dry unless `--apply`, since it rewrites names people typed: read the list
+first. Every status, not only published — a scan draft accepted in bulk from
+the tag page goes out under whatever it holds. Rows with no main verse, or one
+the shabad no longer has, are listed and left for someone to open in the
+workbench and click the line. Standard library only, so it runs without the
+ASR environment (`uv`), and safe to run again.
+
+The naming itself lives in `names.py`, a copy of
+`packages/core/src/shabad-name.ts`; `python names.py` checks the two against
+the cases they share (`shabad-name.cases.json`), and CI runs it.
 
 ## Measure the scan against published tags
 
