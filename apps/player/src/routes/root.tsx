@@ -15,6 +15,7 @@ import { Github, Heart, House, Library, ListMusic, Radio, Search, Users } from '
 import { AccountButton } from '~/components/AccountButton';
 import { NowPlayingPanel } from '~/components/NowPlaying';
 import { AuthDialog } from '~/components/AuthDialog';
+import { LanguageSelector } from '~/components/LanguageSelector';
 import { NewPlaylistDialog } from '~/components/NewPlaylistDialog';
 import { PlayerBar } from '~/components/PlayerBar';
 import { SearchField } from '~/components/SearchField';
@@ -123,6 +124,8 @@ export function RootLayout() {
               <div className="min-w-0 flex-1">
                 <AccountButton variant="row" />
               </div>
+              {/* Beside the theme: both say how this device shows the app. */}
+              <LanguageSelector />
               <ThemeToggle />
             </div>
           </div>
@@ -156,6 +159,7 @@ export function RootLayout() {
                 <Search className="size-4" />
               </Link>
               <ShuffleButton />
+              <LanguageSelector />
               <AccountButton />
               <ThemeToggle />
             </div>

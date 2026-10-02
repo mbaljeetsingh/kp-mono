@@ -16,6 +16,12 @@ export interface AudioDriver {
   pause(): void;
   /** Absolute seconds into the file, not into the segment. */
   seek(seconds: number): void;
+  /**
+   * Tell the operating system again what is playing, without reloading it —
+   * after the listener switched the script titles are shown in. Optional: a
+   * driver without it keeps the old title until the next item loads.
+   */
+  announce?(nowPlaying: NowPlaying): void;
 }
 
 /**

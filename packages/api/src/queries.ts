@@ -23,7 +23,7 @@ export interface Page<T> {
 }
 
 const SHABAD_COLUMNS =
-  'id,name,url,track_id,tree,artist,artist_display,artist_photo,raag,taal,' +
+  'id,name,name_gurmukhi,url,track_id,tree,artist,artist_display,artist_photo,raag,taal,' +
   'shabad_id,main_verse_id,line_timings,start_sec,end_sec,duration_sec,play_count,date,created_at';
 
 /** Every shabad query lands here, so parsing and paging are defined once. */
