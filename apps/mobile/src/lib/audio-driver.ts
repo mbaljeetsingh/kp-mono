@@ -91,5 +91,13 @@ export function createNativeAudioDriver(onStatus: (status: DriverStatus) => void
     seek(seconds) {
       void player?.seekTo(Math.max(0, seconds));
     },
+    // The lock screen's title in the newly chosen script; the audio plays on.
+    announce(nowPlaying) {
+      player?.updateLockScreenMetadata({
+        title: nowPlaying.title,
+        artist: nowPlaying.artist,
+        artworkUrl: nowPlaying.artworkUrl,
+      });
+    },
   };
 }

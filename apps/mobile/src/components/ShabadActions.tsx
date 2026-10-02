@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { Heart, ListPlus, Plus, Users, X } from 'lucide-react-native';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
@@ -41,9 +42,11 @@ export function ShabadActions({
         {/* Stops a tap inside the sheet from dismissing it. */}
         <Pressable className="rounded-t-2xl bg-popover pb-8 pt-2" onPress={() => {}}>
           <View className="flex-row items-center gap-2 px-4 pb-2">
-            <Text numberOfLines={1} className="flex-1 font-display-medium text-lg text-foreground">
-              {item.title}
-            </Text>
+            <ShabadTitle
+              item={item}
+              numberOfLines={1}
+              className="flex-1 font-display-medium text-lg text-foreground"
+            />
             <Pressable
               onPress={onClose}
               accessibilityLabel="Close"

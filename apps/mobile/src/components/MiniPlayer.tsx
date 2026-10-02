@@ -6,6 +6,7 @@ import { Pressable, Text, View } from 'react-native';
 
 import { ArtTile } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
 import { artistPhotoUrl } from '~/lib/supabase';
@@ -42,9 +43,11 @@ export function MiniPlayer() {
             size={40}
           />
           <View className="min-w-0 flex-1">
-            <Text numberOfLines={1} className="text-sm font-semibold text-foreground">
-              {current.title}
-            </Text>
+            <ShabadTitle
+              item={current}
+              numberOfLines={1}
+              className="text-sm font-semibold text-foreground"
+            />
             <Text numberOfLines={1} className="text-xs tabular-nums text-muted-foreground">
               {current.isLive
                 ? 'LIVE'

@@ -13,8 +13,10 @@
  */
 import { createMMKV } from 'react-native-mmkv';
 
-// v4 is a factory over nitro-modules; `new MMKV()` was the v3 API.
-const mmkv = createMMKV({ id: 'kp' });
+// v4 is a factory over nitro-modules; `new MMKV()` was the v3 API. Exported
+// for the few synchronous, hook-read settings (the title script) that never
+// lived in AsyncStorage, so have nothing to wait for.
+export const mmkv = createMMKV({ id: 'kp' });
 
 export interface DeviceStorage {
   getItem(key: string): Promise<string | null>;
