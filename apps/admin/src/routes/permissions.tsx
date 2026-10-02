@@ -7,8 +7,10 @@
  */
 import { useRolePermissions, useSetRolePermission } from '@kp/api';
 import { TRUST_LADDER } from '@kp/shared/types';
+import { Button } from '@kp/ui/button';
 import { Switch } from '@kp/ui/switch';
-import { Check, Minus } from 'lucide-react';
+import { Check, Lock, LockOpen, Minus } from 'lucide-react';
+import { useState } from 'react';
 
 import { LoadStatus } from '~/components/LoadStatus';
 import { useSession } from '~/lib/session';
@@ -18,6 +20,10 @@ import { cn } from '~/lib/utils';
 export function PermissionsRoute() {
   const { session, can, permissionsLoading: loading } = useSession();
   const editable = can['users.manage'];
+  // Locked until asked: every switch applies the moment it moves, and the
+  // matrix is a page people open to read, so a stray click or scroll-tap
+  // should not change what a whole role may do.
+  const [unlocked, setUnlocked] = useState(false);
 
   const { all, granted } = useRolePermissions(supabase, Boolean(session));
   const setPermission = useSetRolePermission(supabase);
@@ -27,13 +33,27 @@ export function PermissionsRoute() {
 
   return (
     <section className="flex flex-col gap-4">
-      <header>
-        <h1 className="font-display text-3xl font-semibold">Permissions</h1>
-        <p className="text-sm text-muted-foreground">
-          {editable
-            ? 'What each rung of the ladder may do. Changes apply immediately.'
-            : 'What each rung of the ladder may do. Your own row is highlighted.'}
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-semibold">Permissions</h1>
+          <p className="text-sm text-muted-foreground">
+            {editable
+              ? 'What each rung of the ladder may do. Unlock to change it; changes apply immediately.'
+              : 'What each rung of the ladder may do. Your own row is highlighted.'}
+          </p>
+        </div>
+        {editable ? (
+          <Button
+            variant={unlocked ? 'default' : 'outline'}
+            size="sm"
+            aria-pressed={unlocked}
+            onClick={() => setUnlocked((was) => !was)}
+            className="shrink-0"
+          >
+            {unlocked ? <LockOpen /> : <Lock />}
+            {unlocked ? 'Editing' : 'Locked'}
+          </Button>
+        ) : null}
       </header>
 
       {loading ? (
@@ -85,7 +105,7 @@ export function PermissionsRoute() {
                           <Switch
                             checked={on}
                             aria-label={`${permission} for ${role}`}
-                            disabled={setPermission.isPending}
+                            disabled={!unlocked || setPermission.isPending}
                             onCheckedChange={(next) =>
                               setPermission.mutate({
                                 role,
