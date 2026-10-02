@@ -14,7 +14,9 @@ import type { MouseEvent } from 'react';
 import { PlayableArt } from '~/components/ArtTile';
 import { FavoriteButton } from '~/components/FavoriteButton';
 import { ShabadMenu } from '~/components/ShabadMenu';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions } from '~/lib/player';
+import { useShownTitle } from '~/lib/title-script';
 import { clock, cn } from '~/lib/utils';
 
 interface Props {
@@ -27,6 +29,8 @@ interface Props {
 
 export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
   const length = segmentTotal(item, 0);
+  // Labels say what the row shows, in the script it shows it.
+  const title = useShownTitle(item);
 
   function toggle() {
     if (isCurrent) playerActions.toggle();
@@ -79,7 +83,7 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={isCurrent && playing ? `Pause ${item.title}` : `Play ${item.title}`}
+          aria-label={isCurrent && playing ? `Pause ${title}` : `Play ${title}`}
           onClick={toggle}
           className={cn(
             'absolute inset-0 size-10 rounded-md bg-black/45 text-white opacity-0 hover:bg-black/60 focus-visible:opacity-100 group-hover:opacity-100',
@@ -91,7 +95,9 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className={cn('truncate text-sm', isCurrent && 'text-primary')}>{item.title}</p>
+        <p className={cn('truncate text-sm', isCurrent && 'text-primary')}>
+          <ShabadTitle item={item} />
+        </p>
         {/* Plain text, deliberately. A link here made the ragi's name a target
             you had to miss in order to play the row — on a phone, where it sits
             under a title your thumb already covers, missing it is the hard
@@ -112,7 +118,7 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
 
       <FavoriteButton
         id={item.id}
-        name={item.title}
+        name={title}
         className="shrink-0 opacity-0 focus-visible:opacity-100 group-hover:opacity-100 aria-pressed:opacity-100 touch:opacity-100"
       />
       <ShabadMenu item={item} />

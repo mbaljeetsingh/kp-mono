@@ -14,7 +14,9 @@ import { Play, X } from 'lucide-react';
 import type { MouseEvent } from 'react';
 
 import { PlayableArt } from '~/components/ArtTile';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useShownTitle } from '~/lib/title-script';
 import { supabase } from '~/lib/supabase';
 import { cn } from '~/lib/utils';
 
@@ -97,6 +99,7 @@ function Row({
   onPlay: () => void;
   onRemove?: () => void;
 }) {
+  const title = useShownTitle(item);
   /**
    * The whole row plays, the same as a shelf row: the thumbnail and the gap
    * beside the title were dead space, and that is where a click lands.
@@ -116,13 +119,15 @@ function Row({
     >
       <PlayableArt item={item} className="size-8 text-sm" />
       <button type="button" onClick={onPlay} className="min-w-0 flex-1 text-left">
-        <p className="truncate text-sm">{item.title}</p>
+        <p className="truncate text-sm">
+          <ShabadTitle item={item} />
+        </p>
         <p className="truncate text-xs text-muted-foreground">{item.subtitle ?? item.artist}</p>
       </button>
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label={`Play ${item.title}`}
+        aria-label={`Play ${title}`}
         onClick={onPlay}
         className="opacity-0 group-hover:opacity-100"
       >
@@ -135,7 +140,7 @@ function Row({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`Remove ${item.title} from the queue`}
+          aria-label={`Remove ${title} from the queue`}
           onClick={onRemove}
           className="opacity-0 group-hover:opacity-100 touch:opacity-100"
         >

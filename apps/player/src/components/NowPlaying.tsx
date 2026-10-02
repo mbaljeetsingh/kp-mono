@@ -19,8 +19,11 @@ import { LyricsPanel } from '~/components/LyricsPanel';
 import { PlayerControls } from '~/components/PlayerControls';
 import { QueueList } from '~/components/QueueList';
 import { SeekBar } from '~/components/SeekBar';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { ShareButton } from '~/components/ShareButton';
 import { usePlayer } from '~/lib/player';
+import { useTitleScript } from '~/lib/title-script';
+import { titleIn } from '@kp/core';
 
 /**
  * `transport` is false for the desktop panel.
@@ -41,6 +44,7 @@ function Body({
   header?: boolean;
 }) {
   const current = usePlayer((s) => s.current);
+  const [script] = useTitleScript();
   if (!current) return null;
 
   return (
@@ -53,7 +57,9 @@ function Body({
         <div className="flex items-center gap-3 px-4 pb-3">
           <PlayableArt item={current} className="size-14 rounded-lg text-2xl" />
           <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">{current.title}</p>
+            <p className="truncate font-medium">
+              <ShabadTitle item={current} />
+            </p>
             {current.artist ? (
               <Link
                 to="/ragis/$name"
@@ -113,7 +119,7 @@ function Body({
             {current.isLive ? null : (
               <FavoriteButton
                 id={current.id}
-                name={current.title}
+                name={titleIn(current, script)}
                 className="absolute left-0 top-1/2 size-10 -translate-y-1/2"
               />
             )}

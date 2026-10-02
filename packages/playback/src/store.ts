@@ -70,6 +70,8 @@ export interface PlayerState {
   removeAt(index: number): void;
   clearQueue(): void;
   cycleRepeat(): void;
+  /** Re-announce what is playing, for a title shown in another script now. */
+  retitle(): void;
 }
 
 export interface PlayerStoreOptions {
@@ -83,9 +85,16 @@ export interface PlayerStoreOptions {
    * this existed.
    */
   artworkUrl?: (item: Playable) => string | undefined;
+  /**
+   * What the operating system calls an item: its title in the script the
+   * listener chose (#77). A function for the same reason as `artworkUrl` —
+   * the choice is the app's, kept where the app keeps it. Omitted, the roman
+   * title, which is what the lock screen showed before there was a choice.
+   */
+  titleOf?: (item: Playable) => string;
 }
 
-export function createPlayerStore({ storage, artworkUrl }: PlayerStoreOptions) {
+export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreOptions) {
   let driver: AudioDriver | null = null;
   let resume: Record<string, number> = {};
 
@@ -107,7 +116,7 @@ export function createPlayerStore({ storage, artworkUrl }: PlayerStoreOptions) {
     /** What the operating system should show while this item plays. */
     function nowPlaying(item: Playable): NowPlaying {
       return {
-        title: item.title,
+        title: titleOf?.(item) ?? item.title,
         artist: item.subtitle ?? item.artist,
         artworkUrl: artworkUrl?.(item),
         isLive: item.isLive,
@@ -321,6 +330,16 @@ export function createPlayerStore({ storage, artworkUrl }: PlayerStoreOptions) {
         const repeat = nextRepeatMode(get().repeat);
         set({ repeat });
         void storage.setItem(REPEAT_KEY, repeat);
+      },
+
+      /*
+       * The lock screen learns a title when an item loads, so a listener who
+       * switches script mid-shabad would see the old one until the next. This
+       * tells it again, without touching the audio.
+       */
+      retitle() {
+        const { current } = get();
+        if (current) driver?.announce?.(nowPlaying(current));
       },
     };
   });

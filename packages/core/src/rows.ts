@@ -16,6 +16,8 @@ import type { LineTiming, Playable } from './types';
 export interface RenditionRow {
   id: string;
   name: string;
+  /** The anchor line in Gurmukhi; null with no shabad linked. */
+  name_gurmukhi?: string | null;
   url: string;
   artist?: string | null;
   artist_display?: string | null;
@@ -56,6 +58,7 @@ export function toPlayable(row: RenditionRow): Playable {
   return {
     id: row.id,
     title: row.name,
+    titleGurmukhi: row.name_gurmukhi ?? null,
     subtitle: row.artist_display ?? row.artist ?? undefined,
     artist: row.artist ?? undefined,
     raag: row.raag ?? null,

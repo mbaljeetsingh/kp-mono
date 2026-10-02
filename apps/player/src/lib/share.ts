@@ -30,10 +30,11 @@ export function shareUrl(item: Playable, position: number, origin = window.locat
  * one tap, which is how these links travel — and the clipboard where there is
  * not, which is most desktops.
  */
-export async function shareRendition(item: Playable, position: number) {
+export async function shareRendition(item: Playable, position: number, title = item.title) {
   const url = shareUrl(item, position);
-  const title = item.title;
-  const text = item.subtitle ? `${item.title} · ${item.subtitle}` : item.title;
+  // The title as the sharer sees it: someone reading ਪੰਜਾਬੀ shares the
+  // Gurmukhi, and the person they send it to most likely reads it too.
+  const text = item.subtitle ? `${title} · ${item.subtitle}` : title;
 
   if (typeof navigator.share === 'function') {
     try {

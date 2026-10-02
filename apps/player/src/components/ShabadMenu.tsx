@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { playerActions } from '~/lib/player';
+import { useShownTitle } from '~/lib/title-script';
 
 export function ShabadMenu({ item }: { item: Playable }) {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export function ShabadMenu({ item }: { item: Playable }) {
   // Read out here so the menu item's handler closes over a string rather than
   // a property TypeScript will not narrow inside a callback.
   const artist = item.artist;
+  const title = useShownTitle(item);
   const playlists = usePlaylists(supabase, Boolean(userId));
   const { addItem } = usePlaylistMutations(supabase, userId);
 
@@ -38,7 +40,7 @@ export function ShabadMenu({ item }: { item: Playable }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="ghost" size="icon-sm" aria-label={`More for ${item.title}`} />}
+        render={<Button variant="ghost" size="icon-sm" aria-label={`More for ${title}`} />}
       >
         <MoreHorizontal />
       </DropdownMenuTrigger>
@@ -96,7 +98,7 @@ export function ShabadMenu({ item }: { item: Playable }) {
                 {playlist.name}
               </DropdownMenuItem>
             ))}
-            <DropdownMenuItem onClick={() => openNewPlaylist({ id: item.id, name: item.title })}>
+            <DropdownMenuItem onClick={() => openNewPlaylist({ id: item.id, name: title })}>
               <Plus />
               New playlist…
             </DropdownMenuItem>
