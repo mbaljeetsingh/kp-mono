@@ -14,7 +14,9 @@ import { X } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { ArtTile } from '~/components/ArtTile';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useShownTitle } from '~/lib/title-script';
 import { artistPhotoUrl, supabase } from '~/lib/supabase';
 
 export function QueueList() {
@@ -90,6 +92,7 @@ function Row({
   onPlay: () => void;
   onRemove?: () => void;
 }) {
+  const title = useShownTitle(item);
   return (
     <Pressable
       onPress={onPlay}
@@ -97,9 +100,7 @@ function Row({
     >
       <ArtTile name={item.artist ?? item.title} src={artistPhotoUrl(item.artistPhoto)} size={36} />
       <View className="min-w-0 flex-1">
-        <Text numberOfLines={1} className="text-sm text-foreground">
-          {item.title}
-        </Text>
+        <ShabadTitle item={item} numberOfLines={1} className="text-sm text-foreground" />
         <Text numberOfLines={1} className="text-xs text-muted-foreground">
           {item.subtitle ?? item.artist}
         </Text>
@@ -107,7 +108,7 @@ function Row({
       {onRemove ? (
         <Pressable
           onPress={onRemove}
-          accessibilityLabel={`Remove ${item.title} from the queue`}
+          accessibilityLabel={`Remove ${title} from the queue`}
           hitSlop={8}
           className="size-8 items-center justify-center"
         >

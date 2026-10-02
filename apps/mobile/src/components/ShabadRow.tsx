@@ -11,7 +11,9 @@ import { Pressable, Text, View } from 'react-native';
 
 import { ArtTile } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
+import { ShabadTitle } from '~/components/ShabadTitle';
 import { useSession } from '~/lib/session';
+import { useShownTitle } from '~/lib/title-script';
 import { artistPhotoUrl } from '~/lib/supabase';
 
 function clock(seconds: number): string {
@@ -33,6 +35,7 @@ export function ShabadRow({
   const { favorites } = useSession();
   const length = segmentTotal(item, 0);
   const saved = favorites.has(item.id);
+  const title = useShownTitle(item);
 
   return (
     <PressableScale
@@ -53,12 +56,11 @@ export function ShabadRow({
       />
 
       <View className="min-w-0 flex-1">
-        <Text
+        <ShabadTitle
+          item={item}
           numberOfLines={1}
           className={isCurrent ? 'font-medium text-primary' : 'font-medium text-foreground'}
-        >
-          {item.title}
-        </Text>
+        />
         <Text numberOfLines={1} className="text-[13px] leading-[18px] text-muted-foreground">
           {item.subtitle ?? item.artist}
           {item.raag ? ` · ${item.raag}` : ''}
@@ -76,7 +78,7 @@ export function ShabadRow({
       {onMore ? (
         <Pressable
           onPress={() => onMore(item)}
-          accessibilityLabel={`More for ${item.title}`}
+          accessibilityLabel={`More for ${title}`}
           hitSlop={8}
           className="size-8 items-center justify-center"
         >

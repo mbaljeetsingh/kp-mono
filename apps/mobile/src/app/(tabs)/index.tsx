@@ -11,6 +11,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Play, Radio, Shuffle } from 'lucide-react-native';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { LanguageSelector } from '~/components/LanguageSelector';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { useShabadActions } from '~/lib/use-shabad-actions';
@@ -43,9 +44,14 @@ export default function ShabadsScreen() {
         ListHeaderComponent={
           <View className="gap-4 px-3 pb-2 pt-3">
             <View className="gap-1">
-              <Text className="font-display text-[34px] leading-10 text-foreground">
-                Kirtan Player
-              </Text>
+              {/* The language beside the name, as the web puts it in the
+                  phone header: the one setting a listener reaches for here. */}
+              <View className="flex-row items-center justify-between gap-3">
+                <Text className="font-display text-[34px] leading-10 text-foreground">
+                  Kirtan Player
+                </Text>
+                <LanguageSelector />
+              </View>
               <Text className="text-[15px] leading-5 text-muted-foreground">
                 Twenty years of kirtan from Sri Harmandir Sahib.
               </Text>
