@@ -8,8 +8,11 @@
 import { signOut } from '@kp/api';
 import { AccountMenu } from '@kp/ui/app/account-menu';
 import { ThemeToggle } from '@kp/ui/app/theme-toggle';
+import { Button } from '@kp/ui/button';
+import { Sheet, SheetContent, SheetTitle } from '@kp/ui/sheet';
 import { Link, Outlet } from '@tanstack/react-router';
-import { ClipboardCheck, ListChecks, ShieldCheck, Users } from 'lucide-react';
+import { ClipboardCheck, ListChecks, Menu, ShieldCheck, Users } from 'lucide-react';
+import { useState } from 'react';
 
 import { SignIn } from '~/components/SignIn';
 import { TrustLadder } from '~/components/TrustLadder';
@@ -20,14 +23,17 @@ const NAV = [
   { to: '/', label: 'Queue', icon: ListChecks },
   { to: '/pending', label: 'Review', icon: ClipboardCheck },
   // Only for those who can manage users: for anyone else the page is a dead
-  // end that says so. Permissions stays for everyone — the read-only matrix
-  // is how a contributor sees what the next rung unlocks.
+  // end that says so. Permissions likewise — it was left up for everyone as
+  // the way a contributor saw what the next rung unlocks, and the trust-ladder
+  // card in this sidebar now says that directly. The route stays reachable
+  // (read-only) for anyone who has the link.
   { to: '/users', label: 'Users', icon: Users, permission: 'users.manage' },
-  { to: '/permissions', label: 'Permissions', icon: ShieldCheck },
+  { to: '/permissions', label: 'Permissions', icon: ShieldCheck, permission: 'users.manage' },
 ] as const;
 
 export function RootLayout() {
-  const { session, loading, can } = useSession();
+  const { session, loading } = useSession();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (loading) {
     return (
@@ -49,56 +55,92 @@ export function RootLayout() {
      * two thousand pixels below the fold. Email and Sign out were on every
      * page, just never on screen unless the list was short.
      */
-    <div className="flex h-dvh overflow-hidden bg-background text-foreground">
-      <nav className="flex w-52 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border p-4">
-        <Link to="/" search={{}} className="mb-4 flex items-center gap-2">
-          {/* A pair, now that the workbench has a light mode — it was pinned to
-              the dark badge for as long as it was pinned to the dark theme. */}
-          <img src="/brand/logo-badge.svg" alt="" className="size-7 dark:hidden" />
-          <img src="/brand/logo-badge-dark.svg" alt="" className="hidden size-7 dark:block" />
-          <span className="font-display text-lg font-semibold">Contribute</span>
-        </Link>
-
-        {NAV.filter((item) => !('permission' in item) || can[item.permission]).map(
-          ({ to, label, icon: Icon }) => (
-            <Link
-              key={to}
-              to={to}
-              search={{}}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-              activeProps={{ className: 'bg-accent text-foreground' }}
-              activeOptions={{ exact: to === '/' }}
-            >
-              <Icon className="size-4" />
-              {label}
-            </Link>
-          )
-        )}
-
-        {/* The same account menu the player carries, rather than loose text and
-            a bare button: which account the tagging is attributed to matters
-            more here than there, and Sign out belongs behind the thing that
-            names it rather than beside it. */}
-        <div className="mt-auto pb-3">
-          <TrustLadder />
-        </div>
-        <div className="flex items-center gap-1 border-t border-border pt-3">
-          <div className="min-w-0 flex-1">
-            <AccountMenu
-              email={session.user.email ?? ''}
-              onSignOut={() => void signOut(supabase)}
-              variant="row"
-            />
-          </div>
-          <ThemeToggle />
-        </div>
+    <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground md:flex-row">
+      <nav className="hidden w-52 shrink-0 flex-col gap-1 overflow-y-auto border-r border-border p-4 md:flex">
+        <Sidebar email={session.user.email ?? ''} />
       </nav>
 
+      {/* Below md the sidebar's 208px left a phone ~170px for the queue, so it
+          becomes an overlay behind a menu button: same contents, nothing
+          dropped, closed again by any link in it. */}
+      <header className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-2 md:hidden">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Open menu"
+          onClick={() => setMenuOpen(true)}
+        >
+          <Menu />
+        </Button>
+        <Brand />
+      </header>
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent side="left" className="w-64 gap-1 p-4 md:hidden">
+          <SheetTitle className="sr-only">Menu</SheetTitle>
+          <Sidebar email={session.user.email ?? ''} onNavigate={() => setMenuOpen(false)} />
+        </SheetContent>
+      </Sheet>
+
       <main className="min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-6 py-6">
+        <div className="mx-auto max-w-5xl px-4 py-4 md:px-6 md:py-6">
           <Outlet />
         </div>
       </main>
     </div>
+  );
+}
+
+function Brand({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <Link to="/" search={{}} onClick={onNavigate} className="flex items-center gap-2">
+      {/* A pair, now that the workbench has a light mode — it was pinned to
+          the dark badge for as long as it was pinned to the dark theme. */}
+      <img src="/brand/logo-badge.svg" alt="" className="size-7 dark:hidden" />
+      <img src="/brand/logo-badge-dark.svg" alt="" className="hidden size-7 dark:block" />
+      <span className="font-display text-lg font-semibold">Contribute</span>
+    </Link>
+  );
+}
+
+/** The sidebar's contents: the column at md and up, the sheet below it. */
+function Sidebar({ email, onNavigate }: { email: string; onNavigate?: () => void }) {
+  const { can } = useSession();
+  return (
+    <>
+      <div className="mb-4">
+        <Brand onNavigate={onNavigate} />
+      </div>
+
+      {NAV.filter((item) => !('permission' in item) || can[item.permission]).map(
+        ({ to, label, icon: Icon }) => (
+          <Link
+            key={to}
+            to={to}
+            search={{}}
+            onClick={onNavigate}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+            activeProps={{ className: 'bg-accent text-foreground' }}
+            activeOptions={{ exact: to === '/' }}
+          >
+            <Icon className="size-4" />
+            {label}
+          </Link>
+        )
+      )}
+
+      <div className="mt-auto pb-3">
+        <TrustLadder />
+      </div>
+      {/* The same account menu the player carries, rather than loose text and
+          a bare button: which account the tagging is attributed to matters
+          more here than there, and Sign out belongs behind the thing that
+          names it rather than beside it. */}
+      <div className="flex items-center gap-1 border-t border-border pt-3">
+        <div className="min-w-0 flex-1">
+          <AccountMenu email={email} onSignOut={() => void signOut(supabase)} variant="row" />
+        </div>
+        <ThemeToggle />
+      </div>
+    </>
   );
 }
