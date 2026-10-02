@@ -7,7 +7,7 @@
  */
 import { colors } from '@kp/tokens/colors';
 import { useShabadText } from '@kp/api';
-import { artworkFor, clock, highlightVerseId, isAligned, REPEAT_LABELS } from '@kp/core';
+import { artworkFor, clock, highlightVerseId, isAligned, REPEAT_LABELS, titleIn } from '@kp/core';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
@@ -25,15 +25,16 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { QueueList } from '~/components/QueueList';
 import { ReadAlongLine } from '~/components/ReadAlongLine';
 import { SeekBar } from '~/components/SeekBar';
 import { ShabadSearch } from '~/components/ShabadSearch';
+import { ShabadTitle } from '~/components/ShabadTitle';
+import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
-import { artistPhotoUrl } from '~/lib/supabase';
 
 /** BaniDB, direct on native: there is no browser origin to be blocked by CORS. */
 
@@ -41,6 +42,7 @@ export default function NowPlayingScreen() {
   const router = useRouter();
 
   const current = usePlayer((s) => s.current);
+  const [script] = useTitleScript();
   const playing = usePlayer((s) => s.playing);
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
@@ -227,16 +229,14 @@ export default function NowPlayingScreen() {
       </View>
 
       <View className="flex-row items-center gap-4 px-5 pb-4 pt-3">
-        <ArtTile
-          name={current.artist ?? current.title}
-          src={artistPhotoUrl(current.artistPhoto)}
-          size={112}
-          rounded={16}
-        />
+        <PlayableArt item={current} size={112} rounded={16} />
         <View className="min-w-0 flex-1 gap-1.5">
-          <Text numberOfLines={2} className="font-display text-2xl leading-7 text-foreground">
-            {current.title}
-          </Text>
+          <ShabadTitle
+            item={current}
+            numberOfLines={2}
+            className="font-display text-2xl leading-7 text-foreground"
+            gurmukhiClassName="pt-1.5 text-[22px] leading-9 text-foreground"
+          />
           {/* The one name on this screen worth following. It is a link here
               and plain text in a list row, which is the same rule on both:
               where a tap means "play this", the name stays out of the way;
@@ -405,8 +405,8 @@ export default function NowPlayingScreen() {
               onPress={() => favorites.toggle(current.id)}
               accessibilityLabel={
                 favorites.has(current.id)
-                  ? `Remove ${current.title} from saved`
-                  : `Save ${current.title}`
+                  ? `Remove ${titleIn(current, script)} from saved`
+                  : `Save ${titleIn(current, script)}`
               }
               className="absolute bottom-0 left-0 top-0 w-14 items-center justify-center"
             >

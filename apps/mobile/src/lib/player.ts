@@ -4,17 +4,21 @@
  * Selectors are not optional: the driver reports position ten times a second,
  * so any component reading the whole store re-renders at 10Hz forever.
  */
+import { titleIn } from '@kp/core';
 import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
 import { storage } from './storage';
 import { artistPhotoUrl } from './supabase';
+import { readTitleScript } from './title-script';
 
 export const playerStore = createPlayerStore({
   storage,
   // The lock screen wants a URL, and only the app knows where artwork lives.
   artworkUrl: (item) => artistPhotoUrl(item.artistPhoto) ?? undefined,
+  // And the title in the listener's script, read when the item loads.
+  titleOf: (item) => titleIn(item, readTitleScript()),
 });
 
 playerStore
@@ -45,4 +49,5 @@ export const playerActions = {
   playAt: (index: number) => playerStore.getState().playAt(index),
   removeAt: (index: number) => playerStore.getState().removeAt(index),
   clearQueue: () => playerStore.getState().clearQueue(),
+  retitle: () => playerStore.getState().retitle(),
 };
