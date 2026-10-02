@@ -1,4 +1,3 @@
-import { colors } from '@kp/tokens/colors';
 import { useSearch } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useState } from 'react';
@@ -12,8 +11,10 @@ import { ShabadRow } from '~/components/ShabadRow';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export default function SearchScreen() {
+  const colors = useColors();
   const { onMore, sheet } = useShabadActions();
   const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 250);

@@ -8,7 +8,6 @@
  */
 import { fetchSuggestionGroups } from '@kp/api';
 import { upNext, type Playable } from '@kp/core';
-import { colors } from '@kp/tokens/colors';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
@@ -18,6 +17,7 @@ import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useShownTitle } from '~/lib/title-script';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export function QueueList() {
   const items = usePlayer((s) => s.items);
@@ -92,6 +92,7 @@ function Row({
   onPlay: () => void;
   onRemove?: () => void;
 }) {
+  const colors = useColors();
   const title = useShownTitle(item);
   return (
     <Pressable

@@ -8,7 +8,6 @@
  */
 import { usePlaylistMutations, usePlaylists } from '@kp/api';
 import type { Playable } from '@kp/core';
-import { colors } from '@kp/tokens/colors';
 import { useRouter } from 'expo-router';
 import { Heart, ListPlus, Plus, Users, X } from 'lucide-react-native';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
@@ -17,6 +16,7 @@ import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export function ShabadActions({
   item,
@@ -27,6 +27,7 @@ export function ShabadActions({
   open: boolean;
   onClose: () => void;
 }) {
+  const colors = useColors();
   const router = useRouter();
   const { favorites, userId } = useSession();
   const playlists = usePlaylists(supabase, Boolean(userId));

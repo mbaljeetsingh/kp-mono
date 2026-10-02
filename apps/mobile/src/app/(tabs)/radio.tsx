@@ -5,7 +5,6 @@
  * bandwidth — the archive hotlinks sgpc.net, which is the organisation that
  * recorded it, and this is a different arrangement that should be visible.
  */
-import { colors } from '@kp/tokens/colors';
 import {
   CHANNELS,
   DEFAULT_STATION,
@@ -18,8 +17,10 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useColors } from '~/lib/theme';
 
 function StationCard({ station }: { station: Station }) {
+  const colors = useColors();
   const playable = stationPlayable(station);
   const currentId = usePlayer((s) => s.current?.id);
   const playing = usePlayer((s) => s.playing);

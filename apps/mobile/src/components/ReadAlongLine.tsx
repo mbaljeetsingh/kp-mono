@@ -11,7 +11,6 @@
  * animate it: React Native cannot transition a class, and the two ends are
  * theme tokens, so they are read once and handed to the worklet as numbers.
  */
-import { colors } from '@kp/tokens/colors';
 import Animated, {
   interpolateColor,
   useAnimatedStyle,
@@ -19,6 +18,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Text, View, type LayoutChangeEvent } from 'react-native';
+import { useColors } from '~/lib/theme';
 
 /**
  * Long enough to read as a fade, short enough that it has finished before the
@@ -37,6 +37,7 @@ export function ReadAlongLine({
   lit: boolean;
   onLayout: (e: LayoutChangeEvent) => void;
 }) {
+  const colors = useColors();
   // A derived value rather than an effect: the fade is driven from the UI
   // thread, so a 10Hz position update never touches React.
   const progress = useDerivedValue(() => withTiming(lit ? 1 : 0, { duration: FADE_MS }));
