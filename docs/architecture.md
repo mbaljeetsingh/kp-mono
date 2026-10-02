@@ -136,6 +136,18 @@ rewrites them to run on the UI thread, and without it `useAnimatedStyle` fails a
 runtime rather than at build time. In v4 the plugin lives in
 `react-native-worklets`, and it must go last.
 
+**The trust ladder counts every published rendition, scan drafts included.**
+`maybe_promote` makes a contributor `trusted` at 20 published, and the admin
+sidebar shows them the climb (`useStanding`, over `contribution_stats`). A scan
+draft belongs to whoever requested the scan, so if contributors could request
+scans, clicking Scan twenty times and having a reviewer accept the drafts would
+earn autonomy for judgment the contributor never exercised. That holds only
+because `scans.request` stays with trusted and up; after promotion the count
+drives nothing, so there it is simply their total. Grant scans to
+`contributor` and this needs revisiting first — the middle ground is counting a
+scan draft toward promotion only when its row differs from `scan_verdict`, i.e.
+the contributor moved an edge or changed the shabad.
+
 ## Testing
 
 `pnpm test` runs the workspace: 139 tests across `core`, `playback` and `api`.
