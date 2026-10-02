@@ -53,53 +53,46 @@
 }
 
 :root {
+   /*
+   * Midnight Gold — night-sky navy canvas, warm ivory text,
+   * gold primary that glows like a diya on dark surfaces.
+   */
   color-scheme: dark;
 
-  /*
-   * Lamp-lit dark.
-   *
-   * The canvas is near-black with a warm cast, and the surfaces climb from it
-   * in visible steps — what used to be the background is now the card, so a
-   * card finally reads as raised. Text is warm ivory rather than white. The
-   * accent is a lantern gold that glows on the dark ground; it takes dark ink
-   * for its own text, the canonical dark-mode button.
-   */
-  --background: #0f0d0b; /* near-black, warm */
-  --foreground: #f4efe3; /* warm ivory, 16.9:1 */
-  --card: #1a1612; /* surface 1 */
-  --card-foreground: #f4efe3;
-  --popover: #241f1a; /* surface 2 — sheets, menus */
-  --popover-foreground: #f4efe3;
-  --primary: #e8a33d; /* lantern gold, 9:1 on the canvas */
-  --primary-foreground: #1a1206;
-  --primary-soft: #2f2513; /* gold tint for chips and the raag badge */
-  --secondary: #2c261f; /* surface 3 — pills, tracks */
-  --secondary-foreground: #f4efe3;
-  --muted: #2c261f;
-  --muted-foreground: #a99d89; /* secondary copy, 7.3:1 */
-  --subtle-foreground: #8a7f70; /* metadata, 4.9:1 */
-  --accent: #372f27; /* hover / pressed — a notch above secondary */
-  --accent-foreground: #f4efe3;
-  --destructive: #d2554b;
-  --destructive-foreground: #f4efe3;
-  --live: #e5484d;
-  --success: #7dab86;
-  --border: #2a241e; /* hairline — visible against the canvas, quiet on a card */
-  --input: #3a322a;
-  --ring: #e8a33d;
+  --background: #0e1420; /* Midnight */
+  --foreground: #f4f0e6; /* Warm ivory */
+  --card: #161e2d; /* Raised navy */
+  --card-foreground: #f4f0e6;
+  --popover: #1d2738; /* One lift above card */
+  --popover-foreground: #f4f0e6;
+  --primary: #d1a64a; /* Midnight Gold */
+  --primary-foreground: #0e1420; /* Dark ink on gold */
+  --secondary: #222c3d;
+  --secondary-foreground: #f4f0e6;
+  --muted: #1d2738;
+  --muted-foreground: #a8b0bf; /* Mist — secondary text */
+  --accent: #34445f; /* Hover / active surface */
+  --accent-foreground: #f4f0e6;
+  --highlight: #d1a64a;
+  --highlight-foreground: #0e1420;
+  --destructive: #e0605a;
+  --destructive-foreground: #0e1420;
+  --border: #2d394c;
+  --input: #3a475c;
+  --ring: #d1a64a;
 
-  --chart-1: #e8a33d;
-  --chart-2: #b8ad96;
-  --chart-3: #8a806f;
-  --chart-4: #c98a2e;
-  --chart-5: #6a6054;
+  --chart-1: #d1a64a;
+  --chart-2: #7f93b8;
+  --chart-3: #e4c98a;
+  --chart-4: #4e6184;
+  --chart-5: #8b94a6;
 
-  --sidebar: #1a1612;
-  --sidebar-foreground: #f4efe3;
-  --sidebar-primary: #e8a33d;
-  --sidebar-primary-foreground: #1a1206;
-  --sidebar-accent: #372f27;
-  --sidebar-accent-foreground: #f4efe3;
-  --sidebar-border: #2a241e;
-  --sidebar-ring: #e8a33d;
+  --sidebar: #161e2d;
+  --sidebar-foreground: #f4f0e6;
+  --sidebar-primary: #d1a64a;
+  --sidebar-primary-foreground: #0e1420;
+  --sidebar-accent: #34445f;
+  --sidebar-accent-foreground: #f4f0e6;
+  --sidebar-border: #2d394c;
+  --sidebar-ring: #d1a64a;
 }
