@@ -4,12 +4,11 @@ import { useRouter } from 'expo-router';
 import { Pause, Play, SkipForward } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
-import { artistPhotoUrl } from '~/lib/supabase';
 
 /**
  * The transport that rides above the tabs.
@@ -37,11 +36,7 @@ export function MiniPlayer() {
           onPress={() => router.push('/now-playing')}
           className="min-w-0 flex-1 flex-row items-center gap-3"
         >
-          <ArtTile
-            name={current.artist ?? current.title}
-            src={artistPhotoUrl(current.artistPhoto)}
-            size={40}
-          />
+          <PlayableArt item={current} size={40} />
           <View className="min-w-0 flex-1">
             <ShabadTitle
               item={current}

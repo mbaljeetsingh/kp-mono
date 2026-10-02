@@ -13,11 +13,11 @@ import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
-import { ArtTile } from '~/components/ArtTile';
+import { PlayableArt } from '~/components/ArtTile';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useShownTitle } from '~/lib/title-script';
-import { artistPhotoUrl, supabase } from '~/lib/supabase';
+import { supabase } from '~/lib/supabase';
 
 export function QueueList() {
   const items = usePlayer((s) => s.items);
@@ -98,7 +98,7 @@ function Row({
       onPress={onPlay}
       className="flex-row items-center gap-3 rounded-lg px-1 py-2 active:bg-accent"
     >
-      <ArtTile name={item.artist ?? item.title} src={artistPhotoUrl(item.artistPhoto)} size={36} />
+      <PlayableArt item={item} size={36} />
       <View className="min-w-0 flex-1">
         <ShabadTitle item={item} numberOfLines={1} className="text-sm text-foreground" />
         <Text numberOfLines={1} className="text-xs text-muted-foreground">
