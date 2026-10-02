@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetTitle } from '@kp/ui/sheet';
 import { Link, Outlet } from '@tanstack/react-router';
 import { ClipboardCheck, ListChecks, Menu, ShieldCheck, Users } from 'lucide-react';
 import { useState } from 'react';
+import { useMediaQuery } from 'usehooks-ts';
 
 import { SignIn } from '~/components/SignIn';
 import { TrustLadder } from '~/components/TrustLadder';
@@ -34,6 +35,10 @@ const NAV = [
 export function RootLayout() {
   const { session, loading } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
+  // md, as in the classes below. Hiding the drawer at md is not closing it: its
+  // backdrop and focus trap outlive a rotation to landscape, blurring a page
+  // nobody can click until Escape.
+  const wide = useMediaQuery('(min-width: 768px)');
 
   if (loading) {
     return (
@@ -74,7 +79,7 @@ export function RootLayout() {
         </Button>
         <Brand />
       </header>
-      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+      <Sheet open={menuOpen && !wide} onOpenChange={setMenuOpen}>
         <SheetContent side="left" className="w-64 gap-1 p-4 md:hidden">
           <SheetTitle className="sr-only">Menu</SheetTitle>
           <Sidebar email={session.user.email ?? ''} onNavigate={() => setMenuOpen(false)} />
