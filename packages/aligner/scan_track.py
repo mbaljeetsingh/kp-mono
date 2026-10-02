@@ -446,7 +446,7 @@ def write_drafts(track_id, found, shabads, owner=None):
         print(f'  {"PUBLISHED" if publish else "DRAFT"} {row[0]["id"][:8]}  '
               f'{t0:6.0f}-{t1:6.0f}s  shabad {sid}  conf {conf:.2f}  '
               f'align {align_conf:.2f}  {len(timings)} lines timed'
-              f'{"  (would auto-publish)" if auto and not publish else ""}'
+              f'{"  (auto-publish candidate)" if auto and not publish else ""}'
               f'  "{_name(verse, sid)[:44]}"')
     return drafted, findings
 
