@@ -653,6 +653,55 @@ export function usePendingCount(client: KpClient, enabled: boolean) {
   });
 }
 
+/* ── The trust ladder ─────────────────────────────────────────────────── */
+
+/**
+ * Must match `threshold` in maybe_promote() (20260804000100_functions.sql).
+ * Only the bar reads it — the promotion itself happens in the trigger — so a
+ * drift shows a wrong "to go", never a wrong trust level.
+ */
+export const TRUSTED_AT = 20;
+
+export interface Standing {
+  trust: string;
+  /** All of it, scan drafts included: only trusted and up can request scans. */
+  published: number;
+  /** Everything not yet published — what sits in the review queue. */
+  pending: number;
+}
+
+export async function fetchStanding(client: KpClient, userId: string): Promise<Standing> {
+  const [profile, stats] = await Promise.all([
+    // Their own row is readable; `trust` is only unwritable.
+    client.from('profiles').select('trust').eq('id', userId).single(),
+    client.rpc('contribution_stats', { person: userId }),
+  ]);
+  if (profile.error) throw toError(profile.error);
+  if (stats.error) throw toError(stats.error);
+  const row = (stats.data as { published: number; pending: number }[] | null)?.[0];
+  return {
+    trust: (profile.data as { trust: string }).trust,
+    published: Number(row?.published ?? 0),
+    pending: Number(row?.pending ?? 0),
+  };
+}
+
+/**
+ * Under ['pending'] for the same reason as the count: saving a draft and
+ * publishing one already invalidate it, and those are the two things that move
+ * these numbers. On every focus as well, because the publish that matters — a
+ * reviewer's — happens in someone else's browser: 'always', since the admin's
+ * five-minute staleTime would otherwise call the numbers fresh and skip it.
+ */
+export function useStanding(client: KpClient, userId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['pending', 'standing', userId ?? null],
+    queryFn: () => fetchStanding(client, userId!),
+    enabled: Boolean(userId),
+    refetchOnWindowFocus: 'always',
+  });
+}
+
 /* ── Recording-level actions ──────────────────────────────────────────── */
 
 /**

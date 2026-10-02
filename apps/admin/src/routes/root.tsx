@@ -12,6 +12,7 @@ import { Link, Outlet } from '@tanstack/react-router';
 import { ClipboardCheck, ListChecks, ShieldCheck, Users } from 'lucide-react';
 
 import { SignIn } from '~/components/SignIn';
+import { TrustLadder } from '~/components/TrustLadder';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 
@@ -78,7 +79,10 @@ export function RootLayout() {
             a bare button: which account the tagging is attributed to matters
             more here than there, and Sign out belongs behind the thing that
             names it rather than beside it. */}
-        <div className="mt-auto flex items-center gap-1 border-t border-border pt-3">
+        <div className="mt-auto pb-3">
+          <TrustLadder />
+        </div>
+        <div className="flex items-center gap-1 border-t border-border pt-3">
           <div className="min-w-0 flex-1">
             <AccountMenu
               email={session.user.email ?? ''}
