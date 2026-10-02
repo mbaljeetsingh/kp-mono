@@ -9,6 +9,7 @@
 import {
   acceptScanDrafts,
   canPublishRendition,
+  publishRefusal,
   nextUntaggedPuratan,
   requestScan,
   rescan,
@@ -19,6 +20,7 @@ import {
   useRecording,
   useRenditions,
   useScanRequest,
+  type PublishRefusal,
   type Rendition,
   type ScanFinding,
   type ScanStatus,
@@ -881,7 +883,7 @@ function Workbench({ id }: { id: string }) {
                       error={rowError[item.r.id]}
                       canEdit={canEdit(item.r)}
                       canReview={perms.review}
-                      canPublish={canPublishRendition(item.r, perms, userId)}
+                      refusal={publishRefusal(item.r, perms, userId)}
                       onPlay={() => playFrom(Number(item.r.start_sec))}
                       onAudition={player.auditionBoundary}
                       onEdit={() => editRendition(item.r)}
@@ -979,7 +981,7 @@ function SegmentRow({
   error,
   canEdit,
   canReview,
-  canPublish,
+  refusal,
   onPlay,
   onAudition,
   onEdit,
@@ -990,13 +992,15 @@ function SegmentRow({
   error?: string;
   canEdit: boolean;
   canReview: boolean;
-  canPublish: boolean;
+  /** Why this account cannot publish it, or null if it can (publishRefusal). */
+  refusal: PublishRefusal | null;
   onPlay: () => void;
   onAudition: (at: number) => void;
   onEdit: () => void;
   onPublish: (on: boolean) => void;
 }) {
   const published = r.status === 'published';
+  const canPublish = refusal === null;
   const startSec = Number(r.start_sec);
   const endSec = Number(r.end_sec);
   return (
@@ -1011,8 +1015,20 @@ function SegmentRow({
         </Button>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm">{r.name}</span>
+          {r.name_gurmukhi ? (
+            <span lang="pa" className="block truncate font-gurbani text-sm">
+              {r.name_gurmukhi}
+            </span>
+          ) : null}
           <span className="block truncate text-xs text-muted-foreground">
             {r.shabad_id ? 'shabad linked' : 'no shabad linked'}
+            {/* What is missing, only for someone it is all that is missing
+                for: not a contributor, and not a row already published. */}
+            {refusal === 'needs-shabad'
+              ? ' · link one to publish'
+              : refusal === 'needs-line'
+                ? ' · choose its main verse to publish'
+                : ''}
             {r.raag ? ` · ${r.raag}` : ''}
           </span>
           {r.source === 'scan' && (!published || r.line_timings?.length) ? (

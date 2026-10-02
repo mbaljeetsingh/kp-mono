@@ -1,0 +1,62 @@
+{
+  "_": "Real BaniDB lines and the titles they must become. Read by shabad-name.test.ts and by packages/aligner/names.py, so the workbench and the scanner cannot name one line two ways.",
+  "roman": [
+    [
+      "jiau bhaavai tiau raakhahu suaamee maarag gureh paThaiaa ||1|| rahaau ||",
+      "Jiau Bhavai Tiau Rakhahu Suami Marag Gureh Pathaia"
+    ],
+    [
+      "hukam pachhaan taa khasamai milanaa ||1|| rahaau dhoojaa ||",
+      "Hukam Pachhan Ta Khasamai Milana"
+    ],
+    [
+      "prabh kirapaa te saadhasa(n)g melaa ||1|| rahaau dhoojaa ||12||81||",
+      "Prabh Kirapa Te Sadhasang Mela"
+    ],
+    [
+      "baiThaa soddee paatisaahu raamadhaas satiguroo kahaavai|",
+      "Baitha Soddi Patisahu Ramadhas Satiguru Kahavai"
+    ],
+    ["mahaa dhutar maiaa || jaise pavan jhulaiaa ||1||", "Maha Dhutar Maia Jaise Pavan Jhulaia"],
+    ["ghar hee kee vath ghare rahaavai ||47||", "Ghar Hi Ki Vath Ghare Rahavai"],
+    ["man bairaagee jaa sabadh bhau khai ||", "Man Bairagi Ja Sabad Bhau Khai"],
+    [
+      "jin(h)aa bheTiaa meraa pooraa satiguroo tin har naam dhiraRaavai raam raaje ||",
+      "Jinha Bhetia Mera Pura Satiguru Tin Har Nam Dhiraravai Ram Raje"
+    ],
+    ["kooR kapaT", "Kur Kapat"],
+    ["bhaiee re gurmat saach rahaau ||", "Bhaii Re Gurmat Sach Rahau"],
+    [
+      "pauRee 5 : jap jee dhe salok 'pavan guroo paanee pitaa' dhaa arath",
+      "Pauri : Jap Ji Dhe Salok 'Pavan Guru Pani Pita' Dha Arath"
+    ]
+  ],
+  "gurmukhi": [
+    [
+      "ਜਿਉ ਭਾਵੈ ਤਿਉ ਰਾਖਹੁ ਸੁਆਮੀ ਮਾਰਗੁ ਗੁਰਹਿ ਪਠਾਇਆ ॥੧॥ ਰਹਾਉ ॥",
+      "ਜਿਉ ਭਾਵੈ ਤਿਉ ਰਾਖਹੁ ਸੁਆਮੀ ਮਾਰਗੁ ਗੁਰਹਿ ਪਠਾਇਆ"
+    ],
+    ["ਹੁਕਮੁ ਪਛਾਣਿ ਤਾ ਖਸਮੈ ਮਿਲਣਾ ॥੧॥ ਰਹਾਉ ਦੂਜਾ ॥", "ਹੁਕਮੁ ਪਛਾਣਿ ਤਾ ਖਸਮੈ ਮਿਲਣਾ"],
+    ["ਪ੍ਰਭ ਕਿਰਪਾ ਤੇ ਸਾਧਸੰਗਿ ਮੇਲਾ ॥੧॥ ਰਹਾਉ ਦੂਜਾ ॥੧੨॥੮੧॥", "ਪ੍ਰਭ ਕਿਰਪਾ ਤੇ ਸਾਧਸੰਗਿ ਮੇਲਾ"],
+    ["ਬੈਠਾ ਸੋਢੀ ਪਾਤਿਸਾਹੁ ਰਾਮਦਾਸੁ ਸਤਿਗੁਰੂ ਕਹਾਵੈ।", "ਬੈਠਾ ਸੋਢੀ ਪਾਤਿਸਾਹੁ ਰਾਮਦਾਸੁ ਸਤਿਗੁਰੂ ਕਹਾਵੈ"],
+    ["ਮਹਾ ਦੁਤਰੁ ਮਾਇਆ ॥ ਜੈਸੇ ਪਵਨੁ ਝੁਲਾਇਆ ॥੧॥", "ਮਹਾ ਦੁਤਰੁ ਮਾਇਆ ਜੈਸੇ ਪਵਨੁ ਝੁਲਾਇਆ"],
+    ["ਘਰ ਹੀ ਕੀ ਵਥੁ ਘਰੇ ਰਹਾਵੈ ॥੪੭॥", "ਘਰ ਹੀ ਕੀ ਵਥੁ ਘਰੇ ਰਹਾਵੈ"],
+    [
+      "ਜਿਨੑਾ ਭੇਟਿਆ ਮੇਰਾ ਪੂਰਾ ਸਤਿਗੁਰੂ ਤਿਨ ਹਰਿ ਨਾਮੁ ਦ੍ਰਿੜਾਵੈ ਰਾਮ ਰਾਜੇ ॥",
+      "ਜਿਨੑਾ ਭੇਟਿਆ ਮੇਰਾ ਪੂਰਾ ਸਤਿਗੁਰੂ ਤਿਨ ਹਰਿ ਨਾਮੁ ਦ੍ਰਿੜਾਵੈ ਰਾਮ ਰਾਜੇ"
+    ],
+    [
+      "ੴ ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ ਅਕਾਲ ਮੂਰਤਿ ਅਜੂਨੀ ਸੈਭੰ ਗੁਰ ਪ੍ਰਸਾਦਿ ॥",
+      "ੴ ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ ਅਕਾਲ ਮੂਰਤਿ ਅਜੂਨੀ ਸੈਭੰ ਗੁਰ ਪ੍ਰਸਾਦਿ"
+    ],
+    ["ਭਾਈ ਰੇ ਗੁਰਮਤਿ ਸਾਚਿ ਰਹਾਉ ॥", "ਭਾਈ ਰੇ ਗੁਰਮਤਿ ਸਾਚਿ ਰਹਾਉ"],
+    [
+      "ਪੁਤ੍ਰ ਕਲਤਿ ਧਨਿ ਮਾਇਆ ਚਿਤੁ ਲਾਏ ਝੂਠੁ ਮੋਹੁ ਪਾਖੰਡ ਵਿਕਾਰੁ ॥੧॥ ਰਹਾੳ ॥",
+      "ਪੁਤ੍ਰ ਕਲਤਿ ਧਨਿ ਮਾਇਆ ਚਿਤੁ ਲਾਏ ਝੂਠੁ ਮੋਹੁ ਪਾਖੰਡ ਵਿਕਾਰੁ"
+    ],
+    [
+      "ਪਿਤ ਸੁਤੋ ਸਗਲ ਕਾਲਤ੍ਰ ਮਾਤਾ ਤੇਰੇ ਹੋਹਿ ਨ ਅੰਤਿ ਸਖਾਇਆ ॥ ਰਹਾਉ ॥",
+      "ਪਿਤ ਸੁਤੋ ਸਗਲ ਕਾਲਤ੍ਰ ਮਾਤਾ ਤੇਰੇ ਹੋਹਿ ਨ ਅੰਤਿ ਸਖਾਇਆ"
+    ]
+  ]
+}

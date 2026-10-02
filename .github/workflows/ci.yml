@@ -61,6 +61,13 @@ jobs:
 
       - run: pnpm test
 
+      # One line, one title. The workbench names a rendition in TypeScript
+      # (packages/core/src/shabad-name.ts); the scanner and fill_names.py name
+      # it in Python (packages/aligner/names.py). This holds the Python copy to
+      # the cases the TypeScript tests use. Standard library only, so the
+      # runner's own python3 is enough.
+      - run: python3 packages/aligner/names.py
+
       # Last, because it is the slowest and a broken build is nearly always a
       # symptom of something the three steps above already caught.
       - run: pnpm build

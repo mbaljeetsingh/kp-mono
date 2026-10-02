@@ -181,8 +181,13 @@ const { rows: artists, jsonbCols: artistsJsonb } = await fetchTable(
 );
 
 // Authorship is remapped onto the seeded admin — see the header.
+//
+// Never one published without its line — a shabad and its main verse. The
+// database refuses to insert that (renditions_publish_needs_shabad) but left
+// the rows it found in place, so a full database can still hold one — and
+// sampled into the seed, it would stop the seed loading, and `db reset` with it.
 const { rows: renditions, jsonbCols: renditionsJsonb } = await fetchTable(
-  'select * from renditions order by id'
+  "select * from renditions where not (status = 'published' and (shabad_id is null or main_verse_id is null)) order by id"
 );
 for (const r of renditions) if (r.created_by) r.created_by = ADMIN_ID;
 
