@@ -18,11 +18,11 @@
  * UIKit, so it wants the system's own glyphs; lucide still draws everywhere
  * else in the app.
  */
-import { colors } from '@kp/tokens/colors';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { MiniPlayer } from '~/components/MiniPlayer';
 import { usePlayer } from '~/lib/player';
+import { useColors } from '~/lib/theme';
 
 /*
  * Five, not six.
@@ -41,6 +41,7 @@ const TABS = [
 ] as const;
 
 export default function TabLayout() {
+  const colors = useColors();
   // Only whether there is anything loaded, so this does not re-render at the
   // 10Hz the status updates arrive at.
   const playing = usePlayer((state) => state.current !== null);

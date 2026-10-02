@@ -1,4 +1,3 @@
-import { colors } from '@kp/tokens/colors';
 import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
 import { useRouter } from 'expo-router';
 import { Pause, Play, SkipForward } from 'lucide-react-native';
@@ -9,6 +8,7 @@ import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
+import { useColors } from '~/lib/theme';
 
 /**
  * The transport that rides above the tabs.
@@ -19,6 +19,7 @@ import { skipToNext } from '~/lib/skip';
  * foot, so a glance says how far in the rendition is without opening it.
  */
 export function MiniPlayer() {
+  const colors = useColors();
   const router = useRouter();
   const current = usePlayer((s) => s.current);
   const playing = usePlayer((s) => s.playing);

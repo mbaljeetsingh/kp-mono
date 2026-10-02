@@ -1,10 +1,10 @@
 /**
  * Regenerate tokens-native.css and colors.ts from tokens.css.
  *
- * Two derived files, one source. The native CSS re-points :root at the dark
- * values because NativeWind has no <html> to hang a class on, and colors.ts
- * exists because React Native style props take values rather than class names.
- * Both are generated so they cannot drift from the palette.
+ * Two derived files, one source. The native CSS moves the dark values under
+ * `prefers-color-scheme` because NativeWind has no <html> to hang a class on,
+ * and colors.ts exists because React Native style props take values rather
+ * than class names. Both are generated so they cannot drift from the palette.
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -16,23 +16,34 @@ const src = readFileSync(join(root, 'tokens.css'), 'utf8');
 const themeStart = src.indexOf('@theme inline');
 const themeInline = src.slice(themeStart, src.indexOf('\n}\n', themeStart) + 3);
 
-const darkStart = src.indexOf('.dark {');
-const darkBody = src.slice(src.indexOf('{', darkStart) + 1, src.indexOf('\n}\n', darkStart));
+/** The declarations inside the first `<selector> {` block at or after `from`. */
+function body(selector, from = 0) {
+  const start = src.indexOf(`\n${selector} {`, from);
+  return src.slice(src.indexOf('{', start) + 1, src.indexOf('\n}\n', start));
+}
+
+// The light palette is the `:root` after `@theme inline`, not the one inside it.
+const lightBody = body(':root', themeStart + themeInline.length);
+const darkBody = body('.dark');
 
 writeFileSync(
   join(root, 'tokens-native.css'),
   `/*
  * The same palette, for the Expo app. GENERATED — edit tokens.css instead.
  *
- * NativeWind has no <html> to hang a \`.dark\` class on, so the dark values —
- * which is what both surfaces show by default — are applied to :root directly.
- *
- * A light mode on the phone is a later step: it needs NativeWind's colorScheme
- * wired to the same choice the web toggle writes, not a second copy of these.
+ * NativeWind has no <html> to hang a \`.dark\` class on, so the dark values
+ * sit under \`prefers-color-scheme\` instead — the one form react-native-css
+ * reads as the dark palette. It follows React Native's Appearance, which the
+ * app's theme choice sets (apps/mobile/src/lib/theme.ts).
  */
 
 ${themeInline}
-:root {${darkBody}
+:root {${lightBody}
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {${darkBody.replace(/\n(?=.)/g, '\n  ')}
+  }
 }
 `
 );
@@ -43,7 +54,11 @@ const camel = (name) =>
     .map((w, i) => (i ? w[0].toUpperCase() + w.slice(1) : w))
     .join('');
 
-const pairs = [...darkBody.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g)];
+const pairs = (block) => [...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,8})\s*;/g)];
+const entries = (block) =>
+  pairs(block)
+    .map(([, k, v]) => `    ${camel(k)}: '${v}',`)
+    .join('\n');
 
 writeFileSync(
   join(root, 'colors.ts'),
@@ -54,14 +69,23 @@ writeFileSync(
  * tint or a native option cannot read a CSS variable.
  *
  * Class names remain the way to style anything that takes one. This is only for
- * the props that cannot.
+ * the props that cannot — and since the palette switches at runtime, read it
+ * through the app's \`useColors()\`, never by picking one of these at import.
  */
-export const colors = {
-${pairs.map(([, k, v]) => `  ${camel(k)}: '${v}',`).join('\n')}
+export const palettes = {
+  light: {
+${entries(lightBody)}
+  },
+  dark: {
+${entries(darkBody)}
+  },
 } as const;
 
-export type ColorToken = keyof typeof colors;
+export type Palette = (typeof palettes)['light' | 'dark'];
+export type ColorToken = keyof Palette;
 `
 );
 
-console.log(`tokens-native.css and colors.ts regenerated (${pairs.length} colours)`);
+console.log(
+  `tokens-native.css and colors.ts regenerated (${pairs(lightBody).length} light, ${pairs(darkBody).length} dark)`
+);

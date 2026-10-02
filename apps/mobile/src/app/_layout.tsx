@@ -1,4 +1,3 @@
-import { colors } from '@kp/tokens/colors';
 import '../global.css';
 
 import { Newsreader_500Medium, Newsreader_600SemiBold } from '@expo-google-fonts/newsreader';
@@ -11,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { SessionProvider } from '~/lib/session';
+import { useColors } from '~/lib/theme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +42,7 @@ const FONTS = {
 };
 
 export default function RootLayout() {
+  const colors = useColors();
   const [fontsReady, fontError] = useFonts(FONTS);
 
   useEffect(() => {
@@ -55,7 +56,8 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
-        <StatusBar style="light" />
+        {/* `auto` follows Appearance, which the theme choice sets. */}
+        <StatusBar style="auto" />
         <Stack
           screenOptions={{
             headerShown: false,
