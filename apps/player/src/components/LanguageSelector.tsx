@@ -9,7 +9,7 @@
  * be one more row, not a redesign. Switching mid-shabad also retitles what the
  * lock screen shows.
  */
-import type { TitleScript } from '@kp/core';
+import { TITLE_SCRIPTS, titleScriptOption, type TitleScript } from '@kp/core';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,15 +24,9 @@ import { playerActions } from '~/lib/player';
 import { useTitleScript } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
 
-/** In np-mono's order, each named in its own script. */
-const LANGUAGES: { value: TitleScript; label: string; lang?: string }[] = [
-  { value: 'pa', label: 'ਪੰਜਾਬੀ', lang: 'pa' },
-  { value: 'en', label: 'English' },
-];
-
 export function LanguageSelector() {
   const [script, setScript] = useTitleScript();
-  const current = LANGUAGES.find((l) => l.value === script) ?? LANGUAGES[1]!;
+  const current = titleScriptOption(script);
 
   function choose(next: TitleScript) {
     if (next === script) return;
@@ -46,9 +40,8 @@ export function LanguageSelector() {
         aria-label={`Titles in ${current.label}`}
         className="flex shrink-0 items-center gap-1 rounded-md bg-muted/60 px-2.5 py-1.5 text-sm font-medium hover:bg-muted"
       >
-        <span lang={current.lang} className={cn(current.lang && 'font-gurbani')}>
-          {/* Code points, not UTF-16 units: ਪੰ is a letter and its tippi. */}
-          <span className="md:hidden">{[...current.label].slice(0, 2).join('')}</span>
+        <span lang={current.lang} className={cn(current.lang === 'pa' && 'font-gurbani')}>
+          <span className="md:hidden">{current.short}</span>
           <span className="hidden md:inline">{current.label}</span>
         </span>
         <ChevronDown className="size-3 opacity-50" />
@@ -59,7 +52,7 @@ export function LanguageSelector() {
           Show titles in
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {LANGUAGES.map(({ value, label, lang }) => (
+        {TITLE_SCRIPTS.map(({ value, label, lang }) => (
           /* `onClick`, not `onSelect`: see ThemeToggle — Base UI's item has
              no `onSelect`, and the DOM one never fires. */
           <DropdownMenuItem
@@ -70,7 +63,7 @@ export function LanguageSelector() {
             <span className="w-4 shrink-0">
               {script === value ? <Check className="size-4" /> : null}
             </span>
-            <span lang={lang} className={cn(lang && 'font-gurbani')}>
+            <span lang={lang} className={cn(lang === 'pa' && 'font-gurbani')}>
               {label}
             </span>
           </DropdownMenuItem>

@@ -8,15 +8,24 @@
  * it in a Punjabi voice — and only the Gurmukhi does: a rendition with none
  * keeps its roman title in the line's own face.
  *
- * `gurmukhiClassName` replaces `className` rather than adding to it, because
- * two classes setting the same property resolve by stylesheet order, not by
- * the order written. The full player needs it: Noto Serif Gurmukhi's sihari
- * and bihari rise above the line, and Newsreader's leading clipped their tops.
+ * The caller's own face and weight come off first. A second family class
+ * resolves by stylesheet order, not by the order written, so a sheet's
+ * `font-display-medium` would otherwise be what decides the Gurmukhi's face;
+ * and the Gurbani face has one weight, which global.css says never to stack a
+ * weight on (iOS happens to ignore a row's `font-medium`; that is luck, not
+ * the contract).
+ *
+ * `gurmukhiClassName` replaces `className` outright where the line needs more:
+ * the full player's, where Noto Serif Gurmukhi's sihari and bihari rise above
+ * Newsreader's leading and had their tops clipped.
  */
 import { showsGurmukhi, type Playable } from '@kp/core';
 import { Text, type TextProps } from 'react-native';
 
 import { useTitleScript } from '~/lib/title-script';
+
+const FACE =
+  /(^|\s)font-(display(-medium)?|thin|extralight|light|normal|medium|semibold|bold|extrabold|black)(?=\s|$)/g;
 
 export function ShabadTitle({
   item,
@@ -30,7 +39,9 @@ export function ShabadTitle({
     <Text
       {...props}
       accessibilityLanguage={gurmukhi ? 'pa' : undefined}
-      className={gurmukhi ? `${gurmukhiClassName ?? ''} font-gurbani` : className}
+      className={
+        gurmukhi ? `${(gurmukhiClassName ?? '').replace(FACE, '$1')} font-gurbani` : className
+      }
     >
       {gurmukhi ? item.titleGurmukhi : item.title}
     </Text>
