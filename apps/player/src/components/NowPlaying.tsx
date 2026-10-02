@@ -59,7 +59,11 @@ function Body({
                 to="/ragis/$name"
                 params={{ name: current.artist }}
                 onClick={onClose}
-                className="truncate text-sm text-muted-foreground hover:text-foreground"
+                // Block, or truncate does nothing — a link is inline, and a
+                // long ragi line ran on under the share button. w-fit keeps the
+                // link as wide as its text; max-w-full caps that at the
+                // column, without which w-fit undoes the truncate.
+                className="block w-fit max-w-full truncate text-sm text-muted-foreground hover:text-foreground"
               >
                 {current.subtitle ?? current.artist}
               </Link>

@@ -12,17 +12,32 @@ import {
   usePendingCount,
   type PendingRendition,
 } from '@kp/api';
+import { hasReachedEnd, segmentStart, toPlayable, type Playable } from '@kp/core';
 import { Badge } from '@kp/ui/badge';
 import { Button } from '@kp/ui/button';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Check, Play, Trash2 } from 'lucide-react';
+import { Check, Pause, Play, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { LoadStatus } from '~/components/LoadStatus';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
+
+const PREVIEW_FAILED = 'Could not play that preview.';
+
+/**
+ * Stops the preview and lets go of its recording. Pausing alone left the
+ * element holding its file, so a media key could start it again on a page with
+ * no button for it. Paused first so `pause` still fires — the load below would
+ * stop it silently.
+ */
+function release(node: HTMLAudioElement) {
+  node.pause();
+  node.removeAttribute('src');
+  node.load();
+}
 
 export function PendingRoute() {
   const { session, can } = useSession();
@@ -35,18 +50,77 @@ export function PendingRoute() {
 
   /**
    * Created in JS rather than rendered, so nothing tears it down on
-   * navigation — without this a preview keeps playing after the reviewer has
-   * left the page, with no UI left to stop it.
+   * navigation — without the cleanup below a preview keeps playing after the
+   * reviewer has left the page, with no UI left to stop it.
+   *
+   * One element for the whole list, so starting a row stops the last one —
+   * the button only ever shows Pause on one row. `previewing` is the row it
+   * holds, as a Playable, so where a segment starts and ends is @kp/core's
+   * rule here too.
    */
   const audio = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => () => audio.current?.pause(), []);
+  const previewing = useRef<Playable | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null);
+
+  useEffect(() => {
+    const node = new Audio();
+    node.preload = 'metadata';
+    // The button follows the element, not the click: the segment's end, a
+    // failed fetch and Pause all stop it.
+    node.addEventListener('play', () => setPlaying(previewing.current?.id ?? null));
+    node.addEventListener('pause', () => setPlaying(null));
+    node.addEventListener('playing', () =>
+      setError((shown) => (shown === PREVIEW_FAILED ? null : shown))
+    );
+    node.addEventListener('error', () => {
+      // A failed element still reports `paused === false`, so the next click
+      // read as Pause and the row could never be retried. Forgetting the row
+      // makes that click load it afresh. Said here rather than only from
+      // play(): a stream that drops mid-way has no promise left to reject.
+      previewing.current = null;
+      setPlaying(null);
+      setError(PREVIEW_FAILED);
+    });
+    // The segment, not the rest of the recording behind it — played on, a
+    // preview ran into the next shabad and kept going with nothing to say so.
+    node.addEventListener('timeupdate', () => {
+      if (hasReachedEnd(previewing.current, node.currentTime)) node.pause();
+    });
+    audio.current = node;
+    return () => release(node);
+  }, []);
 
   function preview(row: PendingRendition) {
-    if (!row.tracks?.url) return;
-    if (!audio.current) audio.current = new Audio();
-    audio.current.src = row.tracks.url;
-    audio.current.currentTime = Number(row.start_sec);
-    void audio.current.play().catch(() => setError('Could not start that preview.'));
+    const node = audio.current;
+    const url = row.tracks?.url;
+    if (!node || !url) return;
+    const held = previewing.current;
+    const same = held?.id === row.id;
+    if (same && !node.paused) {
+      node.pause();
+      return;
+    }
+    // From the row every time, so a re-cut the list has refetched since is
+    // the one that plays.
+    const item = toPlayable({ ...row, url });
+    previewing.current = item;
+    // Another recording loads; another row of the same one only seeks.
+    // Setting src, even to the same URL, throws the loaded file away.
+    if (held?.url !== url) node.src = url;
+    // A paused row resumes where it stopped. A finished one starts again, and
+    // so does one that ran off the end of its file — play() on an ended
+    // element starts the whole recording over from 0:00.
+    if (!same || node.ended || hasReachedEnd(item, node.currentTime)) {
+      node.currentTime = segmentStart(item);
+    }
+    // A seek between rows of one playing recording fires no `play` event.
+    if (!node.paused) setPlaying(row.id);
+    void node.play().catch((failure: unknown) => {
+      // Superseded — another row, or Pause before it started — isn't a
+      // failure. Ending before it began is: the file is shorter than the tag.
+      if (failure instanceof DOMException && failure.name === 'AbortError' && !node.ended) return;
+      setError(PREVIEW_FAILED);
+    });
   }
 
   async function run(id: string, work: () => Promise<unknown>) {
@@ -77,6 +151,15 @@ export function PendingRoute() {
   const rows = [
     ...new Map(query.data?.pages.flatMap((p) => p.items).map((r) => [r.id, r])).values(),
   ];
+
+  // A preview whose row has left the list — published or rejected, here or by
+  // another reviewer — has lost the only button that could stop it.
+  const orphaned = playing !== null && !rows.some((r) => r.id === playing);
+  useEffect(() => {
+    if (!orphaned || !audio.current) return;
+    previewing.current = null;
+    release(audio.current);
+  }, [orphaned]);
 
   return (
     <section className="flex flex-col gap-4">
@@ -120,7 +203,10 @@ export function PendingRoute() {
               key={row.id}
               className="flex flex-wrap items-center gap-3 rounded-lg px-3 py-2 hover:bg-accent/50"
             >
-              <div className="min-w-0 flex-1">
+              {/* A real basis, so a narrow window moves the controls under the
+                  name instead of cutting it to a few letters — as one group,
+                  or Reject wrapped onto a line of its own. */}
+              <div className="min-w-0 grow basis-40">
                 <Link
                   to="/tag/$id"
                   params={{ id: row.track_id }}
@@ -128,7 +214,11 @@ export function PendingRoute() {
                   // arrived from a different list entirely. The row itself
                   // rides along, so the page opens on it.
                   search={{ rendition: row.id }}
-                  className="truncate text-sm hover:underline"
+                  // Block, or truncate does nothing — a link is inline, and a
+                  // long name ran on behind the status badge. w-fit keeps the
+                  // link as wide as its text; max-w-full caps that at the
+                  // column, without which w-fit undoes the truncate.
+                  className="block w-fit max-w-full truncate text-sm hover:underline"
                 >
                   {row.name}
                 </Link>
@@ -147,61 +237,67 @@ export function PendingRoute() {
                 </p>
               </div>
 
-              <Badge variant="secondary" className="shrink-0">
-                {row.status}
-              </Badge>
+              <div className="flex shrink-0 items-center gap-3">
+                <Badge variant="secondary" className="shrink-0">
+                  {row.status}
+                </Badge>
 
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Preview ${row.name}`}
-                onClick={() => preview(row)}
-              >
-                <Play />
-              </Button>
-
-              {refusal === null ? (
-                <Button
-                  size="sm"
-                  disabled={busy === row.id}
-                  onClick={() =>
-                    void run(row.id, () => setRenditionStatus(supabase, row.id, 'published'))
-                  }
-                >
-                  <Check />
-                  Publish
-                </Button>
-              ) : refusal === 'needs-shabad' || refusal === 'needs-line' ? (
-                // Where the button would be, so its absence explains itself:
-                // the draft opens on the tag page, where the line is chosen.
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {refusal === 'needs-shabad'
-                    ? 'Link a shabad to publish'
-                    : 'Choose its main verse to publish'}
-                </span>
-              ) : null}
-
-              {can['renditions.delete'] ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label={`Reject ${row.name}`}
-                  disabled={busy === row.id}
-                  className="text-destructive hover:text-destructive"
-                  onClick={() => {
-                    // Rejecting throws away someone's listening, so it asks.
-                    if (
-                      window.confirm(
-                        `Reject “${row.name}”? This deletes the draft.${row.source === 'scan' ? " The scanner won't suggest it for this recording again." : ''}`
-                      )
-                    ) {
-                      void run(row.id, () => deleteRendition(supabase, row.id));
-                    }
-                  }}
+                  aria-label={playing === row.id ? `Pause ${row.name}` : `Preview ${row.name}`}
+                  onClick={() => preview(row)}
                 >
-                  <Trash2 />
+                  {playing === row.id ? <Pause /> : <Play />}
                 </Button>
-              ) : null}
+
+                {refusal === null ? (
+                  <Button
+                    size="sm"
+                    disabled={busy === row.id}
+                    onClick={() =>
+                      void run(row.id, () => setRenditionStatus(supabase, row.id, 'published'))
+                    }
+                  >
+                    <Check />
+                    Publish
+                  </Button>
+                ) : refusal === 'needs-shabad' || refusal === 'needs-line' ? (
+                  // Where the button would be, so its absence explains itself:
+                  // the draft opens on the tag page, where the line is chosen.
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {refusal === 'needs-shabad'
+                      ? 'Link a shabad to publish'
+                      : 'Choose its main verse to publish'}
+                  </span>
+                ) : null}
+
+                {can['renditions.delete'] ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Reject ${row.name}`}
+                    disabled={busy === row.id}
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      // The prompt blocks the page, and with it the stop at a
+                      // segment's end: a preview left playing ran on into the
+                      // next shabad for as long as the prompt was open.
+                      audio.current?.pause();
+                      // Rejecting throws away someone's listening, so it asks.
+                      if (
+                        window.confirm(
+                          `Reject “${row.name}”? This deletes the draft.${row.source === 'scan' ? " The scanner won't suggest it for this recording again." : ''}`
+                        )
+                      ) {
+                        void run(row.id, () => deleteRendition(supabase, row.id));
+                      }
+                    }}
+                  >
+                    <Trash2 />
+                  </Button>
+                ) : null}
+              </div>
             </div>
           );
         })}
