@@ -1,5 +1,5 @@
 /**
- * The language titles are shown in.
+ * The listener's language — for now, the script shabad titles are shown in.
  *
  * The same control as np-mono's language selector: one button naming the
  * current language in its own script — two letters on a phone, the whole name
@@ -37,7 +37,7 @@ export function LanguageSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label={`Titles in ${current.label}`}
+        aria-label={`Language: ${current.label}`}
         className="flex shrink-0 items-center gap-1 rounded-md bg-muted/60 px-2.5 py-1.5 text-sm font-medium hover:bg-muted"
       >
         <span lang={current.lang} className={cn(current.lang === 'pa' && 'font-gurbani')}>
@@ -46,10 +46,17 @@ export function LanguageSelector() {
         </span>
         <ChevronDown className="size-3 opacity-50" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel className="flex items-center gap-1.5">
-          <Languages className="size-3.5 opacity-60" />
-          Show titles in
+      <DropdownMenuContent align="end" className="min-w-44">
+        <DropdownMenuLabel>
+          <span className="flex items-center gap-1.5">
+            <Languages className="size-3.5 opacity-60" />
+            Language
+          </span>
+          {/* "Language" because the app's own words follow it later; until
+              then a listener should not expect the buttons to change. */}
+          <span className="mt-0.5 block whitespace-nowrap text-xs font-normal text-muted-foreground">
+            Shabad titles for now
+          </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {TITLE_SCRIPTS.map(({ value, label, lang }) => (
