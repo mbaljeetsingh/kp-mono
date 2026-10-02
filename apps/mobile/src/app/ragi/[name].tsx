@@ -1,4 +1,3 @@
-import { colors } from '@kp/tokens/colors';
 import { useShabadsByArtist } from '@kp/api';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
@@ -9,8 +8,10 @@ import { ShabadRow } from '~/components/ShabadRow';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
+import { useColors } from '~/lib/theme';
 
 export default function RagiScreen() {
+  const colors = useColors();
   const { onMore, sheet } = useShabadActions();
   const router = useRouter();
   const { name } = useLocalSearchParams<{ name: string }>();

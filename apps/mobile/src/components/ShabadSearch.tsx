@@ -7,15 +7,16 @@
  * can disagree about what was typed.
  */
 import { SEARCH_TYPES, useBaniDbSearch, type BaniDbHit } from '@kp/api';
-import { colors } from '@kp/tokens/colors';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
 import { BANIDB_BASE } from '~/lib/links';
 import { cn } from '~/lib/utils';
+import { useColors } from '~/lib/theme';
 
 export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => void }) {
+  const colors = useColors();
   const [lang, setLang] = useState<number>(0);
   const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 300);

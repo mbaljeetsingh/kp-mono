@@ -1,11 +1,10 @@
 /*
  * The same palette, for the Expo app. GENERATED — edit tokens.css instead.
  *
- * NativeWind has no <html> to hang a `.dark` class on, so the dark values —
- * which is what both surfaces show by default — are applied to :root directly.
- *
- * A light mode on the phone is a later step: it needs NativeWind's colorScheme
- * wired to the same choice the web toggle writes, not a second copy of these.
+ * NativeWind has no <html> to hang a `.dark` class on, so the dark values
+ * sit under `prefers-color-scheme` instead — the one form react-native-css
+ * reads as the dark palette. It follows React Native's Appearance, which the
+ * app's theme choice sets (apps/mobile/src/lib/theme.ts).
  */
 
 @theme inline {
@@ -53,53 +52,120 @@
 }
 
 :root {
-  color-scheme: dark;
+  /*
+   * Warm parchment, one accent.
+   *
+   * The accent is kesari — a deep ochre here, a lantern gold in the dark
+   * palette — and it is spent on one thing per screen: the play control, the
+   * lit line, the selected tab. Everything else is a step on a low-chroma warm
+   * ladder, so the artwork and the Gurmukhi carry the colour, not the chrome.
+   *
+   * Three text tiers, not two. `muted-foreground` is secondary copy; the new
+   * `subtle-foreground` is metadata — timestamps, counts, the "· raag" tail —
+   * and sits just above the 4.5:1 floor so hierarchy reads at a glance.
+   * Every text token here clears 4.5:1 on background and card.
+   */
+  --radius: 0.75rem;
 
   /*
-   * Lamp-lit dark.
-   *
-   * The canvas is near-black with a warm cast, and the surfaces climb from it
-   * in visible steps — what used to be the background is now the card, so a
-   * card finally reads as raised. Text is warm ivory rather than white. The
-   * accent is a lantern gold that glows on the dark ground; it takes dark ink
-   * for its own text, the canonical dark-mode button.
+   * Tells the browser which way its own chrome should go — form controls, the
+   * caret, and the default scrollbar where the custom one below does not
+   * apply. Without it a light page keeps dark native widgets (and vice versa),
+   * which is the one part of the palette CSS cannot restyle. The player now
+   * switches palettes at runtime, so this switches with it.
    */
-  --background: #0f0d0b; /* near-black, warm */
-  --foreground: #f4efe3; /* warm ivory, 16.9:1 */
-  --card: #1a1612; /* surface 1 */
-  --card-foreground: #f4efe3;
-  --popover: #241f1a; /* surface 2 — sheets, menus */
-  --popover-foreground: #f4efe3;
-  --primary: #e8a33d; /* lantern gold, 9:1 on the canvas */
-  --primary-foreground: #1a1206;
-  --primary-soft: #2f2513; /* gold tint for chips and the raag badge */
-  --secondary: #2c261f; /* surface 3 — pills, tracks */
-  --secondary-foreground: #f4efe3;
-  --muted: #2c261f;
-  --muted-foreground: #a99d89; /* secondary copy, 7.3:1 */
-  --subtle-foreground: #8a7f70; /* metadata, 4.9:1 */
-  --accent: #372f27; /* hover / pressed — a notch above secondary */
-  --accent-foreground: #f4efe3;
-  --destructive: #d2554b;
-  --destructive-foreground: #f4efe3;
-  --live: #e5484d;
-  --success: #7dab86;
-  --border: #2a241e; /* hairline — visible against the canvas, quiet on a card */
-  --input: #3a322a;
-  --ring: #e8a33d;
+  color-scheme: light;
 
-  --chart-1: #e8a33d;
-  --chart-2: #b8ad96;
-  --chart-3: #8a806f;
-  --chart-4: #c98a2e;
-  --chart-5: #6a6054;
+  --background: #f6f2e9; /* parchment */
+  --foreground: #1a1612; /* warm ink */
+  --card: #fcfaf5; /* ivory — the raised surface */
+  --card-foreground: #1a1612;
+  --popover: #fcfaf5;
+  --popover-foreground: #1a1612;
+  --primary: #8f5c0f; /* deep ochre — the kesari accent, dark enough for ivory text (5.4:1) */
+  --primary-foreground: #fcfaf5;
+  --primary-soft: #f4e7c8; /* accent tint for chips and the active segment */
+  --secondary: #ece6d9; /* warm sand */
+  --secondary-foreground: #4a4237;
+  --muted: #efeadf;
+  --muted-foreground: #5c5347; /* secondary copy, 6.8:1 */
+  --subtle-foreground: #6f665a; /* metadata, 5.1:1 */
+  --accent: #e6dfd0; /* hover / pressed — a notch below secondary */
+  --accent-foreground: #1a1612;
+  --destructive: #b83a32;
+  --destructive-foreground: #fcfaf5;
+  --live: #c4302b; /* the broadcast dot */
+  --success: #37703f; /* aligned, tagged, saved */
+  --border: #e4dccb; /* hairline — separates, never outlines */
+  --input: #d3c9b4; /* form strokes want a touch more than a hairline */
+  --ring: #8f5c0f;
 
-  --sidebar: #1a1612;
-  --sidebar-foreground: #f4efe3;
-  --sidebar-primary: #e8a33d;
-  --sidebar-primary-foreground: #1a1206;
-  --sidebar-accent: #372f27;
-  --sidebar-accent-foreground: #f4efe3;
-  --sidebar-border: #2a241e;
-  --sidebar-ring: #e8a33d;
+  --chart-1: #8f5c0f;
+  --chart-2: #b98a3a;
+  --chart-3: #7a6f5f;
+  --chart-4: #c9a15a;
+  --chart-5: #a89c88;
+
+  --sidebar: #fcfaf5;
+  --sidebar-foreground: #1a1612;
+  --sidebar-primary: #8f5c0f;
+  --sidebar-primary-foreground: #fcfaf5;
+  --sidebar-accent: #e6dfd0;
+  --sidebar-accent-foreground: #1a1612;
+  --sidebar-border: #e4dccb;
+  --sidebar-ring: #8f5c0f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    /*
+     * Lamp-lit dark.
+     *
+     * The canvas is near-black with a warm cast, and the surfaces climb from it
+     * in visible steps — what used to be the background is now the card, so a
+     * card finally reads as raised. Text is warm ivory rather than white. The
+     * accent is a lantern gold that glows on the dark ground; it takes dark ink
+     * for its own text, the canonical dark-mode button.
+     */
+    --background: #0f0d0b; /* near-black, warm */
+    --foreground: #f4efe3; /* warm ivory, 16.9:1 */
+    --card: #1a1612; /* surface 1 */
+    --card-foreground: #f4efe3;
+    --popover: #241f1a; /* surface 2 — sheets, menus */
+    --popover-foreground: #f4efe3;
+    --primary: #e8a33d; /* lantern gold, 9:1 on the canvas */
+    --primary-foreground: #1a1206;
+    --primary-soft: #2f2513; /* gold tint for chips and the raag badge */
+    --secondary: #2c261f; /* surface 3 — pills, tracks */
+    --secondary-foreground: #f4efe3;
+    --muted: #2c261f;
+    --muted-foreground: #a99d89; /* secondary copy, 7.3:1 */
+    --subtle-foreground: #8a7f70; /* metadata, 4.9:1 */
+    --accent: #372f27; /* hover / pressed — a notch above secondary */
+    --accent-foreground: #f4efe3;
+    --destructive: #d2554b;
+    --destructive-foreground: #f4efe3;
+    --live: #e5484d;
+    --success: #7dab86;
+    --border: #2a241e; /* hairline — visible against the canvas, quiet on a card */
+    --input: #3a322a;
+    --ring: #e8a33d;
+
+    --chart-1: #e8a33d;
+    --chart-2: #b8ad96;
+    --chart-3: #8a806f;
+    --chart-4: #c98a2e;
+    --chart-5: #6a6054;
+
+    --sidebar: #1a1612;
+    --sidebar-foreground: #f4efe3;
+    --sidebar-primary: #e8a33d;
+    --sidebar-primary-foreground: #1a1206;
+    --sidebar-accent: #372f27;
+    --sidebar-accent-foreground: #f4efe3;
+    --sidebar-border: #2a241e;
+    --sidebar-ring: #e8a33d;
+  }
 }

@@ -5,7 +5,6 @@
  * to the player is fifty subscriptions re-evaluated ten times a second.
  */
 import { segmentTotal, type Playable } from '@kp/core';
-import { colors } from '@kp/tokens/colors';
 import { Heart, MoreHorizontal } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
@@ -14,6 +13,7 @@ import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { useSession } from '~/lib/session';
 import { useShownTitle } from '~/lib/title-script';
+import { useColors } from '~/lib/theme';
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -31,6 +31,7 @@ export function ShabadRow({
   onPress: () => void;
   onMore?: (item: Playable) => void;
 }) {
+  const colors = useColors();
   const { favorites } = useSession();
   const length = segmentTotal(item, 0);
   const saved = favorites.has(item.id);
