@@ -1,7 +1,8 @@
 /**
- * The language titles are shown in — the phone's version of the web's
- * selector (and np-mono's): the current language named in its own script, and
- * the choices in a sheet, each in its own script, the current one checked.
+ * The listener's language — for now, the script shabad titles are shown in.
+ * The phone's version of the web's selector (and np-mono's): the current
+ * language named in its own script, and the choices in a sheet, each in its
+ * own script, the current one checked.
  * A sheet rather than a dropdown, as ShabadActions is: it is how this app
  * offers choices, and a thumb reaches the bottom of the screen. Switching
  * mid-shabad also retitles the lock screen.
@@ -32,7 +33,7 @@ export function LanguageSelector() {
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`Titles in ${current.label}`}
+        accessibilityLabel={`Language: ${current.label}`}
         hitSlop={6}
         className="flex-row items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 active:bg-accent"
       >
@@ -55,9 +56,12 @@ export function LanguageSelector() {
           <Pressable className="rounded-t-2xl bg-popover pb-8 pt-2" onPress={() => {}}>
             <View className="flex-row items-center gap-2 px-4 pb-2">
               <Languages size={16} color={colors.mutedForeground} />
-              <Text className="flex-1 font-display-medium text-lg text-foreground">
-                Show titles in
-              </Text>
+              <View className="flex-1">
+                <Text className="font-display-medium text-lg text-foreground">Language</Text>
+                {/* "Language" because the app's own words follow it later;
+                    until then a listener should not expect the buttons to change. */}
+                <Text className="text-xs text-muted-foreground">Shabad titles for now</Text>
+              </View>
               <Pressable
                 onPress={() => setOpen(false)}
                 accessibilityLabel="Close"
