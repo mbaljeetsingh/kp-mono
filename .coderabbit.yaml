@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit reviews PRs; it doesn't commit to them. It reads CLAUDE.md as the
+# project's guidelines by default, so the rules (migrations are immutable,
+# generated files come from their scripts, data access through @kp/api) live
+# there, not here.
+language: en-US
+
+reviews:
+  profile: chill
+  poem: false
+
+  # Generated or vendored — reviewing them invites hand edits that the
+  # generators would undo (tokens:check fails on drift). See CLAUDE.md.
+  path_filters:
+    - '!pnpm-lock.yaml'
+    - '!supabase/seed.sql'
+    - '!packages/tokens/tokens-native.css'
+    - '!packages/tokens/colors.ts'
+    - '!packages/ui/src/components/ui/**'
+
+  path_instructions:
+    - path: 'supabase/migrations/**'
+      instructions: >-
+        Migrations are already applied in production. Flag any change to an
+        existing migration file; schema changes must be a new timestamped file.
+
+  # Findings are comments for a person to act on. Merging to main deploys,
+  # so nothing should push commits to a PR branch unreviewed.
+  finishing_touches:
+    autofix:
+      enabled: false
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: false
