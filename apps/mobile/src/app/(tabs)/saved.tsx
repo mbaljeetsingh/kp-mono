@@ -5,17 +5,40 @@
  * move them into.
  */
 
-import { shabadsByIds, signOut } from '@kp/api';
+import { deleteOwnAccount, shabadsByIds, signOut } from '@kp/api';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, FlatList, Linking, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { PRIVACY_URL } from '~/lib/links';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
+
+/**
+ * Both stores require account deletion inside any app that offers sign-up.
+ * Asked twice over — an alert, not an undo — because nothing brings it back.
+ */
+function confirmDeleteAccount() {
+  Alert.alert(
+    'Delete your account?',
+    'Your favorites and playlists are deleted with it. Shabads you tagged stay in the archive without your name. This cannot be undone.',
+    [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete account',
+        style: 'destructive',
+        onPress: async () => {
+          const { error } = await deleteOwnAccount(supabase);
+          if (error) Alert.alert('Could not delete the account', error);
+        },
+      },
+    ]
+  );
+}
 
 export default function SavedScreen() {
   const { onMore, sheet } = useShabadActions();
@@ -58,10 +81,18 @@ export default function SavedScreen() {
                 <Text className="text-sm text-primary">Sign in</Text>
               </Pressable>
             ) : (
-              <Pressable onPress={() => void signOut(supabase)} className="pt-2">
-                <Text className="text-sm text-muted-foreground">Sign out</Text>
-              </Pressable>
+              <View className="flex-row gap-5 pt-2">
+                <Pressable onPress={() => void signOut(supabase)}>
+                  <Text className="text-sm text-muted-foreground">Sign out</Text>
+                </Pressable>
+                <Pressable onPress={confirmDeleteAccount}>
+                  <Text className="text-sm text-muted-foreground">Delete account</Text>
+                </Pressable>
+              </View>
             )}
+            <Pressable onPress={() => void Linking.openURL(PRIVACY_URL)} className="pt-2">
+              <Text className="text-sm text-muted-foreground">Privacy</Text>
+            </Pressable>
           </View>
         }
         renderItem={({ item, index }) => (

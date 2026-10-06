@@ -11,7 +11,10 @@
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       },
-      "bundleIdentifier": "com.beejaysoft.kirtanplayer"
+      "bundleIdentifier": "com.beejaysoft.kirtanplayer",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,12 +25,17 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
-      "package": "com.beejaysoft.kirtanplayer"
+      "package": "com.beejaysoft.kirtanplayer",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -39,7 +47,13 @@
           "imageWidth": 140
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-font",
         {
