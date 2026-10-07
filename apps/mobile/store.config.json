@@ -1,6 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
+    "version": "1.0.0",
     "copyright": "2026 Baljeet Singh",
     "categories": ["MUSIC", "LIFESTYLE"],
     "info": {
@@ -21,7 +22,6 @@
           "paath",
           "keertan"
         ],
-        "releaseNotes": "First release of Kirtan Player.",
         "marketingUrl": "https://kirtanplayer.beejaysoft.com",
         "supportUrl": "https://kirtanplayer.beejaysoft.com",
         "privacyPolicyUrl": "https://kirtanplayer.beejaysoft.com/privacy/"
