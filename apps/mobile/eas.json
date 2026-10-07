@@ -29,7 +29,8 @@
   "submit": {
     "production": {
       "ios": {
-        "appleTeamId": "QWB397TGN2"
+        "appleTeamId": "QWB397TGN2",
+        "ascAppId": "6820055345"
       },
       "android": {
         "track": "internal",

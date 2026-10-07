@@ -82,9 +82,9 @@ npx eas-cli submit --platform ios --profile production --latest
 npx eas-cli submit --platform android --profile production --latest
 ```
 
-- **iOS** goes to TestFlight. `appleTeamId` is BeeJaySoft's, copied from
-  np-mono. `submit` asks for the App Store Connect app the
-  first time; add its `ascAppId` to `eas.json` after that.
+- **iOS** goes to TestFlight. `eas.json` holds the team (`appleTeamId`) and
+  the App Store Connect app (`ascAppId` 6820055345); EAS holds an App Manager
+  API key, so submitting asks for no Apple login.
 - **Android**: Play's API cannot create an app's first release, so upload the
   first `.aab` by hand in Play Console (Internal testing). After that,
   `submit` sends builds to the internal track as drafts (`eas.json`), to be
