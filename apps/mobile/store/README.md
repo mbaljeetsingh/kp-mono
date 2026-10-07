@@ -90,6 +90,22 @@ npx eas-cli submit --platform android --profile production --latest
   `submit` sends builds to the internal track as drafts (`eas.json`), to be
   promoted in the console.
 
+## The App Store listing, from the repo
+
+`apps/mobile/store.config.json` is the App Store listing: description,
+keywords, URLs, categories, age rating and review notes (EAS Metadata). Edit it
+there, then push it to App Store Connect from `apps/mobile`:
+
+```bash
+KP_REVIEW_PHONE="+91 …" npx eas-cli metadata:push
+```
+
+The review contact's phone is the one field Apple requires that cannot live in
+a public repo, so `store.config.js` adds it from the environment. Screenshots
+and the App Privacy labels are not covered by EAS Metadata — set them in App
+Store Connect. Play has no equivalent; its listing is entered in Play Console
+from `listing.md`.
+
 ## Track strategy
 
 1. TestFlight and Play internal testing first. The real-device pass happens

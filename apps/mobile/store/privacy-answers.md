@@ -11,7 +11,7 @@ store forms in the same release.
 | ------------------------- | ---------------------------------------- | ------------------------------------------------------------ |
 | Email address, password   | Supabase auth (password stored hashed)   | `src/app/sign-in.tsx` → `signInWithPassword` / `signUp`      |
 | Saved shabads (signed in) | Supabase `favorites`                     | `useFavorites` in `@kp/api`, via `src/lib/session.tsx`       |
-| Playlists                 | Supabase `playlists`, `playlist_items`   | `src/app/playlists.tsx`, `@kp/api` playlists                 |
+| Playlists                 | Supabase `playlists`, `playlist_items`   | `src/components/PlaylistsList.tsx`, `@kp/api`                |
 | User ID                   | Supabase, as the owner of the rows above | `profiles` (`supabase/migrations/20260804000000_schema.sql`) |
 
 Signed out, saved shabads, the queue, resume position and settings live on the
@@ -46,8 +46,8 @@ removed in `app.json`), advertising identifiers, purchases.
 - Encrypted in transit: **Yes** (HTTPS only)
 - Users can request deletion: **Yes** →
   `https://kirtanplayer.beejaysoft.com/delete-account/`
-- Account creation: **Yes**, username and password; in-app deletion: Saved →
-  Delete account.
+- Account creation: **Yes**, username and password; in-app deletion: Library
+  → account button (top right) → Delete account.
 
 | Play category | Type                         | Optional                   | Purpose                                 |
 | ------------- | ---------------------------- | -------------------------- | --------------------------------------- |

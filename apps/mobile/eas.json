@@ -30,7 +30,8 @@
     "production": {
       "ios": {
         "appleTeamId": "QWB397TGN2",
-        "ascAppId": "6820055345"
+        "ascAppId": "6820055345",
+        "metadataPath": "./store.config.js"
       },
       "android": {
         "track": "internal",
