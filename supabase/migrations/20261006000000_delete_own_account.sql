@@ -2,8 +2,9 @@
 --
 -- Both app stores require it of any app that lets you create an account: the
 -- App Store (guideline 5.1.1(v)) wants it inside the app, Google Play also wants
--- a web page that explains how. The mobile app's Saved tab and the player's
--- /privacy page are those two places; this is what both end in.
+-- a web page that explains how. The mobile app's Saved tab calls this; the
+-- player's /delete-account/ page is static and routes people without the app
+-- to email, so nothing on the web calls it yet.
 --
 -- What goes and what stays is already the schema's, decided by the foreign
 -- keys rather than here: the profile, favorites and playlists cascade away;
@@ -26,6 +27,11 @@ begin
   end if;
   -- The last admin leaving would leave nobody able to set anyone's trust, and
   -- that can only be repaired from the SQL editor. Hand it on first.
+  --
+  -- Locked before the check: two admins deleting themselves at once would
+  -- otherwise each see the other still there, both pass, and leave none. With
+  -- the lock the second waits, then sees the first one gone and is refused.
+  perform 1 from public.profiles where trust = 'admin' for update;
   if exists (select 1 from public.profiles where id = me and trust = 'admin')
      and not exists (
        select 1 from public.profiles where trust = 'admin' and id <> me

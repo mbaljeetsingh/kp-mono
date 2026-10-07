@@ -38,6 +38,10 @@ description 80, full description 4000.
 > NO ACCOUNT NEEDED
 > Everything plays without signing in. Create an account only if you want your
 > saved shabads and playlists to follow you between devices.
+>
+> Kirtan Player is an independent app and is not affiliated with the
+> Shiromani Gurdwara Parbandhak Committee. Recordings are streamed from the
+> SGPC's public archive at sgpc.net.
 
 ## Apple keywords
 

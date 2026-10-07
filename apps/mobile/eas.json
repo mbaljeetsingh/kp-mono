@@ -10,19 +10,20 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview",
       "ios": {
         "simulator": true
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "distribution": "store",
-      "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     }
   },
   "submit": {

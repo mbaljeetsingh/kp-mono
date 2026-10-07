@@ -13,7 +13,7 @@ import {
   type Station,
 } from '@kp/core';
 import { Pause, Play, Radio } from 'lucide-react-native';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Linking, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -113,8 +113,14 @@ export default function RadioScreen() {
         )}
         ListFooterComponent={
           <Text className="px-4 pt-4 text-xs text-muted-foreground">
-            Sri Harimandir Sahib is served by SGPC. Every other mount is relayed by SikhNet, on
-            SikhNet's bandwidth.
+            Sri Harimandir Sahib is served by SGPC. Every other mount is relayed by{' '}
+            <Text
+              onPress={() => void Linking.openURL('https://www.sikhnet.com/radio')}
+              className="underline"
+            >
+              SikhNet
+            </Text>
+            , on SikhNet's bandwidth.
           </Text>
         }
       />

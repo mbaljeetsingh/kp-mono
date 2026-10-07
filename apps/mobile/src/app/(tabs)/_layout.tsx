@@ -25,19 +25,16 @@ import { usePlayer } from '~/lib/player';
 import { useColors } from '~/lib/theme';
 
 /*
- * Five, not six.
+ * Three, as the web has on a phone (apps/player/src/routes/root.tsx).
  *
- * iOS collapses anything past the fifth into a "More" list, and it chose which
- * two to hide — Saved and Lists, the two a signed-in listener uses most. Lists
- * loses the tab: playlists need an account, and the ones who have one reach
- * them from Saved, which is one tap from the same place.
+ * Search and Ragis are not places of their own: search is a button in Home's
+ * header and finds ragis too, and the directory is a shelf on Home with a
+ * "See all". Library is Saved and Playlists together, one switch apart.
  */
 const TABS = [
-  { name: 'index', label: 'Shabads', sf: 'opticaldisc' },
-  { name: 'search', label: 'Search', sf: 'magnifyingglass' },
-  { name: 'ragis', label: 'Ragis', sf: 'person.2' },
+  { name: 'index', label: 'Home', sf: 'house' },
   { name: 'radio', label: 'Radio', sf: 'dot.radiowaves.left.and.right' },
-  { name: 'saved', label: 'Saved', sf: 'heart' },
+  { name: 'saved', label: 'Library', sf: 'books.vertical' },
 ] as const;
 
 export default function TabLayout() {

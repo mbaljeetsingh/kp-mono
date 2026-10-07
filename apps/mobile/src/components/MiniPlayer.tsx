@@ -1,12 +1,13 @@
 import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
 import { useRouter } from 'expo-router';
-import { Pause, Play, SkipForward } from 'lucide-react-native';
+import { Heart, Pause, Play, SkipForward } from 'lucide-react-native';
 import { Pressable, Text, View } from 'react-native';
 
 import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useSession } from '~/lib/session';
 import { skipToNext } from '~/lib/skip';
 import { useColors } from '~/lib/theme';
 
@@ -25,8 +26,11 @@ export function MiniPlayer() {
   const playing = usePlayer((s) => s.playing);
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
+  const { favorites } = useSession();
 
   if (!current) return null;
+
+  const saved = favorites.has(current.id);
 
   const pct = current.isLive ? 0 : progressPct(current, position, duration);
 
@@ -53,6 +57,22 @@ export function MiniPlayer() {
             </Text>
           </View>
         </Pressable>
+        {/* Saving what is playing without opening the player, as the web's
+            bar does. A broadcast is not a rendition, so it has none. */}
+        {current.isLive ? null : (
+          <PressableScale
+            onPress={() => favorites.toggle(current.id)}
+            accessibilityLabel={saved ? 'Remove from saved' : 'Save'}
+            scaleTo={0.9}
+            className="size-9 items-center justify-center"
+          >
+            <Heart
+              size={18}
+              color={saved ? colors.primary : colors.foreground}
+              fill={saved ? colors.primary : 'transparent'}
+            />
+          </PressableScale>
+        )}
         <PressableScale
           onPress={playerActions.toggle}
           accessibilityLabel={playing ? 'Pause' : 'Play'}

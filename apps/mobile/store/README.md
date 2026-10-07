@@ -24,15 +24,50 @@ both stores hold them.
 
 ## Before the first build
 
-- [ ] **EAS environment variables.** `production` and `preview` have none
-      (checked 2026-10-06), and a build without them throws on launch
-      (`src/lib/supabase.ts`). The commands are in `../.env.example`.
+- [x] **EAS environment variables.** `EXPO_PUBLIC_SUPABASE_URL` and
+      `EXPO_PUBLIC_SUPABASE_KEY` are set for production and preview
+      (2026-10-07), plaintext, matching the player's Netlify values. A build
+      without them throws on launch (`src/lib/supabase.ts`).
 - [ ] **Migration `20261006000000_delete_own_account` on prod.** The app's
       Delete account calls it; without it the button errors.
 - [ ] **Play/Apple records exist**: App Store Connect app for
       `com.beejaysoft.kirtanplayer`, Play Console app for the same package.
 - [ ] **Demo account** created on production and signed into once (see
       review-notes.md).
+
+## Open risks (decide before submitting)
+
+1. **SGPC permission — none yet (2026-10-07).** The app streams the SGPC's
+   archive and live stream from sgpc.net. Apple guideline 5.2.2 lets a
+   reviewer ask for proof that the content's owner permits it, and Play's IP
+   policy covers the same ground, so this is the likeliest rejection.
+   - Write to SGPC asking for permission, and keep whatever comes back (even
+     a "no objection", or proof of having asked) for the review notes.
+   - Without it, a submission is a gamble that costs one review cycle if it
+     fails, not the account. Play first, while waiting, is reasonable.
+   - The listing already says the app is independent, not affiliated with
+     SGPC, and streams from its public archive.
+2. **Microphone string.** The app never records, so `app.json` drops the
+   microphone permission (and blocks `RECORD_AUDIO` on Android). expo-audio's
+   recorder is still compiled in, though, so App Store Connect may email an
+   ITMS-90683 "missing purpose string" notice after the first upload. If it
+   does, set expo-audio's `microphonePermission` to a specific sentence
+   rather than restoring the generic default.
+3. **The URLs above.** Play fetches the policy URL at review. Open both on
+   the deploy preview (`/privacy/`, `/delete-account/`) before pasting them
+   in. Vite's dev server sends them to the SPA, so check them on Netlify.
+
+## Shared links and the expo-audio patch
+
+- `/r/<id>` links open the app when it is installed. iOS checks
+  `apps/player/public/.well-known/apple-app-site-association` on the live
+  site (Universal Links). Android also needs
+  `/.well-known/assetlinks.json` holding the SHA-256 of the **Play app signing**
+  certificate (Play Console → Setup → App signing), which exists only after the
+  first upload; until it is added, Android opens those links in the browser.
+- `patches/expo-audio@57.0.5.patch` (iOS) adds lock-screen next/previous, a
+  shabad-length scrub bar and no "LIVE" badge. Redo it on any expo-audio
+  upgrade; each change in it is marked `kp-mono:`.
 
 ## Build and submit
 
@@ -46,7 +81,8 @@ npx eas-cli submit --platform ios --profile production --latest
 npx eas-cli submit --platform android --profile production --latest
 ```
 
-- **iOS** goes to TestFlight. `submit` asks for the App Store Connect app the
+- **iOS** goes to TestFlight. `appleTeamId` is BeeJaySoft's, copied from
+  np-mono. `submit` asks for the App Store Connect app the
   first time; add its `ascAppId` to `eas.json` after that.
 - **Android**: Play's API cannot create an app's first release, so upload the
   first `.aab` by hand in Play Console (Internal testing). After that,

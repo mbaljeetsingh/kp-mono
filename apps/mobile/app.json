@@ -14,7 +14,9 @@
       "bundleIdentifier": "com.beejaysoft.kirtanplayer",
       "config": {
         "usesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "QWB397TGN2",
+      "associatedDomains": ["applinks:kirtanplayer.beejaysoft.com"]
     },
     "android": {
       "adaptiveIcon": {
@@ -35,6 +37,20 @@
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kirtanplayer.beejaysoft.com",
+              "pathPrefix": "/r/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "plugins": [
@@ -71,6 +87,12 @@
       "eas": {
         "projectId": "ee34d48a-acd7-4987-95dc-a619920f900e"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ee34d48a-acd7-4987-95dc-a619920f900e"
     }
   }
 }

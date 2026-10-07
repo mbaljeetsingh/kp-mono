@@ -13,3 +13,7 @@ export const BANIDB_BASE = 'https://api.banidb.com/v2';
  * to delete an account without the app, which it does.
  */
 export const PRIVACY_URL = 'https://kirtanplayer.beejaysoft.com/privacy/';
+
+/** The tagging workbench and the code — the web player's two doors out, here too. */
+export const CONTRIBUTE_URL = 'https://contribute.kirtanplayer.beejaysoft.com/';
+export const GITHUB_URL = 'https://github.com/mbaljeetsingh/kp-mono';

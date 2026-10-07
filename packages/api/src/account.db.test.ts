@@ -6,7 +6,9 @@
  * null and deleting an account deletes the archive timings that person tagged.
  * Only the real FKs can show that, so this signs up a throwaway account, gives
  * it something personal (a favorite, a playlist) and something shared (a
- * draft), deletes it, and checks which survived.
+ * draft and a published rendition — the set null fires the renditions
+ * triggers, and a published row is where one of them could refuse), deletes
+ * it, and checks which survived.
  *
  * Same rules as permissions.db.test.ts: local stack only, every row tagged
  * with this run and removed in afterAll. The seed accounts are only ever
@@ -36,6 +38,13 @@ let admin: SupabaseClient;
 let adminId: string;
 let leaver: SupabaseClient;
 let leaverId: string;
+
+/**
+ * Publishing needs a shabad and its main verse; an empty timing list keeps the
+ * row out of align's queue, so the dispatch trigger has nothing to start (as
+ * in standing.db.test.ts).
+ */
+const LINKED = { shabad_id: 1, main_verse_id: 1, line_timings: [] };
 const email = `${TAG}@example.test`;
 
 beforeAll(async () => {
@@ -101,6 +110,24 @@ it('takes the personal things and keeps the shared work, author removed', async 
     .select('id')
     .single();
   expect(draft.error, draft.error?.message).toBeNull();
+  const work = await leaver
+    .from('renditions')
+    .insert({
+      track_id: track!.id,
+      start_sec: 60,
+      end_sec: 120,
+      name: `${TAG} published`,
+      ...LINKED,
+      created_by: leaverId,
+    })
+    .select('id')
+    .single();
+  expect(work.error, work.error?.message).toBeNull();
+  const pub = await admin
+    .from('renditions')
+    .update({ status: 'published' })
+    .eq('id', work.data!.id);
+  expect(pub.error, pub.error?.message).toBeNull();
 
   const { data: published } = await admin
     .from('renditions')
@@ -124,6 +151,13 @@ it('takes the personal things and keeps the shared work, author removed', async 
     .eq('id', draft.data!.id)
     .single();
   expect(kept.data).toEqual({ id: draft.data!.id, created_by: null });
+  // And the published work stays published — still in the player.
+  const live = await admin
+    .from('renditions')
+    .select('status, created_by')
+    .eq('id', work.data!.id)
+    .single();
+  expect(live.data).toEqual({ status: 'published', created_by: null });
 
   // The profile is gone — and with it, by cascade, the favorite and the
   // playlist (a key that did not cascade would have failed the delete).
