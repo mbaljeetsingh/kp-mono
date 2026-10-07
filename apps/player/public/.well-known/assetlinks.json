@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.beejaysoft.kirtanplayer",
+      "sha256_cert_fingerprints": [
+        "7A:2D:B4:CA:8B:D6:03:97:A1:DB:1D:A1:5C:C0:4F:D9:BE:24:53:BD:1C:AD:5F:81:A5:36:C9:2C:04:17:46:0C"
+      ]
+    }
+  }
+]

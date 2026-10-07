@@ -62,9 +62,10 @@ both stores hold them.
 - `/r/<id>` links open the app when it is installed. iOS checks
   `apps/player/public/.well-known/apple-app-site-association` on the live
   site (Universal Links). Android also needs
-  `/.well-known/assetlinks.json` holding the SHA-256 of the **Play app signing**
-  certificate (Play Console → Setup → App signing), which exists only after the
-  first upload; until it is added, Android opens those links in the browser.
+  `apps/player/public/.well-known/assetlinks.json`, which holds the SHA-256 of
+  the **Play app signing** certificate (Play Console → App signing, added
+  2026-10-07). Builds signed by anything else — the EAS upload key on a
+  sideloaded `.aab`/`.apk` — are not verified and open links in the browser.
 - `patches/expo-audio@57.0.5.patch` (iOS) adds lock-screen next/previous, a
   shabad-length scrub bar and no "LIVE" badge. Redo it on any expo-audio
   upgrade; each change in it is marked `kp-mono:`.
