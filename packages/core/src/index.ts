@@ -11,3 +11,4 @@ export * from './artwork';
 export * from './stations';
 export * from './shabad-name';
 export * from './title-script';
+export * from './share';

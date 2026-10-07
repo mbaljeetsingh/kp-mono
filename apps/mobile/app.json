@@ -11,7 +11,12 @@
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       },
-      "bundleIdentifier": "com.beejaysoft.kirtanplayer"
+      "bundleIdentifier": "com.beejaysoft.kirtanplayer",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "appleTeamId": "QWB397TGN2",
+      "associatedDomains": ["applinks:kirtanplayer.beejaysoft.com"]
     },
     "android": {
       "adaptiveIcon": {
@@ -22,12 +27,31 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
-      "package": "com.beejaysoft.kirtanplayer"
+      "package": "com.beejaysoft.kirtanplayer",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kirtanplayer.beejaysoft.com",
+              "pathPrefix": "/r/"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "plugins": [
       "expo-router",
@@ -39,7 +63,13 @@
           "imageWidth": 140
         }
       ],
-      "expo-audio",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-font",
         {
@@ -57,6 +87,12 @@
       "eas": {
         "projectId": "ee34d48a-acd7-4987-95dc-a619920f900e"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/ee34d48a-acd7-4987-95dc-a619920f900e"
     }
   }
 }

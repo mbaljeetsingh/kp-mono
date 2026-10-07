@@ -1,5 +1,5 @@
 /**
- * The two doors out of the player, named once.
+ * The doors out of the player, named once.
  *
  * The player deliberately carries no editing UI: the archive grows in the
  * tagging workbench and the code grows on GitHub, so this is where the app
@@ -10,6 +10,8 @@
  * model, where every signed-in account may tag.
  */
 export const GITHUB_URL = 'https://github.com/mbaljeetsingh/kp-mono';
+/** Static, in public/privacy — see the comment there. */
+export const PRIVACY_URL = '/privacy/';
 export const CONTRIBUTE_URL = 'https://contribute.kirtanplayer.beejaysoft.com/';
 
 /**

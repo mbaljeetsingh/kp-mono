@@ -9,14 +9,19 @@
 import { usePlaylistMutations, usePlaylists } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useRouter } from 'expo-router';
-import { Heart, ListPlus, Plus, Users, X } from 'lucide-react-native';
+import { Heart, ListPlus, Plus, Share2, Users, X } from 'lucide-react-native';
+import { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { Input } from '@kp/ui-native/input';
+
 import { ShabadTitle } from '~/components/ShabadTitle';
-import { playerActions } from '~/lib/player';
+import { playerActions, playerStore } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
+import { shareRendition } from '~/lib/share';
 import { useColors } from '~/lib/theme';
+import { useShownTitle } from '~/lib/title-script';
 
 export function ShabadActions({
   item,
@@ -31,11 +36,56 @@ export function ShabadActions({
   const router = useRouter();
   const { favorites, userId } = useSession();
   const playlists = usePlaylists(supabase, Boolean(userId));
-  const { addItem } = usePlaylistMutations(supabase, userId);
+  const { addItem, create } = usePlaylistMutations(supabase, userId);
 
   if (!item) return null;
+  return (
+    <Sheet
+      // Remounted per item, so a half-typed playlist name does not carry over.
+      key={item.id}
+      item={item}
+      open={open}
+      onClose={onClose}
+      saved={favorites.has(item.id)}
+      onToggleSaved={() => favorites.toggle(item.id)}
+      signedIn={Boolean(userId)}
+      playlists={playlists.data ?? []}
+      addItem={addItem}
+      create={create}
+      router={router}
+      colors={colors}
+    />
+  );
+}
 
-  const saved = favorites.has(item.id);
+function Sheet({
+  item,
+  open,
+  onClose,
+  saved,
+  onToggleSaved,
+  signedIn,
+  playlists,
+  addItem,
+  create,
+  router,
+  colors,
+}: {
+  item: Playable;
+  open: boolean;
+  onClose: () => void;
+  saved: boolean;
+  onToggleSaved: () => void;
+  signedIn: boolean;
+  playlists: { id: string; name: string }[];
+  addItem: ReturnType<typeof usePlaylistMutations>['addItem'];
+  create: ReturnType<typeof usePlaylistMutations>['create'];
+  router: ReturnType<typeof useRouter>;
+  colors: ReturnType<typeof useColors>;
+}) {
+  const title = useShownTitle(item);
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
 
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
@@ -64,7 +114,7 @@ export function ShabadActions({
             <Pressable
               onPress={() => {
                 onClose();
-                router.push({ pathname: '/ragi/[name]', params: { name: item.artist } });
+                router.push({ pathname: '/ragi/[name]', params: { name: item.artist ?? '' } });
               }}
               className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
             >
@@ -75,7 +125,7 @@ export function ShabadActions({
 
           <Pressable
             onPress={() => {
-              favorites.toggle(item.id);
+              onToggleSaved();
               onClose();
             }}
             className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
@@ -99,9 +149,24 @@ export function ShabadActions({
             <Text className="text-foreground">Add to queue</Text>
           </Pressable>
 
+          <Pressable
+            onPress={() => {
+              // From where it is now if this is the one playing, so the link
+              // opens on the same line — as the web's share does.
+              const s = playerStore.getState();
+              const position = s.current?.id === item.id ? s.position : 0;
+              onClose();
+              void shareRendition(item, position, title);
+            }}
+            className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+          >
+            <Share2 size={18} color={colors.foreground} />
+            <Text className="text-foreground">Share</Text>
+          </Pressable>
+
           <Text className="px-4 pb-1 pt-3 text-xs text-muted-foreground">Add to playlist</Text>
 
-          {!userId ? (
+          {!signedIn ? (
             // Asking for a sign-in beats a list that would only fail at the
             // insert — playlists are account-only by design.
             <Pressable
@@ -118,7 +183,50 @@ export function ShabadActions({
             </Pressable>
           ) : (
             <ScrollView style={{ maxHeight: 220 }}>
-              {(playlists.data ?? []).map((playlist) => (
+              {/* New and add in one step, as the web's menu does: making the
+                  listener leave, create, and come back is three trips for one. */}
+              {naming ? (
+                <View className="gap-2 px-4 py-2">
+                  <Input
+                    value={name}
+                    onChangeText={setName}
+                    autoFocus
+                    maxLength={120}
+                    placeholder="Playlist name"
+                    placeholderTextColor={colors.mutedForeground}
+                    className="h-11"
+                  />
+                  <Pressable
+                    disabled={!name.trim() || create.isPending}
+                    onPress={() =>
+                      void create
+                        .mutateAsync(name)
+                        .then((playlist) =>
+                          addItem.mutateAsync({ playlistId: playlist.id, renditionId: item.id })
+                        )
+                        .then(() => {
+                          onClose();
+                          // After the sheet has gone: iOS drops an alert raised
+                          // while a modal is still animating away.
+                          setTimeout(() => Alert.alert(`Added to ${name.trim()}`), 400);
+                        })
+                        .catch(() => Alert.alert('Could not create that playlist'))
+                    }
+                    className="items-center rounded-lg bg-primary py-2.5 active:opacity-80"
+                  >
+                    <Text className="font-medium text-primary-foreground">Create and add</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={() => setNaming(true)}
+                  className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+                >
+                  <Plus size={18} color={colors.primary} />
+                  <Text className="text-primary">New playlist…</Text>
+                </Pressable>
+              )}
+              {playlists.map((playlist) => (
                 <Pressable
                   key={playlist.id}
                   onPress={() => {
@@ -137,15 +245,10 @@ export function ShabadActions({
                   }}
                   className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
                 >
-                  <Plus size={18} color={colors.mutedForeground} />
+                  <ListPlus size={18} color={colors.mutedForeground} />
                   <Text className="text-foreground">{playlist.name}</Text>
                 </Pressable>
               ))}
-              {!(playlists.data ?? []).length ? (
-                <Text className="px-4 py-3 text-sm text-muted-foreground">
-                  No playlists yet — make one from Saved.
-                </Text>
-              ) : null}
             </ScrollView>
           )}
         </Pressable>

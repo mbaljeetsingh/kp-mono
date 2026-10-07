@@ -1,25 +1,74 @@
 /**
- * Saved shabads.
+ * Library: Saved and Playlists, one switch apart — the web's Library tab
+ * (apps/player/src/components/LibraryTabs.tsx).
  *
- * Works signed out: favorites live on the device until there is an account to
- * move them into.
+ * Saved works signed out: favorites live on the device until there is an
+ * account to move them into. Playlists need one (PlaylistsList says why).
  */
-
-import { shabadsByIds, signOut } from '@kp/api';
+import { shabadsByIds } from '@kp/api';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 
+import { AccountButton } from '~/components/AccountSheet';
+import { PlaylistsList } from '~/components/PlaylistsList';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
-import { useShabadActions } from '~/lib/use-shabad-actions';
-import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
+import { useShabadActions } from '~/lib/use-shabad-actions';
+import { cn } from '~/lib/utils';
 
-export default function SavedScreen() {
+type Shelf = 'saved' | 'playlists';
+
+function LibraryHeader({ shelf, onShelf }: { shelf: Shelf; onShelf: (shelf: Shelf) => void }) {
+  return (
+    <View className="gap-3 px-5 pb-3 pt-3">
+      <View className="flex-row items-center justify-between">
+        <Text className="font-display text-[34px] leading-10 text-foreground">Library</Text>
+        <AccountButton />
+      </View>
+      <View accessibilityRole="tablist" className="flex-row gap-1">
+        {(['saved', 'playlists'] as const).map((s) => (
+          <Pressable
+            key={s}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: s === shelf }}
+            onPress={() => onShelf(s)}
+            className={cn(
+              'rounded-full px-4 py-1.5',
+              s === shelf ? 'bg-primary-soft' : 'active:bg-accent'
+            )}
+          >
+            <Text
+              className={cn(
+                'text-sm font-medium',
+                s === shelf ? 'text-primary' : 'text-muted-foreground'
+              )}
+            >
+              {s === 'saved' ? 'Saved' : 'Playlists'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+export default function LibraryScreen() {
+  const [shelf, setShelf] = useState<Shelf>('saved');
+  const header = <LibraryHeader shelf={shelf} onShelf={setShelf} />;
+
+  return (
+    <Screen edges={['top']} className="flex-1 bg-background">
+      {shelf === 'saved' ? <SavedList header={header} /> : <PlaylistsList header={header} />}
+    </Screen>
+  );
+}
+
+function SavedList({ header }: { header: React.ReactElement }) {
   const { onMore, sheet } = useShabadActions();
-  const router = useRouter();
   const { favorites, userId } = useSession();
   const currentId = usePlayer((s) => s.current?.id);
   const ids = favorites.ids;
@@ -33,44 +82,30 @@ export default function SavedScreen() {
   const items = query.data ?? [];
 
   return (
-    <Screen edges={['top']} className="flex-1 bg-background">
+    <>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerClassName="px-2 pb-4"
+        contentContainerClassName="pb-4"
         ListHeaderComponent={
-          <View className="px-3 pb-2 pt-3">
-            <Text className="font-display text-[34px] leading-10 text-foreground">Saved</Text>
-            <Text className="text-sm text-muted-foreground">
+          <View>
+            {header}
+            <Text className="px-5 pb-2 text-sm text-muted-foreground">
               {userId
                 ? 'Saved to your account.'
                 : 'Saved on this device — sign in and they follow you.'}
             </Text>
-            {/* Playlists lost their tab when the bar went native — iOS shows
-                five and hides the rest behind "More", and Saved is the better
-                of the two to keep. This is how they are reached now. */}
-            <Pressable onPress={() => router.push('/playlists')} className="pt-2">
-              <Text className="text-sm text-primary">Playlists</Text>
-            </Pressable>
-
-            {!userId ? (
-              <Pressable onPress={() => router.push('/sign-in')} className="pt-2">
-                <Text className="text-sm text-primary">Sign in</Text>
-              </Pressable>
-            ) : (
-              <Pressable onPress={() => void signOut(supabase)} className="pt-2">
-                <Text className="text-sm text-muted-foreground">Sign out</Text>
-              </Pressable>
-            )}
           </View>
         }
         renderItem={({ item, index }) => (
-          <ShabadRow
-            item={item}
-            isCurrent={item.id === currentId}
-            onPress={() => playerActions.playList(items, index)}
-            onMore={onMore}
-          />
+          <View className="px-2">
+            <ShabadRow
+              item={item}
+              isCurrent={item.id === currentId}
+              onPress={() => playerActions.playList(items, index)}
+              onMore={onMore}
+            />
+          </View>
         )}
         ListEmptyComponent={
           favorites.failed || (query.isError && query.data === undefined) ? (
@@ -81,20 +116,20 @@ export default function SavedScreen() {
                 favorites.retry();
                 void query.refetch();
               }}
-              className="px-3 py-8"
+              className="px-5 py-6"
             >
               <Text className="text-sm text-destructive">
                 Could not load your saved shabads. Tap to try again.
               </Text>
             </Pressable>
           ) : (
-            <Text className="px-3 py-8 text-sm text-muted-foreground">
-              Nothing saved yet. Open a shabad and tap the heart.
+            <Text className="px-5 py-6 text-sm text-muted-foreground">
+              Nothing saved yet. Tap the heart on any shabad.
             </Text>
           )
         }
       />
       {sheet}
-    </Screen>
+    </>
   );
 }

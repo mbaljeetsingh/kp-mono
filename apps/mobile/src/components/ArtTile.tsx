@@ -33,7 +33,7 @@ interface Props {
  * takes start and end points in a 0–1 box. This converts one to the other so the
  * tiles lean the same way on both surfaces.
  */
-function endpoints(angleDeg: number) {
+export function endpoints(angleDeg: number) {
   const radians = ((angleDeg - 90) * Math.PI) / 180;
   const dx = Math.cos(radians) / 2;
   const dy = Math.sin(radians) / 2;
