@@ -100,8 +100,10 @@ there, then push it to App Store Connect from `apps/mobile`:
 KP_REVIEW_PHONE="+91 …" npx eas-cli metadata:push
 ```
 
-The review contact's phone is the one field Apple requires that cannot live in
-a public repo, so `store.config.js` adds it from the environment. Screenshots
+`store.config.js` adds what cannot live in the JSON: the App Store version,
+read from `app.json` so it always matches the build, and the review contact's
+phone (which Apple requires and a public repo cannot hold), from the
+environment. For a new version, add `releaseNotes` (Apple shows none on 1.0). Screenshots
 and the App Privacy labels are not covered by EAS Metadata — set them in App
 Store Connect. Play has no equivalent; its listing is entered in Play Console
 from `listing.md`.

@@ -73,6 +73,12 @@ CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, li
 
 Netlify, one site per app (`apps/player/netlify.toml`, `apps/admin/netlify.toml`); each site needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (publishable key). Mobile builds go through EAS. Merging to `main` deploys the web apps, so anything that needs a migration first must say so before merge.
 
+Mobile releases, all from `apps/mobile` on an up-to-date `main` (`apps/mobile/store/README.md` has the detail):
+
+- **JS-only change** → `npx eas-cli update --channel production --message "…"`. No store review; reaches installs of the same `version` (runtime policy `appVersion`).
+- **Native change** (a native package, `app.json` native config, `patches/`, an SDK upgrade) → bump `version` in `app.json`, add `releaseNotes` in `store.config.json`, then `npx eas-cli build --platform all --profile production --auto-submit` and `KP_REVIEW_PHONE=… npx eas-cli metadata:push`. Build numbers auto-increment; the App Store version is read from `app.json` by `store.config.js` — never set it by hand.
+- Builds and submits are the owner's call (they cost EAS quota and reach testers): propose them, don't run them unasked. Never commit signing keys, the service-account JSON or the review phone.
+
 ## Worktrees
 
 A SessionStart hook runs `scripts/worktree/setup.sh` in a new worktree; it symlinks the gitignored files listed in `.worktreeinclude` (the apps' and supabase `.env`) from the main checkout, so editing one edits the original.
