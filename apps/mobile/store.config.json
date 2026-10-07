@@ -1,0 +1,57 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 Baljeet Singh",
+    "categories": ["MUSIC", "LIFESTYLE"],
+    "info": {
+      "en-US": {
+        "title": "Kirtan Player",
+        "subtitle": "Kirtan from Harmandir Sahib",
+        "description": "Kirtan Player brings twenty years of kirtan recorded at Sri Harmandir Sahib to your phone, streamed from the SGPC's own archive.\n\nFIND ANY SHABAD\nSearch by shabad, by ragi, or by a line of Gurbani, and play every rendition the archive holds of it.\n\nREAD ALONG\nFollow the Gurbani as it is sung, line by line, in Gurmukhi with translation.\n\nLISTEN YOUR WAY\nKeep listening with the screen locked. Browse by ragi, tune into live radio, build playlists and save the shabads you return to.\n\nNO ACCOUNT NEEDED\nEverything plays without signing in. Create an account only if you want your saved shabads and playlists to follow you between devices.\n\nKirtan Player is an independent app and is not affiliated with the Shiromani Gurdwara Parbandhak Committee. Recordings are streamed from the SGPC's public archive at sgpc.net.",
+        "keywords": [
+          "kirtan",
+          "gurbani",
+          "shabad",
+          "sikh",
+          "ragi",
+          "darbar sahib",
+          "golden temple",
+          "sgpc",
+          "gurmukhi",
+          "paath",
+          "keertan"
+        ],
+        "releaseNotes": "First release of Kirtan Player.",
+        "marketingUrl": "https://kirtanplayer.beejaysoft.com",
+        "supportUrl": "https://kirtanplayer.beejaysoft.com",
+        "privacyPolicyUrl": "https://kirtanplayer.beejaysoft.com/privacy/"
+      }
+    },
+    "advisory": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "gambling": false,
+      "unrestrictedWebAccess": false,
+      "kidsAgeBand": null,
+      "ageRatingOverride": "NONE",
+      "koreaAgeRatingOverride": "NONE"
+    },
+    "review": {
+      "firstName": "Baljeet",
+      "lastName": "Singh",
+      "email": "kirtanplayer@beejaysoft.com",
+      "demoRequired": false,
+      "notes": "Kirtan Player streams recorded kirtan (Sikh devotional music) from the public archive of the Shiromani Gurdwara Parbandhak Committee (sgpc.net), the body that runs Sri Harmandir Sahib.\n\nNo sign-in is needed to review the app: everything plays signed out. An account only syncs saved shabads and playlists between devices. To check accounts, create one from Library > account button (top right) > Sign in > Create one.\n\n- Account deletion (5.1.1(v)): Library > account button (top right) > Delete account. Also described for people without the app at https://kirtanplayer.beejaysoft.com/delete-account/.\n- Background audio: playback continues with the screen locked (UIBackgroundModes audio), which is the point of a listening app.\n- Content: all audio is the SGPC's own public archive, streamed from sgpc.net; the app hosts none. There are no purchases and no ads."
+    }
+  }
+}
