@@ -18,6 +18,7 @@ import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { Input } from '@kp/ui-native/input';
 
 import { useSession } from '~/lib/session';
+import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
 
@@ -75,6 +76,7 @@ function NameField({
 }
 
 export function PlaylistsList({ header }: { header: ReactElement }) {
+  const miniPlayerSpace = useMiniPlayerSpace();
   const colors = useColors();
   const router = useRouter();
   const { userId } = useSession();
@@ -129,6 +131,7 @@ export function PlaylistsList({ header }: { header: ReactElement }) {
       data={query.data ?? []}
       keyExtractor={(p) => p.id}
       keyboardShouldPersistTaps="handled"
+      contentContainerStyle={miniPlayerSpace}
       contentContainerClassName="pb-4"
       ListHeaderComponent={
         <View>
