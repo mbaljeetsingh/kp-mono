@@ -15,6 +15,7 @@ import { PlaylistsList } from '~/components/PlaylistsList';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { useShabadActions } from '~/lib/use-shabad-actions';
@@ -68,6 +69,7 @@ export default function LibraryScreen() {
 }
 
 function SavedList({ header }: { header: React.ReactElement }) {
+  const miniPlayerSpace = useMiniPlayerSpace();
   const { onMore, sheet } = useShabadActions();
   const { favorites, userId } = useSession();
   const currentId = usePlayer((s) => s.current?.id);
@@ -86,6 +88,7 @@ function SavedList({ header }: { header: React.ReactElement }) {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
+        contentContainerStyle={miniPlayerSpace}
         contentContainerClassName="pb-4"
         ListHeaderComponent={
           <View>

@@ -20,6 +20,7 @@ import { ThemeSelector } from '~/components/ThemeSelector';
 import { ShabadRow } from '~/components/ShabadRow';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
 
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { onMore, sheet } = useShabadActions();
   const artists = useArtists(supabase);
+  const miniPlayerSpace = useMiniPlayerSpace();
 
   /**
    * Enough to listen through without thinking about it again, few enough that
@@ -48,7 +50,11 @@ export default function HomeScreen() {
     <Screen edges={['top']} className="flex-1 bg-background">
       {/* Automatic insets: iOS pads the bottom by the tab bar and the player
           riding above it, so the ragi shelf can scroll clear of both. */}
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerClassName="gap-6 pb-6">
+      <ScrollView
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={miniPlayerSpace}
+        contentContainerClassName="gap-6 pb-6"
+      >
         <View className="gap-4 px-5 pt-3">
           {/* The web's phone header: search, shuffle, the language and the
               theme — the things a listener reaches for from anywhere. */}
