@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": ["audio"],
+        "CFBundleName": "Kirtan Player"
       },
       "bundleIdentifier": "com.beejaysoft.kirtanplayer",
       "config": {
