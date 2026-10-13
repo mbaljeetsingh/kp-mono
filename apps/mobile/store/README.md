@@ -28,8 +28,9 @@ both stores hold them.
       `EXPO_PUBLIC_SUPABASE_KEY` are set for production and preview
       (2026-10-07), plaintext, matching the player's Netlify values. A build
       without them throws on launch (`src/lib/supabase.ts`).
-- [ ] **Migration `20261006000000_delete_own_account` on prod.** The app's
-      Delete account calls it; without it the button errors.
+- [x] **Migration `20261006000000_delete_own_account` on prod** (confirmed
+      2026-10-13: `db push` reports the remote up to date). The app's Delete
+      account calls it; without it the button errors.
 - [ ] **Play/Apple records exist**: App Store Connect app for
       `com.beejaysoft.kirtanplayer`, Play Console app for the same package.
 - [ ] **Demo account** created on production and signed into once (see
