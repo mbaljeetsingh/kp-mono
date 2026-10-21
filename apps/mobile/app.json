@@ -8,6 +8,7 @@
     "scheme": "kirtanplayer",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": ["audio"],
         "CFBundleName": "Kirtan Player"
