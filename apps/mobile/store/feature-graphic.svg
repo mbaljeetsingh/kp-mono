@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <!-- Play feature graphic (1024×500). Same K mark as the app icon, drawn from
+       packages/tokens/brand/logo-badge.svg; text kept inside the centre so the
+       store's crop and the play-button overlay on video never touch it. -->
+  <rect width="1024" height="500" fill="#1a1612"/>
+  <g transform="translate(112 70) scale(5.6)">
+    <g fill="none" stroke="#f4efe3" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 7v50"/>
+      <path d="M20 34 44 13.5"/>
+      <path d="M20 34 45.5 57"/>
+    </g>
+    <g fill="none" stroke="#e8a33d" stroke-linecap="round">
+      <path d="M12.5 25.5a11 11 0 0 0 0 17" stroke-width="4.5"/>
+      <path d="M4.5 18a20 20 0 0 0 0 32" stroke-width="4.5" opacity="0.6"/>
+    </g>
+  </g>
+  <text x="440" y="250" font-family="Georgia, serif" font-size="72" font-weight="700" fill="#f4efe3">Kirtan Player</text>
+  <rect x="444" y="282" width="72" height="5" rx="2.5" fill="#e8a33d"/>
+  <text x="442" y="338" font-family="Georgia, serif" font-size="30" fill="#d9d2c2">Twenty years of kirtan from</text>
+  <text x="442" y="378" font-family="Georgia, serif" font-size="30" fill="#d9d2c2">Sri Harmandir Sahib.</text>
+</svg>
