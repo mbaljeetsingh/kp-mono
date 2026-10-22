@@ -58,9 +58,12 @@ mixed within a set:
 4. A ragi's page
 5. Radio
 
-Apple needs 6.9" iPhone (1320×2868); iPad (13", 2064×2752) now that
-`supportsTablet` is on. Play needs at least two phone screenshots; its longest
-side may be at most twice the shortest, hence 1080×2160.
+Apple: iPhone at 1206×2622 (one of the sizes App Store Connect accepted when
+1320×2868 was rejected; the 6.9" captures are scaled down) and iPad (13",
+2064×2752) now that `supportsTablet` is on. No alpha channel in either — Apple
+rejects it. Play needs at least two phone screenshots at 9:16, 1080×1920, or it
+asks to crop; the 1080×2160 emulator captures are widened with their own edge
+pixels, then scaled.
 
 The current set is in `store/screenshots/` (`ios-iphone`, `ios-ipad`,
 `android-phone`), numbered in the order above, taken in light mode on the local
