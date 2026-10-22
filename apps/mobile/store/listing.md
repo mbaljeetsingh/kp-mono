@@ -58,5 +58,11 @@ mixed within a set:
 4. A ragi's page
 5. Radio
 
-Apple needs 6.9" iPhone (1320×2868); add iPad only if `supportsTablet` is ever
-turned on. Play needs at least two phone screenshots.
+Apple needs 6.9" iPhone (1320×2868); iPad (13", 2064×2752) now that
+`supportsTablet` is on. Play needs at least two phone screenshots; its longest
+side may be at most twice the shortest, hence 1080×2160.
+
+The current set is in `store/screenshots/` (`ios-iphone`, `ios-ipad`,
+`android-phone`), numbered in the order above, taken in light mode on the local
+stack's sample data. Retake the ragi shot (4) on a fuller database if you want
+more than two or three rows. There is no Android tablet set yet.
