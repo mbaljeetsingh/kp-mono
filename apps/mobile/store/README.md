@@ -121,5 +121,7 @@ from `listing.md`.
 
 - The 1024 icon is `assets/images/icon.png` (no alpha, as Apple requires).
 - Play also wants a 512×512 icon and a 1024×500 feature graphic, uploaded in
-  the console. Export them from `packages/tokens/brand`.
+  the console: `store/screenshots/play-icon.png` (the 1024 icon scaled down)
+  and `store/screenshots/play-feature-graphic.png`, rendered from
+  `feature-graphic.html` next to it (the command is in its first comment).
 - Screenshots: see listing.md.

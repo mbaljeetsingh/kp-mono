@@ -68,4 +68,6 @@ pixels, then scaled.
 The current set is in `store/screenshots/` (`ios-iphone`, `ios-ipad`,
 `android-phone`), numbered in the order above, taken in light mode on the local
 stack's sample data. Retake the ragi shot (4) on a fuller database if you want
-more than two or three rows. There is no Android tablet set yet.
+more than two or three rows. There is no Android tablet set yet. Play's icon
+and feature graphic are in the same folder (`play-icon.png`,
+`play-feature-graphic.png`).
