@@ -28,6 +28,7 @@ be lost. No dispatch fires: align only queues published renditions.
 
 import argparse
 import collections
+import time
 
 import scan_track
 import timing
@@ -42,7 +43,11 @@ ap.add_argument("--no-end", action="store_true",
 ap.add_argument("--track", help="only this recording")
 ap.add_argument("--limit", type=int, default=None,
                 help="at most N recordings this run")
+ap.add_argument("--deadline-min", type=int, default=None,
+                help="start no recording after N minutes; a moved draft is "
+                     "skipped next time, so another run carries on")
 args = ap.parse_args()
+began = time.monotonic()
 
 MOVED = 0.5  # seconds; less is noise, not a move worth a write
 
@@ -81,6 +86,11 @@ print(f"{len(rows)} waiting scan drafts, "
 stats = collections.Counter()
 starts, ends = [], []
 for k in tracks:
+    if args.deadline_min and time.monotonic() - began > args.deadline_min * 60:
+        left = len(tracks) - tracks.index(k)
+        print(f"\ndeadline: {left} recording(s) left for the next run")
+        stats["left for next run"] += sum(len(by_track[x]) for x in tracks[-left:])
+        break
     t = api(f"{SB}/tracks?id=eq.{k}&select=url,artist_dir,date,missing_since")
     if not t or t[0]["missing_since"] is not None:
         print(f"── {k}: gone from sgpc.net, left alone")

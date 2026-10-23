@@ -12,6 +12,10 @@
 #   eval      measure the scan against every published rendition instead, on
 #             12 runners at once. Read-only: eval_scan.py only GETs, and keeps
 #             transcripts on the runner's disk. Writes nothing to the project.
+#   reedge    one-off, instead of scanning: move untouched waiting drafts'
+#             edges to where the scan now puts them (reedge_drafts.py). Dry
+#             run first; it shares the scan's concurrency group, so a click
+#             queued behind it can cancel it while it waits — run it again.
 #
 # The queue is scan_requests rows with done_at null — written by the button in
 # admin, one per recording a tagger wants suggestions for, and taken first.
@@ -54,10 +58,15 @@ on:
         description: After the queue, also scan up to eight recordings nobody asked for, as the nightly run does
         type: boolean
         default: false
+      reedge:
+        description: Instead of scanning, re-place the edges of untouched waiting scan drafts (one-off, reedge_drafts.py)
+        type: choice
+        options: ['off', 'dry run (starts only)', 'apply starts only', 'apply']
+        default: 'off'
 
 jobs:
   scan:
-    if: ${{ !inputs.eval }}
+    if: ${{ !inputs.eval && (!inputs.reedge || inputs.reedge == 'off') }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     # One scan at a time. The queue has no claim: a track_id run dispatched
@@ -125,6 +134,49 @@ jobs:
           TRACK_ID: ${{ inputs.track_id }}
           EVENT: ${{ github.event_name }}
           BACKFILL: ${{ inputs.backfill }}
+          SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+
+  # ── reedge: drafts written before the scan placed edges itself ─────────
+  # Moves each untouched waiting draft's start to its first sung word and its
+  # end into the pause, and re-times its lyrics, from the stored transcript:
+  # no ASR, so no model cache. "dry run (starts only)" writes nothing and lists
+  # every start it would move; "apply starts only" fetches no audio and takes
+  # minutes; "apply" also fetches each recording's audio for the end (~30 s
+  # each), so it stops starting recordings at 150 minutes and a second run
+  # carries on — a moved draft records reedged_from and is never moved twice.
+  reedge:
+    if: ${{ inputs.reedge && inputs.reedge != 'off' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    # The scan's group: a scan writing drafts on a recording while this moves
+    # them would read each other's edges mid-change.
+    concurrency:
+      group: scan
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: packages/aligner
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/aligner/pyproject.toml
+      # ffprobe checks every fetched recording is whole, ffmpeg fetches it.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: uv venv && uv pip install -e .
+      - run: |
+          set -o pipefail
+          case "$MODE" in
+            'dry run (starts only)') flags='--no-end' ;;
+            'apply starts only') flags='--no-end --apply' ;;
+            'apply')             flags='--apply --deadline-min 150' ;;
+          esac
+          uv run python reedge_drafts.py $flags | tee reedge.txt
+          { echo '```'; tail -n 60 reedge.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          MODE: ${{ inputs.reedge }}
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
           SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
