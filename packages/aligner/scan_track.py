@@ -240,7 +240,7 @@ def refine_edges(drafts, sids, ev):
     return out
 
 
-def place_edges(drafts, short_w, shabads, loud=None):
+def place_edges(drafts, short_w, loud=None):
     """Each draft's start at its first sung word (less START_LEAD), its end in
     the pause after its last: what reviewers moved refine_edges' edges to.
     `loud` is timing.loudness's track level; without it the end stays."""
@@ -290,7 +290,7 @@ def find_drafts(sids, ev, long_w, short_w, shabads, floor=FLOOR, loud=None):
     regions = merge_regions(regions_from(sids, ev, floor))
     drafts = place_edges(
         refine_edges([g for g in regions if is_draft(g)], sids, ev),
-        short_w, shabads, loud)
+        short_w, loud)
     out = []
     for g in drafts:
         # The gate again, on the edges place_edges placed: a region whose

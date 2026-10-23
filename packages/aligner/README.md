@@ -163,6 +163,24 @@ Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
 prod's published tags (25 renditions, 17 recordings) against the old sparse
 scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
 
+## Re-place the edges of waiting scan drafts
+
+```bash
+SB_URL=<project>/rest/v1 SB_KEY=<service key> uv run python reedge_drafts.py                       # list what would move
+SB_URL=<project>/rest/v1 SB_KEY=<service key> uv run python reedge_drafts.py --track <id> --apply  # one recording first
+SB_URL=<project>/rest/v1 SB_KEY=<service key> uv run python reedge_drafts.py --apply               # then the rest
+```
+
+One-off, for drafts written before the scan placed edges itself (step 4
+above): moves each untouched waiting draft's start to its first sung word and
+its end into the pause, and re-times its lyrics. Untouched means still
+`shabad_linked` with the edges and shabad its verdict recorded; anything a
+person moved, re-tagged, published or deleted is left alone, as are routine
+banis and drafts align would no longer pass. Dry unless `--apply`. Each
+recording's audio is fetched for the end (`--no-end` moves starts only), and
+a moved draft records `reedged_from` in its verdict, so a second run skips it
+and `scan_draft_outcomes` does not count the move as a reviewer's.
+
 ## Title renditions from their anchor line
 
 ```bash
