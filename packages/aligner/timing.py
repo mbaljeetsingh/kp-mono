@@ -74,7 +74,7 @@ def _save(path, payload):
 
 
 def fetch_wav(track_id, url):
-    """The recording as 16 kHz mono wav in the cache, fetched once."""
+    """The recording as 16 kHz mono wav in the cache, fetched once, and whole."""
     wav = f"{CACHE}/track_{track_id}.wav"
     if not os.path.exists(wav):
         print("  fetching audio…", flush=True)
@@ -84,6 +84,18 @@ def fetch_wav(track_id, url):
                         "-ar", str(SR), "-ac", "1", "-f", "wav",
                         f"{wav}.part"], check=True)
         os.replace(f"{wav}.part", wav)
+    # ffmpeg ends a dropped download as if the file had ended, exit 0, and a
+    # short transcript is the recording's for good: everything past the cut
+    # would read as a mistag, and no re-cut heals it, the key holding no edges.
+    # So the audio must be as long as sgpc.net says before anything reads it —
+    # transcribe, or loudness on a re-scan whose transcript was stored — and a
+    # short one is removed so the next run fetches it again.
+    want = duration(url)
+    got = sf.info(wav).duration
+    if want and got < WHOLE * want:
+        os.remove(wav)
+        raise RuntimeError(f"fetched {got:.0f}s of a {want:.0f}s recording: "
+                           f"the download was cut short")
     return wav
 
 
@@ -109,19 +121,7 @@ def transcribe(track_id, url, store=True, timings=None, asr=True):
         # already-scanned archive must not re-download every recording.
         if not decoded:
             t = time.monotonic()
-            wav = fetch_wav(track_id, url)
-            a = sf.read(wav, dtype="float32")[0]
-            # ffmpeg ends a dropped download as if the file had ended, exit 0,
-            # and a short transcript is the recording's for good: everything
-            # past the cut would read as a mistag, and no re-cut heals it, the
-            # key holding no edges. So the audio must be as long as sgpc.net
-            # says before any of it is transcribed.
-            want = duration(url)
-            if want and len(a) / SR < WHOLE * want:
-                os.remove(wav)
-                raise RuntimeError(f"fetched {len(a) / SR:.0f}s of a "
-                                   f"{want:.0f}s recording: the download was "
-                                   f"cut short")
+            a = sf.read(fetch_wav(track_id, url), dtype="float32")[0]
             decoded.append(a)
             if timings is not None:
                 timings.update(fetch=time.monotonic() - t,
