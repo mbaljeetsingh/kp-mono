@@ -483,6 +483,9 @@ function Workbench({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ['renditions', id] }),
       queryClient.invalidateQueries({ queryKey: ['recordings'] }),
       queryClient.invalidateQueries({ queryKey: ['pending'] }),
+      // Deleting a scan draft from its row drops the scan's pointers to that
+      // shabad too, as the editor's Delete does.
+      queryClient.invalidateQueries({ queryKey: ['scan-request', id] }),
     ]);
   }
 

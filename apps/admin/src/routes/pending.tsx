@@ -10,7 +10,6 @@ import {
   publishRefusal,
   setRenditionStatus,
   usePending,
-  usePendingCount,
   usePendingTabCounts,
   type PendingRendition,
   type PendingTab,
@@ -33,22 +32,16 @@ const PREVIEW_FAILED = 'Could not play that preview.';
 
 const TABS: { tab: PendingTab; label: string; title: string; empty: string }[] = [
   {
-    tab: 'people',
-    label: 'People',
-    title: 'Drafts people made by ear',
-    empty: 'No hand-made drafts waiting.',
-  },
-  {
-    tab: 'scan',
-    label: 'Scan',
-    title: 'Drafts the scanner made — check the edges',
-    empty: 'No scan drafts waiting.',
+    tab: 'others',
+    label: 'Others',
+    title: 'Drafts by everyone else, and the nightly scan',
+    empty: 'Nothing from anyone else is waiting.',
   },
   {
     tab: 'mine',
     label: 'Yours',
-    title: 'Drafts you made by ear',
-    empty: 'None of your own drafts are waiting.',
+    title: 'Drafts you made, and the scans you asked for',
+    empty: 'None of yours are waiting.',
   },
 ];
 
@@ -67,17 +60,16 @@ function release(node: HTMLAudioElement) {
 export function PendingRoute() {
   const { session, can } = useSession();
   const userId = session?.user.id ?? '';
-  const count = usePendingCount(supabase, Boolean(session));
   const tabCounts = usePendingTabCounts(supabase, userId, Boolean(session));
+  /** The two tabs split the whole queue, so the header is their sum, not a third query. */
+  const total = tabCounts.data ? tabCounts.data.mine + tabCounts.data.others : undefined;
   /*
-   * People first — the drafts that need a person's ear, and the ones a flood
-   * of scan drafts used to bury — unless there are none and the scan has some:
-   * opening on an empty list read as "nothing to review".
+   * Others first: reviewing is mostly other people's work, and your own drafts
+   * — scans you asked for among them — were what filled the single list.
+   * Fixed rather than picked from the counts, so the list never switches under
+   * a reviewer when one tab empties.
    */
-  const [chosenTab, setChosenTab] = useState<PendingTab | null>(null);
-  const tab: PendingTab =
-    chosenTab ??
-    (tabCounts.data && !tabCounts.data.people && tabCounts.data.scan ? 'scan' : 'people');
+  const [tab, setTab] = useState<PendingTab>('others');
   const query = usePending(supabase, tab, userId, Boolean(userId));
   const queryClient = useQueryClient();
 
@@ -202,8 +194,8 @@ export function PendingRoute() {
       <header>
         <h1 className="font-display text-3xl font-semibold">
           Review{' '}
-          {count.data !== undefined ? (
-            <span className="text-base font-normal text-muted-foreground">({count.data})</span>
+          {total !== undefined ? (
+            <span className="text-base font-normal text-muted-foreground">({total})</span>
           ) : null}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -217,7 +209,7 @@ export function PendingRoute() {
         </p>
       ) : null}
 
-      <Tabs value={tab} onValueChange={(v) => setChosenTab(v as PendingTab)}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as PendingTab)}>
         <TabsList>
           {TABS.map((t) => (
             <TabsTrigger key={t.tab} value={t.tab} title={t.title} className="px-3">
@@ -236,7 +228,7 @@ export function PendingRoute() {
 
       {query.data !== undefined && !rows.length ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          {count.data === 0
+          {total === 0
             ? 'Nothing waiting. Every proposed segment has been dealt with.'
             : TABS.find((t) => t.tab === tab)?.empty}
         </p>
@@ -244,7 +236,6 @@ export function PendingRoute() {
 
       <div className="flex flex-col gap-0.5">
         {rows.map((row) => {
-          const mine = row.created_by === session?.user.id;
           const refusal = publishRefusal(
             row,
             { review: can['renditions.review'], publish: can['renditions.publish'] },
@@ -286,7 +277,6 @@ export function PendingRoute() {
                   {row.tracks?.artist_dir ?? 'Unknown'}
                   {row.tracks?.date ? ` · ${row.tracks.date}` : ''}
                   {` · ${clock(Number(row.start_sec))}–${clock(Number(row.end_sec))}`}
-                  {mine ? ' · yours' : ''}
                 </p>
               </div>
 

@@ -325,6 +325,10 @@ describe('fetchPending', () => {
         calls.push(`eq ${col} ${value}`);
         return builder;
       },
+      filter: (col: string, op: string, value: string) => {
+        calls.push(`filter ${col} ${op} ${value}`);
+        return builder;
+      },
       or: (filter: string) => {
         calls.push(`or ${filter}`);
         return builder;
@@ -351,12 +355,12 @@ describe('fetchPending', () => {
 
   it('starts at the oldest draft, with id breaking ties', async () => {
     const { client, calls } = fakeClient({ data: [], error: null });
-    await fetchPending(client, 'people', ME);
+    await fetchPending(client, 'others', ME);
     expect(calls).toEqual([
       'from renditions',
       'select *, tracks(artist_dir, date, url, raw_filename)',
       'neq status published',
-      'neq source scan',
+      `filter created_by isdistinct ${ME}`,
       'order created_at asc',
       'order id asc',
       `limit ${PAGE_SIZE}`,
@@ -365,7 +369,7 @@ describe('fetchPending', () => {
 
   it('continues just after the last row, not at an offset a removal would shift', async () => {
     const { client, calls } = fakeClient({ data: full, error: null });
-    await fetchPending(client, 'people', ME, {
+    await fetchPending(client, 'others', ME, {
       created_at: '2026-10-01T12:00:00.5+00:00',
       id: 'abc',
     });
@@ -377,32 +381,30 @@ describe('fetchPending', () => {
 
   it('has more after a full page and stops after a short one', async () => {
     expect(
-      (await fetchPending(fakeClient({ data: full, error: null }).client, 'people', ME)).hasMore
+      (await fetchPending(fakeClient({ data: full, error: null }).client, 'others', ME)).hasMore
     ).toBe(true);
     const short = await fetchPending(
       fakeClient({ data: full.slice(1), error: null }).client,
-      'people',
+      'others',
       ME
     );
     expect(short.hasMore).toBe(false);
     expect(short.items).toHaveLength(PAGE_SIZE - 1);
   });
 
-  it('splits scan drafts from hand-made ones, and yours from those', async () => {
-    const scan = fakeClient({ data: [], error: null });
-    await fetchPending(scan.client, 'scan', ME);
-    expect(scan.calls).toContain('eq source scan');
-    expect(scan.calls).not.toContain(`eq created_by ${ME}`);
-    // Hand-made only: a scan draft carries the requester's id, and those were
-    // what flooded an admin's "yours".
+  it("splits yours from everyone else's, ownerless nightly drafts with the others", async () => {
     const mine = fakeClient({ data: [], error: null });
     await fetchPending(mine.client, 'mine', ME);
-    expect(mine.calls).toEqual(expect.arrayContaining(['neq source scan', `eq created_by ${ME}`]));
+    expect(mine.calls).toContain(`eq created_by ${ME}`);
+    // Not `neq`: a null owner compares as null and neq would drop it.
+    const others = fakeClient({ data: [], error: null });
+    await fetchPending(others.client, 'others', ME);
+    expect(others.calls).toContain(`filter created_by isdistinct ${ME}`);
   });
 
   it('throws the server error as an Error', async () => {
     const { client } = fakeClient({ data: null, error: { code: 'PGRST000', message: 'down' } });
-    await expect(fetchPending(client, 'people', ME)).rejects.toBeInstanceOf(Error);
+    await expect(fetchPending(client, 'others', ME)).rejects.toBeInstanceOf(Error);
   });
 });
 
