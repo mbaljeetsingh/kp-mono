@@ -174,7 +174,7 @@ jobs:
             'apply')             flags='--apply --deadline-min 150' ;;
           esac
           uv run python reedge_drafts.py $flags | tee reedge.txt
-          { echo '```'; tail -n 60 reedge.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo '```'; head -n 1 reedge.txt; echo '…'; tail -n 40 reedge.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
         env:
           MODE: ${{ inputs.reedge }}
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1

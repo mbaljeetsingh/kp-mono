@@ -587,8 +587,11 @@ def scan(track_id, drafts, owner=None):
     shabads = shortlist(long_w)
     n = int(max(w["end"] for w in long_w)) + 1
     sids, ev = evidence(long_w, short_w, shabads, n)
+    # The end snap's audio only when drafts are written: a preview of a
+    # stored transcript should not wait on an hour's download from sgpc.net.
     found = find_drafts(sids, ev, long_w, short_w, shabads,
-                        loud=timing.loudness(track_id, track["url"]))
+                        loud=timing.loudness(track_id, track["url"]) if drafts
+                        else None)
     for (t0, t1, sid, conf, margin), a, _ in found:
         print(f"  {t0:6.0f}-{t1:6.0f}s  shabad {sid}  conf {conf:.2f}  "
               f"margin {margin:+.2f}"

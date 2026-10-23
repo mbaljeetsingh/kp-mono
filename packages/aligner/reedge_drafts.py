@@ -85,17 +85,15 @@ print(f"{len(rows)} waiting scan drafts, "
 
 stats = collections.Counter()
 starts, ends = [], []
-for k in tracks:
-    if args.deadline_min and time.monotonic() - began > args.deadline_min * 60:
-        left = len(tracks) - tracks.index(k)
-        print(f"\ndeadline: {left} recording(s) left for the next run")
-        stats["left for next run"] += sum(len(by_track[x]) for x in tracks[-left:])
-        break
+
+
+def reedge(k):
+    """Every untouched draft on recording k, placed again."""
     t = api(f"{SB}/tracks?id=eq.{k}&select=url,artist_dir,date,missing_since")
     if not t or t[0]["missing_since"] is not None:
         print(f"── {k}: gone from sgpc.net, left alone")
         stats["gone"] += len(by_track[k])
-        continue
+        return
     url = t[0]["url"]
     print(f"── {t[0]['artist_dir']}  {t[0]['date']}  ({k})", flush=True)
     # The stored transcript only (asr=False, store=False): the scan made it,
@@ -104,7 +102,7 @@ for k in tracks:
     if not tr:
         print("  no stored transcript, left alone")
         stats["no transcript"] += len(by_track[k])
-        continue
+        return
     long_w, short_w = tr
     loud = None if args.no_end else timing.loudness(k, url)
     mine = sorted(by_track[k], key=lambda r: float(r["start_sec"]))
@@ -145,21 +143,51 @@ for k in tracks:
                  align_confidence=round(conf, 3),
                  auto=scan_track.verdict((t0, t1) + g[2:], conf),
                  reedged_from=[g[0], g[1]])
-        done = api(f"{SB}/renditions?id=eq.{r['id']}"
-                   f"&status=eq.shabad_linked&start_sec=eq.{r['start_sec']}"
+        # Both writes are guarded on what they expect to find: a reviewer
+        # who moves or re-tags the draft in the meantime keeps their edit —
+        # and the trigger has cleared its timings, which must not come back
+        # timed for edges or a shabad it no longer has.
+        done = api(f"{SB}/renditions?id=eq.{r['id']}&status=eq.shabad_linked"
+                   f"&shabad_id=eq.{g[2]}&start_sec=eq.{r['start_sec']}"
                    f"&end_sec=eq.{r['end_sec']}", method="PATCH",
                    body={"start_sec": round(t0, 2), "end_sec": round(t1, 2),
                          "scan_verdict": v},
                    extra={"Prefer": "return=representation"})
-        # Guarded on the edges it read: a reviewer who opened the draft in
-        # the meantime keeps their edit, and this one is skipped.
         if not done:
             print("    changed since it was read, skipped")
             stats["moved"] -= 1
             stats["changed meanwhile"] += 1
             continue
-        api(f"{SB}/renditions?id=eq.{r['id']}", method="PATCH",
-            body={"line_timings": timings or None})
+        # The edges are written and marked reedged_from, so no later run
+        # comes back for this draft: the timings get a few tries here.
+        for attempt in range(3):
+            try:
+                api(f"{SB}/renditions?id=eq.{r['id']}&shabad_id=eq.{g[2]}"
+                    f"&start_sec=eq.{round(t0, 2)}&end_sec=eq.{round(t1, 2)}",
+                    method="PATCH", body={"line_timings": timings or None})
+                break
+            except Exception as e:
+                print(f"    timings write failed ({e}), retrying", flush=True)
+                time.sleep(5 * (attempt + 1))
+        else:
+            print("    no lyrics written: align times it once published")
+            stats["moved, lyrics not written"] += 1
+
+
+
+for k in tracks:
+    if args.deadline_min and time.monotonic() - began > args.deadline_min * 60:
+        left = len(tracks) - tracks.index(k)
+        print(f"\ndeadline: {left} recording(s) left for the next run")
+        stats["left for next run"] += sum(len(by_track[x]) for x in tracks[-left:])
+        break
+    # One recording's failure — BaniDB, storage, a write — is counted and
+    # the run goes on: its drafts are untouched or done, never half.
+    try:
+        reedge(k)
+    except Exception as e:
+        print(f"  failed: {e}", flush=True)
+        stats["recording failed, left for next run"] += len(by_track[k])
 
 print(f"\n{dict(stats)}")
 if starts:
