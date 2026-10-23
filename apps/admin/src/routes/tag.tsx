@@ -8,7 +8,9 @@
  */
 import {
   acceptScanDrafts,
+  canDeleteRendition,
   canPublishRendition,
+  deleteRendition,
   publishRefusal,
   nextUntaggedPuratan,
   requestScan,
@@ -39,6 +41,7 @@ import {
   ScanLine,
   Send,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -472,6 +475,8 @@ function Workbench({ id }: { id: string }) {
     const mid = (f.start + f.end) / 2;
     return segments.some((s) => mid >= s.start && mid <= s.end);
   };
+  const openFindings = findings.filter((f) => !covered(f));
+  const coveredFindings = findings.filter(covered);
 
   function refreshRows() {
     return Promise.all([
@@ -488,6 +493,29 @@ function Workbench({ id }: { id: string }) {
     setAcceptError(null);
     try {
       await setRenditionStatus(supabase, r.id, published ? 'published' : 'draft');
+    } catch (e) {
+      setRowError((m) => ({ ...m, [r.id]: e instanceof Error ? e.message : 'Failed' }));
+    }
+    void refreshRows();
+  }
+
+  /*
+   * The list's Delete, so a wrong row goes without opening it first. Asks the
+   * same question as the editor's: deleting a tag throws away someone's
+   * listening, and a scan draft's deletion is a rejection the scanner keeps.
+   */
+  async function removeRow(r: Rendition) {
+    if (
+      !confirm(
+        `Delete “${r.name}”? This cannot be undone.${r.source === 'scan' ? " The scanner won't suggest it for this recording again." : ''}`
+      )
+    ) {
+      return;
+    }
+    setRowError(({ [r.id]: _, ...rest }) => rest);
+    setAcceptError(null);
+    try {
+      await deleteRendition(supabase, r.id);
     } catch (e) {
       setRowError((m) => ({ ...m, [r.id]: e instanceof Error ? e.message : 'Failed' }));
     }
@@ -767,39 +795,40 @@ function Workbench({ id }: { id: string }) {
                   Heard but not confident. Nothing is saved until you save it.
                 </p>
               </div>
-              <ul className="flex flex-col gap-1">
-                {findings.map((f) => (
-                  <li
-                    key={`${f.shabad_id}-${f.start}`}
-                    className={
-                      'flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2' +
-                      (covered(f) ? ' opacity-55' : '')
-                    }
-                  >
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`Listen from ${clock(f.start)}`}
-                      onClick={() => playFrom(Math.max(0, f.start - 5))}
-                    >
-                      <Play />
-                    </Button>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm">{f.name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {Math.round(f.confidence * 100)}% match
-                        {covered(f) ? ' · already tagged here' : ''}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                      {clock(f.start)}–{clock(f.end)}
-                    </span>
-                    <Button variant="ghost" size="sm" onClick={() => tagPointer(f)}>
-                      Tag this
-                    </Button>
-                  </li>
-                ))}
-              </ul>
+              {openFindings.length ? (
+                <ul className="flex flex-col gap-1">
+                  {openFindings.map((f) => (
+                    <PointerRow
+                      key={`${f.shabad_id}-${f.start}`}
+                      f={f}
+                      onPlay={() => playFrom(Math.max(0, f.start - 5))}
+                      onAudition={player.auditionBoundary}
+                      onTag={() => tagPointer(f)}
+                    />
+                  ))}
+                </ul>
+              ) : null}
+              {/* Tucked away rather than dropped: the middle landing in tagged
+                  time is a guess at "done", and a pointer that overlaps the
+                  wrong tag is exactly the one worth a second listen. */}
+              {coveredFindings.length ? (
+                <details>
+                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
+                    {coveredFindings.length} already tagged
+                  </summary>
+                  <ul className="mt-1 flex flex-col gap-1 opacity-55">
+                    {coveredFindings.map((f) => (
+                      <PointerRow
+                        key={`${f.shabad_id}-${f.start}`}
+                        f={f}
+                        onPlay={() => playFrom(Math.max(0, f.start - 5))}
+                        onAudition={player.auditionBoundary}
+                        onTag={() => tagPointer(f)}
+                      />
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </div>
           ) : null}
 
@@ -883,11 +912,17 @@ function Workbench({ id }: { id: string }) {
                       error={rowError[item.r.id]}
                       canEdit={canEdit(item.r)}
                       canReview={perms.review}
+                      canDelete={canDeleteRendition(
+                        item.r,
+                        { propose: can['renditions.propose'], delete: can['renditions.delete'] },
+                        userId
+                      )}
                       refusal={publishRefusal(item.r, perms, userId)}
                       onPlay={() => playFrom(Number(item.r.start_sec))}
                       onAudition={player.auditionBoundary}
                       onEdit={() => editRendition(item.r)}
                       onPublish={(on) => void setPublished(item.r, on)}
+                      onDelete={() => void removeRow(item.r)}
                     />
                   )
                 )}
@@ -981,23 +1016,27 @@ function SegmentRow({
   error,
   canEdit,
   canReview,
+  canDelete,
   refusal,
   onPlay,
   onAudition,
   onEdit,
   onPublish,
+  onDelete,
 }: {
   r: Rendition;
   open: boolean;
   error?: string;
   canEdit: boolean;
   canReview: boolean;
+  canDelete: boolean;
   /** Why this account cannot publish it, or null if it can (publishRefusal). */
   refusal: PublishRefusal | null;
   onPlay: () => void;
   onAudition: (at: number) => void;
   onEdit: () => void;
   onPublish: (on: boolean) => void;
+  onDelete: () => void;
 }) {
   const published = r.status === 'published';
   const canPublish = refusal === null;
@@ -1119,12 +1158,81 @@ function SegmentRow({
             <Pencil />
           </Button>
         ) : null}
+
+        {/* Not on the open row: the editor has its own Delete, and its copy
+            of the row is the one on screen. */}
+        {canDelete && !open ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Delete ${r.name}`}
+            title="Delete"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 />
+          </Button>
+        ) : null}
       </div>
       {error ? (
         <p role="alert" className="px-2 pb-2 pl-12 text-xs text-destructive">
           {error}
         </p>
       ) : null}
+    </li>
+  );
+}
+
+/** A scan pointer: its times play across each edge, as a segment row's do. */
+function PointerRow({
+  f,
+  onPlay,
+  onAudition,
+  onTag,
+}: {
+  f: ScanFinding;
+  onPlay: () => void;
+  onAudition: (at: number) => void;
+  onTag: () => void;
+}) {
+  return (
+    <li className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Listen from ${clock(f.start)}`}
+        onClick={onPlay}
+      >
+        <Play />
+      </Button>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm">{f.name}</span>
+        <span className="block text-xs text-muted-foreground">
+          {Math.round(f.confidence * 100)}% match
+        </span>
+      </span>
+      <span className="shrink-0 text-xs tabular-nums">
+        <button
+          type="button"
+          title="Play across the start"
+          onClick={() => onAudition(f.start)}
+          className="rounded px-1 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
+        >
+          {clock(f.start)}
+        </button>
+        <span className="text-muted-foreground/40">–</span>
+        <button
+          type="button"
+          title="Play across the end"
+          onClick={() => onAudition(f.end)}
+          className="rounded px-1 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
+        >
+          {clock(f.end)}
+        </button>
+      </span>
+      <Button variant="ghost" size="sm" onClick={onTag}>
+        Tag this
+      </Button>
     </li>
   );
 }
