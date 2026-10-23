@@ -10,12 +10,14 @@ import {
   publishRefusal,
   setRenditionStatus,
   usePending,
-  usePendingCount,
+  usePendingTabCounts,
   type PendingRendition,
+  type PendingTab,
 } from '@kp/api';
 import { hasReachedEnd, segmentStart, toPlayable, type Playable } from '@kp/core';
 import { Badge } from '@kp/ui/badge';
 import { Button } from '@kp/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@kp/ui/tabs';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Check, Pause, Play, Trash2 } from 'lucide-react';
@@ -27,6 +29,21 @@ import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
 
 const PREVIEW_FAILED = 'Could not play that preview.';
+
+const TABS: { tab: PendingTab; label: string; title: string; empty: string }[] = [
+  {
+    tab: 'others',
+    label: 'Others',
+    title: 'Drafts by everyone else, and the nightly scan',
+    empty: 'Nothing from anyone else is waiting.',
+  },
+  {
+    tab: 'mine',
+    label: 'Yours',
+    title: 'Drafts you made, and the scans you asked for',
+    empty: 'None of yours are waiting.',
+  },
+];
 
 /**
  * Stops the preview and lets go of its recording. Pausing alone left the
@@ -42,8 +59,18 @@ function release(node: HTMLAudioElement) {
 
 export function PendingRoute() {
   const { session, can } = useSession();
-  const query = usePending(supabase, Boolean(session));
-  const count = usePendingCount(supabase, Boolean(session));
+  const userId = session?.user.id ?? '';
+  const tabCounts = usePendingTabCounts(supabase, userId, Boolean(session));
+  /** The two tabs split the whole queue, so the header is their sum, not a third query. */
+  const total = tabCounts.data ? tabCounts.data.mine + tabCounts.data.others : undefined;
+  /*
+   * Others first: reviewing is mostly other people's work, and your own drafts
+   * — scans you asked for among them — were what filled the single list.
+   * Fixed rather than picked from the counts, so the list never switches under
+   * a reviewer when one tab empties.
+   */
+  const [tab, setTab] = useState<PendingTab>('others');
+  const query = usePending(supabase, tab, userId, Boolean(userId));
   const queryClient = useQueryClient();
 
   const [error, setError] = useState<string | null>(null);
@@ -167,8 +194,8 @@ export function PendingRoute() {
       <header>
         <h1 className="font-display text-3xl font-semibold">
           Review{' '}
-          {count.data !== undefined ? (
-            <span className="text-base font-normal text-muted-foreground">({count.data})</span>
+          {total !== undefined ? (
+            <span className="text-base font-normal text-muted-foreground">({total})</span>
           ) : null}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -182,17 +209,33 @@ export function PendingRoute() {
         </p>
       ) : null}
 
+      <Tabs value={tab} onValueChange={(v) => setTab(v as PendingTab)}>
+        <TabsList>
+          {TABS.map((t) => (
+            <TabsTrigger key={t.tab} value={t.tab} title={t.title} className="px-3">
+              {t.label}
+              {tabCounts.data ? (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {tabCounts.data[t.tab]}
+                </span>
+              ) : null}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
       <LoadStatus what="the review queue" queries={[query]} />
 
       {query.data !== undefined && !rows.length ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          Nothing waiting. Every proposed segment has been dealt with.
+          {total === 0
+            ? 'Nothing waiting. Every proposed segment has been dealt with.'
+            : TABS.find((t) => t.tab === tab)?.empty}
         </p>
       ) : null}
 
       <div className="flex flex-col gap-0.5">
         {rows.map((row) => {
-          const mine = row.created_by === session?.user.id;
           const refusal = publishRefusal(
             row,
             { review: can['renditions.review'], publish: can['renditions.publish'] },
@@ -234,7 +277,6 @@ export function PendingRoute() {
                   {row.tracks?.artist_dir ?? 'Unknown'}
                   {row.tracks?.date ? ` · ${row.tracks.date}` : ''}
                   {` · ${clock(Number(row.start_sec))}–${clock(Number(row.end_sec))}`}
-                  {mine ? ' · yours' : ''}
                 </p>
               </div>
 
