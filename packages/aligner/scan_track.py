@@ -368,6 +368,11 @@ def write_drafts(track_id, found, shabads, owner=None):
             print(f"  not suggesting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
                   f"rejected on this recording")
             continue
+        # Before the pointers: a shabad already here, a routine one drafted
+        # before it joined ROUTINE included, needs no listen-here beside it.
+        if sid in existing:
+            print(f"  shabad {sid} already has a rendition here, skipping")
+            continue
         if align_conf is None or sid in ROUTINE:
             print(f"  not drafting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
                   + ("a routine bani, pointed at" if sid in ROUTINE else
@@ -380,9 +385,6 @@ def write_drafts(track_id, found, shabads, owner=None):
                              "start": round(t0, 1), "end": round(t1, 1),
                              "confidence": round(conf, 2),
                              "margin": round(margin, 2)})
-            continue
-        if sid in existing:
-            print(f"  shabad {sid} already has a rendition here, skipping")
             continue
         # Anchor = the line the audio dwells on longest. The dominant line
         # agreed with the tagger's hand-picked main_verse_id on every
