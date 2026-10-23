@@ -35,7 +35,6 @@ import {
   Pause,
   Pencil,
   Play,
-  Repeat,
   ScanLine,
   Send,
   Sparkles,
@@ -643,7 +642,7 @@ function Workbench({ id }: { id: string }) {
                   onSeek={player.seek}
                   onChangeStart={changeStart}
                   onChangeEnd={changeEnd}
-                  onAudition={player.auditionBoundary}
+                  onAudition={player.playAt}
                 />
               </div>
 
@@ -668,21 +667,6 @@ function Workbench({ id }: { id: string }) {
                   </option>
                 ))}
               </select>
-
-              {/* Looping is a mode with no other way out, so its exit is always
-                  visible while it is on. */}
-              {player.loop ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={player.stopLoop}
-                  title="Stop looping"
-                  className="h-7 text-xs text-amber-400"
-                >
-                  <Repeat className="size-3.5" />
-                  Looping
-                </Button>
-              ) : null}
 
               <Button variant="outline" size="sm" onClick={markStart} className="h-7 text-xs">
                 Mark start
@@ -717,7 +701,7 @@ function Workbench({ id }: { id: string }) {
                 onMarkEnd={markEnd}
                 onChangeStart={changeStart}
                 onChangeEnd={changeEnd}
-                onAudition={player.auditionBoundary}
+                onAudition={player.playAt}
                 onSeek={player.seek}
                 wholeFile={wholeFileOffered ? wholeFile : null}
                 onWholeFile={(on) => {
@@ -885,7 +869,7 @@ function Workbench({ id }: { id: string }) {
                       canReview={perms.review}
                       refusal={publishRefusal(item.r, perms, userId)}
                       onPlay={() => playFrom(Number(item.r.start_sec))}
-                      onAudition={player.auditionBoundary}
+                      onAudition={player.playAt}
                       onEdit={() => editRendition(item.r)}
                       onPublish={(on) => void setPublished(item.r, on)}
                     />
@@ -971,9 +955,9 @@ function Workbench({ id }: { id: string }) {
 }
 
 /**
- * One saved segment. The timestamps are controls: each loops a few seconds
- * either side of that cut, which puts the check on the number it affects
- * rather than behind the Edit button.
+ * One saved segment. The timestamps are controls: each plays from that cut,
+ * which puts the check on the number it affects rather than behind the Edit
+ * button.
  */
 function SegmentRow({
   r,
@@ -1053,7 +1037,7 @@ function SegmentRow({
         <span className="shrink-0 text-xs tabular-nums">
           <button
             type="button"
-            title="Play across the start cut"
+            title="Play from the start cut"
             onClick={() => onAudition(startSec)}
             className="rounded px-1 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
           >
@@ -1062,7 +1046,7 @@ function SegmentRow({
           <span className="text-muted-foreground/40">–</span>
           <button
             type="button"
-            title="Play across the end cut"
+            title="Play from the end cut"
             onClick={() => onAudition(endSec)}
             className="rounded px-1 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
           >
