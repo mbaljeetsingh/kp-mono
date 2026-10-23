@@ -37,6 +37,7 @@ import {
   Pause,
   Pencil,
   Play,
+  Plus,
   ScanLine,
   Send,
   Sparkles,
@@ -696,12 +697,48 @@ function Workbench({ id }: { id: string }) {
                 ))}
               </select>
 
-              <Button variant="outline" size="sm" onClick={markStart} className="h-7 text-xs">
-                Mark start
-              </Button>
-              <Button variant="outline" size="sm" onClick={markEnd} className="h-7 text-xs">
-                Mark end
-              </Button>
+              {/* One button that follows the job — start, then end, then the
+                  next one — instead of Mark start / Mark end side by side.
+                  Never on an open row: the bar's marks moved that row's edges,
+                  easy to do while meaning to begin a new segment. Its edges are
+                  the editor's Mark here; whole-file mode has its own offer. */}
+              {editing || wholeFile ? null : start === null ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Start a segment at the playhead ( [ )"
+                  onClick={() => {
+                    markStart();
+                    focusForm();
+                  }}
+                  className="h-7 text-xs"
+                >
+                  <Plus /> Start segment here
+                </Button>
+              ) : end === null ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="End the segment at the playhead ( ] )"
+                  onClick={markEnd}
+                  className="h-7 text-xs"
+                >
+                  End segment here
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Start another segment at the playhead"
+                  onClick={() => {
+                    newForm(position, null);
+                    focusForm();
+                  }}
+                  className="h-7 text-xs"
+                >
+                  <Plus /> New segment here
+                </Button>
+              )}
 
               <span className="ml-auto hidden text-[11px] text-muted-foreground sm:inline">
                 <span className="text-foreground/70">space</span> play ·{' '}
