@@ -796,14 +796,14 @@ function Boundary({
         >
           +1s
         </Button>
-        {/* Looping a few seconds either side is the only way to tell whether a
-            cut actually falls in the gap rather than over a word. */}
+        {/* Hearing the cut is the only way to tell whether it falls in the gap
+            rather than over a word. */}
         <Button
           variant="ghost"
           size="sm"
           disabled={unset}
-          aria-label={`Listen across the ${label.toLowerCase()}`}
-          title={`Listen across the ${label.toLowerCase()}`}
+          aria-label={`Listen from the ${label.toLowerCase()}`}
+          title={`Listen from the ${label.toLowerCase()}`}
           onClick={onAudition}
         >
           <Headphones />

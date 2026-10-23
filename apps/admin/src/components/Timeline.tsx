@@ -124,7 +124,7 @@ export function Timeline({
         'lostpointercapture',
         () => {
           handle.removeEventListener('pointermove', place);
-          // A drag is placed by ear: loop across wherever the handle landed, so
+          // A drag is placed by ear: play from wherever the handle landed, so
           // the very next thing heard is whether the cut falls in the gap.
           if (latest != null && latest !== before) onAudition?.(latest);
         },
