@@ -102,7 +102,11 @@ bucket) and reads everything off that one transcript:
    from vichar and is dropped; the same shabad either side of only weak runs
    is one region.
 3. **Gate**: confidence ≥ 0.6, margin ≥ 0.05 over the runner-up, at least 60 s.
-4. **Edges** placed again from 5 s evidence, grown outward from inside.
+4. **Edges** placed again from 5 s evidence, grown outward from inside, then
+   where a reviewer puts them: the start 1-2 s before the first sung word
+   (past the one- and two-letter text the model writes over harmonium), the
+   end in the quiet gap after the last word rather than cut mid-sound. The end
+   needs the audio's level, so a re-scan fetches the audio again.
 5. **Align** on the draft's span: its confidence is a second gate (below 0.6
    the region is a pointer), its timings are the draft's `line_timings`.
 
@@ -158,6 +162,24 @@ when someone asks again.
 Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
 prod's published tags (25 renditions, 17 recordings) against the old sparse
 scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
+
+## Re-place the edges of waiting scan drafts
+
+```bash
+SB_URL=<project>/rest/v1 SB_KEY=<service key> uv run python reedge_drafts.py                       # list what would move
+SB_URL=<project>/rest/v1 SB_KEY=<service key> uv run python reedge_drafts.py --track <id> --apply  # one recording first
+SB_URL=<project>/rest/v1 SB_KEY=<service key> uv run python reedge_drafts.py --apply               # then the rest
+```
+
+One-off, for drafts written before the scan placed edges itself (step 4
+above): moves each untouched waiting draft's start to its first sung word and
+its end into the pause, and re-times its lyrics. Untouched means still
+`shabad_linked` with the edges and shabad its verdict recorded; anything a
+person moved, re-tagged, published or deleted is left alone, as are routine
+banis and drafts align would no longer pass. Dry unless `--apply`. Each
+recording's audio is fetched for the end (`--no-end` moves starts only), and
+a moved draft records `reedged_from` in its verdict, so a second run skips it
+and `scan_draft_outcomes` does not count the move as a reviewer's.
 
 ## Title renditions from their anchor line
 

@@ -90,6 +90,23 @@ MIN_RUN_SEC = 10        # a run shorter than this is noise, not a region
 # outward while it stays >= EDGE_FLOOR with gaps of at most EDGE_GAP s.
 # Chosen on 25 prod renditions: median edge error 19.5 s -> 7.2 s.
 EDGE_SMOOTH, EDGE_FLOOR, EDGE_GAP = 5, 0.60, 10
+# Then placed where a reviewer puts them (place_edges): the start 1-2 s before
+# the first sung word, the end in the pause after the last. The evidence alone
+# started drafts 8-14 s early on ragi duties: over harmonium the model writes
+# "ਕ" or "ਨਾ", which partial_ratio finds inside nearly any line and scores
+# 1.00. So the start walks forward through windows of fewer than
+# SUNG_MIN_CHARS letters once folded (vowel signs and spaces gone: "ਤੇਰਾ ਸਭ
+# ਸਦਕਾ" is 7) — on the 45 eval recordings, under 4 is 36% of the windows
+# before a published start and 8% of those inside the singing, and above it
+# both rise alike — and stops at the first with real text — matching a
+# line or not: simran inside a shabad, or a recording the model hears badly,
+# matches no line well and is still singing. The first word is SUNG_ONSET s
+# before that window's end. At most START_MAX_MOVE s, and never below
+# MIN_DRAFT_SEC. The end moves to the quietest PAUSE_SMOOTH s within END_SNAP
+# (back, forward) of where refine_edges put it, if that is PAUSE_DB below the
+# SINGING_REF s before the window — the gap between shabads, not a cut.
+SUNG_MIN_CHARS, SUNG_ONSET, START_LEAD, START_MAX_MOVE = 4, 3.0, 1.5, 20.0
+END_SNAP, PAUSE_DB, PAUSE_SMOOTH, SINGING_REF = (8.0, 4.0), 10.0, 1.0, 15.0
 # Each shortlisted shabad costs one BaniDB fetch; 8 crowded a real shabad off
 # the list on a prod recording whose shortlist was full of routine banis.
 TOP_CANDIDATES = 16
@@ -223,6 +240,42 @@ def refine_edges(drafts, sids, ev):
     return out
 
 
+def place_edges(drafts, short_w, loud=None):
+    """Each draft's start at its first sung word (less START_LEAD), its end in
+    the pause after its last: what reviewers moved refine_edges' edges to.
+    `loud` is timing.loudness's track level; without it the end stays."""
+    out = []
+    for k, g in enumerate(drafts):
+        t0, t1 = g[0], g[1]
+        lo = out[-1][1] if out else 0.0
+        hi = drafts[k + 1][0] if k + 1 < len(drafts) else float("inf")
+        # Windows from the edge on: past the junk to the first real text.
+        ws = [w for w in short_w
+              if t0 - 2 <= w["start"] <= t0 + START_MAX_MOVE]
+        real = next((i for i, w in enumerate(ws)
+                     if len(align.fold(w["text"]).replace(" ", ""))
+                     >= SUNG_MIN_CHARS), None)
+        if real:  # not None, not 0: the edge already sits on singing
+            t0 = min(max(ws[real]["end"] - SUNG_ONSET - START_LEAD, t0, lo),
+                     t0 + START_MAX_MOVE, max(t1 - MIN_DRAFT_SEC, t0))
+        if loud is not None:
+            # Never back past MIN_DRAFT_SEC: a draft the snap shrank under it
+            # would fail is_draft and drop out as a pointer.
+            a = max(t1 - END_SNAP[0], t0 + MIN_DRAFT_SEC)
+            b = min(t1 + END_SNAP[1], hi - 1, len(loud) * timing.LOUD_HOP)
+            i, j = int(a / timing.LOUD_HOP), int(b / timing.LOUD_HOP)
+            n = int(PAUSE_SMOOTH / timing.LOUD_HOP)
+            if j - i >= n and i > 0:
+                level = np.convolve(loud[i:j], np.ones(n) / n, "valid")
+                q = int(np.argmin(level))
+                singing = float(np.median(
+                    loud[max(i - int(SINGING_REF / timing.LOUD_HOP), 0):i]))
+                if singing - level[q] >= PAUSE_DB:
+                    t1 = a + (q + n / 2) * timing.LOUD_HOP
+        out.append((float(t0), float(t1)) + tuple(g[2:]))
+    return out
+
+
 def verdict(g, align_conf):
     """Would this draft publish itself? Every gate, with margin to spare."""
     t0, t1, _, conf, margin = g
@@ -230,15 +283,17 @@ def verdict(g, align_conf):
             and t1 - t0 >= AUTO_MIN_SEC and align_conf >= AUTO_MIN_ALIGN)
 
 
-def find_drafts(sids, ev, long_w, short_w, shabads, floor=FLOOR):
+def find_drafts(sids, ev, long_w, short_w, shabads, floor=FLOOR, loud=None):
     """Everything the scan concludes about one recording: [(region, align
     confidence or None, timings)] — a draft carries its align result, a
     pointer (below either gate) carries None and no timings."""
     regions = merge_regions(regions_from(sids, ev, floor))
-    drafts = refine_edges([g for g in regions if is_draft(g)], sids, ev)
+    drafts = place_edges(
+        refine_edges([g for g in regions if is_draft(g)], sids, ev),
+        short_w, loud)
     out = []
     for g in drafts:
-        # The gate again, on the edges refine_edges placed: a region whose
+        # The gate again, on the edges place_edges placed: a region whose
         # singing is strong for 20 of its 65 s is not a 60-second draft.
         if not is_draft(g):
             out.append((g, None, []))
@@ -532,7 +587,11 @@ def scan(track_id, drafts, owner=None):
     shabads = shortlist(long_w)
     n = int(max(w["end"] for w in long_w)) + 1
     sids, ev = evidence(long_w, short_w, shabads, n)
-    found = find_drafts(sids, ev, long_w, short_w, shabads)
+    # The end snap's audio only when drafts are written: a preview of a
+    # stored transcript should not wait on an hour's download from sgpc.net.
+    found = find_drafts(sids, ev, long_w, short_w, shabads,
+                        loud=timing.loudness(track_id, track["url"]) if drafts
+                        else None)
     for (t0, t1, sid, conf, margin), a, _ in found:
         print(f"  {t0:6.0f}-{t1:6.0f}s  shabad {sid}  conf {conf:.2f}  "
               f"margin {margin:+.2f}"
