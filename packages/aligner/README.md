@@ -102,7 +102,11 @@ bucket) and reads everything off that one transcript:
    from vichar and is dropped; the same shabad either side of only weak runs
    is one region.
 3. **Gate**: confidence ≥ 0.6, margin ≥ 0.05 over the runner-up, at least 60 s.
-4. **Edges** placed again from 5 s evidence, grown outward from inside.
+4. **Edges** placed again from 5 s evidence, grown outward from inside, then
+   where a reviewer puts them: the start 1-2 s before the first sung word
+   (past the one- and two-letter text the model writes over harmonium), the
+   end in the quiet gap after the last word rather than cut mid-sound. The end
+   needs the audio's level, so a re-scan fetches the audio again.
 5. **Align** on the draft's span: its confidence is a second gate (below 0.6
    the region is a pointer), its timings are the draft's `line_timings`.
 
