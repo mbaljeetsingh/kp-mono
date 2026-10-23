@@ -440,20 +440,23 @@ function Workbench({ id }: { id: string }) {
           e.preventDefault();
           player.cycleSpeed(-1);
           break;
-        // Brackets, as every editor that trims media uses them.
+        // Brackets, as every editor that trims media uses them. Not on an
+        // open row, as the bar's button isn't: a `[` meant for the next
+        // shabad moved the open row's start instead. Its edges are the
+        // editor's Mark here and ±1s.
         case '[':
           e.preventDefault();
-          markStart();
+          if (!editing) markStart();
           break;
         case ']':
           e.preventDefault();
-          markEnd();
+          if (!editing) markEnd();
           break;
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hasRecording, player, markStart, markEnd]);
+  }, [hasRecording, player, markStart, markEnd, editing]);
 
   /* ── What is done and what is left ────────────────────────────────────── */
 
@@ -700,11 +703,15 @@ function Workbench({ id }: { id: string }) {
                 ))}
               </select>
 
-              {/* One button that follows the job — start, then end, then the
-                  next one — instead of Mark start / Mark end side by side.
-                  Never on an open row: the bar's marks moved that row's edges,
-                  easy to do while meaning to begin a new segment. Its edges are
-                  the editor's Mark here; whole-file mode has its own offer. */}
+              {/* One button that follows the job — start, then end — instead
+                  of Mark start / Mark end side by side. Never on an open row:
+                  the bar's marks moved that row's edges, easy to do while
+                  meaning to begin a new segment; its edges are the editor's
+                  Mark here. Whole-file mode has its own offer. With both edges
+                  set it moves the end, never starts over: that state is always
+                  an unsaved form (a save rolls the start on and clears the
+                  end), and a "New segment here" there threw away the name and
+                  shabad typed into it. Starting over is the editor's Cancel. */}
               {editing || wholeFile ? null : start === null ? (
                 <Button
                   variant="outline"
@@ -718,7 +725,7 @@ function Workbench({ id }: { id: string }) {
                 >
                   <Plus /> Start segment here
                 </Button>
-              ) : end === null ? (
+              ) : (
                 <Button
                   variant="outline"
                   size="sm"
@@ -726,20 +733,7 @@ function Workbench({ id }: { id: string }) {
                   onClick={markEnd}
                   className="h-7 text-xs"
                 >
-                  End segment here
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  title="Start another segment at the playhead"
-                  onClick={() => {
-                    newForm(position, null);
-                    focusForm();
-                  }}
-                  className="h-7 text-xs"
-                >
-                  <Plus /> New segment here
+                  {end === null ? 'End segment here' : 'Move end here'}
                 </Button>
               )}
 
