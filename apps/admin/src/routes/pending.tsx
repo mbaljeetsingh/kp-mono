@@ -11,11 +11,14 @@ import {
   setRenditionStatus,
   usePending,
   usePendingCount,
+  usePendingTabCounts,
   type PendingRendition,
+  type PendingTab,
 } from '@kp/api';
 import { hasReachedEnd, segmentStart, toPlayable, type Playable } from '@kp/core';
 import { Badge } from '@kp/ui/badge';
 import { Button } from '@kp/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@kp/ui/tabs';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Check, Pause, Play, Trash2 } from 'lucide-react';
@@ -27,6 +30,27 @@ import { supabase } from '~/lib/supabase';
 import { clock } from '~/lib/utils';
 
 const PREVIEW_FAILED = 'Could not play that preview.';
+
+const TABS: { tab: PendingTab; label: string; title: string; empty: string }[] = [
+  {
+    tab: 'people',
+    label: 'People',
+    title: 'Drafts people made by ear',
+    empty: 'No hand-made drafts waiting.',
+  },
+  {
+    tab: 'scan',
+    label: 'Scan',
+    title: 'Drafts the scanner made — check the edges',
+    empty: 'No scan drafts waiting.',
+  },
+  {
+    tab: 'mine',
+    label: 'Yours',
+    title: 'Drafts you made by ear',
+    empty: 'None of your own drafts are waiting.',
+  },
+];
 
 /**
  * Stops the preview and lets go of its recording. Pausing alone left the
@@ -42,8 +66,19 @@ function release(node: HTMLAudioElement) {
 
 export function PendingRoute() {
   const { session, can } = useSession();
-  const query = usePending(supabase, Boolean(session));
+  const userId = session?.user.id ?? '';
   const count = usePendingCount(supabase, Boolean(session));
+  const tabCounts = usePendingTabCounts(supabase, userId, Boolean(session));
+  /*
+   * People first — the drafts that need a person's ear, and the ones a flood
+   * of scan drafts used to bury — unless there are none and the scan has some:
+   * opening on an empty list read as "nothing to review".
+   */
+  const [chosenTab, setChosenTab] = useState<PendingTab | null>(null);
+  const tab: PendingTab =
+    chosenTab ??
+    (tabCounts.data && !tabCounts.data.people && tabCounts.data.scan ? 'scan' : 'people');
+  const query = usePending(supabase, tab, userId, Boolean(userId));
   const queryClient = useQueryClient();
 
   const [error, setError] = useState<string | null>(null);
@@ -182,11 +217,28 @@ export function PendingRoute() {
         </p>
       ) : null}
 
+      <Tabs value={tab} onValueChange={(v) => setChosenTab(v as PendingTab)}>
+        <TabsList>
+          {TABS.map((t) => (
+            <TabsTrigger key={t.tab} value={t.tab} title={t.title} className="px-3">
+              {t.label}
+              {tabCounts.data ? (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {tabCounts.data[t.tab]}
+                </span>
+              ) : null}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
       <LoadStatus what="the review queue" queries={[query]} />
 
       {query.data !== undefined && !rows.length ? (
         <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-          Nothing waiting. Every proposed segment has been dealt with.
+          {count.data === 0
+            ? 'Nothing waiting. Every proposed segment has been dealt with.'
+            : TABS.find((t) => t.tab === tab)?.empty}
         </p>
       ) : null}
 

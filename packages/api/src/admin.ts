@@ -598,6 +598,28 @@ export interface PendingRendition extends Rendition {
   } | null;
 }
 
+/**
+ * Which part of the review queue.
+ *
+ * By where a draft came from, not only by owner: a scan draft is stamped with
+ * whoever requested the scan, so for an admin "yours" was mostly the scanner's
+ * work and buried the drafts people made by ear. People is everyone's
+ * hand-made drafts; Scan is the scanner's; Yours is your own hand-made ones.
+ */
+export type PendingTab = 'people' | 'scan' | 'mine';
+
+/** The builder methods the tabs filter with, so one function serves the list and the count. */
+interface Filterable<T> {
+  eq(column: string, value: string): T;
+  neq(column: string, value: string): T;
+}
+
+function inTab<T extends Filterable<T>>(query: T, tab: PendingTab, userId: string): T {
+  if (tab === 'scan') return query.eq('source', 'scan');
+  const handMade = query.neq('source', 'scan');
+  return tab === 'mine' ? handMade.eq('created_by', userId) : handMade;
+}
+
 /** Where the next page of the review queue starts: just after this row. */
 export interface PendingCursor {
   created_at: string;
@@ -619,12 +641,18 @@ export interface PendingCursor {
  */
 export async function fetchPending(
   client: KpClient,
+  tab: PendingTab,
+  userId: string,
   after: PendingCursor | null = null
 ): Promise<{ items: PendingRendition[]; hasMore: boolean }> {
-  let query = client
-    .from('renditions')
-    .select('*, tracks(artist_dir, date, url, raw_filename)')
-    .neq('status', 'published');
+  let query = inTab(
+    client
+      .from('renditions')
+      .select('*, tracks(artist_dir, date, url, raw_filename)')
+      .neq('status', 'published'),
+    tab,
+    userId
+  );
   if (after) {
     // Quoted: a timestamptz carries ':' and '+', and PostgREST reads an
     // unquoted value in or() up to the next delimiter.
@@ -644,20 +672,28 @@ export async function fetchPending(
   };
 }
 
-/** How many are waiting — the header's number, not the length of the pages loaded so far. */
-export async function fetchPendingCount(client: KpClient): Promise<number> {
-  const { count, error } = await client
+/**
+ * How many are waiting — the header's number, or a tab's, not the length of
+ * the pages loaded so far.
+ */
+export async function fetchPendingCount(
+  client: KpClient,
+  tab: PendingTab | null = null,
+  userId = ''
+): Promise<number> {
+  const all = client
     .from('renditions')
     .select('id', { count: 'exact', head: true })
     .neq('status', 'published');
+  const { count, error } = await (tab ? inTab(all, tab, userId) : all);
   if (error) throw toError(error);
   return count ?? 0;
 }
 
-export function usePending(client: KpClient, enabled: boolean) {
+export function usePending(client: KpClient, tab: PendingTab, userId: string, enabled: boolean) {
   return useInfiniteQuery({
-    queryKey: ['pending', 'list'],
-    queryFn: ({ pageParam }) => fetchPending(client, pageParam),
+    queryKey: ['pending', 'list', tab, userId],
+    queryFn: ({ pageParam }) => fetchPending(client, tab, userId, pageParam),
     initialPageParam: null as PendingCursor | null,
     getNextPageParam: (last) => {
       const end = last.items.at(-1);
@@ -676,6 +712,20 @@ export function usePendingCount(client: KpClient, enabled: boolean) {
     queryKey: ['pending', 'count'],
     queryFn: () => fetchPendingCount(client),
     enabled,
+  });
+}
+
+/** Each tab's count, for the labels. Under ['pending'] with the rest. */
+export function usePendingTabCounts(client: KpClient, userId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['pending', 'tab-counts', userId],
+    queryFn: async (): Promise<Record<PendingTab, number>> => {
+      const [people, scan, mine] = await Promise.all(
+        (['people', 'scan', 'mine'] as const).map((tab) => fetchPendingCount(client, tab, userId))
+      );
+      return { people, scan, mine };
+    },
+    enabled: enabled && Boolean(userId),
   });
 }
 

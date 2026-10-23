@@ -307,6 +307,8 @@ describe('acceptScanDrafts', () => {
 });
 
 describe('fetchPending', () => {
+  const ME = 'user-1';
+
   /** Records the chain; `limit` ends it, the way PostgREST resolves it. */
   function fakeClient(result: { data: unknown[] | null; error: unknown }) {
     const calls: string[] = [];
@@ -317,6 +319,10 @@ describe('fetchPending', () => {
       },
       neq: (col: string, value: string) => {
         calls.push(`neq ${col} ${value}`);
+        return builder;
+      },
+      eq: (col: string, value: string) => {
+        calls.push(`eq ${col} ${value}`);
         return builder;
       },
       or: (filter: string) => {
@@ -345,11 +351,12 @@ describe('fetchPending', () => {
 
   it('starts at the oldest draft, with id breaking ties', async () => {
     const { client, calls } = fakeClient({ data: [], error: null });
-    await fetchPending(client);
+    await fetchPending(client, 'people', ME);
     expect(calls).toEqual([
       'from renditions',
       'select *, tracks(artist_dir, date, url, raw_filename)',
       'neq status published',
+      'neq source scan',
       'order created_at asc',
       'order id asc',
       `limit ${PAGE_SIZE}`,
@@ -358,7 +365,10 @@ describe('fetchPending', () => {
 
   it('continues just after the last row, not at an offset a removal would shift', async () => {
     const { client, calls } = fakeClient({ data: full, error: null });
-    await fetchPending(client, { created_at: '2026-10-01T12:00:00.5+00:00', id: 'abc' });
+    await fetchPending(client, 'people', ME, {
+      created_at: '2026-10-01T12:00:00.5+00:00',
+      id: 'abc',
+    });
     expect(calls).toContain(
       'or created_at.gt."2026-10-01T12:00:00.5+00:00",' +
         'and(created_at.eq."2026-10-01T12:00:00.5+00:00",id.gt.abc)'
@@ -366,15 +376,33 @@ describe('fetchPending', () => {
   });
 
   it('has more after a full page and stops after a short one', async () => {
-    expect((await fetchPending(fakeClient({ data: full, error: null }).client)).hasMore).toBe(true);
-    const short = await fetchPending(fakeClient({ data: full.slice(1), error: null }).client);
+    expect(
+      (await fetchPending(fakeClient({ data: full, error: null }).client, 'people', ME)).hasMore
+    ).toBe(true);
+    const short = await fetchPending(
+      fakeClient({ data: full.slice(1), error: null }).client,
+      'people',
+      ME
+    );
     expect(short.hasMore).toBe(false);
     expect(short.items).toHaveLength(PAGE_SIZE - 1);
   });
 
+  it('splits scan drafts from hand-made ones, and yours from those', async () => {
+    const scan = fakeClient({ data: [], error: null });
+    await fetchPending(scan.client, 'scan', ME);
+    expect(scan.calls).toContain('eq source scan');
+    expect(scan.calls).not.toContain(`eq created_by ${ME}`);
+    // Hand-made only: a scan draft carries the requester's id, and those were
+    // what flooded an admin's "yours".
+    const mine = fakeClient({ data: [], error: null });
+    await fetchPending(mine.client, 'mine', ME);
+    expect(mine.calls).toEqual(expect.arrayContaining(['neq source scan', `eq created_by ${ME}`]));
+  });
+
   it('throws the server error as an Error', async () => {
     const { client } = fakeClient({ data: null, error: { code: 'PGRST000', message: 'down' } });
-    await expect(fetchPending(client)).rejects.toBeInstanceOf(Error);
+    await expect(fetchPending(client, 'people', ME)).rejects.toBeInstanceOf(Error);
   });
 });
 
