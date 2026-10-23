@@ -77,7 +77,13 @@ SETTLED = 0.5           # this much inside published renditions: not suggested
 # right, but taggers rarely make renditions of them: as drafts they only
 # fill Review, and each one deleted would count as a rejection in the
 # auto-publish trial. So they are pointed at, never drafted.
-ROUTINE = {27, 39, 40, 333375, 4234}
+# The short pieces sung around a shabad belong here too, added from prod's
+# first 35 reviewed drafts (October 2026), where they were 8 of 12 rejections,
+# heard right (align up to 0.93) and published nowhere: the pauri "vadee hoo
+# vadaa apaar teraa maratabaa" (3571, rejected on four recordings), the salok
+# "dandaut bandan anik baar" (816), and Salok Sehskritee's "he praan naath
+# gobindah" (4949) and "charanaarabind bhajanan" (4933).
+ROUTINE = {27, 39, 40, 333375, 4234, 3571, 816, 4949, 4933}
 REGION_SMOOTH = 61      # seconds of evidence averaged to find regions
 MIN_RUN_SEC = 10        # a run shorter than this is noise, not a region
 # Edges, placed again per draft: evidence smoothed over EDGE_SMOOTH s, walked
