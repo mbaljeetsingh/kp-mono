@@ -786,7 +786,7 @@ function Workbench({ id }: { id: string }) {
                       key={`${f.shabad_id}-${f.start}`}
                       f={f}
                       onPlay={() => playFrom(Math.max(0, f.start - 5))}
-                      onAudition={player.auditionBoundary}
+                      onAudition={player.playAt}
                       onTag={() => tagPointer(f)}
                     />
                   ))}
@@ -806,7 +806,7 @@ function Workbench({ id }: { id: string }) {
                         key={`${f.shabad_id}-${f.start}`}
                         f={f}
                         onPlay={() => playFrom(Math.max(0, f.start - 5))}
-                        onAudition={player.auditionBoundary}
+                        onAudition={player.playAt}
                         onTag={() => tagPointer(f)}
                       />
                     ))}
@@ -1167,7 +1167,7 @@ function SegmentRow({
   );
 }
 
-/** A scan pointer: its times play across each edge, as a segment row's do. */
+/** A scan pointer: its times play from that second, as a segment row's do. */
 function PointerRow({
   f,
   onPlay,
@@ -1198,7 +1198,7 @@ function PointerRow({
       <span className="shrink-0 text-xs tabular-nums">
         <button
           type="button"
-          title="Play across the start"
+          title="Play from the start"
           onClick={() => onAudition(f.start)}
           className="rounded px-1 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
         >
@@ -1207,7 +1207,7 @@ function PointerRow({
         <span className="text-muted-foreground/40">–</span>
         <button
           type="button"
-          title="Play across the end"
+          title="Play from the end"
           onClick={() => onAudition(f.end)}
           className="rounded px-1 py-0.5 text-muted-foreground hover:bg-background hover:text-foreground"
         >
