@@ -224,7 +224,12 @@ const { rows: tracks, jsonbCols: tracksJsonb } = await fetchTable(
   `,
   [RAGIWISE_PER_ARTIST, PURATAN_PER_ARTIST, DAYWISE_NEWEST, kept]
 );
-for (const t of tracks) delete t.rn;
+for (const t of tracks) {
+  delete t.rn;
+  // Whoever marked it fully tagged: a real account, and a profile the seed
+  // does not have — left as is, the tracks insert fails its foreign key.
+  if (t.tagged_done_by) t.tagged_done_by = ADMIN_ID;
+}
 
 const { rows: artists, jsonbCols: artistsJsonb } = await fetchTable(
   'select * from artists order by name'
