@@ -169,8 +169,11 @@ describe('gapAt', () => {
 });
 
 describe('zoomWindow', () => {
-  it('pads both sides', () => {
-    expect(zoomWindow({ start: 100, end: 200 }, 1000, 30)).toEqual({ start: 70, end: 230 });
+  it('pads a short cut by the minimum', () => {
+    expect(zoomWindow({ start: 100, end: 140 }, 1000, 30)).toEqual({ start: 70, end: 170 });
+  });
+  it('pads a long cut by half its length', () => {
+    expect(zoomWindow({ start: 100, end: 200 }, 1000, 30)).toEqual({ start: 50, end: 250 });
   });
   it('stays inside the recording', () => {
     expect(zoomWindow({ start: 10, end: 990 }, 1000, 30)).toEqual({ start: 0, end: 1000 });

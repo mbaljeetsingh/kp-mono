@@ -124,14 +124,17 @@ export const STRIP_HOLD_SECONDS = 15;
 
 /**
  * The stretch of the recording the timeline spans when zoomed to one segment:
- * its saved edges plus `pad` seconds either side, kept inside the recording.
- * Saved edges, not the ones being dragged, so the scale holds still mid-drag.
+ * its saved edges plus half its length either side — at least `minPad`
+ * seconds — kept inside the recording. Half the length, so a long cut still
+ * has room for an edge to be pulled out. Saved edges, not the ones being
+ * dragged, so the scale holds still mid-drag.
  */
 export function zoomWindow(
   seg: Pick<TimelineSegment, 'start' | 'end'>,
   duration: number,
-  pad: number
+  minPad: number
 ): { start: number; end: number } {
+  const pad = Math.max(minPad, (seg.end - seg.start) / 2);
   return { start: Math.max(0, seg.start - pad), end: Math.min(duration, seg.end + pad) };
 }
 

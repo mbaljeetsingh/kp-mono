@@ -53,14 +53,17 @@ interface Props {
    * edges, never the live ones, so the scale holds still while a handle is
    * dragged.
    */
-  window?: { start: number; end: number } | null;
+  view?: { start: number; end: number } | null;
   onSeek: (seconds: number) => void;
   onPointer?: (pointer: TimelinePointer) => void;
   onChangeStart?: (seconds: number) => void;
   onChangeEnd?: (seconds: number) => void;
   /** A boundary placed by drag is worth hearing immediately. */
   onAudition?: (seconds: number) => void;
-  /** A handle went down: zoomed in the playhead sweeps past fast, so the caller can hold playback. */
+  /**
+   * A handle started moving, zoomed in: the playhead sweeps past fast there,
+   * so the caller can hold playback. Not on a bare click on a handle.
+   */
   onDragStart?: () => void;
 }
 
@@ -72,7 +75,7 @@ export function Timeline({
   end,
   focusId = null,
   pointers = [],
-  window: view = null,
+  view = null,
   onSeek,
   onPointer,
   onChangeStart,
@@ -298,12 +301,24 @@ export function Timeline({
         </div>
 
         {/* Playhead over everything. */}
+        {/* Zoomed in, the playhead can be off the bar — skipped past a held
+            segment, or back before a cut's start. Not drawn at the clamped
+            edge, which would read as a position; said at that edge instead. */}
         {position >= from && position <= to ? (
           <div
             className="pointer-events-none absolute -top-0.5 -bottom-0.5 z-20 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
             style={{ left: `${playPct}%` }}
           />
-        ) : null}
+        ) : (
+          <div
+            className={cn(
+              'pointer-events-none absolute top-1/2 z-20 -translate-y-1/2 rounded bg-foreground px-1 text-[10px] leading-4 tabular-nums text-background',
+              position < from ? 'left-0.5' : 'right-0.5'
+            )}
+          >
+            {position < from ? `‹ ${clock(position)}` : `${clock(position)} ›`}
+          </div>
+        )}
 
         {/*
          * The readout. Above the axis rather than inside a band, because a

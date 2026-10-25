@@ -112,7 +112,7 @@ const SHORTCUTS: [string, string][] = [
 /** How long a deleted draft of your own waits for Undo before it really goes. */
 const UNDO_MS = 6000;
 
-/** Least seconds of the recording shown either side of the segment when the bar is zoomed; a long cut gets half its length, so an edge has room to be pulled out. */
+/** Least seconds shown either side of a cut when the bar is zoomed (`zoomWindow`). */
 const ZOOM_PAD = 30;
 
 /** Where this browser keeps whether the bar is zoomed to the cut. */
@@ -550,27 +550,37 @@ function Workbench({ id }: { id: string }) {
   /*
    * While marking, the furthest the playhead has got: the window grows from
    * it, so seeking back to re-hear a line does not shrink the bar under the
-   * click. Adjusted during render, as `held` is.
+   * click. Kept with the start it belongs to: `[` pressed again mid-mark is a
+   * new cut, and the old reach would have kept its wider window. Adjusted
+   * during render, as `held` is.
    */
-  const [reach, setReach] = useState(0);
-  if (marking && position > reach) setReach(position);
-  if (!marking && reach !== 0) setReach(0);
+  const [reach, setReach] = useState<{ from: number | null; at: number }>({ from: null, at: 0 });
+  if (marking && start !== null && reach.from !== start) setReach({ from: start, at: position });
+  else if (marking && position > reach.at) setReach({ from: reach.from, at: position });
+  if (!marking && reach.from !== null) setReach({ from: null, at: 0 });
   /*
-   * A finished cut waiting for its shabad is framed once, when it is finished:
-   * its edges are still draggable here, and a window built from them would
-   * re-fit under the drag just as a segment's did.
+   * A finished cut waiting for its shabad is framed when it is finished: its
+   * edges are still draggable here, and a window built from them would re-fit
+   * under the drag just as a segment's did. A drag cannot leave the window, so
+   * an edge outside it means the cut itself changed — `[` after a skip, or a
+   * new cut from a suggestion — and that is re-framed.
    */
   const [namingView, setNamingView] = useState<{ start: number; end: number } | null>(null);
-  if (naming && !namingView && start !== null && end !== null)
-    setNamingView(zoomWindow({ start, end }, duration, Math.max(ZOOM_PAD, (end - start) / 2)));
+  if (
+    naming &&
+    start !== null &&
+    end !== null &&
+    (!namingView || start < namingView.start || end > namingView.end)
+  )
+    setNamingView(zoomWindow({ start, end }, duration, ZOOM_PAD));
   if (!naming && namingView) setNamingView(null);
   const view =
     marking && start !== null
-      ? markingWindow(start, reach, duration, ZOOM_PAD)
+      ? markingWindow(start, reach.at, duration, ZOOM_PAD)
       : naming
         ? namingView
         : saved
-          ? zoomWindow(saved, duration, Math.max(ZOOM_PAD, (saved.end - saved.start) / 2))
+          ? zoomWindow(saved, duration, ZOOM_PAD)
           : null;
   const canZoom = view !== null;
   const barWindow = zoomed ? view : null;
@@ -749,7 +759,9 @@ function Workbench({ id }: { id: string }) {
         else if (focus) hereEdge('end');
         break;
       case 'f':
-        if (canZoom) toggleZoom();
+        // Not with a modifier: Cmd/Ctrl+F is the browser's find, and toggled
+        // the zoom — and saved it — on its way past.
+        if (canZoom && !e.metaKey && !e.ctrlKey && !e.altKey) toggleZoom();
         break;
       case ',':
         step(-1);
@@ -1296,7 +1308,7 @@ function Workbench({ id }: { id: string }) {
                   end={handles?.end ?? null}
                   focusId={focusId}
                   pointers={pointers}
-                  window={barWindow}
+                  view={barWindow}
                   onSeek={seekBar}
                   onPointer={nextFinding}
                   onChangeStart={handles?.onStart}
