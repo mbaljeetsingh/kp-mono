@@ -493,27 +493,16 @@ function Workbench({ id }: { id: string }) {
    */
   const [held, setHeld] = useState<string | null>(null);
   /*
-   * A segment whose edge was just played or nudged from the strip. Its end cut
-   * is often the next shabad's start, so playing it lands inside the
-   * neighbour — and the strip would let go of the edge being judged. Kept
-   * until the playhead is clear of it, or another segment is chosen.
+   * The segment the tagger chose: a row clicked, an edge played, nudged or
+   * set. Setting an end by ear means listening past it, often into the next
+   * draft, and a hold measured in seconds let go mid-judgement — so a choice
+   * stays until it is undone: Esc, a seek on the bar, a gap, or another row.
    */
-  const [heard, setHeard] = useState<string | null>(null);
-  const heardSeg = heard ? segments.find((s) => s.id === heard) : undefined;
-  const heardHolds =
-    heardSeg !== undefined &&
-    position >= heardSeg.start - STRIP_HOLD_SECONDS &&
-    position <= heardSeg.end + STRIP_HOLD_SECONDS;
-  if (heard && !heardHolds) setHeard(null);
+  const [chosen, setChosen] = useState<string | null>(null);
   const focusId =
     marking || naming
       ? null
-      : stripSegment(
-          segments,
-          position,
-          held,
-          moved?.id ?? renaming ?? (heardHolds ? heard : null)
-        );
+      : stripSegment(segments, position, held, moved?.id ?? renaming ?? chosen);
   if (focusId !== held && !marking && !naming) setHeld(focusId);
   const focus = focusId ? (byId.get(focusId) ?? null) : null;
   const focusSeg = focusId ? segments.find((s) => s.id === focusId) : undefined;
@@ -590,7 +579,7 @@ function Workbench({ id }: { id: string }) {
   /** Jump to a segment and play it, the strip going with it. */
   const goTo = useCallback(
     (r: Rendition) => {
-      setHeard(null);
+      setChosen(r.id);
       setHeld(r.id);
       playFrom(Number(r.start_sec));
     },
@@ -641,7 +630,7 @@ function Workbench({ id }: { id: string }) {
       const same = next.start === Number(focus.start_sec) && next.end === Number(focus.end_sec);
       setMoved(same ? null : { id: focus.id, ...next });
       setStripError(null);
-      setHeard(focus.id);
+      setChosen(focus.id);
       player.playAt(edge === 'start' ? next.start : next.end);
     },
     [marking, naming, start, end, focus, focusSeg, duration, player]
@@ -671,7 +660,7 @@ function Workbench({ id }: { id: string }) {
       };
       const same = next.start === Number(focus.start_sec) && next.end === Number(focus.end_sec);
       setMoved(same ? null : { id: focus.id, ...next });
-      setHeard(focus.id);
+      setChosen(focus.id);
       setStripError(null);
     },
     [focus, focusSeg, canEdit, position]
@@ -688,6 +677,19 @@ function Workbench({ id }: { id: string }) {
     canEdit(focus) &&
     position >= focusSeg.start &&
     position < focusSeg.end;
+  /**
+   * Before a chosen segment: `[` is its start, as `]` after it is its end —
+   * a start heard early often lands in the row before, and a new cut there
+   * would have been the wrong guess.
+   */
+  const beforeChosen =
+    !marking &&
+    !naming &&
+    focus !== null &&
+    focusSeg !== undefined &&
+    chosen === focus.id &&
+    canEdit(focus) &&
+    position < focusSeg.start;
 
   const dragEdge = useCallback(
     (edge: 'start' | 'end', v: number) => {
@@ -746,10 +748,11 @@ function Workbench({ id }: { id: string }) {
       // Brackets, as every editor that trims media uses them. Inside the
       // strip's segment they move its edges; anywhere else `[` begins a
       // new one and `]` ends it — or, held after its end, stretches the
-      // strip's segment out to the playhead.
+      // strip's segment out to the playhead, as `[` before a chosen one
+      // stretches its start back.
       case '[':
         e.preventDefault();
-        if (insideFocus) hereEdge('start');
+        if (insideFocus || beforeChosen) hereEdge('start');
         // Not over unsaved edges: markStart drops them, and the strip hides
         // New here for the same reason — the key skipped that guard.
         else if (moved) setStripError('Save or undo the moved edges first.');
@@ -774,6 +777,7 @@ function Workbench({ id }: { id: string }) {
       case 'Escape':
         if (moved) setMoved(null);
         else if (marking || naming) newForm(null, null);
+        else setChosen(null);
         break;
     }
   }
@@ -897,7 +901,7 @@ function Workbench({ id }: { id: string }) {
     if (ok && made.row) {
       newForm(null, null);
       setHeld(made.row.id);
-      setHeard(made.row.id);
+      setChosen(made.row.id);
     }
   }
 
@@ -1107,14 +1111,15 @@ function Workbench({ id }: { id: string }) {
       hint: hintFinding
         ? { name: hintFinding.name, onUse: () => applyScanHint(r, hintFinding) }
         : null,
-      // Only once playback has run on past it by itself: a cut being heard —
-      // its end time clicked, which lands the playhead exactly on the end —
-      // is a cut being judged, not the next shabad starting.
+      // Only once playback has run on past it by itself, or well past a
+      // chosen one: a cut being heard — its end time clicked, which lands the
+      // playhead exactly on the end — is a cut being judged, not the next
+      // shabad starting.
       timed: Boolean(r.line_timings?.length),
       offerNew:
         can['renditions.propose'] &&
         (position < focusSeg.start || position >= focusSeg.end) &&
-        heard !== r.id,
+        (chosen !== r.id || position > focusSeg.end + STRIP_HOLD_SECONDS),
       onDelete: canDeleteRendition(
         r,
         { propose: can['renditions.propose'], delete: can['renditions.delete'] },
@@ -1166,20 +1171,20 @@ function Workbench({ id }: { id: string }) {
   const picking = can['renditions.propose'] && naming && !formShown;
   const renamingRow = renaming ? (byId.get(renaming) ?? null) : null;
 
-  /** An edge heard from the strip keeps the strip on its segment (see `heard`). */
+  /** An edge heard from the strip keeps the strip on its segment (see `chosen`). */
   const hear = (at: number) => {
-    if (focus && !marking) setHeard(focus.id);
+    if (focus && !marking) setChosen(focus.id);
     player.playAt(at);
   };
 
   /** A seek on the bar is the tagger choosing a place: the playhead decides again. */
   const seekBar = (at: number) => {
-    setHeard(null);
+    setChosen(null);
     player.seek(at);
   };
 
   const nextFinding = (f: TimelinePointer) => {
-    setHeard(null);
+    setChosen(null);
     setHeld(null);
     playFrom(Math.max(0, f.start - 5));
   };
@@ -1527,7 +1532,7 @@ function Workbench({ id }: { id: string }) {
                     <button
                       type="button"
                       onClick={() => {
-                        setHeard(null);
+                        setChosen(null);
                         setHeld(null);
                         playFrom(item.g.start);
                       }}
