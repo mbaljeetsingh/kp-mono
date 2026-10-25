@@ -13,7 +13,8 @@
  */
 import { clock } from '@kp/core';
 import { Button } from '@kp/ui/button';
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { ButtonGroup } from '@kp/ui/button-group';
+import { ArrowLeftToLine, ArrowRightToLine, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { Kbd } from '~/components/Kbd';
@@ -218,7 +219,7 @@ export function SegmentStrip({
                   : 'bg-muted-foreground'
             )}
           />
-          <span className="flex min-w-0 flex-1 basis-40 flex-col">
+          <span className="flex min-w-0 flex-1 basis-28 flex-col">
             {/* Just the name: the lyrics panel below has Change shabad, and a
                 name that opened a search when clicked asked "which shabad?"
                 of someone only checking which one they were on. */}
@@ -411,58 +412,72 @@ function Edge({
   onHere?: (() => void) | null;
   onHear: (at: number) => void;
 }) {
-  const step =
-    'size-11 rounded-md text-base text-muted-foreground hover:bg-accent hover:text-foreground sm:size-8';
+  const start = label === 'Start';
+  const key = start ? '[' : ']';
+  /*
+   * 44px under the finger; with a mouse 32px tall to match Publish, 28px wide
+   * so both edges and the actions fit one line beside the sidebar.
+   */
+  const step = 'size-11 text-base text-muted-foreground sm:h-8 sm:w-7';
+  /*
+   * Set to the playhead. It was a dot over the time — the one control that
+   * does what the `[` and `]` keys do, and the one nobody found. An icon, not
+   * words: with words the strip ran onto a second line; the tooltip and the
+   * label say it instead. Each sits on the outside of its group, pointing the
+   * way its edge faces, as the handles do on the bar.
+   */
+  const here = onHere ? (
+    <Button
+      variant="outline"
+      onClick={onHere}
+      aria-label={`Move the ${label.toLowerCase()} to the playhead`}
+      title={`Move the ${label.toLowerCase()} to the playhead ( ${key} )`}
+      className={step}
+    >
+      {start ? <ArrowLeftToLine /> : <ArrowRightToLine />}
+    </Button>
+  ) : null;
+  /*
+   * One group per edge, so which − belongs to which time is read from the
+   * border rather than worked out from spacing.
+   */
   return (
-    <span className="flex items-center">
+    <ButtonGroup aria-label={label}>
+      {start ? here : null}
       {onNudge ? (
-        <button
-          type="button"
+        <Button
+          variant="outline"
           aria-label={`${label} a second earlier`}
           title={`${label} a second earlier`}
           onClick={() => onNudge(-1)}
           className={step}
         >
           −
-        </button>
+        </Button>
       ) : null}
-      <span className="relative flex">
-        {onHere ? (
-          <button
-            type="button"
-            onClick={onHere}
-            aria-label={`Move the ${label.toLowerCase()} to the playhead`}
-            title={`Move the ${label.toLowerCase()} to the playhead ( ${label === 'Start' ? '[' : ']'} )`}
-            // The dot is small; the button around it is not. Laid over the
-            // time's top edge rather than in the flow, so it moves nothing.
-            className="group absolute -top-2.5 left-1/2 flex size-5 -translate-x-1/2 items-center justify-center rounded-full"
-          >
-            <span className="size-1.5 rounded-full bg-muted-foreground transition group-hover:scale-150 group-hover:bg-primary group-focus-visible:bg-primary" />
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => onHear(at)}
-          title={`Play from the ${label.toLowerCase()} cut`}
-          className={cn(
-            'h-11 rounded-md px-1 text-sm tabular-nums hover:bg-accent sm:h-8',
-            moved ? 'text-primary' : 'text-foreground'
-          )}
-        >
-          {clock(at)}
-        </button>
-      </span>
+      <Button
+        variant="outline"
+        onClick={() => onHear(at)}
+        title={`Play from the ${label.toLowerCase()} cut`}
+        className={cn(
+          'h-11 px-1.5 tabular-nums sm:h-8',
+          moved ? 'text-primary' : 'text-foreground'
+        )}
+      >
+        {clock(at)}
+      </Button>
       {onNudge ? (
-        <button
-          type="button"
+        <Button
+          variant="outline"
           aria-label={`${label} a second later`}
           title={`${label} a second later`}
           onClick={() => onNudge(1)}
           className={step}
         >
           +
-        </button>
+        </Button>
       ) : null}
-    </span>
+      {start ? null : here}
+    </ButtonGroup>
   );
 }
