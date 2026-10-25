@@ -672,6 +672,9 @@ function Workbench({ id }: { id: string }) {
       case '[':
         e.preventDefault();
         if (insideFocus) hereEdge('start');
+        // Not over unsaved edges: markStart drops them, and the strip hides
+        // New here for the same reason — the key skipped that guard.
+        else if (moved) setStripError('Save or undo the moved edges first.');
         else if (mayCreate) markStart();
         break;
       case ']':
