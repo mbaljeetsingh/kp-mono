@@ -20,7 +20,7 @@
 import { clock, type TimelineSegment } from '@kp/core';
 import { useCallback, useState } from 'react';
 
-import { MIN_LENGTH } from '~/lib/use-tag-player';
+import { cents, MIN_LENGTH } from '~/lib/use-tag-player';
 import { cn } from '~/lib/utils';
 
 /** A band on the axis: published, a person's draft, or a scan draft nobody has published. */
@@ -124,7 +124,7 @@ export function Timeline({
             : Math.min(Math.max((start ?? 0) + MIN_LENGTH, sec), duration);
         // Two decimals matches what save writes, so a drag cannot leave
         // 12.299999999 behind for the nudges to inherit.
-        latest = Math.round(clamped * 100) / 100;
+        latest = cents(clamped);
         if (which === 'start') onChangeStart?.(latest);
         else onChangeEnd?.(latest);
       };
@@ -330,7 +330,7 @@ export function Timeline({
           line at a shabad's edge. Faint once covered, not gone — a pointer
           over the wrong tag is the one worth a second listen. */}
       {pointers.length ? (
-        <div className="relative mt-1 h-3">
+        <div className="relative mt-0.5 h-5">
           {pointers.map((p) => (
             <button
               key={`${p.start}-${p.name}`}
@@ -339,11 +339,18 @@ export function Timeline({
               aria-label={`Scan pointer: ${p.name} at ${clock(p.start)}`}
               onClick={() => onPointer?.(p)}
               style={{ left: `${pct(p.start) ?? 0}%` }}
-              className={cn(
-                'absolute top-0 size-2.5 -translate-x-1/2 rotate-45 rounded-[1px] bg-primary hover:scale-125 focus-visible:ring-2 focus-visible:ring-ring',
-                p.covered && 'opacity-35'
-              )}
-            />
+              // The diamond is 10px; the button around it is 20px, and the
+              // row is as tall as the button, so it never overhangs the
+              // speed and ? buttons on the clock line below.
+              className="group absolute top-0 flex size-5 -translate-x-1/2 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span
+                className={cn(
+                  'size-2.5 rotate-45 rounded-[1px] bg-primary transition group-hover:scale-125',
+                  p.covered && 'opacity-35'
+                )}
+              />
+            </button>
           ))}
         </div>
       ) : null}

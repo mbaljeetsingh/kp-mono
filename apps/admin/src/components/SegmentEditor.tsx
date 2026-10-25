@@ -30,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Headphones, Link2, Send, SkipForward, X } from 'lucide-react';
 import { useState } from 'react';
 
+import { More } from '~/components/More';
 import { ShabadDisplay } from '~/components/ShabadDisplay';
 // One way to turn a line into a rendition's titles, shared with the panel
 // that names every other cut: the link carries both titles, read off the line
@@ -320,7 +321,9 @@ export function SegmentEditor({
   const otherMatches = titleMatches.filter((m) => m.shabadId !== linked?.shabadId);
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-border p-4">
+    // Framed as the shabad search is: both are the panel under the player
+    // asking which shabad this is.
+    <div className="flex flex-col gap-4 rounded-xl border border-primary/40 p-4">
       <div className="flex items-baseline justify-between gap-2">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-medium">
@@ -542,29 +545,32 @@ export function SegmentEditor({
       ) : null}
 
       {/* Optional by design: neither gates saving, and most taggers skip them.
-          Raag shows up in the player's search and rows. */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="segment-raag">Raag</Label>
-          <Input
-            id="segment-raag"
-            value={raag}
-            onChange={(e) => setRaag(e.target.value)}
-            onKeyDown={(e) => enterSaves(e.key)}
-            placeholder="Optional, e.g. Asa"
-          />
+          Raag shows up in the player's search and rows. Under More, as in the
+          lyrics panel, so the puratan loop's page is the match and its button. */}
+      <More label="More · raag, taal">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="segment-raag">Raag</Label>
+            <Input
+              id="segment-raag"
+              value={raag}
+              onChange={(e) => setRaag(e.target.value)}
+              onKeyDown={(e) => enterSaves(e.key)}
+              placeholder="Optional, e.g. Asa"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="segment-taal">Taal</Label>
+            <Input
+              id="segment-taal"
+              value={taal}
+              onChange={(e) => setTaal(e.target.value)}
+              onKeyDown={(e) => enterSaves(e.key)}
+              placeholder="Optional, e.g. Teentaal"
+            />
+          </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="segment-taal">Taal</Label>
-          <Input
-            id="segment-taal"
-            value={taal}
-            onChange={(e) => setTaal(e.target.value)}
-            onKeyDown={(e) => enterSaves(e.key)}
-            placeholder="Optional, e.g. Teentaal"
-          />
-        </div>
-      </div>
+      </More>
 
       {/* A warning, not a block: a rendition can legitimately contain another,
           and re-cutting boundaries means transient overlap is normal. */}

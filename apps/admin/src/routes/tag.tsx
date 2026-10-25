@@ -48,11 +48,13 @@ import {
   type TimelineSegment,
 } from '@kp/core';
 import { Button } from '@kp/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@kp/ui/popover';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Pause, Play, ScanLine } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { Kbd } from '~/components/Kbd';
 import { LoadStatus } from '~/components/LoadStatus';
 import { SegmentEditor, type PuratanLoop } from '~/components/SegmentEditor';
 import { SegmentStrip, type StripMode } from '~/components/SegmentStrip';
@@ -63,7 +65,7 @@ import { skip, unskip, useSkipped } from '~/lib/skips';
 import { supabase } from '~/lib/supabase';
 import { recordingHeading, useTitleMatches } from '~/lib/title-match';
 import { cn } from '~/lib/utils';
-import { MIN_LENGTH, SKIP_COARSE, SKIP_FINE, SPEEDS, useTagPlayer } from '~/lib/use-tag-player';
+import { cents, MIN_LENGTH, SKIP_COARSE, SKIP_FINE, useTagPlayer } from '~/lib/use-tag-player';
 
 /**
  * Should this keystroke belong to the page or to what has focus?
@@ -89,11 +91,23 @@ function ownsTheKeys(target: EventTarget | null): boolean {
   );
 }
 
+/**
+ * The page's keys, for the `?` beside the clock. A copy of what onKey does,
+ * so a key added or changed there is changed here too.
+ */
+const SHORTCUTS: [string, string][] = [
+  ['space', 'play / pause'],
+  ['← →', 'back / ahead 10 s'],
+  ['shift ← →', 'back / ahead 0.1 s'],
+  ['↑ ↓', 'speed'],
+  ['[', 'start here — or move the start, inside a segment'],
+  [']', 'end here — or move the end'],
+  [', .', 'previous / next segment'],
+  ['esc', 'undo moved edges, or drop a new cut'],
+];
+
 /** How long a deleted draft of your own waits for Undo before it really goes. */
 const UNDO_MS = 6000;
-
-/** Two decimals, as save writes them, so nudges never inherit 12.299999999. */
-const cents = (v: number) => Math.round(v * 100) / 100;
 
 /**
  * A row as a whole draft, with only its edges changed.
@@ -178,6 +192,8 @@ function Workbench({ id }: { id: string }) {
 
   /** A segment whose shabad is being changed in the panel under the player. */
   const [renaming, setRenaming] = useState<string | null>(null);
+  /** Lyrics open or folded, kept as the strip moves from row to row. */
+  const [lyricsOpen, setLyricsOpen] = useState(true);
 
   /*
    * The cut being marked: started with `[`, ended with `]`, then waiting for
@@ -262,7 +278,7 @@ function Workbench({ id }: { id: string }) {
 
   // Derived, not written into state, so a browser revising its first VBR
   // length estimate carries through until the tagger touches a boundary.
-  const wholeEnd = duration ? Math.round(duration * 100) / 100 : null;
+  const wholeEnd = duration ? cents(duration) : null;
   const shownStart = wholeFile ? 0 : start;
   const shownEnd = wholeFile ? wholeEnd : end;
 
@@ -640,6 +656,7 @@ function Workbench({ id }: { id: string }) {
         e.preventDefault();
         player.skip(fine ? SKIP_FINE : SKIP_COARSE);
         break;
+      // Keep SHORTCUTS, the `?` list, in step with these cases.
       case 'ArrowUp':
         e.preventDefault();
         player.cycleSpeed(1);
@@ -980,7 +997,14 @@ function Workbench({ id }: { id: string }) {
             ? null
             : { label: 'Pick a shabad', onClick: () => renameRow(r) }
           : editable && missing === 'needs-line'
-            ? { label: 'Pick its line', onClick: focusPanel }
+            ? {
+                label: 'Pick its line',
+                // Unfolded too: folded, it scrolled to a header with no lines.
+                onClick: () => {
+                  setLyricsOpen(true);
+                  focusPanel();
+                },
+              }
             : refusal === null
               ? { label: 'Publish', onClick: () => void publish(r) }
               : published
@@ -1000,6 +1024,7 @@ function Workbench({ id }: { id: string }) {
       // Only once playback has run on past it by itself: a cut being heard —
       // its end time clicked, which lands the playhead exactly on the end —
       // is a cut being judged, not the next shabad starting.
+      timed: Boolean(r.line_timings?.length),
       offerNew:
         can['renditions.propose'] &&
         (position < focusSeg.start || position >= focusSeg.end) &&
@@ -1123,7 +1148,21 @@ function Workbench({ id }: { id: string }) {
                 shelves, so the two cannot disagree about "done". */}
             <p className="text-sm text-muted-foreground">
               {[
-                unpublished ? `${unpublished} to review` : rows.length ? 'all published' : null,
+                // A reviewer sees every draft; anyone else only their own,
+                // and "all published" told them that while drafts waited.
+                can['renditions.review']
+                  ? unpublished
+                    ? `${unpublished} to review`
+                    : rows.length
+                      ? 'all published'
+                      : null
+                  : unpublished
+                    ? // Only a contributor's drafts wait on a reviewer; a
+                      // publisher's own are theirs to publish.
+                      can['renditions.publish']
+                      ? `${unpublished} of yours to publish`
+                      : `${unpublished} of yours in review`
+                    : null,
                 untagged == null
                   ? null
                   : coverageOpen(untagged)
@@ -1198,14 +1237,7 @@ function Workbench({ id }: { id: string }) {
                 <button
                   type="button"
                   title="Playback speed (↑ ↓)"
-                  onClick={() =>
-                    player.setSpeed(
-                      SPEEDS[
-                        (SPEEDS.indexOf(player.speed as (typeof SPEEDS)[number]) + 1) %
-                          SPEEDS.length
-                      ] ?? 1
-                    )
-                  }
+                  onClick={() => player.cycleSpeed(1, true)}
                   className={cn(
                     'ml-2 rounded px-1 hover:bg-accent hover:text-foreground',
                     player.speed !== 1 && 'text-primary'
@@ -1213,6 +1245,29 @@ function Workbench({ id }: { id: string }) {
                 >
                   {player.speed}×
                 </button>
+                {/* The shortcuts, one tap away rather than a line of hints
+                    that took the row the strip needs. */}
+                <Popover>
+                  <PopoverTrigger
+                    aria-label="Keyboard shortcuts"
+                    title="Keyboard shortcuts"
+                    className="ml-1 rounded px-1.5 hover:bg-accent hover:text-foreground"
+                  >
+                    ?
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-64 text-xs">
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
+                      {SHORTCUTS.map(([keys, what]) => (
+                        <Fragment key={keys}>
+                          <dt className="text-foreground">
+                            <Kbd>{keys}</Kbd>
+                          </dt>
+                          <dd className="text-muted-foreground">{what}</dd>
+                        </Fragment>
+                      ))}
+                    </dl>
+                  </PopoverContent>
+                </Popover>
               </span>
               <span>{clock(duration)}</span>
             </div>
@@ -1282,6 +1337,8 @@ function Workbench({ id }: { id: string }) {
             <div ref={panelRef}>
               <LyricsPanel
                 key={focus.id}
+                open={lyricsOpen}
+                onOpenChange={setLyricsOpen}
                 shabadId={focus.shabad_id}
                 mainVerseId={focus.main_verse_id ?? null}
                 raag={focus.raag ?? ''}

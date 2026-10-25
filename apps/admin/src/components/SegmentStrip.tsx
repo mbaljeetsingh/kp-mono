@@ -16,6 +16,7 @@ import { Button } from '@kp/ui/button';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { Kbd } from '~/components/Kbd';
 import { cn } from '~/lib/utils';
 
 export type StripMode =
@@ -57,6 +58,8 @@ export type StripMode =
        * too, or it would only be on the `[` key.
        */
       offerNew: boolean;
+      /** The row has synced lyrics, which a saved re-cut clears until the next align run. */
+      timed: boolean;
     };
 
 export function SegmentStrip({
@@ -192,7 +195,9 @@ export function SegmentStrip({
             <span className="text-xs text-muted-foreground">to</span>
             <Edge label="End" at={mode.end} onNudge={(by) => onNudge('end', by)} onHear={onHear} />
           </span>
-          <span className="text-xs text-muted-foreground sm:w-56 sm:text-right">{mode.note}</span>
+          <span className="text-xs text-muted-foreground sm:min-w-56 sm:text-right">
+            {mode.note}
+          </span>
         </>
       );
       break;
@@ -202,16 +207,6 @@ export function SegmentStrip({
       body = (
         <>
           {steps}
-          {mode.offerNew ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onStart}
-              title="Start a new segment at the playhead ( [ )"
-            >
-              New here <Kbd>[</Kbd>
-            </Button>
-          ) : null}
           <span
             aria-hidden
             className={cn(
@@ -228,11 +223,6 @@ export function SegmentStrip({
                 name that opened a search when clicked asked "which shabad?"
                 of someone only checking which one they were on. */}
             <span className="truncate text-sm font-medium">{mode.name}</span>
-            {mode.dirty && mode.overlaps ? (
-              <span className="truncate text-xs text-muted-foreground">
-                Overlaps {mode.overlaps} — fine if you meant it
-              </span>
-            ) : null}
             {mode.hint ? (
               <span className="truncate text-xs text-muted-foreground">
                 Scan thinks: <span className="text-foreground">{mode.hint.name}</span>
@@ -267,7 +257,19 @@ export function SegmentStrip({
               Publish, then Undo and Save the moment an edge moves — and a
               cluster that grew and shrank slid the times under the finger
               pressing − and +. */}
-          <span className="flex items-center justify-end gap-1 sm:w-56">
+          <span className="flex items-center justify-end gap-1 sm:min-w-56">
+            {/* With the buttons, not before the name: at the front it
+                pushed the name along the moment it appeared. */}
+            {mode.offerNew && !mode.dirty ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onStart}
+                title="Start a new segment at the playhead ( [ )"
+              >
+                New here <Kbd>[</Kbd>
+              </Button>
+            ) : null}
             {mode.dirty ? (
               <>
                 <Button
@@ -358,6 +360,24 @@ export function SegmentStrip({
       >
         {body}
       </div>
+      {/* Under the row rather than beside the name, where an edit's
+          consequences were truncated to nothing in the space the name left. */}
+      {mode.kind === 'segment' && mode.dirty ? (
+        <>
+          {mode.overlaps ? (
+            <p className="px-2 text-xs text-muted-foreground">
+              Overlaps {mode.overlaps} — fine if you meant it.
+            </p>
+          ) : null}
+          {/* Said before Save, not discovered after: the re-cut trigger
+              clears the timings, and "lyrics timed" just vanished. */}
+          {mode.timed ? (
+            <p className="px-2 text-xs text-muted-foreground">
+              Saving clears the synced lyrics until the next align run.
+            </p>
+          ) : null}
+        </>
+      ) : null}
       {error ? (
         <p role="alert" className="px-2 text-xs text-destructive">
           {error}
@@ -444,13 +464,5 @@ function Edge({
         </button>
       ) : null}
     </span>
-  );
-}
-
-function Kbd({ children }: { children: ReactNode }) {
-  return (
-    <kbd className="rounded border border-current/30 px-1 font-sans text-[10px] leading-4 opacity-70">
-      {children}
-    </kbd>
   );
 }

@@ -15,10 +15,13 @@
 import { type BaniDbHit, type ShabadVerse } from '@kp/api';
 import { titlesFor, type RenditionTitles } from '@kp/core';
 import { Button } from '@kp/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@kp/ui/collapsible';
 import { Input } from '@kp/ui/input';
 import { ShabadSearch } from '@kp/ui/app/shabad-search';
+import { ChevronDown } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { More } from '~/components/More';
 import { ShabadDisplay } from '~/components/ShabadDisplay';
 import { BANIDB_BASE } from '~/lib/links';
 
@@ -119,6 +122,8 @@ export function ShabadPicker({
 }
 
 export function LyricsPanel({
+  open,
+  onOpenChange,
   shabadId,
   mainVerseId,
   raag,
@@ -129,6 +134,9 @@ export function LyricsPanel({
   onSaveMore,
   onChangeShabad,
 }: {
+  /** Folded or not, owned by the page so it holds from one segment to the next. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   shabadId: number;
   mainVerseId: number | null;
   raag: string;
@@ -144,65 +152,79 @@ export function LyricsPanel({
   const [moreTaal, setMoreTaal] = useState(taal);
   const changed = moreRaag.trim() !== raag.trim() || moreTaal.trim() !== taal.trim();
   return (
-    <section aria-label="Lyrics" className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
-          {editable
-            ? mainVerseId == null
-              ? 'Click the line it’s known by — it names the segment, and publishing needs it.'
-              : 'Click another line to name it by that one.'
-            : 'Lyrics'}
-        </p>
-        {editable ? (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onChangeShabad}
-            className="text-xs text-muted-foreground"
-          >
-            Change shabad
-          </Button>
-        ) : null}
-      </div>
-      <ShabadDisplay
-        shabadId={shabadId}
-        mainVerseId={mainVerseId}
-        onPick={editable ? (verse) => onPickLine(linkFromVerse(shabadId, verse)) : undefined}
-      />
-      {/* Optional by design: neither gates publishing, and most taggers skip
-          them. Raag shows up in the player's search and rows. */}
-      {editable ? (
-        <details>
-          <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-            More · raag, taal{raag || taal ? `: ${[raag, taal].filter(Boolean).join(', ')}` : ''}
-          </summary>
-          <form
-            className="mt-2 flex flex-wrap items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (changed && !busy) onSaveMore({ raag: moreRaag, taal: moreTaal });
-            }}
-          >
-            <Input
-              aria-label="Raag"
-              value={moreRaag}
-              onChange={(e) => setMoreRaag(e.target.value)}
-              placeholder="Raag, e.g. Asa"
-              className="h-8 w-48"
-            />
-            <Input
-              aria-label="Taal"
-              value={moreTaal}
-              onChange={(e) => setMoreTaal(e.target.value)}
-              placeholder="Taal, e.g. Teentaal"
-              className="h-8 w-48"
-            />
-            <Button type="submit" variant="outline" size="sm" disabled={!changed || busy}>
-              Save
+    // Foldable, because on a laptop the lines pushed the list well down the
+    // page; the line it is named by stays in the strip either way.
+    <Collapsible open={open} onOpenChange={onOpenChange}>
+      <section aria-label="Lyrics" className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          {/* The toggle is the word only: the instruction beside it is read,
+              and a sentence that folded the panel when clicked near it hid
+              the lines it was pointing at. */}
+          <span className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+            <CollapsibleTrigger className="group flex shrink-0 items-center gap-1 rounded hover:text-foreground">
+              <ChevronDown className="size-3.5 -rotate-90 transition group-data-[panel-open]:rotate-0" />
+              Lyrics
+            </CollapsibleTrigger>
+            {open && editable ? (
+              <span className="truncate">
+                {mainVerseId == null
+                  ? '— click the line it’s known by; it names the segment, and publishing needs it.'
+                  : '— click another line to name it by that one.'}
+              </span>
+            ) : null}
+          </span>
+          {editable ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onChangeShabad}
+              className="text-xs text-muted-foreground"
+            >
+              Change shabad
             </Button>
-          </form>
-        </details>
-      ) : null}
-    </section>
+          ) : null}
+        </div>
+        <CollapsibleContent className="flex flex-col gap-2">
+          <ShabadDisplay
+            shabadId={shabadId}
+            mainVerseId={mainVerseId}
+            onPick={editable ? (verse) => onPickLine(linkFromVerse(shabadId, verse)) : undefined}
+          />
+          {/* Optional by design: neither gates publishing, and most taggers
+              skip them. Raag shows up in the player's search and rows. */}
+          {editable ? (
+            <More
+              label={`More · raag, taal${raag || taal ? `: ${[raag, taal].filter(Boolean).join(', ')}` : ''}`}
+            >
+              <form
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (changed && !busy) onSaveMore({ raag: moreRaag, taal: moreTaal });
+                }}
+              >
+                <Input
+                  aria-label="Raag"
+                  value={moreRaag}
+                  onChange={(e) => setMoreRaag(e.target.value)}
+                  placeholder="Raag, e.g. Asa"
+                  className="h-8 w-48"
+                />
+                <Input
+                  aria-label="Taal"
+                  value={moreTaal}
+                  onChange={(e) => setMoreTaal(e.target.value)}
+                  placeholder="Taal, e.g. Teentaal"
+                  className="h-8 w-48"
+                />
+                <Button type="submit" variant="outline" size="sm" disabled={!changed || busy}>
+                  Save
+                </Button>
+              </form>
+            </More>
+          ) : null}
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
   );
 }
