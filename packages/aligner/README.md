@@ -138,6 +138,8 @@ Published parts are left alone: the scan never edits a rendition, skips a
 shabad already tagged on the recording, and drafts nothing — nor points at
 anything — lying mostly inside a published one (`SETTLED`, in `write_drafts`
 rather than the matching, since `eval_scan.py` scores against those renditions).
+A person's unpublished draft is claimed short of settled: a region lying mostly
+inside one becomes a pointer, never a second draft over the same minutes.
 Routine banis — So Dar, the Pavan Guru salok, Anand Sahib, Basant ki Vaar,
 and the short saloks and pauris sung around a shabad that reviewers kept
 deleting — are pointed at, never drafted (`ROUTINE`, in `write_drafts` too):
