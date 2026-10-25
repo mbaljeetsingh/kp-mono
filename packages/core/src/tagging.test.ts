@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   coverageOpen,
+  gapAt,
   overlapping,
+  stripSegment,
   untaggedGaps,
   untaggedSeconds,
   type TimelineSegment,
@@ -107,5 +109,59 @@ describe('overlapping', () => {
 
   it('reports every segment a long range swallows', () => {
     expect(overlapping(segments, { start: 0, end: 500 }).map((s) => s.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('stripSegment', () => {
+  const a = seg('a', 100, 200);
+  const b = seg('b', 200, 300);
+  const far = seg('far', 1000, 1100);
+
+  it('follows the playhead into a segment', () => {
+    expect(stripSegment([a, far], 150, null)).toBe('a');
+  });
+
+  it('stays on a segment whose end cut was just played', () => {
+    // Playing from the end runs out of the segment at once.
+    expect(stripSegment([a, far], 200, 'a')).toBe('a');
+    expect(stripSegment([a, far], 210, 'a')).toBe('a');
+  });
+
+  it('lets go once the playhead is well clear of it', () => {
+    expect(stripSegment([a, far], 400, 'a')).toBeNull();
+    expect(stripSegment([a, far], 400, null)).toBeNull();
+  });
+
+  it('moves to a neighbour the playhead enters, hold or not', () => {
+    expect(stripSegment([a, b], 205, 'a')).toBe('b');
+  });
+
+  it('keeps a segment with unsaved edits wherever the playhead goes', () => {
+    expect(stripSegment([a, b, far], 1050, 'far', 'a')).toBe('a');
+  });
+
+  it('ignores a pin on a segment that is gone', () => {
+    expect(stripSegment([a], 150, null, 'deleted')).toBe('a');
+  });
+
+  it('prefers the held segment where two overlap, else the inner one', () => {
+    const outer = seg('outer', 0, 500);
+    const inner = seg('inner', 100, 200);
+    expect(stripSegment([outer, inner], 150, 'outer')).toBe('outer');
+    expect(stripSegment([outer, inner], 150, null)).toBe('inner');
+  });
+});
+
+describe('gapAt', () => {
+  it('runs from the cut before to the cut after', () => {
+    expect(gapAt([seg('a', 100, 200), seg('b', 400, 500)], 1000, 300)).toEqual({
+      start: 200,
+      end: 400,
+    });
+  });
+
+  it('runs to the recording’s own ends', () => {
+    expect(gapAt([seg('a', 100, 200)], 1000, 50)).toEqual({ start: 0, end: 100 });
+    expect(gapAt([seg('a', 100, 200)], 1000, 900)).toEqual({ start: 200, end: 1000 });
   });
 });

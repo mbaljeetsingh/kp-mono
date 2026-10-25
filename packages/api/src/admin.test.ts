@@ -7,6 +7,7 @@ import {
   draftSchema,
   fetchPending,
   fetchPendingCount,
+  publishMissing,
   publishRefusal,
   scanStatus,
 } from './admin';
@@ -143,6 +144,14 @@ describe('canPublishRendition', () => {
     expect(
       canPublishRendition({ status: 'draft', shabad_id: 4064, main_verse_id: null }, reviewer, ME)
     ).toBe(false);
+  });
+});
+
+describe('publishMissing', () => {
+  it('asks for the shabad, then its line, whoever is asking', () => {
+    expect(publishMissing({ shabad_id: null, main_verse_id: null })).toBe('needs-shabad');
+    expect(publishMissing({ shabad_id: 4064, main_verse_id: null })).toBe('needs-line');
+    expect(publishMissing({ shabad_id: 4064, main_verse_id: 1 })).toBeNull();
   });
 });
 

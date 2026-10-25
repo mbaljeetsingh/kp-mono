@@ -11,37 +11,49 @@
  *
  * Seeking stays a real `<input type="range">` underneath the paint: it carries
  * click-to-seek, arrow keys and a focus ring for free, and none of the layers
- * above it take pointer events except the two drag handles.
+ * above it take pointer events except the drag handles and the scan pointers.
+ *
+ * Flat bands, no outlines: an outline on every band drew a line at each
+ * shabad's start and end, which read as a boundary marker on every segment
+ * when only the one being cut has handles.
  */
-import { clock, untaggedGaps, type TimelineSegment } from '@kp/core';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { clock, type TimelineSegment } from '@kp/core';
+import { useCallback, useState } from 'react';
 
 import { MIN_LENGTH } from '~/lib/use-tag-player';
 import { cn } from '~/lib/utils';
 
+/** A band on the axis: published, a person's draft, or a scan draft nobody has published. */
+export interface TimelineBand extends TimelineSegment {
+  scan: boolean;
+}
+
+/** Something the scan heard and would not draft: a place worth a listen. */
+export interface TimelinePointer {
+  start: number;
+  end: number;
+  name: string;
+  /** Its middle already sits inside a segment — shown faint, not hidden. */
+  covered: boolean;
+}
+
 interface Props {
-  segments: TimelineSegment[];
+  segments: TimelineBand[];
   duration: number;
   position: number;
-  /** The cut being marked, mirrored here as a band with draggable ends. */
+  /** The cut with handles: a segment being marked, or the one the strip has with its edits. */
   start: number | null;
   end: number | null;
-  /** The row open in the form, ringed so form and timeline stay linked. */
-  editingId?: string | null;
+  /** The segment the strip under the bar acts on, drawn brighter so the two read as one. */
+  focusId?: string | null;
+  pointers?: TimelinePointer[];
   onSeek: (seconds: number) => void;
+  onPointer?: (pointer: TimelinePointer) => void;
   onChangeStart?: (seconds: number) => void;
   onChangeEnd?: (seconds: number) => void;
   /** A boundary placed by drag is worth hearing immediately. */
   onAudition?: (seconds: number) => void;
 }
-
-/**
- * Enough ticks to read the axis, few enough to stay legible — which depends on
- * how wide the axis actually is, not only on how long the recording is. Picking
- * the step from duration alone printed "10:0015:0020:00" the moment the bar
- * got narrow.
- */
-const TICK_STEPS = [30, 60, 120, 300, 600, 1800];
 
 export function Timeline({
   segments,
@@ -49,14 +61,21 @@ export function Timeline({
   position,
   start,
   end,
-  editingId = null,
+  focusId = null,
+  pointers = [],
   onSeek,
+  onPointer,
   onChangeStart,
   onChangeEnd,
   onAudition,
 }: Props) {
-  const bar = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  /*
+   * The bar's box, kept in state through a callback ref rather than read off a
+   * ref object: the drag reads it when a handle goes down, and a ref read
+   * there is fine, but the hover readout and the drag share it and a state
+   * value keeps both honest across a resize.
+   */
+  const [bar, setBar] = useState<HTMLDivElement | null>(null);
   /**
    * What the pointer is over, as a fraction of the axis.
    *
@@ -67,14 +86,6 @@ export function Timeline({
    * the label out of a 2px band as easily as a wide one.
    */
   const [hover, setHover] = useState<{ at: number; ratio: number } | null>(null);
-
-  useEffect(() => {
-    const node = bar.current;
-    if (!node) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
 
   /** Position on the axis as a percentage; null while the duration is unknown. */
   const pct = useCallback(
@@ -87,7 +98,7 @@ export function Timeline({
 
   const dragBoundary = useCallback(
     (which: 'start' | 'end', down: React.PointerEvent<HTMLButtonElement>) => {
-      const rect = bar.current?.getBoundingClientRect();
+      const rect = bar?.getBoundingClientRect();
       if (!rect || !duration) return;
       const handle = down.currentTarget;
       // Capture keeps the drag alive once the pointer leaves the handle, which
@@ -131,23 +142,28 @@ export function Timeline({
         { once: true }
       );
     },
-    [duration, start, end, onChangeStart, onChangeEnd, onAudition]
+    [bar, duration, start, end, onChangeStart, onChangeEnd, onAudition]
   );
 
   // Without a duration there is no scale to draw against — a bar of unknown
   // width is worse than none.
   if (!duration) {
     return (
-      <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+      <div className="rounded-lg border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">
         Waiting for the recording's length…
       </div>
     );
   }
 
   const startPct = pct(start);
-  const endPct = pct(end);
+  /*
+   * A cut being marked has no end yet, so its band runs to the playhead and
+   * grows as it plays: the segment taking shape is visible while it is heard,
+   * not only after `]`.
+   */
+  const growing = start !== null && end === null;
+  const endPct = growing ? pct(Math.max(position, start)) : pct(end);
   const playPct = pct(position) ?? 0;
-  const gaps = untaggedGaps(segments, duration);
 
   /*
    * Last match wins, matching what the eye sees: bands are painted in order, so
@@ -164,16 +180,9 @@ export function Timeline({
     width: `${Math.max(0.35, (pct(to) ?? 0) - (pct(from) ?? 0))}%`,
   });
 
-  const room = Math.max(2, Math.floor((width || 640) / 76));
-  const step = TICK_STEPS.find((s) => duration / s <= room) ?? TICK_STEPS[TICK_STEPS.length - 1]!;
-  const ticks: number[] = [];
-  // Interior ticks only — the transport already prints 0:00 and the duration
-  // either side of this bar, and a label at 100% would hang off the edge.
-  for (let t = step; t < duration * 0.97; t += step) ticks.push(t);
-
   return (
     <div className="select-none">
-      <div ref={bar} className="relative h-9">
+      <div ref={setBar} className="relative h-10">
         {/* Seek surface. Invisible but real, so click-to-seek and arrow keys
             come from the platform; the focus ring is drawn by the track below
             because an opacity-0 element cannot show one itself. */}
@@ -196,26 +205,34 @@ export function Timeline({
           className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0"
         />
 
-        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-md bg-muted/60 ring-1 ring-border/70 ring-inset peer-focus-visible:ring-2 peer-focus-visible:ring-ring">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-lg bg-muted/70 peer-focus-visible:ring-2 peer-focus-visible:ring-ring">
           {/* Published reads emerald and unpublished amber, the same pairing the
-              recordings list and the row badges use, so "done" means one colour
-              everywhere in the workbench. */}
+              recordings list uses, so "done" means one colour everywhere in the
+              workbench. A scan draft is hatched: its edges are a machine's
+              guess until somebody publishes it. */}
           {segments.map((s) => (
             <div
               key={s.id}
               style={span(s.start, s.end)}
               className={cn(
-                'absolute inset-y-0 flex items-center overflow-hidden rounded-sm px-1.5',
-                s.published
-                  ? 'bg-emerald-500/25 ring-1 ring-emerald-400/40 ring-inset'
-                  : 'bg-amber-500/20 ring-1 ring-amber-400/35 ring-inset',
-                s.id === editingId && 'ring-2 ring-primary'
+                'absolute inset-y-1 flex items-center overflow-hidden rounded-[4px] px-1.5',
+                // Text dark on light and light on dark: the pale label that
+                // read on the dark theme vanished on parchment.
+                s.id === focusId
+                  ? s.published
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-amber-500 text-amber-950'
+                  : s.published
+                    ? 'bg-emerald-600/20 text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100'
+                    : s.scan
+                      ? 'bg-[repeating-linear-gradient(135deg,rgb(245_158_11/0.30)_0_5px,rgb(245_158_11/0.12)_5px_10px)] text-amber-950 dark:text-amber-100'
+                      : 'bg-amber-500/25 text-amber-950 dark:text-amber-100'
               )}
             >
               <span
                 className={cn(
                   'truncate text-[10px] leading-none',
-                  s.published ? 'text-emerald-200/90' : 'text-amber-200/90'
+                  s.id === focusId && 'font-semibold'
                 )}
               >
                 {s.name}
@@ -223,12 +240,11 @@ export function Timeline({
             </div>
           ))}
 
-          {/* The cut being marked. Terracotta because it is the live thing on
-              the page, and drawn over the saved blocks so an overlap is visible
-              rather than hidden underneath. */}
+          {/* The cut being marked. Drawn over the saved blocks so an overlap is
+              visible rather than hidden underneath. */}
           {startPct !== null && endPct !== null ? (
             <div
-              className="absolute inset-y-0 rounded-sm bg-primary/30 ring-1 ring-primary/70 ring-inset"
+              className="absolute inset-y-1 rounded-[4px] bg-primary/45"
               style={{
                 left: `${startPct}%`,
                 width: `${Math.max(0.35, endPct - startPct)}%`,
@@ -237,14 +253,11 @@ export function Timeline({
           ) : null}
         </div>
 
-        {/* Playhead over everything, with a nub at the top so it reads as a
-            position rather than a divider between two blocks. */}
+        {/* Playhead over everything. */}
         <div
-          className="pointer-events-none absolute -top-1 -bottom-1 z-20 w-px bg-foreground/80"
+          className="pointer-events-none absolute -top-0.5 -bottom-0.5 z-20 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
           style={{ left: `${playPct}%` }}
-        >
-          <span className="absolute -top-px -left-[3px] size-[7px] rounded-full bg-foreground" />
-        </div>
+        />
 
         {/*
          * The readout. Above the axis rather than inside a band, because a
@@ -260,7 +273,13 @@ export function Timeline({
           >
             {hovered ? (
               <>
-                <span className={hovered.published ? 'text-emerald-300' : 'text-amber-300'}>
+                <span
+                  className={
+                    hovered.published
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : 'text-amber-700 dark:text-amber-300'
+                  }
+                >
                   {hovered.name}
                 </span>
                 <span className="text-muted-foreground">
@@ -274,9 +293,11 @@ export function Timeline({
           </div>
         ) : null}
 
-        {/* Handles last, and the only layer that takes pointer events besides
-            the seek surface — a drag must never fall through to a seek. */}
-        {startPct !== null ? (
+        {/* Handles last, and with the pointers the only layer that takes
+            pointer events besides the seek surface — a drag must never fall
+            through to a seek. Only on the edges of a finished cut: while
+            marking, the end is the playhead. */}
+        {startPct !== null && onChangeStart ? (
           <button
             type="button"
             style={{ left: `${startPct}%` }}
@@ -286,10 +307,10 @@ export function Timeline({
               e.preventDefault();
               dragBoundary('start', e);
             }}
-            className="absolute top-1/2 z-30 h-11 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none rounded-full bg-primary ring-1 ring-background focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute top-1/2 z-30 h-12 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none rounded-full bg-primary ring-1 ring-background focus-visible:ring-2 focus-visible:ring-ring"
           />
         ) : null}
-        {endPct !== null ? (
+        {!growing && endPct !== null && onChangeEnd ? (
           <button
             type="button"
             style={{ left: `${endPct}%` }}
@@ -299,43 +320,31 @@ export function Timeline({
               e.preventDefault();
               dragBoundary('end', e);
             }}
-            className="absolute top-1/2 z-30 h-11 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none rounded-full bg-primary ring-1 ring-background focus-visible:ring-2 focus-visible:ring-ring"
+            className="absolute top-1/2 z-30 h-12 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none rounded-full bg-primary ring-1 ring-background focus-visible:ring-2 focus-visible:ring-ring"
           />
         ) : null}
       </div>
 
-      {ticks.length ? (
+      {/* Scan pointers, under the axis rather than on it: a band already
+          fills the axis at most of them, and a mark there would be one more
+          line at a shabad's edge. Faint once covered, not gone — a pointer
+          over the wrong tag is the one worth a second listen. */}
+      {pointers.length ? (
         <div className="relative mt-1 h-3">
-          {ticks.map((t) => (
-            <span
-              key={t}
-              style={{ left: `${pct(t)}%` }}
-              className="absolute -translate-x-1/2 text-[10px] tabular-nums text-muted-foreground/60"
-            >
-              {clock(t)}
-            </span>
+          {pointers.map((p) => (
+            <button
+              key={`${p.start}-${p.name}`}
+              type="button"
+              title={`Scan heard ${p.name} · ${clock(p.start)}–${clock(p.end)}`}
+              aria-label={`Scan pointer: ${p.name} at ${clock(p.start)}`}
+              onClick={() => onPointer?.(p)}
+              style={{ left: `${pct(p.start) ?? 0}%` }}
+              className={cn(
+                'absolute top-0 size-2.5 -translate-x-1/2 rotate-45 rounded-[1px] bg-primary hover:scale-125 focus-visible:ring-2 focus-visible:ring-ring',
+                p.covered && 'opacity-35'
+              )}
+            />
           ))}
-        </div>
-      ) : null}
-
-      {gaps.length ? (
-        <div className="mt-3 flex flex-col gap-1">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            Untagged, longest first
-          </p>
-          <div className="flex flex-wrap gap-1">
-            {gaps.slice(0, 6).map((g) => (
-              <button
-                key={`${g.start}-${g.end}`}
-                type="button"
-                onClick={() => onSeek(g.start)}
-                className="rounded-md bg-accent/50 px-2 py-1 text-xs tabular-nums text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                {clock(g.start)}–{clock(g.end)}
-                <span className="ml-1 text-muted-foreground/60">({clock(g.end - g.start)})</span>
-              </button>
-            ))}
-          </div>
         </div>
       ) : null}
     </div>

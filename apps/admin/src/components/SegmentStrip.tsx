@@ -1,0 +1,456 @@
+/**
+ * The row under the timeline: what the playhead is on, and the one thing to do
+ * about it.
+ *
+ * Every segment action lives here once. They used to be spread over a row per
+ * segment, a form and the bar's own buttons, so the same Publish sat in three
+ * places and none of them was where the listening happens. The strip follows
+ * the playhead (`stripSegment` in core), so listening to a shabad is already
+ * having its actions in front of you.
+ *
+ * Presentational: the page owns the state and the writes, and tells the strip
+ * which of its few shapes to take.
+ */
+import { clock } from '@kp/core';
+import { Button } from '@kp/ui/button';
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import type { ReactNode } from 'react';
+
+import { cn } from '~/lib/utils';
+
+export type StripMode =
+  | { kind: 'none' }
+  | {
+      kind: 'gap';
+      start: number;
+      end: number;
+      /** A scan pointer the playhead is inside, uncovered: offered as the thing to tag. */
+      pointer: { name: string } | null;
+      /** This account may make segments; without it the gap has nothing to offer. */
+      canCreate: boolean;
+    }
+  | { kind: 'marking'; start: number; position: number }
+  /** The cut is finished and the panel below asks for its shabad. */
+  | { kind: 'naming'; title: string; start: number; end: number; note: string }
+  | {
+      kind: 'segment';
+      name: string;
+      start: number;
+      end: number;
+      tone: 'published' | 'scan' | 'draft';
+      /** Edges moved and not saved yet. */
+      dirty: boolean;
+      /** The edges can be moved by this account. */
+      editable: boolean;
+      /** The one button, or a sentence where there is nothing to press. */
+      primary: { label: string; onClick: () => void } | { note: string; tone?: 'done' } | null;
+      /** A quiet second action: Unpublish for a reviewer. */
+      secondary: { label: string; onClick: () => void } | null;
+      /** Neighbours the moved edges now run into, by name — said, not refused. */
+      overlaps: string | null;
+      /** What the scan heard here, for a draft with no shabad. */
+      hint: { name: string; onUse: () => void } | null;
+      onDelete: (() => void) | null;
+      /**
+       * The playhead is outside this segment — the strip is holding it after
+       * its end was heard — so the next shabad may be starting: offered here
+       * too, or it would only be on the `[` key.
+       */
+      offerNew: boolean;
+    };
+
+export function SegmentStrip({
+  mode,
+  busy,
+  error,
+  onPrev,
+  onNext,
+  onNudge,
+  onHere,
+  onHear,
+  onSave,
+  onUndo,
+  onStart,
+  onEnd,
+  onCancel,
+  onTagPointer,
+}: {
+  mode: StripMode;
+  busy: boolean;
+  error: string | null;
+  onPrev: () => void;
+  onNext: () => void;
+  onNudge: (edge: 'start' | 'end', by: number) => void;
+  /** Put this edge of the strip's segment at the playhead. */
+  onHere: (edge: 'start' | 'end') => void;
+  onHear: (at: number) => void;
+  onSave: () => void;
+  onUndo: () => void;
+  onStart: () => void;
+  onEnd: () => void;
+  onCancel: () => void;
+  onTagPointer: () => void;
+}) {
+  if (mode.kind === 'none') return null;
+
+  const steps = (
+    <span className="flex shrink-0 items-center">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Previous segment"
+        title="Previous segment ( , )"
+        onClick={onPrev}
+        className="text-muted-foreground"
+      >
+        <ChevronLeft />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Next segment"
+        title="Next segment ( . )"
+        onClick={onNext}
+        className="text-muted-foreground"
+      >
+        <ChevronRight />
+      </Button>
+    </span>
+  );
+
+  let body: ReactNode;
+  switch (mode.kind) {
+    case 'gap':
+      body = (
+        <>
+          {steps}
+          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+            {mode.pointer ? (
+              <>
+                Scan heard <span className="text-foreground">{mode.pointer.name}</span>
+              </>
+            ) : (
+              <>
+                {clock(mode.end - mode.start)} untagged
+                <span className="hidden sm:inline">
+                  {' '}
+                  · {clock(mode.start)}–{clock(mode.end)}
+                </span>
+              </>
+            )}
+          </span>
+          {!mode.canCreate ? null : mode.pointer ? (
+            <Button size="sm" onClick={onTagPointer} disabled={busy}>
+              Tag this
+            </Button>
+          ) : (
+            <Button size="sm" onClick={onStart} title="Start a segment at the playhead ( [ )">
+              Start here <Kbd>[</Kbd>
+            </Button>
+          )}
+        </>
+      );
+      break;
+
+    case 'marking':
+      body = (
+        <>
+          <span className="min-w-0 flex-1 truncate pl-1 text-sm font-medium">New shabad</span>
+          <Edge
+            label="Start"
+            at={mode.start}
+            onNudge={(by) => onNudge('start', by)}
+            onHear={onHear}
+          />
+          <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
+            {clock(Math.max(0, mode.position - mode.start))} so far
+          </span>
+          <Button variant="ghost" size="sm" onClick={onCancel} className="text-muted-foreground">
+            Cancel
+          </Button>
+          <Button size="sm" onClick={onEnd} title="End the segment at the playhead ( ] )">
+            End here <Kbd>]</Kbd>
+          </Button>
+        </>
+      );
+      break;
+
+    case 'naming':
+      // The cut is made and the panel below asks for its shabad — Cancel is
+      // there, beside the question. Here the edges stay adjustable, since the
+      // first listen-back is often the one that hears the cut was early.
+      body = (
+        <>
+          <span className="min-w-0 flex-1 truncate pl-1 text-sm font-medium">{mode.title}</span>
+          <span className="flex items-center gap-1">
+            <Edge
+              label="Start"
+              at={mode.start}
+              onNudge={(by) => onNudge('start', by)}
+              onHear={onHear}
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Edge label="End" at={mode.end} onNudge={(by) => onNudge('end', by)} onHear={onHear} />
+          </span>
+          <span className="text-xs text-muted-foreground sm:w-56 sm:text-right">{mode.note}</span>
+        </>
+      );
+      break;
+
+    case 'segment': {
+      const { primary } = mode;
+      body = (
+        <>
+          {steps}
+          {mode.offerNew ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onStart}
+              title="Start a new segment at the playhead ( [ )"
+            >
+              New here <Kbd>[</Kbd>
+            </Button>
+          ) : null}
+          <span
+            aria-hidden
+            className={cn(
+              'size-2 shrink-0 rounded-full',
+              mode.tone === 'published'
+                ? 'bg-emerald-400'
+                : mode.tone === 'scan'
+                  ? 'bg-amber-400'
+                  : 'bg-muted-foreground'
+            )}
+          />
+          <span className="flex min-w-0 flex-1 basis-40 flex-col">
+            {/* Just the name: the lyrics panel below has Change shabad, and a
+                name that opened a search when clicked asked "which shabad?"
+                of someone only checking which one they were on. */}
+            <span className="truncate text-sm font-medium">{mode.name}</span>
+            {mode.dirty && mode.overlaps ? (
+              <span className="truncate text-xs text-muted-foreground">
+                Overlaps {mode.overlaps} — fine if you meant it
+              </span>
+            ) : null}
+            {mode.hint ? (
+              <span className="truncate text-xs text-muted-foreground">
+                Scan thinks: <span className="text-foreground">{mode.hint.name}</span>
+              </span>
+            ) : null}
+          </span>
+
+          {/* The two edges, each a time you tap to hear and a second either
+              way. Fixing an edge is most of the job; a drag on the bar is the
+              coarse way, these are the fine one. */}
+          <span className="flex items-center gap-1">
+            <Edge
+              label="Start"
+              at={mode.start}
+              moved={mode.dirty}
+              onNudge={mode.editable ? (by) => onNudge('start', by) : null}
+              onHere={mode.editable ? () => onHere('start') : null}
+              onHear={onHear}
+            />
+            <span className="text-xs text-muted-foreground">to</span>
+            <Edge
+              label="End"
+              at={mode.end}
+              moved={mode.dirty}
+              onNudge={mode.editable ? (by) => onNudge('end', by) : null}
+              onHere={mode.editable ? () => onHere('end') : null}
+              onHear={onHear}
+            />
+          </span>
+
+          {/* A fixed width, right-aligned: the buttons change with the state —
+              Publish, then Undo and Save the moment an edge moves — and a
+              cluster that grew and shrank slid the times under the finger
+              pressing − and +. */}
+          <span className="flex items-center justify-end gap-1 sm:w-56">
+            {mode.dirty ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onUndo}
+                  disabled={busy}
+                  className="text-muted-foreground"
+                >
+                  Undo
+                </Button>
+                <Button size="sm" onClick={onSave} disabled={busy}>
+                  Save
+                </Button>
+              </>
+            ) : (
+              <>
+                {mode.hint ? (
+                  <Button size="sm" onClick={mode.hint.onUse} disabled={busy}>
+                    Use it
+                  </Button>
+                ) : null}
+                {primary && 'label' in primary ? (
+                  <Button
+                    size="sm"
+                    variant={mode.hint ? 'outline' : 'default'}
+                    onClick={primary.onClick}
+                    disabled={busy}
+                  >
+                    {primary.label}
+                  </Button>
+                ) : primary ? (
+                  <span
+                    className={cn(
+                      'px-2 text-xs',
+                      primary.tone === 'done' ? 'text-emerald-400' : 'text-muted-foreground'
+                    )}
+                  >
+                    {primary.note}
+                  </span>
+                ) : null}
+                {mode.secondary ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={mode.secondary.onClick}
+                    disabled={busy}
+                    className="text-muted-foreground"
+                  >
+                    {mode.secondary.label}
+                  </Button>
+                ) : null}
+              </>
+            )}
+            {mode.onDelete && !mode.dirty ? (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Delete ${mode.name}`}
+                title="Delete"
+                onClick={mode.onDelete}
+                disabled={busy}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 />
+              </Button>
+            ) : null}
+          </span>
+        </>
+      );
+      break;
+    }
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div
+        className={cn(
+          'flex min-h-11 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-1.5 py-1',
+          mode.kind === 'gap'
+            ? 'border border-dashed border-border'
+            : mode.kind === 'marking' ||
+                mode.kind === 'naming' ||
+                (mode.kind === 'segment' && mode.dirty)
+              ? 'bg-primary/10'
+              : 'bg-card'
+        )}
+      >
+        {body}
+      </div>
+      {error ? (
+        <p role="alert" className="px-2 text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * One edge: − the time +, with a dot above the time that puts the edge at
+ * the playhead — the form's Mark here, for the cut heard while
+ * listening rather than found by stepping. Above the time it belongs to, so
+ * which edge it moves needs no word; its title says the key and where it
+ * would land. The time plays from the cut; each step moves it a second and
+ * plays from where it landed, so the next thing heard is whether it now falls
+ * in the pause. 44px on a phone, where these are thumbs.
+ */
+function Edge({
+  label,
+  at,
+  moved = false,
+  onNudge,
+  onHere,
+  onHear,
+}: {
+  label: string;
+  at: number;
+  moved?: boolean;
+  onNudge: ((by: number) => void) | null;
+  onHere?: (() => void) | null;
+  onHear: (at: number) => void;
+}) {
+  const step =
+    'size-11 rounded-md text-base text-muted-foreground hover:bg-accent hover:text-foreground sm:size-8';
+  return (
+    <span className="flex items-center">
+      {onNudge ? (
+        <button
+          type="button"
+          aria-label={`${label} a second earlier`}
+          title={`${label} a second earlier`}
+          onClick={() => onNudge(-1)}
+          className={step}
+        >
+          −
+        </button>
+      ) : null}
+      <span className="relative flex">
+        {onHere ? (
+          <button
+            type="button"
+            onClick={onHere}
+            aria-label={`Move the ${label.toLowerCase()} to the playhead`}
+            title={`Move the ${label.toLowerCase()} to the playhead ( ${label === 'Start' ? '[' : ']'} )`}
+            // The dot is small; the button around it is not. Laid over the
+            // time's top edge rather than in the flow, so it moves nothing.
+            className="group absolute -top-2.5 left-1/2 flex size-5 -translate-x-1/2 items-center justify-center rounded-full"
+          >
+            <span className="size-1.5 rounded-full bg-muted-foreground transition group-hover:scale-150 group-hover:bg-primary group-focus-visible:bg-primary" />
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => onHear(at)}
+          title={`Play from the ${label.toLowerCase()} cut`}
+          className={cn(
+            'h-11 rounded-md px-1 text-sm tabular-nums hover:bg-accent sm:h-8',
+            moved ? 'text-primary' : 'text-foreground'
+          )}
+        >
+          {clock(at)}
+        </button>
+      </span>
+      {onNudge ? (
+        <button
+          type="button"
+          aria-label={`${label} a second later`}
+          title={`${label} a second later`}
+          onClick={() => onNudge(1)}
+          className={step}
+        >
+          +
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
+function Kbd({ children }: { children: ReactNode }) {
+  return (
+    <kbd className="rounded border border-current/30 px-1 font-sans text-[10px] leading-4 opacity-70">
+      {children}
+    </kbd>
+  );
+}
