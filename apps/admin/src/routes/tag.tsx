@@ -40,18 +40,20 @@ import {
   clock,
   coverageOpen,
   gapAt,
+  markingWindow,
   overlapping,
   STRIP_HOLD_SECONDS,
   stripSegment,
   untaggedGaps,
   untaggedSeconds,
+  zoomWindow,
   type TimelineSegment,
 } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@kp/ui/popover';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Pause, Play, ScanLine } from 'lucide-react';
+import { ChevronLeft, Pause, Play, ScanLine, ZoomIn, ZoomOut } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Kbd } from '~/components/Kbd';
@@ -103,11 +105,18 @@ const SHORTCUTS: [string, string][] = [
   ['[', 'start here — or move the start, inside a segment'],
   [']', 'end here — or move the end'],
   [', .', 'previous / next segment'],
+  ['f', 'zoom the bar to the cut / show the whole recording'],
   ['esc', 'undo moved edges, or drop a new cut'],
 ];
 
 /** How long a deleted draft of your own waits for Undo before it really goes. */
 const UNDO_MS = 6000;
+
+/** Least seconds shown either side of a cut when the bar is zoomed (`zoomWindow`). */
+const ZOOM_PAD = 30;
+
+/** Where this browser keeps whether the bar is zoomed to the cut. */
+const ZOOM_KEY = 'kp.tag.zoomed';
 
 /**
  * A row as a whole draft, with only its edges changed.
@@ -509,6 +518,73 @@ function Workbench({ id }: { id: string }) {
   const focus = focusId ? (byId.get(focusId) ?? null) : null;
   const focusSeg = focusId ? segments.find((s) => s.id === focusId) : undefined;
 
+  /*
+   * The bar zooms to the strip's segment, a stretch either side so an edge can
+   * be pulled outward. Built from the row as saved, not from `segments`,
+   * which already carries `moved`: built from that, the window re-fit on every
+   * pixel of a drag, so the neighbours slid while the edge under the pointer
+   * hardly moved. Whole recording on a gap.
+   *
+   * Off until asked for: the strip follows the playhead, so zoomed by default
+   * the bar re-framed itself at every shabad and gap of a recording simply
+   * playing through. Once on it stays on, and the choice is kept in this
+   * browser for next time — a preference, so storage that may be missing.
+   */
+  const [zoomed, setZoomed] = useState(() => {
+    try {
+      return localStorage.getItem(ZOOM_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleZoom = () => {
+    const next = !zoomed;
+    setZoomed(next);
+    try {
+      localStorage.setItem(ZOOM_KEY, next ? '1' : '0');
+    } catch {
+      // Private window or blocked storage: the toggle still works for this visit.
+    }
+  };
+  const saved = focus ? { start: Number(focus.start_sec), end: Number(focus.end_sec) } : null;
+  /*
+   * While marking, the furthest the playhead has got: the window grows from
+   * it, so seeking back to re-hear a line does not shrink the bar under the
+   * click. Kept with the start it belongs to: `[` pressed again mid-mark is a
+   * new cut, and the old reach would have kept its wider window. Adjusted
+   * during render, as `held` is.
+   */
+  const [reach, setReach] = useState<{ from: number | null; at: number }>({ from: null, at: 0 });
+  if (marking && start !== null && reach.from !== start) setReach({ from: start, at: position });
+  else if (marking && position > reach.at) setReach({ from: reach.from, at: position });
+  if (!marking && reach.from !== null) setReach({ from: null, at: 0 });
+  /*
+   * A finished cut waiting for its shabad is framed when it is finished: its
+   * edges are still draggable here, and a window built from them would re-fit
+   * under the drag just as a segment's did. A drag cannot leave the window, so
+   * an edge outside it means the cut itself changed — `[` after a skip, or a
+   * new cut from a suggestion — and that is re-framed.
+   */
+  const [namingView, setNamingView] = useState<{ start: number; end: number } | null>(null);
+  if (
+    naming &&
+    start !== null &&
+    end !== null &&
+    (!namingView || start < namingView.start || end > namingView.end)
+  )
+    setNamingView(zoomWindow({ start, end }, duration, ZOOM_PAD));
+  if (!naming && namingView) setNamingView(null);
+  const view =
+    marking && start !== null
+      ? markingWindow(start, reach.at, duration, ZOOM_PAD)
+      : naming
+        ? namingView
+        : saved
+          ? zoomWindow(saved, duration, ZOOM_PAD)
+          : null;
+  const canZoom = view !== null;
+  const barWindow = zoomed ? view : null;
+
   /** Jump to a segment and play it, the strip going with it. */
   const goTo = useCallback(
     (r: Rendition) => {
@@ -681,6 +757,11 @@ function Workbench({ id }: { id: string }) {
         e.preventDefault();
         if (start !== null) markEnd();
         else if (focus) hereEdge('end');
+        break;
+      case 'f':
+        // Not with a modifier: Cmd/Ctrl+F is the browser's find, and toggled
+        // the zoom — and saved it — on its way past.
+        if (canZoom && !e.metaKey && !e.ctrlKey && !e.altKey) toggleZoom();
         break;
       case ',':
         step(-1);
@@ -1201,13 +1282,16 @@ function Workbench({ id }: { id: string }) {
               playback and the axis, and letting it scroll away meant scrolling
               back up to press play. */}
           <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 rounded-xl bg-background/95 p-2 backdrop-blur">
-            <div className="flex items-center gap-3">
+            {/* Top-aligned: the scan pointers hang under the bar, so centring
+                set the button against bar and pointers together and it sat
+                below the bar. The bar is 40px and the button 36px. */}
+            <div className="flex items-start gap-3">
               <Button
                 size="icon"
                 onClick={player.toggle}
                 title={player.playing ? 'Pause (space)' : 'Play (space)'}
                 aria-label={player.playing ? 'Pause' : 'Play'}
-                className="shrink-0 rounded-full"
+                className="mt-0.5 shrink-0 rounded-full"
               >
                 {player.playing ? (
                   <Pause className="fill-current" />
@@ -1224,15 +1308,36 @@ function Workbench({ id }: { id: string }) {
                   end={handles?.end ?? null}
                   focusId={focusId}
                   pointers={pointers}
+                  view={barWindow}
                   onSeek={seekBar}
                   onPointer={nextFinding}
                   onChangeStart={handles?.onStart}
                   onChangeEnd={handles?.onEnd}
                   onAudition={player.playAt}
+                  onDragStart={() => {
+                    if (player.playing) player.toggle();
+                  }}
                 />
               </div>
+              {/* Kept in the row when there is nothing to zoom to, only hidden:
+                  appearing and going, it changed the bar's width at every
+                  shabad and gap — a rescale nobody asked for. */}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={toggleZoom}
+                aria-label={zoomed ? 'Show the whole recording' : 'Zoom to the cut'}
+                title={zoomed ? 'Show the whole recording (F)' : 'Zoom to the cut (F)'}
+                className={cn(
+                  'mt-1 shrink-0',
+                  zoomed ? 'text-primary' : 'text-muted-foreground',
+                  !canZoom && 'invisible'
+                )}
+              >
+                {zoomed ? <ZoomOut /> : <ZoomIn />}
+              </Button>
             </div>
-            <div className="flex items-center justify-between pl-12 text-xs tabular-nums text-muted-foreground">
+            <div className="flex items-center justify-between pr-11 pl-12 text-xs tabular-nums text-muted-foreground">
               <span>
                 {clock(position)}
                 {/* Speed is a setting you pick once and forget; ↑ ↓ cycle it
