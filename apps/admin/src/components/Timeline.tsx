@@ -46,6 +46,8 @@ interface Props {
   end: number | null;
   /** The segment the strip under the bar acts on, drawn brighter so the two read as one. */
   focusId?: string | null;
+  /** The handles' edges are moved and not saved: their time labels say so. */
+  moved?: boolean;
   pointers?: TimelinePointer[];
   /**
    * The stretch of the recording the bar spans, when it is zoomed to one cut.
@@ -74,6 +76,7 @@ export function Timeline({
   start,
   end,
   focusId = null,
+  moved = false,
   pointers = [],
   view = null,
   onSeek,
@@ -353,6 +356,31 @@ export function Timeline({
             )}
           </div>
         ) : null}
+
+        {/* Each handle's time, above it, when zoomed: there the edge is
+            dragged by the second, and its time was only down in the strip,
+            away from the drag. Not on the whole recording, where a cut is a
+            sliver and the two labels would sit on each other. Gold once moved
+            and not saved, as the strip's times are. */}
+        {view
+          ? [
+              { at: start, p: startPct },
+              { at: growing ? null : end, p: growing ? null : endPct },
+            ].map(({ at, p }, i) =>
+              at !== null && p !== null ? (
+                <span
+                  key={i}
+                  className={cn(
+                    'pointer-events-none absolute -top-4 z-30 -translate-x-1/2 rounded px-1 text-[10px] leading-4 tabular-nums',
+                    moved ? 'bg-primary text-primary-foreground' : 'text-primary'
+                  )}
+                  style={{ left: `${p}%` }}
+                >
+                  {clock(at)}
+                </span>
+              ) : null
+            )
+          : null}
 
         {/* Handles last, and with the pointers the only layer that takes
             pointer events besides the seek surface — a drag must never fall

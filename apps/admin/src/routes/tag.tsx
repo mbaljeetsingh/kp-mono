@@ -53,7 +53,7 @@ import { Button } from '@kp/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@kp/ui/popover';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Pause, Play, ScanLine, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronLeft, Pause, Play, ScanLine } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Kbd } from '~/components/Kbd';
@@ -525,7 +525,9 @@ function Workbench({ id }: { id: string }) {
    * pixel of a drag, so the neighbours slid while the edge under the pointer
    * hardly moved. Whole recording on a gap.
    *
-   * Off until asked for: the strip follows the playhead, so zoomed by default
+   * Off until asked for, with F (in the `?` list); a button for it sat unseen
+   * at the bar's end, so the key is the way in. The strip follows the
+   * playhead, so zoomed by default
    * the bar re-framed itself at every shabad and gap of a recording simply
    * playing through. Once on it stays on, and the choice is kept in this
    * browser for next time — a preference, so storage that may be missing.
@@ -1280,8 +1282,9 @@ function Workbench({ id }: { id: string }) {
 
           {/* The transport follows you down the page: every job below it needs
               playback and the axis, and letting it scroll away meant scrolling
-              back up to press play. */}
-          <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 rounded-xl bg-background/95 p-2 backdrop-blur">
+              back up to press play. Room above the bar for the handles' time
+              labels, which the window's top edge cut off once it stuck. */}
+          <div className="sticky top-0 z-20 -mx-1 flex flex-col gap-2 rounded-xl bg-background/95 p-2 pt-4 backdrop-blur">
             {/* Top-aligned: the scan pointers hang under the bar, so centring
                 set the button against bar and pointers together and it sat
                 below the bar. The bar is 40px and the button 36px. */}
@@ -1307,6 +1310,7 @@ function Workbench({ id }: { id: string }) {
                   start={handles?.start ?? null}
                   end={handles?.end ?? null}
                   focusId={focusId}
+                  moved={moved !== null && moved.id === focusId}
                   pointers={pointers}
                   view={barWindow}
                   onSeek={seekBar}
@@ -1319,25 +1323,8 @@ function Workbench({ id }: { id: string }) {
                   }}
                 />
               </div>
-              {/* Kept in the row when there is nothing to zoom to, only hidden:
-                  appearing and going, it changed the bar's width at every
-                  shabad and gap — a rescale nobody asked for. */}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={toggleZoom}
-                aria-label={zoomed ? 'Show the whole recording' : 'Zoom to the cut'}
-                title={zoomed ? 'Show the whole recording (F)' : 'Zoom to the cut (F)'}
-                className={cn(
-                  'mt-1 shrink-0',
-                  zoomed ? 'text-primary' : 'text-muted-foreground',
-                  !canZoom && 'invisible'
-                )}
-              >
-                {zoomed ? <ZoomOut /> : <ZoomIn />}
-              </Button>
             </div>
-            <div className="flex items-center justify-between pr-11 pl-12 text-xs tabular-nums text-muted-foreground">
+            <div className="flex items-center justify-between pl-12 text-xs tabular-nums text-muted-foreground">
               <span>
                 {clock(position)}
                 {/* Speed is a setting you pick once and forget; ↑ ↓ cycle it
