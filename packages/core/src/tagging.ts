@@ -112,3 +112,67 @@ export function overlapping(
 ): TimelineSegment[] {
   return segments.filter((s) => s.id !== ignoreId && s.start < range.end && range.start < s.end);
 }
+
+/**
+ * How long past a segment's edge the tag page's strip stays on it.
+ *
+ * Hearing a cut means playing from it, and playing from an end cut runs
+ * straight out of the segment: without the hold, the strip would let go of the
+ * row in the very moment its edge is being judged.
+ */
+export const STRIP_HOLD_SECONDS = 15;
+
+/**
+ * Which segment the strip under the timeline acts on, or null for the
+ * untagged stretch the playhead is in.
+ *
+ * `held` is what the strip showed last, `pinned` a segment with unsaved edits:
+ * those stay put wherever the playhead goes, or an edit would be saved against
+ * whatever was playing. Otherwise the playhead decides — inside a segment
+ * means that segment, and inside two means the held one if it is either, else
+ * the one that starts later, the inner of a pair where one contains the other.
+ * In a gap the held segment stays within the hold of its edges.
+ */
+export function stripSegment(
+  segments: TimelineSegment[],
+  position: number,
+  held: string | null,
+  pinned: string | null = null
+): string | null {
+  if (pinned && segments.some((s) => s.id === pinned)) return pinned;
+  // Half-open: at exactly the end cut the playhead has left, so the hold
+  // decides — and it keeps the segment whose end was just clicked.
+  const under = segments.filter((s) => position >= s.start && position < s.end);
+  if (under.length) {
+    if (held && under.some((s) => s.id === held)) return held;
+    return under.reduce((a, b) => (b.start > a.start ? b : a)).id;
+  }
+  const last = held ? segments.find((s) => s.id === held) : undefined;
+  if (
+    last &&
+    position >= last.start - STRIP_HOLD_SECONDS &&
+    position <= last.end + STRIP_HOLD_SECONDS
+  ) {
+    return last.id;
+  }
+  return null;
+}
+
+/**
+ * The untagged stretch around a moment: from the last cut before it to the
+ * next one after, or the recording's own ends. Unlike `untaggedGaps` it has no
+ * minimum — the strip names whatever the playhead is in.
+ */
+export function gapAt(
+  segments: TimelineSegment[],
+  duration: number,
+  position: number
+): { start: number; end: number } {
+  let start = 0;
+  let end = duration;
+  for (const s of segments) {
+    if (s.end <= position) start = Math.max(start, s.end);
+    if (s.start > position) end = Math.min(end, s.start);
+  }
+  return { start, end };
+}

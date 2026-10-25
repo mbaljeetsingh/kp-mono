@@ -69,7 +69,8 @@ MIN_MARGIN = 0.05       # the floor itself is runtime.MIN_CONFIDENCE
 MIN_DRAFT_SEC = 60      # shorter regions are pointers (see is_draft)
 QUOTE_MAX_SEC = 90      # a run this short inside another shabad is a quote
 MERGE_ACROSS_SEC = 300  # one shabad either side of only pointers is one draft
-SETTLED = 0.5           # this much inside published renditions: not suggested
+SETTLED = 0.5           # this much inside published renditions: not suggested;
+                        # inside a person's draft: pointed at, not drafted
 # Routine banis, sung in nearly every program rather than chosen for it: So
 # Dar closing the evening (27 in Japji, 40 opening Rehras — they read alike,
 # so either can win), the Pavan Guru salok (39), Anand Sahib (333375) closing
@@ -410,6 +411,14 @@ def write_drafts(track_id, found, shabads, owner=None):
     # those renditions.
     published = [(float(r["start_sec"]), float(r["end_sec"]))
                  for r in rows if r["status"] == "published"]
+    # A person's own unpublished draft is claimed too, short of settled. A scan
+    # draft stacked on it was a second segment over the same minutes, which
+    # nobody can publish both of; a pointer there is the scan's opinion offered
+    # to the person already working on it — the tag page shows it against an
+    # unlinked draft as "Scan thinks". Only by shabad (`existing`) before.
+    claimed = [(float(r["start_sec"]), float(r["end_sec"]))
+               for r in rows
+               if r["status"] != "published" and r.get("source") != "scan"]
     drafted = 0
     findings = []
     for g, align_conf, timings in found:
@@ -428,9 +437,11 @@ def write_drafts(track_id, found, shabads, owner=None):
         if sid in existing:
             print(f"  shabad {sid} already has a rendition here, skipping")
             continue
-        if align_conf is None or sid in ROUTINE:
+        on_claim = settled_share(t0, t1, claimed) >= SETTLED
+        if align_conf is None or sid in ROUTINE or on_claim:
             print(f"  not drafting shabad {sid} ({t0:.0f}-{t1:.0f}s): "
-                  + ("a routine bani, pointed at" if sid in ROUTINE else
+                  + ("someone's draft is there, pointed at" if on_claim else
+                     "a routine bani, pointed at" if sid in ROUTINE else
                      f"conf {conf:.2f} margin {margin:+.2f}, {t1 - t0:.0f}s "
                      f"below gate"))
             # Refusing to draft must not mean refusing to tell: this becomes a

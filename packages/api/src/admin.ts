@@ -546,6 +546,22 @@ export function publishRefusal(
   // that is the loading state — the comment above promised no button and the
   // comparison alone handed one out.
   if (!perms.review && !(Boolean(userId) && row.created_by === userId)) return 'permission';
+  return publishMissing(row);
+}
+
+/**
+ * What the row itself still lacks before anyone could publish it — the line a
+ * rendition is titled from: its shabad, then the main verse within it.
+ *
+ * `publishRefusal` asks about permission first, which is right for a Publish
+ * button and wrong for the person fixing the row: a contributor's own draft
+ * named by ear needs its shabad whether or not they may publish it. The tag
+ * page's strip and rows ask this, so the two questions share one rule.
+ */
+export function publishMissing(row: {
+  shabad_id?: number | null;
+  main_verse_id?: number | null;
+}): 'needs-shabad' | 'needs-line' | null {
   if (row.shabad_id == null) return 'needs-shabad';
   if (row.main_verse_id == null) return 'needs-line';
   return null;

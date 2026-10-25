@@ -21,6 +21,13 @@ export const MIN_LENGTH = 0.1;
 
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
+/**
+ * A boundary to two decimals, as save writes it — so a drag or a nudge cannot
+ * leave 12.299999999 behind for the next nudge to inherit. One rule for the
+ * timeline's drag, the strip's −/+ and the whole-file end.
+ */
+export const cents = (v: number) => Math.round(v * 100) / 100;
+
 /** Coarse and fine steps. 10s hunts; 0.1s places. */
 export const SKIP_COARSE = 10;
 export const SKIP_FINE = 0.1;
@@ -35,7 +42,8 @@ export interface TagPlayer {
   seek: (to: number) => void;
   skip: (seconds: number) => void;
   setSpeed: (rate: number) => void;
-  cycleSpeed: (direction: 1 | -1) => void;
+  /** Step through SPEEDS: clamped at the ends for ↑ ↓, round again from the top for a tap. */
+  cycleSpeed: (direction: 1 | -1, wrap?: boolean) => void;
   /**
    * Play from exactly this second. Once a loop round a cut; taggers found it
    * got in the way more than it helped, so a cut is now heard straight on.
@@ -149,9 +157,14 @@ export function useTagPlayer(src: string | undefined): TagPlayer {
   }, []);
 
   const cycleSpeed = useCallback(
-    (direction: 1 | -1) => {
+    (direction: 1 | -1, wrap = false) => {
       const i = SPEEDS.indexOf(speed as (typeof SPEEDS)[number]);
-      const next = SPEEDS[Math.min(Math.max(0, i + direction), SPEEDS.length - 1)];
+      const next =
+        SPEEDS[
+          wrap
+            ? (i + direction + SPEEDS.length) % SPEEDS.length
+            : Math.min(Math.max(0, i + direction), SPEEDS.length - 1)
+        ];
       if (next != null) setSpeed(next);
     },
     [speed, setSpeed]

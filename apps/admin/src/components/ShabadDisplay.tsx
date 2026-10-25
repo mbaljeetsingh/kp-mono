@@ -16,6 +16,7 @@
  */
 import { type ShabadVerse, useShabadText } from '@kp/api';
 import { Pin } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { BANIDB_BASE } from '~/lib/links';
 import { cn } from '~/lib/utils';
@@ -27,10 +28,31 @@ export function ShabadDisplay({
 }: {
   shabadId: number;
   mainVerseId: number | null;
-  onPick: (verse: ShabadVerse) => void;
+  /** Absent for someone who may not change the row: the lines read, the pin shows, nothing clicks. */
+  onPick?: (verse: ShabadVerse) => void;
 }) {
   const query = useShabadText(BANIDB_BASE, shabadId);
   const lines = query.data?.verses ?? [];
+  const box = useRef<HTMLDivElement>(null);
+  const loaded = lines.length > 0;
+
+  /*
+   * The main verse in view when the lines arrive. It is often the rahao, a few
+   * lines down a box that shows four, so it opened scrolled past — the one line
+   * the panel is about, out of sight. On arrival only, and only when it is out
+   * of view: run again on a click that changed it, it pulled the line just
+   * clicked to the top, out from under the pointer. The box scrolls, never the
+   * page: the player above it is sticky.
+   */
+  useEffect(() => {
+    const el = box.current;
+    const pin = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!el || !pin) return;
+    const top = pin.offsetTop - el.offsetTop;
+    if (top < el.scrollTop || top + pin.offsetHeight > el.scrollTop + el.clientHeight) {
+      el.scrollTop = top - 8;
+    }
+  }, [loaded, shabadId]);
 
   if (query.isLoading) {
     return <p className="px-1 py-2 text-sm text-muted-foreground">Loading the shabad…</p>;
@@ -45,11 +67,10 @@ export function ShabadDisplay({
   }
 
   return (
-    <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border p-2">
-      <p className="px-1 pb-1 text-xs text-muted-foreground">
-        Click a line to make it the main verse — the rahao the ragi returns to.
-      </p>
-
+    <div
+      ref={box}
+      className="flex max-h-64 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border p-2"
+    >
       {lines.map((line) => {
         const picked = line.verseId === mainVerseId;
         return (
@@ -65,11 +86,12 @@ export function ShabadDisplay({
             key={line.verseId}
             type="button"
             aria-pressed={picked}
-            title={picked ? 'The main verse' : 'Set as the main verse'}
-            onClick={() => onPick(line)}
+            disabled={!onPick}
+            title={picked ? 'The main verse' : onPick ? 'Set as the main verse' : undefined}
+            onClick={() => onPick?.(line)}
             className={cn(
-              'flex items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-accent/50',
-              picked && 'bg-primary/10 hover:bg-primary/15'
+              'flex items-start gap-2 rounded-md px-2 py-1.5 text-left enabled:hover:bg-accent/50',
+              picked && 'bg-primary/10 enabled:hover:bg-primary/15'
             )}
           >
             <Pin
