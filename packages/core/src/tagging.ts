@@ -123,6 +123,45 @@ export function overlapping(
 export const STRIP_HOLD_SECONDS = 15;
 
 /**
+ * The stretch of the recording the timeline spans when zoomed to one segment:
+ * its saved edges plus `pad` seconds either side, kept inside the recording.
+ * Saved edges, not the ones being dragged, so the scale holds still mid-drag.
+ */
+export function zoomWindow(
+  seg: Pick<TimelineSegment, 'start' | 'end'>,
+  duration: number,
+  pad: number
+): { start: number; end: number } {
+  return { start: Math.max(0, seg.start - pad), end: Math.min(duration, seg.end + pad) };
+}
+
+/** What a cut being marked is shown first: most shabads here end inside 20 minutes. */
+export const MARK_FIRST_SECONDS = 20 * 60;
+/** How far the marking window grows once the playhead nears its end. */
+export const MARK_STEP_SECONDS = 5 * 60;
+/** How close to the window's end the playhead gets before it grows. */
+const MARK_MARGIN_SECONDS = 60;
+
+/**
+ * The stretch of the recording the timeline spans while a cut is being
+ * marked: `lead` seconds before its start, then 20 minutes, growing 5 at a
+ * time once `reach` — the furthest the playhead has got — comes within a
+ * minute of the end. Grown from the furthest point rather than the playhead
+ * itself, so seeking back does not shrink the bar under the click.
+ */
+export function markingWindow(
+  start: number,
+  reach: number,
+  duration: number,
+  lead: number
+): { start: number; end: number } {
+  let end = start + MARK_FIRST_SECONDS;
+  const short = reach + MARK_MARGIN_SECONDS - end;
+  if (short > 0) end += Math.ceil(short / MARK_STEP_SECONDS) * MARK_STEP_SECONDS;
+  return { start: Math.max(0, start - lead), end: Math.min(duration, end) };
+}
+
+/**
  * Which segment the strip under the timeline acts on, or null for the
  * untagged stretch the playhead is in.
  *

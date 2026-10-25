@@ -6,7 +6,9 @@ import {
   overlapping,
   stripSegment,
   untaggedGaps,
+  markingWindow,
   untaggedSeconds,
+  zoomWindow,
   type TimelineSegment,
 } from './tagging';
 
@@ -163,5 +165,27 @@ describe('gapAt', () => {
   it('runs to the recording’s own ends', () => {
     expect(gapAt([seg('a', 100, 200)], 1000, 50)).toEqual({ start: 0, end: 100 });
     expect(gapAt([seg('a', 100, 200)], 1000, 900)).toEqual({ start: 200, end: 1000 });
+  });
+});
+
+describe('zoomWindow', () => {
+  it('pads both sides', () => {
+    expect(zoomWindow({ start: 100, end: 200 }, 1000, 30)).toEqual({ start: 70, end: 230 });
+  });
+  it('stays inside the recording', () => {
+    expect(zoomWindow({ start: 10, end: 990 }, 1000, 30)).toEqual({ start: 0, end: 1000 });
+  });
+});
+
+describe('markingWindow', () => {
+  it('shows 20 minutes from the start', () => {
+    expect(markingWindow(600, 700, 10_000, 30)).toEqual({ start: 570, end: 1800 });
+  });
+  it('grows 5 minutes once the playhead is within a minute of the end', () => {
+    expect(markingWindow(600, 1750, 10_000, 30)).toEqual({ start: 570, end: 2100 });
+    expect(markingWindow(600, 2100, 10_000, 30)).toEqual({ start: 570, end: 2400 });
+  });
+  it('stays inside the recording', () => {
+    expect(markingWindow(10, 9_990, 10_000, 30)).toEqual({ start: 0, end: 10_000 });
   });
 });

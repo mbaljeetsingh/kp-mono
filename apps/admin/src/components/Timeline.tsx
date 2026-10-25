@@ -47,12 +47,21 @@ interface Props {
   /** The segment the strip under the bar acts on, drawn brighter so the two read as one. */
   focusId?: string | null;
   pointers?: TimelinePointer[];
+  /**
+   * The stretch of the recording the bar spans, when it is zoomed to one cut.
+   * Defaults to the whole recording. The caller derives it from the saved
+   * edges, never the live ones, so the scale holds still while a handle is
+   * dragged.
+   */
+  window?: { start: number; end: number } | null;
   onSeek: (seconds: number) => void;
   onPointer?: (pointer: TimelinePointer) => void;
   onChangeStart?: (seconds: number) => void;
   onChangeEnd?: (seconds: number) => void;
   /** A boundary placed by drag is worth hearing immediately. */
   onAudition?: (seconds: number) => void;
+  /** A handle went down: zoomed in the playhead sweeps past fast, so the caller can hold playback. */
+  onDragStart?: () => void;
 }
 
 export function Timeline({
@@ -63,11 +72,13 @@ export function Timeline({
   end,
   focusId = null,
   pointers = [],
+  window: view = null,
   onSeek,
   onPointer,
   onChangeStart,
   onChangeEnd,
   onAudition,
+  onDragStart,
 }: Props) {
   /*
    * The bar's box, kept in state through a callback ref rather than read off a
@@ -88,12 +99,15 @@ export function Timeline({
   const [hover, setHover] = useState<{ at: number; ratio: number } | null>(null);
 
   /** Position on the axis as a percentage; null while the duration is unknown. */
+  const from = view ? Math.max(0, view.start) : 0;
+  const to = view ? Math.min(duration, view.end) : duration;
+  const width = Math.max(to - from, MIN_LENGTH);
   const pct = useCallback(
     (v: number | null): number | null => {
       if (v == null || !Number.isFinite(v) || !duration) return null;
-      return Math.min(100, Math.max(0, (v / duration) * 100));
+      return Math.min(100, Math.max(0, ((v - from) / width) * 100));
     },
-    [duration]
+    [duration, from, width]
   );
 
   const dragBoundary = useCallback(
@@ -109,9 +123,22 @@ export function Timeline({
       // move from a stray click — only a move earns the audition.
       const before = which === 'start' ? start : end;
       let latest = before;
+      // Held until the handle really moves: a click that only lands on a
+      // handle — easy, zoomed in, where they sit at the cut's edges — must
+      // not stop the playback it was meant to move.
+      let held = false;
 
       const place = (e: PointerEvent) => {
-        const sec = ((e.clientX - rect.left) / rect.width) * duration;
+        if (!held && view && Math.abs(e.clientX - down.clientX) > 2) {
+          held = true;
+          onDragStart?.();
+        }
+        // Held to the bar: past its end the time kept running while the handle
+        // stayed pinned at the edge, so the cut moved and the handle did not.
+        const sec = Math.min(
+          to,
+          Math.max(from, from + ((e.clientX - rect.left) / rect.width) * width)
+        );
         /*
          * The 0-floor is applied last: with the end marked inside the first
          * tenth of a second the upper bound goes negative, and floor-then-min
@@ -142,7 +169,20 @@ export function Timeline({
         { once: true }
       );
     },
-    [bar, duration, start, end, onChangeStart, onChangeEnd, onAudition]
+    [
+      bar,
+      duration,
+      from,
+      to,
+      width,
+      view,
+      start,
+      end,
+      onChangeStart,
+      onChangeEnd,
+      onAudition,
+      onDragStart,
+    ]
   );
 
   // Without a duration there is no scale to draw against — a bar of unknown
@@ -175,10 +215,12 @@ export function Timeline({
 
   /** A span as CSS, with a floor so a 20-second shabad in a 90-minute set is
    *  still visible rather than a sub-pixel sliver. */
-  const span = (from: number, to: number) => ({
-    left: `${pct(from) ?? 0}%`,
-    width: `${Math.max(0.35, (pct(to) ?? 0) - (pct(from) ?? 0))}%`,
+  const span = (a: number, b: number) => ({
+    left: `${pct(a) ?? 0}%`,
+    width: `${Math.max(0.35, (pct(b) ?? 0) - (pct(a) ?? 0))}%`,
   });
+  /** Zoomed in, a band or pointer wholly outside the window has no place on the bar. */
+  const visible = (a: number, b: number) => b > from && a < to;
 
   return (
     <div className="select-none">
@@ -191,15 +233,15 @@ export function Timeline({
           min={0}
           max={100}
           step={0.01}
-          value={(position / duration) * 100}
+          value={Math.min(100, Math.max(0, ((position - from) / width) * 100))}
           aria-label="Seek"
           aria-valuetext={clock(position)}
-          onChange={(e) => onSeek((duration * Number(e.target.value)) / 100)}
+          onChange={(e) => onSeek(from + (width * Number(e.target.value)) / 100)}
           onPointerMove={(e) => {
             const box = e.currentTarget.getBoundingClientRect();
             if (!box.width) return;
             const ratio = Math.min(1, Math.max(0, (e.clientX - box.left) / box.width));
-            setHover({ at: ratio * duration, ratio });
+            setHover({ at: from + ratio * width, ratio });
           }}
           onPointerLeave={() => setHover(null)}
           className="peer absolute inset-0 z-10 size-full cursor-pointer opacity-0"
@@ -210,35 +252,37 @@ export function Timeline({
               recordings list uses, so "done" means one colour everywhere in the
               workbench. A scan draft is hatched: its edges are a machine's
               guess until somebody publishes it. */}
-          {segments.map((s) => (
-            <div
-              key={s.id}
-              style={span(s.start, s.end)}
-              className={cn(
-                'absolute inset-y-1 flex items-center overflow-hidden rounded-[4px] px-1.5',
-                // Text dark on light and light on dark: the pale label that
-                // read on the dark theme vanished on parchment.
-                s.id === focusId
-                  ? s.published
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-amber-500 text-amber-950'
-                  : s.published
-                    ? 'bg-emerald-600/20 text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100'
-                    : s.scan
-                      ? 'bg-[repeating-linear-gradient(135deg,rgb(245_158_11/0.30)_0_5px,rgb(245_158_11/0.12)_5px_10px)] text-amber-950 dark:text-amber-100'
-                      : 'bg-amber-500/25 text-amber-950 dark:text-amber-100'
-              )}
-            >
-              <span
+          {segments
+            .filter((s) => visible(s.start, s.end))
+            .map((s) => (
+              <div
+                key={s.id}
+                style={span(s.start, s.end)}
                 className={cn(
-                  'truncate text-[10px] leading-none',
-                  s.id === focusId && 'font-semibold'
+                  'absolute inset-y-1 flex items-center overflow-hidden rounded-[4px] px-1.5',
+                  // Text dark on light and light on dark: the pale label that
+                  // read on the dark theme vanished on parchment.
+                  s.id === focusId
+                    ? s.published
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-amber-500 text-amber-950'
+                    : s.published
+                      ? 'bg-emerald-600/20 text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100'
+                      : s.scan
+                        ? 'bg-[repeating-linear-gradient(135deg,rgb(245_158_11/0.30)_0_5px,rgb(245_158_11/0.12)_5px_10px)] text-amber-950 dark:text-amber-100'
+                        : 'bg-amber-500/25 text-amber-950 dark:text-amber-100'
                 )}
               >
-                {s.name}
-              </span>
-            </div>
-          ))}
+                <span
+                  className={cn(
+                    'truncate text-[10px] leading-none',
+                    s.id === focusId && 'font-semibold'
+                  )}
+                >
+                  {s.name}
+                </span>
+              </div>
+            ))}
 
           {/* The cut being marked. Drawn over the saved blocks so an overlap is
               visible rather than hidden underneath. */}
@@ -254,10 +298,12 @@ export function Timeline({
         </div>
 
         {/* Playhead over everything. */}
-        <div
-          className="pointer-events-none absolute -top-0.5 -bottom-0.5 z-20 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
-          style={{ left: `${playPct}%` }}
-        />
+        {position >= from && position <= to ? (
+          <div
+            className="pointer-events-none absolute -top-0.5 -bottom-0.5 z-20 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
+            style={{ left: `${playPct}%` }}
+          />
+        ) : null}
 
         {/*
          * The readout. Above the axis rather than inside a band, because a
@@ -331,27 +377,29 @@ export function Timeline({
           over the wrong tag is the one worth a second listen. */}
       {pointers.length ? (
         <div className="relative mt-0.5 h-5">
-          {pointers.map((p) => (
-            <button
-              key={`${p.start}-${p.name}`}
-              type="button"
-              title={`Scan heard ${p.name} · ${clock(p.start)}–${clock(p.end)}`}
-              aria-label={`Scan pointer: ${p.name} at ${clock(p.start)}`}
-              onClick={() => onPointer?.(p)}
-              style={{ left: `${pct(p.start) ?? 0}%` }}
-              // The diamond is 10px; the button around it is 20px, and the
-              // row is as tall as the button, so it never overhangs the
-              // speed and ? buttons on the clock line below.
-              className="group absolute top-0 flex size-5 -translate-x-1/2 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span
-                className={cn(
-                  'size-2.5 rotate-45 rounded-[1px] bg-primary transition group-hover:scale-125',
-                  p.covered && 'opacity-35'
-                )}
-              />
-            </button>
-          ))}
+          {pointers
+            .filter((p) => visible(p.start, p.end))
+            .map((p) => (
+              <button
+                key={`${p.start}-${p.name}`}
+                type="button"
+                title={`Scan heard ${p.name} · ${clock(p.start)}–${clock(p.end)}`}
+                aria-label={`Scan pointer: ${p.name} at ${clock(p.start)}`}
+                onClick={() => onPointer?.(p)}
+                style={{ left: `${pct(p.start) ?? 0}%` }}
+                // The diamond is 10px; the button around it is 20px, and the
+                // row is as tall as the button, so it never overhangs the
+                // speed and ? buttons on the clock line below.
+                className="group absolute top-0 flex size-5 -translate-x-1/2 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span
+                  className={cn(
+                    'size-2.5 rotate-45 rounded-[1px] bg-primary transition group-hover:scale-125',
+                    p.covered && 'opacity-35'
+                  )}
+                />
+              </button>
+            ))}
         </div>
       ) : null}
     </div>
