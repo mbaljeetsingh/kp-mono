@@ -82,3 +82,7 @@ Mobile releases, all from `apps/mobile` on an up-to-date `main` (`apps/mobile/st
 ## Worktrees
 
 A SessionStart hook runs `scripts/worktree/setup.sh` in a new worktree; it symlinks the gitignored files listed in `.worktreeinclude` (the apps' and supabase `.env`) from the main checkout, so editing one edits the original.
+
+## Git
+
+Never commit or stage; leave changes unstaged for the owner.
