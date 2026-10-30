@@ -41,3 +41,10 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# iOS fetches this to let the app open shared /r/<id> links (Universal Links).
+# It has no extension, so Netlify would guess the type; Apple wants JSON.
+[[headers]]
+  for = "/.well-known/apple-app-site-association"
+  [headers.values]
+    Content-Type = "application/json"

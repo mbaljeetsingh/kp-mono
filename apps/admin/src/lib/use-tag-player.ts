@@ -3,7 +3,7 @@
  *
  * A browser's default transport cannot do what this task needs: hunting a
  * shabad boundary in a 70-minute set means skipping in fixed steps, slowing
- * down to place the cut, and looping a few seconds either side to check it.
+ * down to place the cut, and jumping straight to a cut to check it by ear.
  * Doing that with play/pause and a scrubber is slow enough to cap how much
  * anyone tags in one sitting.
  *
@@ -21,32 +21,34 @@ export const MIN_LENGTH = 0.1;
 
 export const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
+/**
+ * A boundary to two decimals, as save writes it — so a drag or a nudge cannot
+ * leave 12.299999999 behind for the next nudge to inherit. One rule for the
+ * timeline's drag, the strip's −/+ and the whole-file end.
+ */
+export const cents = (v: number) => Math.round(v * 100) / 100;
+
 /** Coarse and fine steps. 10s hunts; 0.1s places. */
 export const SKIP_COARSE = 10;
 export const SKIP_FINE = 0.1;
-
-/** How far either side of a boundary the audition loop reaches. */
-const AUDITION_PAD = 4;
 
 export interface TagPlayer {
   playing: boolean;
   position: number;
   duration: number;
   speed: number;
-  /** Set while auditioning a boundary — the loop has no other way out. */
-  loop: { start: number; end: number } | null;
   attach: (el: HTMLAudioElement | null) => void;
   toggle: () => void;
   seek: (to: number) => void;
   skip: (seconds: number) => void;
   setSpeed: (rate: number) => void;
-  cycleSpeed: (direction: 1 | -1) => void;
+  /** Step through SPEEDS: clamped at the ends for ↑ ↓, round again from the top for a tap. */
+  cycleSpeed: (direction: 1 | -1, wrap?: boolean) => void;
   /**
-   * Loop the last few seconds before a cut and the first few after it — the
-   * only way to hear whether a boundary actually falls in the gap.
+   * Play from exactly this second. Once a loop round a cut; taggers found it
+   * got in the way more than it helped, so a cut is now heard straight on.
    */
-  auditionBoundary: (at: number) => void;
-  stopLoop: () => void;
+  playAt: (at: number) => void;
 }
 
 export function useTagPlayer(src: string | undefined): TagPlayer {
@@ -55,22 +57,17 @@ export function useTagPlayer(src: string | undefined): TagPlayer {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeedState] = useState(1);
-  const [loop, setLoop] = useState<{ start: number; end: number } | null>(null);
 
   /*
-   * Read inside the timeupdate handler, which is attached once — mirrored into
-   * refs so the listener never goes stale.
+   * Read inside seek, which is memoised once — mirrored into a ref so it never
+   * goes stale.
    *
    * Mirrored in an effect rather than during render: a render React throws away
    * still runs its body, so assigning here would publish a value from a render
    * that never happened. It has not bitten yet, but a ref written during render
    * is the kind of thing that only misbehaves once concurrent features are on.
    */
-  const loopRef = useRef(loop);
   const durationRef = useRef(0);
-  useEffect(() => {
-    loopRef.current = loop;
-  }, [loop]);
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
@@ -91,8 +88,8 @@ export function useTagPlayer(src: string | undefined): TagPlayer {
      * Kept as an effect-body reset rather than a remount.
      *
      * This effect exists to build an external system — an HTMLAudioElement —
-     * and these three lines are React catching up with the one it just built:
-     * a new element is at 0, has no known duration and is not looping. The
+     * and these two lines are React catching up with the one it just built:
+     * a new element is at 0 and has no known duration. The
      * alternative is keying the page on `src`, which would also throw away the
      * segments a tagger has open.
      *
@@ -104,15 +101,8 @@ export function useTagPlayer(src: string | undefined): TagPlayer {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPosition(0);
     setDuration(0);
-    setLoop(null);
 
-    const tick = () => {
-      setPosition(node.currentTime);
-      // Auditioning: jump back to the window's start rather than letting
-      // playback run on into the next shabad.
-      const window_ = loopRef.current;
-      if (window_ && node.currentTime >= window_.end) node.currentTime = window_.start;
-    };
+    const tick = () => setPosition(node.currentTime);
     const meta = () => setDuration(Number.isFinite(node.duration) ? node.duration : 0);
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
@@ -167,39 +157,38 @@ export function useTagPlayer(src: string | undefined): TagPlayer {
   }, []);
 
   const cycleSpeed = useCallback(
-    (direction: 1 | -1) => {
+    (direction: 1 | -1, wrap = false) => {
       const i = SPEEDS.indexOf(speed as (typeof SPEEDS)[number]);
-      const next = SPEEDS[Math.min(Math.max(0, i + direction), SPEEDS.length - 1)];
+      const next =
+        SPEEDS[
+          wrap
+            ? (i + direction + SPEEDS.length) % SPEEDS.length
+            : Math.min(Math.max(0, i + direction), SPEEDS.length - 1)
+        ];
       if (next != null) setSpeed(next);
     },
     [speed, setSpeed]
   );
 
-  const auditionBoundary = useCallback(
+  const playAt = useCallback(
     (at: number) => {
-      const window_ = { start: Math.max(0, at - AUDITION_PAD), end: at + AUDITION_PAD };
-      setLoop(window_);
-      seek(window_.start);
+      seek(at);
       void el.current?.play().catch(() => {});
     },
     [seek]
   );
-
-  const stopLoop = useCallback(() => setLoop(null), []);
 
   return {
     playing,
     position,
     duration,
     speed,
-    loop,
     attach,
     toggle,
     seek,
     skip,
     setSpeed,
     cycleSpeed,
-    auditionBoundary,
-    stopLoop,
+    playAt,
   };
 }

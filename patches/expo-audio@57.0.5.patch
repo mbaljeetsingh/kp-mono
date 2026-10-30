@@ -1,0 +1,155 @@
+diff --git a/build/AudioConstants.d.ts b/build/AudioConstants.d.ts
+index cfd92ad0ff5765254c4e6db974fe44bce34aad06..c4d5f7cd332aab81eccc50ddfbd31e01bdc0a9ee 100644
+--- a/build/AudioConstants.d.ts
++++ b/build/AudioConstants.d.ts
+@@ -15,5 +15,8 @@ export type AudioLockScreenOptions = {
+      * and scrub bar, and disable seek controls.
+      */
+     isLiveStream?: boolean;
++    /** kp-mono patch: present seconds [segmentStart, segmentEnd] of the file as the track. */
++    segmentStart?: number;
++    segmentEnd?: number;
+ };
+ //# sourceMappingURL=AudioConstants.d.ts.map
+\ No newline at end of file
+diff --git a/ios/AudioRecords.swift b/ios/AudioRecords.swift
+index 33db27c3b8fb40fa9db6659a0787c6b2b503d1ab..2ec7dbee3ebaa8e5f03c7dc41e4de2dd4965661f 100644
+--- a/ios/AudioRecords.swift
++++ b/ios/AudioRecords.swift
+@@ -70,6 +70,10 @@ struct LockScreenOptions: Record {
+   @Field var showSeekForward: Bool = false
+   @Field var showSeekBackward: Bool = false
+   @Field var isLiveStream: Bool? = false
++  // kp-mono: a slice of the file to present as the whole track — its own
++  // duration, elapsed time and scrub range on the lock screen.
++  @Field var segmentStart: Double?
++  @Field var segmentEnd: Double?
+ }
+ 
+ enum BitRateStrategy: String, Enumerable {
+diff --git a/ios/MediaController.swift b/ios/MediaController.swift
+index e977f577cd2e16b194b56537ad76b423f40d2496..32c0a5025052f9314fe4df20075ba7d48dc92607 100644
+--- a/ios/MediaController.swift
++++ b/ios/MediaController.swift
+@@ -14,6 +14,8 @@ class MediaController {
+   private var artworkLoadToken: UUID?
+   private var currentArtworkItemIdentifier: ObjectIdentifier?
+   private var isLiveStream = false
++  // kp-mono: the slice shown as the track, if any.
++  private var segment: (start: Double, end: Double)?
+ 
+   func setActivePlayer(_ player: AudioPlayer?, options: LockScreenOptions? = nil) {
+     performOnMain {
+@@ -37,6 +39,11 @@ class MediaController {
+     activePlayer = player
+     player?.isActiveForLockScreen = true
+     isLiveStream = options?.isLiveStream ?? player?.isLive ?? false
++    if let start = options?.segmentStart, let end = options?.segmentEnd, end > start {
++      segment = (start, end)
++    } else {
++      segment = nil
++    }
+ 
+     if let player {
+       enableRemoteCommands(options: options)
+@@ -76,9 +83,18 @@ class MediaController {
+ 
+   private func applyPlaybackInfo(_ info: inout [String: Any], for player: AudioPlayer) {
+     if isLiveStream {
+-      info[MPNowPlayingInfoPropertyIsLiveStream] = true
++      // kp-mono: no "LIVE" badge. The app passes isLiveStream to hide a scrub
++      // bar that would show a whole 70-minute recording for one shabad; it is
++      // not live, and the lock screen should not say so.
++      info.removeValue(forKey: MPNowPlayingInfoPropertyIsLiveStream)
+       info.removeValue(forKey: MPMediaItemPropertyPlaybackDuration)
+       info.removeValue(forKey: MPNowPlayingInfoPropertyElapsedPlaybackTime)
++    } else if let segment {
++      // kp-mono: the shabad's own clock, not the recording's.
++      info.removeValue(forKey: MPNowPlayingInfoPropertyIsLiveStream)
++      info[MPMediaItemPropertyPlaybackDuration] = segment.end - segment.start
++      info[MPNowPlayingInfoPropertyElapsedPlaybackTime] =
++        min(max(player.currentTime - segment.start, 0), segment.end - segment.start)
+     } else {
+       info[MPMediaItemPropertyPlaybackDuration] = player.duration
+       info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = player.currentTime
+@@ -232,6 +248,17 @@ class MediaController {
+   }
+ 
+   private func enableRemoteCommands(options: LockScreenOptions?) {
++    // kp-mono: this runs on every setActiveForLockScreen, and the closures
++    // below were added again each time — one tap ran its handler once per
++    // load. Start clean.
++    for command in [
++      remoteCommandCenter.playCommand, remoteCommandCenter.pauseCommand,
++      remoteCommandCenter.togglePlayPauseCommand, remoteCommandCenter.changePlaybackPositionCommand,
++      remoteCommandCenter.skipForwardCommand, remoteCommandCenter.skipBackwardCommand,
++      remoteCommandCenter.nextTrackCommand, remoteCommandCenter.previousTrackCommand
++    ] as [MPRemoteCommand] {
++      command.removeTarget(nil)
++    }
+     remoteCommandCenter.playCommand.addTarget { [weak self] _ in
+       guard let player = self?.activePlayer else {
+         return .commandFailed
+@@ -269,7 +296,9 @@ class MediaController {
+         return .commandFailed
+       }
+ 
+-      let seekTime = CMTime(seconds: event.positionTime, preferredTimescale: 1)
++      // kp-mono: a drag is within the shabad, so offset it into the file.
++      let offset = self?.segment?.start ?? 0
++      let seekTime = CMTime(seconds: event.positionTime + offset, preferredTimescale: 1000)
+       player.ref.seek(to: seekTime)
+ 
+       return .success
+@@ -303,6 +332,26 @@ class MediaController {
+       return .success
+     }
+ 
++    // kp-mono: next/previous, which expo-audio does not offer. The queue lives
++    // in JavaScript, so the buttons only say they were pressed.
++    remoteCommandCenter.nextTrackCommand.addTarget { [weak self] _ in
++      guard let player = self?.activePlayer else {
++        return .commandFailed
++      }
++      player.emit(event: "lockScreenCommand", payload: ["command": "next"])
++      return .success
++    }
++
++    remoteCommandCenter.previousTrackCommand.addTarget { [weak self] _ in
++      guard let player = self?.activePlayer else {
++        return .commandFailed
++      }
++      player.emit(event: "lockScreenCommand", payload: ["command": "previous"])
++      return .success
++    }
++
++    remoteCommandCenter.nextTrackCommand.isEnabled = true
++    remoteCommandCenter.previousTrackCommand.isEnabled = true
+     remoteCommandCenter.playCommand.isEnabled = true
+     remoteCommandCenter.pauseCommand.isEnabled = true
+     remoteCommandCenter.togglePlayPauseCommand.isEnabled = true
+@@ -318,8 +367,12 @@ class MediaController {
+     remoteCommandCenter.changePlaybackPositionCommand.isEnabled = false
+     remoteCommandCenter.skipForwardCommand.isEnabled = false
+     remoteCommandCenter.skipBackwardCommand.isEnabled = false
++    remoteCommandCenter.nextTrackCommand.isEnabled = false
++    remoteCommandCenter.previousTrackCommand.isEnabled = false
+ 
+     // Remove event targets
++    remoteCommandCenter.nextTrackCommand.removeTarget(nil)
++    remoteCommandCenter.previousTrackCommand.removeTarget(nil)
+     remoteCommandCenter.playCommand.removeTarget(self)
+     remoteCommandCenter.pauseCommand.removeTarget(self)
+     remoteCommandCenter.togglePlayPauseCommand.removeTarget(self)
+diff --git a/src/AudioConstants.ts b/src/AudioConstants.ts
+index dcc0452f7cae66b1bfaf77ed211416b092965bd9..9f85529b773cfbc5d218435ae14e786b33654a5c 100644
+--- a/src/AudioConstants.ts
++++ b/src/AudioConstants.ts
+@@ -16,4 +16,7 @@ export type AudioLockScreenOptions = {
+    * and scrub bar, and disable seek controls.
+    */
+   isLiveStream?: boolean;
++  /** kp-mono patch: present seconds [segmentStart, segmentEnd] of the file as the track. */
++  segmentStart?: number;
++  segmentEnd?: number;
+ };

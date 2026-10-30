@@ -1,0 +1,62 @@
+# What EAS Build leaves out of the project it uploads (apps/mobile builds).
+#
+# Once this file exists EAS reads it *instead of* every .gitignore, so it
+# repeats them. It exists for what git ignores somewhere EAS cannot see:
+# `.claude/` is excluded by a local or global git exclude, not by a
+# .gitignore, and a main checkout holds every worktree under it — each with its
+# own node_modules and native builds. Uploaded, that was a 4.1 GB archive
+# against EAS's 2 GB limit.
+
+# Agent worktrees and tooling (see above).
+.claude/
+
+# From /.gitignore
+.env
+node_modules
+.nuxt
+.output
+.turbo
+packages/crawler/out
+.worktree-setup-done
+dist
+.netlify
+.expo
+expo-env.d.ts
+
+# From apps/mobile/.gitignore. The native folders are generated on EAS from
+# app.json; a local prebuild's copy must not ride along.
+apps/mobile/ios
+apps/mobile/android
+web-build/
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+.env*.local
+*.tsbuildinfo
+apps/mobile/example
+
+# From packages/aligner/.gitignore — the Python pipeline, which no app build
+# needs at all.
+packages/aligner/cache/
+packages/aligner/.venv/
+packages/aligner/build/
+*.wav
+__pycache__/
+*.egg-info/
+
+# From supabase/.gitignore
+supabase/.branches
+supabase/.temp
+supabase/.env.keys
+supabase/.env.local
+supabase/.env.*.local

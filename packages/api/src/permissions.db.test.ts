@@ -442,9 +442,29 @@ describe('publishing through UPDATE', () => {
     expect((await rendition(published))?.name).toBe(`${TAG} published`);
   });
 
-  it('cannot delete, even their own draft', async () => {
-    hidden(await contributor.from('renditions').delete().eq('id', draft).select('id'));
-    expect(await rendition(draft)).not.toBeNull();
+  it('can delete their own hand-made draft', async () => {
+    // A throwaway, not `draft`: later rows still read that one. Hand-made,
+    // like every fixture here — a scan draft stays with renditions.delete, and
+    // deleting one records a rejection this file could not clean up.
+    const mine = await contributor
+      .from('renditions')
+      .insert({
+        track_id: trackId,
+        start_sec: 300,
+        end_sec: 360,
+        name: `${TAG} own draft to delete`,
+        created_by: contributorId,
+      })
+      .select('id')
+      .single();
+    allowed(mine);
+    allowed(await contributor.from('renditions').delete().eq('id', mine.data!.id).select('id'), 1);
+    expect(await rendition(mine.data!.id)).toBeNull();
+  });
+
+  it("but not someone else's", async () => {
+    hidden(await contributor.from('renditions').delete().eq('id', published).select('id'));
+    expect(await rendition(published)).not.toBeNull();
   });
 
   it("an admin can publish a contributor's draft", async () => {
@@ -464,6 +484,11 @@ describe('publishing through UPDATE', () => {
       allowed(await admin.rpc('set_trust', { target: contributorId, level: 'contributor' }));
     }
     expect(await trustOf(contributorId)).toBe('contributor');
+  });
+
+  it('once it is published, its author cannot delete it', async () => {
+    hidden(await contributor.from('renditions').delete().eq('id', toPublish).select('id'));
+    expect((await rendition(toPublish))?.status).toBe('published');
   });
 
   it('and once it is published, its author can no longer edit it', async () => {

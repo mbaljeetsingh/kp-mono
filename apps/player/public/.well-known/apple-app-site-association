@@ -1,0 +1,10 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["QWB397TGN2.com.beejaysoft.kirtanplayer"],
+        "components": [{ "/": "/r/*", "comment": "A shared shabad opens in the app when installed." }]
+      }
+    ]
+  }
+}

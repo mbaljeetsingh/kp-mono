@@ -11,6 +11,7 @@ import { Pressable, Text, View } from 'react-native';
 import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
+import { playerActions } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { useShownTitle } from '~/lib/title-script';
 import { useColors } from '~/lib/theme';
@@ -39,7 +40,9 @@ export function ShabadRow({
 
   return (
     <PressableScale
-      onPress={onPress}
+      // The row already playing pauses and resumes, as on the web — starting
+      // it again from the top is never what a tap on it means.
+      onPress={isCurrent ? playerActions.toggle : onPress}
       // A whole row, so it moves less than a button would.
       scaleTo={0.985}
       className={
@@ -68,7 +71,19 @@ export function ShabadRow({
         <Text className="text-xs tabular-nums text-subtle-foreground">{clock(length)}</Text>
       ) : null}
 
-      {saved ? <Heart size={14} color={colors.primary} fill={colors.primary} /> : null}
+      {/* Saving without the ⋯ sheet, as the web's rows do. */}
+      <Pressable
+        onPress={() => favorites.toggle(item.id)}
+        accessibilityLabel={saved ? `Remove ${title} from saved` : `Save ${title}`}
+        hitSlop={6}
+        className="size-8 items-center justify-center"
+      >
+        <Heart
+          size={16}
+          color={saved ? colors.primary : colors.subtleForeground}
+          fill={saved ? colors.primary : 'transparent'}
+        />
+      </Pressable>
 
       {onMore ? (
         <Pressable

@@ -41,6 +41,12 @@ export interface NowPlaying {
   artist?: string;
   artworkUrl?: string;
   isLive?: boolean;
+  /**
+   * The slice of the file this item is, in the file's seconds. Lets a lock
+   * screen show the shabad's own length and position instead of the whole
+   * recording's — where the platform can be told that at all.
+   */
+  segment?: { start: number; end: number };
 }
 
 /**

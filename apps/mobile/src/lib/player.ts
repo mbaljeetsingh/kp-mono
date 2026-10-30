@@ -4,26 +4,32 @@
  * Selectors are not optional: the driver reports position ten times a second,
  * so any component reading the whole store re-renders at 10Hz forever.
  */
-import { titleIn } from '@kp/core';
+import { playableTile, titleIn } from '@kp/core';
 import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
 import { storage } from './storage';
-import { artistPhotoUrl } from './supabase';
+import { tileArtworkUrl } from './lock-screen-art';
 import { readTitleScript } from './title-script';
 
 export const playerStore = createPlayerStore({
   storage,
-  // The lock screen wants a URL, and only the app knows where artwork lives.
-  artworkUrl: (item) => artistPhotoUrl(item.artistPhoto) ?? undefined,
+  // The shabad's own tile, as on every row — not the ragi's photo. A URL only
+  // once LockScreenArtwork has drawn it; it re-announces when it has.
+  artworkUrl: (item) => tileArtworkUrl(playableTile(item, readTitleScript())),
   // And the title in the listener's script, read when the item loads.
   titleOf: (item) => titleIn(item, readTitleScript()),
 });
 
-playerStore
-  .getState()
-  .attach(createNativeAudioDriver((status) => playerStore.getState().onStatus(status)));
+playerStore.getState().attach(
+  createNativeAudioDriver(
+    (status) => playerStore.getState().onStatus(status),
+    // The lock screen's buttons do what the player's own do.
+    (command) =>
+      command === 'next' ? playerStore.getState().next() : playerStore.getState().previous()
+  )
+);
 
 // Restore the queue on launch. Never auto-plays — see the store. The storage
 // module carries anything AsyncStorage held across before answering a read, so
@@ -43,6 +49,7 @@ export const playerActions = {
   next: () => playerStore.getState().next(),
   previous: () => playerStore.getState().previous(),
   seek: (seconds: number) => playerStore.getState().seek(seconds),
+  cue: (...args: Parameters<PlayerState['cue']>) => playerStore.getState().cue(...args),
   addToQueue: (...args: Parameters<PlayerState['addToQueue']>) =>
     playerStore.getState().addToQueue(...args),
   cycleRepeat: () => playerStore.getState().cycleRepeat(),

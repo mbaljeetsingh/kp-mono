@@ -1,35 +1,27 @@
 /**
- * Create or revise one segment.
+ * Confirm a recording that is one shabad end to end.
  *
- * Boundaries are marked from the playhead rather than typed: a tagger is
- * listening for where a shabad starts, and the honest gesture is "here" — not
- * reading a clock and transcribing it. The numbers stay visible and nudgeable
- * because ears land a second or two early.
+ * Puratan, mostly — and any file somebody says is one shabad. The boundaries
+ * come from the file, the shabad from the filename's BaniDB match, and the
+ * job is checking that match and publishing, with the puratan loop's Publish
+ * & next and Skip. Trimming an applause tail off such a file is still that
+ * job, so the form keeps the cut once a boundary moves, until it saves.
  *
- * Always on the page rather than behind a "New segment" button, as the Vue
- * form was: marking a start is the first thing a tagger does, and a form that
- * had to be opened first made it the second.
+ * It used to be the page's only way to add or revise any segment, and sat on
+ * the page whether or not anything needed it. Everything else is the strip's
+ * now (SegmentStrip) and the panel under the player (ShabadPanel); this is
+ * what remained that neither does: the filename's matches and the loop.
  */
 import {
   createRendition,
-  deleteRendition,
   publishRefusal,
   setRenditionStatus,
-  updateRendition,
   useShabadText,
   type BaniDbHit,
   type Draft,
-  type Rendition,
   type ShabadVerse,
 } from '@kp/api';
-import {
-  clock,
-  overlapping,
-  titlesFor,
-  type RenditionTitles,
-  type TimelineSegment,
-  type TitledLine,
-} from '@kp/core';
+import { clock, overlapping, titlesFor, type TimelineSegment } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { Input } from '@kp/ui/input';
 import { Label } from '@kp/ui/label';
@@ -38,32 +30,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Headphones, Link2, Send, SkipForward, X } from 'lucide-react';
 import { useState } from 'react';
 
+import { More } from '~/components/More';
 import { ShabadDisplay } from '~/components/ShabadDisplay';
+// One way to turn a line into a rendition's titles, shared with the panel
+// that names every other cut: the link carries both titles, read off the line
+// when it was chosen, so a save before the shabad's text loads still writes them.
+import { linkFromHit, linkFromVerse, type ShabadLink } from '~/components/ShabadPanel';
 import { BANIDB_BASE } from '~/lib/links';
 import { supabase } from '~/lib/supabase';
 import { MIN_LENGTH } from '~/lib/use-tag-player';
-
-/** The linked shabad, and the line this rendition is known by. */
-interface ShabadLink {
-  shabadId: number;
-  verseId: number | null;
-  /**
-   * Both titles, read off that line when it was chosen — so a save in the same
-   * second as a search pick, or the puratan loop's Publish & next before the
-   * shabad's text has loaded, still writes them. A row reopened for editing
-   * carries the titles it was saved with instead, until the line itself loads
-   * and takes over (see `titles` below).
-   */
-  titles: RenditionTitles;
-}
-
-function linkTo(shabadId: number, verseId: number | null, line: TitledLine): ShabadLink {
-  return { shabadId, verseId, titles: titlesFor(line, shabadId) };
-}
-
-function linkFromHit(hit: BaniDbHit): ShabadLink {
-  return linkTo(hit.shabadId, typeof hit.verseId === 'number' ? hit.verseId : null, hit);
-}
 
 /**
  * The puratan loop, offered when a recording is one shabad end to end: publish
@@ -82,8 +57,6 @@ interface Props {
   trackId: string;
   userId: string;
   segments: TimelineSegment[];
-  /** The segment being revised, or null to create a new one. */
-  editing: Rendition | null;
   /**
    * The boundaries, owned by the page rather than by this form: the timeline
    * draws them live, and a handle dragged there and a +1s pressed here have to
@@ -132,7 +105,6 @@ export function SegmentEditor({
   trackId,
   userId,
   segments,
-  editing,
   start,
   end,
   onChangeStart,
@@ -155,12 +127,9 @@ export function SegmentEditor({
   const queryClient = useQueryClient();
 
   /*
-   * Seeded from `editing` once, at mount.
-   *
-   * The page gives this component a `key` that changes whenever the target
-   * does, so switching rows — or finishing one and starting the next —
-   * remounts it and every field below starts fresh. The boundaries are not
-   * here: the page owns them and has already seeded them.
+   * Seeded once, at mount. The page keys this component on the cut, so
+   * starting over remounts it and every field below starts fresh. The
+   * boundaries are not here: the page owns them.
    */
   /**
    * The link, three ways. `undefined` is "nobody has chosen": the filename's
@@ -172,16 +141,9 @@ export function SegmentEditor({
    * match link it and take the name away; typing one does the same (see the
    * Name field), so a match that lands mid-word cannot unmount the field.
    */
-  const [link, setLink] = useState<ShabadLink | null | undefined>(() => {
-    if (!editing) return seedName ? null : undefined;
-    return editing.shabad_id
-      ? {
-          shabadId: editing.shabad_id,
-          verseId: editing.main_verse_id ?? null,
-          titles: { name: editing.name, gurmukhi: editing.name_gurmukhi ?? null },
-        }
-      : null;
-  });
+  const [link, setLink] = useState<ShabadLink | null | undefined>(() =>
+    seedName ? null : undefined
+  );
   const autoLink = titleMatches[0] ? linkFromHit(titleMatches[0]) : null;
   const linked = link === undefined ? autoLink : link;
 
@@ -196,10 +158,10 @@ export function SegmentEditor({
    * wrong shabad leaves its name to correct rather than a blank to retype; or
    * from a scan pointer, which brings a name and not a link.
    */
-  const [typedName, setTypedName] = useState(() => (editing ? editing.name : (seedName ?? '')));
+  const [typedName, setTypedName] = useState(seedName ?? '');
 
-  const [raag, setRaag] = useState(editing?.raag ?? '');
-  const [taal, setTaal] = useState(editing?.taal ?? '');
+  const [raag, setRaag] = useState('');
+  const [taal, setTaal] = useState('');
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -218,9 +180,7 @@ export function SegmentEditor({
     linked?.verseId != null ? verses.find((v) => v.verseId === linked.verseId) : undefined;
   /**
    * The rendition's titles: from the line whenever it is to hand, else what
-   * the link carries. For a new link those are the same line. For a row
-   * reopened for editing, this is how a name saved before #77 — typed, cut
-   * short, or ending "Rahau" — comes into line on its next save.
+   * the link carries — the same line, for a link made here.
    */
   const titles = linked ? (anchor ? titlesFor(anchor, linked.shabadId) : linked.titles) : null;
   const name = titles ? titles.name : typedName;
@@ -228,22 +188,13 @@ export function SegmentEditor({
   /** A line clicked in the shabad becomes the anchor, and both titles follow it. */
   function pickMainVerse(verse: ShabadVerse) {
     if (!linked) return;
-    setLink(linkTo(linked.shabadId, verse.verseId, verse));
+    setLink(linkFromVerse(linked.shabadId, verse));
   }
 
   const marked = start !== null && end !== null;
   const ordered = marked && end > start;
-  const clashes = marked ? overlapping(segments, { start, end }, editing?.id) : [];
-  /**
-   * A published rendition keeps its shabad. The database refuses to unlink one
-   * in place (renditions_publish_needs_shabad) — it would leave the player a
-   * title with nothing behind it — so the form says so before anyone presses.
-   */
-  // Only a row that had a link: one published unlinked before #77 has none to
-  // lose, and stays editable, as the trigger leaves it.
-  const unlinkingPublished =
-    editing?.status === 'published' && editing.shabad_id != null && !linked;
-  const canSave = ordered && name.trim().length > 0 && can.propose && !unlinkingPublished;
+  const clashes = marked ? overlapping(segments, { start, end }) : [];
+  const canSave = ordered && name.trim().length > 0 && can.propose;
 
   /** Said, not implied by a greyed-out button — the reason it looked like publishing was missing. */
   const waiting = !marked
@@ -252,12 +203,9 @@ export function SegmentEditor({
       : 'Mark both boundaries to save.'
     : !ordered
       ? 'The end must come after the start.'
-      : // Before the name: on a published row, typing one would not help.
-        unlinkingPublished
-        ? 'A published shabad keeps its link. Unpublish it first to unlink it.'
-        : !name.trim()
-          ? 'A name is all that’s still missing.'
-          : null;
+      : !name.trim()
+        ? 'A name is all that’s still missing.'
+        : null;
 
   /**
    * Why this form cannot end with the shabad in the player, or null if it can:
@@ -268,7 +216,8 @@ export function SegmentEditor({
    */
   const refusal = publishRefusal(
     {
-      ...(editing ?? { status: 'draft', created_by: userId }),
+      status: 'draft',
+      created_by: userId,
       shabad_id: linked?.shabadId ?? null,
       main_verse_id: linked?.verseId ?? null,
     },
@@ -328,9 +277,7 @@ export function SegmentEditor({
    * draft leaves the work saved either way if the second step fails.
    */
   async function persist(publish: boolean) {
-    const row = editing
-      ? await updateRendition(supabase, editing.id, draft())
-      : await createRendition(supabase, draft(), userId);
+    const row = await createRendition(supabase, draft(), userId);
     if (publish && row.status !== 'published') {
       await setRenditionStatus(supabase, row.id, 'published');
     }
@@ -371,29 +318,18 @@ export function SegmentEditor({
     }
   }
 
-  const otherMatches = editing ? [] : titleMatches.filter((m) => m.shabadId !== linked?.shabadId);
+  const otherMatches = titleMatches.filter((m) => m.shabadId !== linked?.shabadId);
 
   return (
-    <div
-      className={
-        editing
-          ? 'flex flex-col gap-4 rounded-xl border border-primary/40 bg-accent/30 p-4'
-          : 'flex flex-col gap-4 rounded-xl border border-border p-4'
-      }
-    >
-      {/* The form does double duty, so it says which job it is doing: the
-          same fields silently switching from "new" to "revising that one" is
-          how somebody overwrites a row they meant to add. */}
+    // Framed as the shabad search is: both are the panel under the player
+    // asking which shabad this is.
+    <div className="flex flex-col gap-4 rounded-xl border border-primary/40 p-4">
       <div className="flex items-baseline justify-between gap-2">
         <div className="min-w-0">
           <h2 className="truncate text-sm font-medium">
-            {editing
-              ? `Editing ${editing.name}${editing.status === 'published' ? ' · published' : ''}`
-              : wholeFile
-                ? 'Confirm this shabad'
-                : 'Add a shabad'}
+            {wholeFile ? 'Confirm this shabad' : 'Tag part of the file'}
           </h2>
-          {wholeFile && !editing ? (
+          {wholeFile ? (
             <p className="mt-1 text-xs text-muted-foreground">
               This recording is one shabad end to end — the boundaries come from the file
               {autoLink && link === undefined ? ' and the shabad from its name' : ''}. Check it’s
@@ -406,11 +342,11 @@ export function SegmentEditor({
             </p>
           ) : null}
         </div>
-        {editing ? (
+        {wholeFile ? null : (
           <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancel
           </Button>
-        ) : null}
+        )}
       </div>
 
       {wholeFile ? (
@@ -609,29 +545,32 @@ export function SegmentEditor({
       ) : null}
 
       {/* Optional by design: neither gates saving, and most taggers skip them.
-          Raag shows up in the player's search and rows. */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="segment-raag">Raag</Label>
-          <Input
-            id="segment-raag"
-            value={raag}
-            onChange={(e) => setRaag(e.target.value)}
-            onKeyDown={(e) => enterSaves(e.key)}
-            placeholder="Optional, e.g. Asa"
-          />
+          Raag shows up in the player's search and rows. Under More, as in the
+          lyrics panel, so the puratan loop's page is the match and its button. */}
+      <More label="More · raag, taal">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="segment-raag">Raag</Label>
+            <Input
+              id="segment-raag"
+              value={raag}
+              onChange={(e) => setRaag(e.target.value)}
+              onKeyDown={(e) => enterSaves(e.key)}
+              placeholder="Optional, e.g. Asa"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="segment-taal">Taal</Label>
+            <Input
+              id="segment-taal"
+              value={taal}
+              onChange={(e) => setTaal(e.target.value)}
+              onKeyDown={(e) => enterSaves(e.key)}
+              placeholder="Optional, e.g. Teentaal"
+            />
+          </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="segment-taal">Taal</Label>
-          <Input
-            id="segment-taal"
-            value={taal}
-            onChange={(e) => setTaal(e.target.value)}
-            onKeyDown={(e) => enterSaves(e.key)}
-            placeholder="Optional, e.g. Teentaal"
-          />
-        </div>
-      </div>
+      </More>
 
       {/* A warning, not a block: a rendition can legitimately contain another,
           and re-cutting boundaries means transient overlap is normal. */}
@@ -678,49 +617,17 @@ export function SegmentEditor({
                 as publishing not being there at all. */}
             <Button disabled={busy || !canSave} onClick={() => save(true)}>
               <Send />
-              {editing ? 'Update and publish' : 'Save and publish'}
+              Save and publish
             </Button>
             <Button variant="outline" disabled={busy || !canSave} onClick={() => save(false)}>
-              {editing ? 'Save changes' : 'Save draft'}
+              Save draft
             </Button>
           </>
         ) : (
           <Button disabled={busy || !canSave} onClick={() => save(false)}>
-            {editing ? 'Save changes' : 'Save draft'}
+            Save draft
           </Button>
         )}
-
-        {/* Review, as the policy and the list's own Unpublish require: a role
-            with review and no publish lost its only way to pull the open row. */}
-        {editing && editing.status === 'published' && can.review ? (
-          <Button
-            variant="outline"
-            disabled={busy}
-            onClick={() => run(() => setRenditionStatus(supabase, editing.id, 'draft'))}
-          >
-            Unpublish
-          </Button>
-        ) : null}
-
-        {editing && can.remove ? (
-          <Button
-            variant="ghost"
-            disabled={busy}
-            className="ml-auto text-destructive hover:text-destructive"
-            onClick={() => {
-              // Deleting a tag throws away someone's listening, so it asks.
-              if (
-                confirm(
-                  `Delete “${editing.name}”? This cannot be undone.${editing.source === 'scan' ? " The scanner won't suggest it for this recording again." : ''}`
-                )
-              ) {
-                void run(() => deleteRendition(supabase, editing.id));
-              }
-            }}
-          >
-            Delete
-          </Button>
-        ) : null}
 
         <span className="text-xs text-muted-foreground" aria-live="polite">
           {!can.propose
@@ -794,14 +701,14 @@ function Boundary({
         >
           +1s
         </Button>
-        {/* Looping a few seconds either side is the only way to tell whether a
-            cut actually falls in the gap rather than over a word. */}
+        {/* Hearing the cut is the only way to tell whether it falls in the gap
+            rather than over a word. */}
         <Button
           variant="ghost"
           size="sm"
           disabled={unset}
-          aria-label={`Listen across the ${label.toLowerCase()}`}
-          title={`Listen across the ${label.toLowerCase()}`}
+          aria-label={`Listen from the ${label.toLowerCase()}`}
+          title={`Listen from the ${label.toLowerCase()}`}
           onClick={onAudition}
         >
           <Headphones />

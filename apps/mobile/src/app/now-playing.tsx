@@ -11,6 +11,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
   ChevronDown,
+  Share2,
+  X,
   Heart,
   Pause,
   Play,
@@ -33,6 +35,7 @@ import { ShabadTitle } from '~/components/ShabadTitle';
 import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
 import { playerActions, usePlayer } from '~/lib/player';
+import { shareRendition } from '~/lib/share';
 import { skipToNext } from '~/lib/skip';
 import { useColors } from '~/lib/theme';
 
@@ -226,7 +229,19 @@ export default function NowPlayingScreen() {
         <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Now playing
         </Text>
-        <View className="size-11" />
+        {/* Share, as the web's player has: a link that opens on this line once
+            you are a little way in. A broadcast has no rendition to link to. */}
+        {current.isLive ? (
+          <View className="size-11" />
+        ) : (
+          <Pressable
+            onPress={() => void shareRendition(current, position, titleIn(current, script))}
+            accessibilityLabel="Share"
+            className="size-11 items-center justify-center"
+          >
+            <Share2 size={20} color={colors.foreground} />
+          </Pressable>
+        )}
       </View>
 
       <View className="flex-row items-center gap-4 px-5 pb-4 pt-3">
@@ -247,7 +262,7 @@ export default function NowPlayingScreen() {
           {current.artist ? (
             <Pressable
               onPress={() =>
-                router.push({ pathname: '/ragi/[name]', params: { name: current.artist } })
+                router.push({ pathname: '/ragi/[name]', params: { name: current.artist ?? '' } })
               }
               accessibilityRole="link"
               accessibilityLabel={`Shabads by ${current.subtitle ?? current.artist}`}
@@ -330,14 +345,29 @@ export default function NowPlayingScreen() {
 
             {/* A looked-up shabad is the listener's guess, not a tag. */}
             {!current.shabadId && lookedUp ? (
-              <Text className="pb-2 text-xs text-muted-foreground">
-                You looked this up — it is not tagged to this recording.
-              </Text>
+              <View className="mb-2 flex-row items-center gap-2 rounded-lg bg-accent/50 py-1 pl-3">
+                <Text className="flex-1 text-xs text-muted-foreground">
+                  You looked this up — it is not tagged to this recording.
+                </Text>
+                <Pressable
+                  onPress={() => setPick(null)}
+                  accessibilityLabel="Clear the looked-up shabad"
+                  className="size-9 items-center justify-center"
+                >
+                  <X size={16} color={colors.mutedForeground} />
+                </Pressable>
+              </View>
             ) : null}
 
             {query.isLoading ? (
               <Text className="py-6 text-center text-sm text-muted-foreground">
                 Loading the shabad…
+              </Text>
+            ) : null}
+
+            {query.isError ? (
+              <Text className="py-6 text-center text-sm text-muted-foreground">
+                Could not reach BaniDB for this shabad.
               </Text>
             ) : null}
 

@@ -117,13 +117,14 @@ def run():
         # The shipped path — align gate and all — at every grid point, so the
         # report's "current" row is exactly what scan_track writes.
         grid = {}
+        loud = timing.loudness(k, tr["url"])
         saved = scan_track.MIN_MARGIN
         for floor in FLOORS:
             for margin in MARGINS:
                 scan_track.MIN_MARGIN = margin
                 grid[f"{floor}/{margin}"] = [
                     list(g) + [a] for g, a, _ in scan_track.find_drafts(
-                        sids, ev, long_w, short_w, shabads, floor)
+                        sids, ev, long_w, short_w, shabads, floor, loud)
                     if a is not None]
         scan_track.MIN_MARGIN = saved
         t["match"] = time.monotonic() - s0

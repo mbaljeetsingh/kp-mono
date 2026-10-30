@@ -22,9 +22,9 @@ import { timeAgo } from '~/lib/utils';
 /** What each rung adds, mirroring role_permissions. */
 const GRANTS: Record<string, string> = {
   contributor: 'propose shabads',
-  trusted: '+ publish their own',
+  trusted: '+ publish their own, request scans',
   reviewer: '+ publish, edit and delete anyone’s',
-  admin: '+ manage users, request scans',
+  admin: '+ manage users and permissions',
 };
 
 export function UsersRoute() {

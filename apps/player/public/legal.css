@@ -1,0 +1,99 @@
+/*
+ * The static pages' styles: /privacy/ and /delete-account/.
+ *
+ * Hand-copied from packages/tokens/tokens.css (parchment and ink in light,
+ * warm near-black and lantern gold in dark) rather than imported — these pages
+ * are plain HTML outside the Vite build, so they can move to a landing page
+ * as they are. Newsreader for headings, as in the app.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap');
+
+:root {
+  --background: #f6f2e9;
+  --foreground: #1a1612;
+  --muted-foreground: #5c5347;
+  --primary: #8f5c0f;
+  --border: #e4dccb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f0d0b;
+    --foreground: #f4efe3;
+    --muted-foreground: #a99d89;
+    --primary: #e8a33d;
+    --border: #2a241e;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font:
+    16px/1.65 system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+main {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 2.5rem 16px 4rem;
+}
+
+h1,
+h2 {
+  font-family: 'Newsreader', Georgia, serif;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2.25rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+h1#terms {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+h2 {
+  font-size: 1.35rem;
+  margin: 2rem 0 0.5rem;
+}
+
+p,
+li {
+  color: var(--muted-foreground);
+}
+
+strong {
+  color: var(--foreground);
+}
+
+ul,
+ol {
+  padding-left: 1.25rem;
+}
+
+li + li {
+  margin-top: 0.4rem;
+}
+
+a {
+  color: var(--primary);
+  text-underline-offset: 2px;
+}
+
+.home {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 1.1rem;
+  text-decoration: none;
+}
+
+.meta {
+  font-size: 0.9rem;
+}

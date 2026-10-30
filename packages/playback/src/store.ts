@@ -120,6 +120,10 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
         artist: item.subtitle ?? item.artist,
         artworkUrl: artworkUrl?.(item),
         isLive: item.isLive,
+        segment:
+          item.startSec != null && item.endSec != null
+            ? { start: item.startSec, end: item.endSec }
+            : undefined,
       };
     }
 

@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { LockScreenArtwork } from '~/components/LockScreenArtwork';
 import { SessionProvider } from '~/lib/session';
 import { useColors } from '~/lib/theme';
 
@@ -41,6 +42,16 @@ const FONTS = {
   'NotoSerifGurmukhi-Regular': NotoSerifGurmukhi_400Regular,
 };
 
+/*
+ * The tabs are always the bottom of the stack, however the app was opened.
+ *
+ * A shared link that cold-starts the app (src/app/r/[id].tsx) would otherwise
+ * build a stack of one — the player — and its close button, which goes back,
+ * had nothing to go back to: the listener was stuck in it. The same held for
+ * any deep link to search, a ragi or the archive.
+ */
+export const unstable_settings = { initialRouteName: '(tabs)' };
+
 export default function RootLayout() {
   const colors = useColors();
   const [fontsReady, fontError] = useFonts(FONTS);
@@ -58,6 +69,7 @@ export default function RootLayout() {
       <SessionProvider>
         {/* `auto` follows Appearance, which the theme choice sets. */}
         <StatusBar style="auto" />
+        <LockScreenArtwork />
         <Stack
           screenOptions={{
             headerShown: false,

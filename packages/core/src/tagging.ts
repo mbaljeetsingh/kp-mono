@@ -112,3 +112,124 @@ export function overlapping(
 ): TimelineSegment[] {
   return segments.filter((s) => s.id !== ignoreId && s.start < range.end && range.start < s.end);
 }
+
+/**
+ * Segments lying mostly inside a range: more than half their length. These are
+ * what a new cut is taken to replace; a neighbour it merely clips, as a `[`
+ * pressed a beat early does, is `overlapping` and nothing more.
+ */
+export function coveredBy(
+  segments: TimelineSegment[],
+  range: { start: number; end: number }
+): TimelineSegment[] {
+  return segments.filter((s) => {
+    const inside = Math.min(s.end, range.end) - Math.max(s.start, range.start);
+    return s.end > s.start && inside > (s.end - s.start) / 2;
+  });
+}
+
+/**
+ * How long past a segment's edge the tag page's strip stays on it.
+ *
+ * Hearing a cut means playing from it, and playing from an end cut runs
+ * straight out of the segment: without the hold, the strip would let go of the
+ * row in the very moment its edge is being judged.
+ */
+export const STRIP_HOLD_SECONDS = 15;
+
+/**
+ * The stretch of the recording the timeline spans when zoomed to one segment:
+ * its saved edges plus half its length either side — at least `minPad`
+ * seconds — kept inside the recording. Half the length, so a long cut still
+ * has room for an edge to be pulled out. Saved edges, not the ones being
+ * dragged, so the scale holds still mid-drag.
+ */
+export function zoomWindow(
+  seg: Pick<TimelineSegment, 'start' | 'end'>,
+  duration: number,
+  minPad: number
+): { start: number; end: number } {
+  const pad = Math.max(minPad, (seg.end - seg.start) / 2);
+  return { start: Math.max(0, seg.start - pad), end: Math.min(duration, seg.end + pad) };
+}
+
+/** What a cut being marked is shown first: most shabads here end inside 20 minutes. */
+export const MARK_FIRST_SECONDS = 20 * 60;
+/** How far the marking window grows once the playhead nears its end. */
+export const MARK_STEP_SECONDS = 5 * 60;
+/** How close to the window's end the playhead gets before it grows. */
+const MARK_MARGIN_SECONDS = 60;
+
+/**
+ * The stretch of the recording the timeline spans while a cut is being
+ * marked: `lead` seconds before its start, then 20 minutes, growing 5 at a
+ * time once `reach` — the furthest the playhead has got — comes within a
+ * minute of the end. Grown from the furthest point rather than the playhead
+ * itself, so seeking back does not shrink the bar under the click.
+ */
+export function markingWindow(
+  start: number,
+  reach: number,
+  duration: number,
+  lead: number
+): { start: number; end: number } {
+  let end = start + MARK_FIRST_SECONDS;
+  const short = reach + MARK_MARGIN_SECONDS - end;
+  if (short > 0) end += Math.ceil(short / MARK_STEP_SECONDS) * MARK_STEP_SECONDS;
+  return { start: Math.max(0, start - lead), end: Math.min(duration, end) };
+}
+
+/**
+ * Which segment the strip under the timeline acts on, or null for the
+ * untagged stretch the playhead is in.
+ *
+ * `held` is what the strip showed last, `pinned` a segment with unsaved edits:
+ * those stay put wherever the playhead goes, or an edit would be saved against
+ * whatever was playing. Otherwise the playhead decides — inside a segment
+ * means that segment, and inside two means the held one if it is either, else
+ * the one that starts later, the inner of a pair where one contains the other.
+ * In a gap the held segment stays within the hold of its edges.
+ */
+export function stripSegment(
+  segments: TimelineSegment[],
+  position: number,
+  held: string | null,
+  pinned: string | null = null
+): string | null {
+  if (pinned && segments.some((s) => s.id === pinned)) return pinned;
+  // Half-open: at exactly the end cut the playhead has left, so the hold
+  // decides — and it keeps the segment whose end was just clicked.
+  const under = segments.filter((s) => position >= s.start && position < s.end);
+  if (under.length) {
+    if (held && under.some((s) => s.id === held)) return held;
+    return under.reduce((a, b) => (b.start > a.start ? b : a)).id;
+  }
+  const last = held ? segments.find((s) => s.id === held) : undefined;
+  if (
+    last &&
+    position >= last.start - STRIP_HOLD_SECONDS &&
+    position <= last.end + STRIP_HOLD_SECONDS
+  ) {
+    return last.id;
+  }
+  return null;
+}
+
+/**
+ * The untagged stretch around a moment: from the last cut before it to the
+ * next one after, or the recording's own ends. Unlike `untaggedGaps` it has no
+ * minimum — the strip names whatever the playhead is in.
+ */
+export function gapAt(
+  segments: TimelineSegment[],
+  duration: number,
+  position: number
+): { start: number; end: number } {
+  let start = 0;
+  let end = duration;
+  for (const s of segments) {
+    if (s.end <= position) start = Math.max(start, s.end);
+    if (s.start > position) end = Math.min(end, s.start);
+  }
+  return { start, end };
+}

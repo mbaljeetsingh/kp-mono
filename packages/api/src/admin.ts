@@ -546,9 +546,51 @@ export function publishRefusal(
   // that is the loading state — the comment above promised no button and the
   // comparison alone handed one out.
   if (!perms.review && !(Boolean(userId) && row.created_by === userId)) return 'permission';
+  return publishMissing(row);
+}
+
+/**
+ * What the row itself still lacks before anyone could publish it — the line a
+ * rendition is titled from: its shabad, then the main verse within it.
+ *
+ * `publishRefusal` asks about permission first, which is right for a Publish
+ * button and wrong for the person fixing the row: a contributor's own draft
+ * named by ear needs its shabad whether or not they may publish it. The tag
+ * page's strip and rows ask this, so the two questions share one rule.
+ */
+export function publishMissing(row: {
+  shabad_id?: number | null;
+  main_verse_id?: number | null;
+}): 'needs-shabad' | 'needs-line' | null {
   if (row.shabad_id == null) return 'needs-shabad';
   if (row.main_verse_id == null) return 'needs-line';
   return null;
+}
+
+/**
+ * Whether this account may delete this row. Every Delete and Reject button
+ * reads it, mirroring the two DELETE policies on renditions.
+ *
+ * `renditions.delete` reaches anything. Without it, an author may still throw
+ * away their own unpublished, hand-made draft: it is not live, nobody else's
+ * listening goes with it, and drafts never count toward the trust ladder. A
+ * scan draft stays with the permission even for the account that requested
+ * the scan, because deleting one is a rejection the scanner learns from.
+ */
+export function canDeleteRendition(
+  row: { status: string; source?: string | null; created_by?: string | null },
+  perms: { propose: boolean; delete: boolean },
+  // As in publishRefusal: an unknown user is nobody, never a match.
+  userId: string | null | undefined
+): boolean {
+  if (perms.delete) return true;
+  return (
+    perms.propose &&
+    Boolean(userId) &&
+    row.created_by === userId &&
+    row.status !== 'published' &&
+    row.source !== 'scan'
+  );
 }
 
 /** Whether this row can be promoted to published by this account: `publishRefusal` is null. */
@@ -572,6 +614,29 @@ export interface PendingRendition extends Rendition {
   } | null;
 }
 
+/**
+ * Which half of the review queue: your drafts or everyone else's.
+ *
+ * A scan draft counts as its requester's, the account it is stamped with —
+ * you asked for it, so checking it is yours to do. The nightly scan's drafts
+ * belong to nobody and land in Others.
+ */
+export type PendingTab = 'mine' | 'others';
+
+/** The builder methods the tabs filter with, so one function serves the list and the count. */
+interface Filterable<T> {
+  eq(column: string, value: string): T;
+  filter(column: string, operator: string, value: string): T;
+}
+
+function inTab<T extends Filterable<T>>(query: T, tab: PendingTab, userId: string): T {
+  // IS DISTINCT FROM, not neq: `created_by <> me` is null for an ownerless
+  // nightly draft, and neq would have hidden every one of them.
+  return tab === 'mine'
+    ? query.eq('created_by', userId)
+    : query.filter('created_by', 'isdistinct', userId);
+}
+
 /** Where the next page of the review queue starts: just after this row. */
 export interface PendingCursor {
   created_at: string;
@@ -593,12 +658,18 @@ export interface PendingCursor {
  */
 export async function fetchPending(
   client: KpClient,
+  tab: PendingTab,
+  userId: string,
   after: PendingCursor | null = null
 ): Promise<{ items: PendingRendition[]; hasMore: boolean }> {
-  let query = client
-    .from('renditions')
-    .select('*, tracks(artist_dir, date, url, raw_filename)')
-    .neq('status', 'published');
+  let query = inTab(
+    client
+      .from('renditions')
+      .select('*, tracks(artist_dir, date, url, raw_filename)')
+      .neq('status', 'published'),
+    tab,
+    userId
+  );
   if (after) {
     // Quoted: a timestamptz carries ':' and '+', and PostgREST reads an
     // unquoted value in or() up to the next delimiter.
@@ -618,20 +689,27 @@ export async function fetchPending(
   };
 }
 
-/** How many are waiting — the header's number, not the length of the pages loaded so far. */
-export async function fetchPendingCount(client: KpClient): Promise<number> {
-  const { count, error } = await client
+/**
+ * How many are waiting — the header's number, or a tab's, not the length of
+ * the pages loaded so far.
+ */
+export async function fetchPendingCount(
+  client: KpClient,
+  scope: { tab: PendingTab; userId: string } | null = null
+): Promise<number> {
+  const all = client
     .from('renditions')
     .select('id', { count: 'exact', head: true })
     .neq('status', 'published');
+  const { count, error } = await (scope ? inTab(all, scope.tab, scope.userId) : all);
   if (error) throw toError(error);
   return count ?? 0;
 }
 
-export function usePending(client: KpClient, enabled: boolean) {
+export function usePending(client: KpClient, tab: PendingTab, userId: string, enabled: boolean) {
   return useInfiniteQuery({
-    queryKey: ['pending', 'list'],
-    queryFn: ({ pageParam }) => fetchPending(client, pageParam),
+    queryKey: ['pending', 'list', tab, userId],
+    queryFn: ({ pageParam }) => fetchPending(client, tab, userId, pageParam),
     initialPageParam: null as PendingCursor | null,
     getNextPageParam: (last) => {
       const end = last.items.at(-1);
@@ -642,14 +720,21 @@ export function usePending(client: KpClient, enabled: boolean) {
 }
 
 /**
+ * Each tab's count; the two add up to the whole queue, the header's number.
  * Under ['pending'] like the list, so every invalidation of the list — the
- * review page, the tag page, the segment form — refreshes the count with it.
+ * review page, the tag page, the segment form — refreshes the counts with it.
  */
-export function usePendingCount(client: KpClient, enabled: boolean) {
+export function usePendingTabCounts(client: KpClient, userId: string, enabled: boolean) {
   return useQuery({
-    queryKey: ['pending', 'count'],
-    queryFn: () => fetchPendingCount(client),
-    enabled,
+    queryKey: ['pending', 'tab-counts', userId],
+    queryFn: async (): Promise<Record<PendingTab, number>> => {
+      const [mine, others] = await Promise.all([
+        fetchPendingCount(client, { tab: 'mine', userId }),
+        fetchPendingCount(client, { tab: 'others', userId }),
+      ]);
+      return { mine, others };
+    },
+    enabled: enabled && Boolean(userId),
   });
 }
 

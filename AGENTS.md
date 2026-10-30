@@ -64,7 +64,7 @@ CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, li
 
 - **Publishing is the only human step.** Scan drafts are `status = 'shabad_linked'`, `source = 'scan'`, invisible to the player until someone reviews the edges and publishes. Nothing sets `AUTO_PUBLISH`; `scan_verdict` records what it would have done.
 - **Deleting a scan draft is a rejection.** A trigger records it in `scan_rejections`; the scan never re-suggests that shabad on the recording, and `scan_draft_outcomes` (the auto-publish trial's report) counts it. `renditions` holds only live rows.
-- **Published is settled.** The scan never edits a rendition and suggests nothing mostly inside a published one. That rule lives in `write_drafts`, not the matching: `eval_scan.py` scores the scan against exactly those renditions.
+- **Published is settled.** The scan never edits a rendition and suggests nothing mostly inside a published one. That rule lives in `write_drafts`, not the matching: `eval_scan.py` scores the scan against exactly those renditions. Mostly inside a person's own draft, it leaves a pointer rather than a second draft.
 - **One scale.** Scan and align share `runtime.py` (model revision, `MIN_CONFIDENCE` 0.60). A model or decoding change means re-measuring with `eval_scan.py` (read-only; `--truth` takes a SQL-editor export) before changing any threshold.
 - Transcripts are cached on disk and in the `transcripts` bucket, keyed by model and by how the audio was cut: another model's text, or text cut differently, is a different scale, never a cache hit.
 - The audio is fetched server-side because sgpc.net sends no CORS headers; the browser cannot read archive audio.
@@ -73,6 +73,16 @@ CI (`.github/workflows/ci.yml`) runs tokens:check, theme:check, format:check, li
 
 Netlify, one site per app (`apps/player/netlify.toml`, `apps/admin/netlify.toml`); each site needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_KEY` (publishable key). Mobile builds go through EAS. Merging to `main` deploys the web apps, so anything that needs a migration first must say so before merge.
 
+Mobile releases, all from `apps/mobile` on an up-to-date `main` (`apps/mobile/store/README.md` has the detail):
+
+- **JS-only change** → `npx eas-cli update --channel production --message "…"`. No store review; reaches installs of the same `version` (runtime policy `appVersion`).
+- **Native change** (a native package, `app.json` native config, `patches/`, an SDK upgrade) → bump `version` in `app.json`, add `releaseNotes` in `store.config.json`, then `npx eas-cli build --platform all --profile production --auto-submit` and `KP_REVIEW_PHONE=… npx eas-cli metadata:push`. Build numbers auto-increment; the App Store version is read from `app.json` by `store.config.js` — never set it by hand.
+- Builds and submits are the owner's call (they cost EAS quota and reach testers): propose them, don't run them unasked. Never commit signing keys, the service-account JSON or the review phone.
+
 ## Worktrees
 
 A SessionStart hook runs `scripts/worktree/setup.sh` in a new worktree; it symlinks the gitignored files listed in `.worktreeinclude` (the apps' and supabase `.env`) from the main checkout, so editing one edits the original.
+
+## Git
+
+Never commit or stage; leave changes unstaged for the owner.

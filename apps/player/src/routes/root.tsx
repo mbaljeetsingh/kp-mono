@@ -10,7 +10,17 @@
  */
 import { Link, Outlet, useLocation } from '@tanstack/react-router';
 import { Toaster } from '@kp/ui/sonner';
-import { Github, Heart, House, Library, ListMusic, Radio, Search, Users } from 'lucide-react';
+import {
+  Github,
+  Heart,
+  House,
+  Library,
+  ListMusic,
+  Radio,
+  Search,
+  Shield,
+  Users,
+} from 'lucide-react';
 
 import { AccountButton } from '~/components/AccountButton';
 import { NowPlayingPanel } from '~/components/NowPlaying';
@@ -21,7 +31,7 @@ import { PlayerBar } from '~/components/PlayerBar';
 import { SearchField } from '~/components/SearchField';
 import { ShuffleButton } from '~/components/ShuffleButton';
 import { ThemeToggle } from '@kp/ui/app/theme-toggle';
-import { CONTRIBUTE_URL, GITHUB_URL } from '~/lib/links';
+import { CONTRIBUTE_URL, GITHUB_URL, PRIVACY_URL } from '~/lib/links';
 import { usePlayerKeys } from '~/lib/keys';
 import { useSession } from '~/lib/session';
 import { cn } from '~/lib/utils';
@@ -117,6 +127,15 @@ export function RootLayout() {
             >
               <Github className="size-4" />
               Source
+            </a>
+            {/* A static page in public/, not a route: the stores link to it,
+                and it moves to the landing page unchanged when there is one. */}
+            <a
+              href={PRIVACY_URL}
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <Shield className="size-4" />
+              Privacy
             </a>
             {/* The sidebar has the width to say which account this is, so it
                 does; the phone header above does not, and keeps the circle. */}

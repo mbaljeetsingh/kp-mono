@@ -123,3 +123,18 @@ export async function signUp(
   if (error) return { error: error.message };
   return { confirm: !data.session };
 }
+
+/**
+ * Delete the signed-in user's account, then sign out locally.
+ *
+ * The stores require this of any app with sign-up (supabase migration
+ * 20261006000000 says what goes and what stays). Signing out afterwards is
+ * local-only: the server session died with the user, and a global sign-out
+ * would ask the auth server to revoke a session it no longer has.
+ */
+export async function deleteOwnAccount(client: KpClient): Promise<{ error?: string }> {
+  const { error } = await client.rpc('delete_own_account');
+  if (error) return { error: error.message };
+  await client.auth.signOut({ scope: 'local' });
+  return {};
+}

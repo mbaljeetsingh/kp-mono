@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   acceptScanDrafts,
+  canDeleteRendition,
   canPublishRendition,
   draftSchema,
   fetchPending,
   fetchPendingCount,
+  publishMissing,
   publishRefusal,
   scanStatus,
 } from './admin';
@@ -53,6 +55,40 @@ describe('draftSchema', () => {
   it('never carries a status — publishing is a separate act and permission', () => {
     const parsed = draftSchema.parse({ ...base, status: 'published' } as never);
     expect('status' in parsed).toBe(false);
+  });
+});
+
+describe('canDeleteRendition', () => {
+  const reviewer = { propose: true, delete: true };
+  const contributor = { propose: true, delete: false };
+  const blocked = { propose: false, delete: false };
+  const ME = 'user-1';
+
+  it('lets a contributor delete their own hand-made draft', () => {
+    expect(
+      canDeleteRendition({ status: 'draft', source: 'manual', created_by: ME }, contributor, ME)
+    ).toBe(true);
+  });
+
+  it('keeps everything else with the permission', () => {
+    // Someone else's draft, a published row, and a scan draft the account
+    // requested: deleting that last one is a rejection, a reviewer's call.
+    for (const row of [
+      { status: 'draft', source: 'manual', created_by: 'other' },
+      { status: 'published', source: 'manual', created_by: ME },
+      { status: 'shabad_linked', source: 'scan', created_by: ME },
+    ]) {
+      expect(canDeleteRendition(row, contributor, ME)).toBe(false);
+      expect(canDeleteRendition(row, reviewer, ME)).toBe(true);
+    }
+  });
+
+  it('offers nothing to a blocked account or while the session is loading', () => {
+    const own = { status: 'draft', source: 'manual', created_by: ME };
+    expect(canDeleteRendition(own, blocked, ME)).toBe(false);
+    expect(canDeleteRendition({ ...own, created_by: undefined }, contributor, undefined)).toBe(
+      false
+    );
   });
 });
 
@@ -108,6 +144,14 @@ describe('canPublishRendition', () => {
     expect(
       canPublishRendition({ status: 'draft', shabad_id: 4064, main_verse_id: null }, reviewer, ME)
     ).toBe(false);
+  });
+});
+
+describe('publishMissing', () => {
+  it('asks for the shabad, then its line, whoever is asking', () => {
+    expect(publishMissing({ shabad_id: null, main_verse_id: null })).toBe('needs-shabad');
+    expect(publishMissing({ shabad_id: 4064, main_verse_id: null })).toBe('needs-line');
+    expect(publishMissing({ shabad_id: 4064, main_verse_id: 1 })).toBeNull();
   });
 });
 
@@ -272,6 +316,8 @@ describe('acceptScanDrafts', () => {
 });
 
 describe('fetchPending', () => {
+  const ME = 'user-1';
+
   /** Records the chain; `limit` ends it, the way PostgREST resolves it. */
   function fakeClient(result: { data: unknown[] | null; error: unknown }) {
     const calls: string[] = [];
@@ -282,6 +328,14 @@ describe('fetchPending', () => {
       },
       neq: (col: string, value: string) => {
         calls.push(`neq ${col} ${value}`);
+        return builder;
+      },
+      eq: (col: string, value: string) => {
+        calls.push(`eq ${col} ${value}`);
+        return builder;
+      },
+      filter: (col: string, op: string, value: string) => {
+        calls.push(`filter ${col} ${op} ${value}`);
         return builder;
       },
       or: (filter: string) => {
@@ -310,11 +364,12 @@ describe('fetchPending', () => {
 
   it('starts at the oldest draft, with id breaking ties', async () => {
     const { client, calls } = fakeClient({ data: [], error: null });
-    await fetchPending(client);
+    await fetchPending(client, 'others', ME);
     expect(calls).toEqual([
       'from renditions',
       'select *, tracks(artist_dir, date, url, raw_filename)',
       'neq status published',
+      `filter created_by isdistinct ${ME}`,
       'order created_at asc',
       'order id asc',
       `limit ${PAGE_SIZE}`,
@@ -323,7 +378,10 @@ describe('fetchPending', () => {
 
   it('continues just after the last row, not at an offset a removal would shift', async () => {
     const { client, calls } = fakeClient({ data: full, error: null });
-    await fetchPending(client, { created_at: '2026-10-01T12:00:00.5+00:00', id: 'abc' });
+    await fetchPending(client, 'others', ME, {
+      created_at: '2026-10-01T12:00:00.5+00:00',
+      id: 'abc',
+    });
     expect(calls).toContain(
       'or created_at.gt."2026-10-01T12:00:00.5+00:00",' +
         'and(created_at.eq."2026-10-01T12:00:00.5+00:00",id.gt.abc)'
@@ -331,15 +389,31 @@ describe('fetchPending', () => {
   });
 
   it('has more after a full page and stops after a short one', async () => {
-    expect((await fetchPending(fakeClient({ data: full, error: null }).client)).hasMore).toBe(true);
-    const short = await fetchPending(fakeClient({ data: full.slice(1), error: null }).client);
+    expect(
+      (await fetchPending(fakeClient({ data: full, error: null }).client, 'others', ME)).hasMore
+    ).toBe(true);
+    const short = await fetchPending(
+      fakeClient({ data: full.slice(1), error: null }).client,
+      'others',
+      ME
+    );
     expect(short.hasMore).toBe(false);
     expect(short.items).toHaveLength(PAGE_SIZE - 1);
   });
 
+  it("splits yours from everyone else's, ownerless nightly drafts with the others", async () => {
+    const mine = fakeClient({ data: [], error: null });
+    await fetchPending(mine.client, 'mine', ME);
+    expect(mine.calls).toContain(`eq created_by ${ME}`);
+    // Not `neq`: a null owner compares as null and neq would drop it.
+    const others = fakeClient({ data: [], error: null });
+    await fetchPending(others.client, 'others', ME);
+    expect(others.calls).toContain(`filter created_by isdistinct ${ME}`);
+  });
+
   it('throws the server error as an Error', async () => {
     const { client } = fakeClient({ data: null, error: { code: 'PGRST000', message: 'down' } });
-    await expect(fetchPending(client)).rejects.toBeInstanceOf(Error);
+    await expect(fetchPending(client, 'others', ME)).rejects.toBeInstanceOf(Error);
   });
 });
 

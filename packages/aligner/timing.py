@@ -14,6 +14,7 @@ import statistics
 import subprocess
 import time
 
+import numpy as np
 import soundfile as sf
 
 import align
@@ -72,6 +73,32 @@ def _save(path, payload):
     os.replace(f"{path}.part", path)
 
 
+def fetch_wav(track_id, url):
+    """The recording as 16 kHz mono wav in the cache, fetched once, and whole."""
+    wav = f"{CACHE}/track_{track_id}.wav"
+    if not os.path.exists(wav):
+        print("  fetching audio…", flush=True)
+        # To a side name, renamed once complete: an interrupted fetch must not
+        # leave a wav the next run takes for the recording.
+        subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", url,
+                        "-ar", str(SR), "-ac", "1", "-f", "wav",
+                        f"{wav}.part"], check=True)
+        os.replace(f"{wav}.part", wav)
+    # ffmpeg ends a dropped download as if the file had ended, exit 0, and a
+    # short transcript is the recording's for good: everything past the cut
+    # would read as a mistag, and no re-cut heals it, the key holding no edges.
+    # So the audio must be as long as sgpc.net says before anything reads it —
+    # transcribe, or loudness on a re-scan whose transcript was stored — and a
+    # short one is removed so the next run fetches it again.
+    want = duration(url)
+    got = sf.info(wav).duration
+    if want and got < WHOLE * want:
+        os.remove(wav)
+        raise RuntimeError(f"fetched {got:.0f}s of a {want:.0f}s recording: "
+                           f"the download was cut short")
+    return wav
+
+
 def transcribe(track_id, url, store=True, timings=None, asr=True):
     """Both of align's passes over the whole recording, cached per track.
 
@@ -93,28 +120,8 @@ def transcribe(track_id, url, store=True, timings=None, asr=True):
         # Fetched only past both caches, and decoded once: re-matching an
         # already-scanned archive must not re-download every recording.
         if not decoded:
-            wav = f"{CACHE}/track_{track_id}.wav"
             t = time.monotonic()
-            if not os.path.exists(wav):
-                print("  fetching audio…", flush=True)
-                # To a side name, renamed once complete: an interrupted fetch
-                # must not leave a wav the next run takes for the recording.
-                subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", url,
-                                "-ar", str(SR), "-ac", "1", "-f", "wav",
-                                f"{wav}.part"], check=True)
-                os.replace(f"{wav}.part", wav)
-            a = sf.read(wav, dtype="float32")[0]
-            # ffmpeg ends a dropped download as if the file had ended, exit 0,
-            # and a short transcript is the recording's for good: everything
-            # past the cut would read as a mistag, and no re-cut heals it, the
-            # key holding no edges. So the audio must be as long as sgpc.net
-            # says before any of it is transcribed.
-            want = duration(url)
-            if want and len(a) / SR < WHOLE * want:
-                os.remove(wav)
-                raise RuntimeError(f"fetched {len(a) / SR:.0f}s of a "
-                                   f"{want:.0f}s recording: the download was "
-                                   f"cut short")
+            a = sf.read(fetch_wav(track_id, url), dtype="float32")[0]
             decoded.append(a)
             if timings is not None:
                 timings.update(fetch=time.monotonic() - t,
@@ -148,6 +155,28 @@ def transcribe(track_id, url, store=True, timings=None, asr=True):
             runtime.store_transcript(f"track/{key}.json", {"windows": w})
         out[name] = w
     return out["long"], out["short"]
+
+
+LOUD_HOP = 0.1
+
+
+def loudness(track_id, url):
+    """The recording's level in dB per LOUD_HOP s, or None if its audio cannot
+    be had. A re-scan reads both passes from storage and fetched no audio, so
+    it is fetched here: without it a re-scan would leave ends where a first
+    scan of the same recording moves them. Only edges hang on it, so a failed
+    fetch costs the end snap, not the scan."""
+    try:
+        a = sf.read(fetch_wav(track_id, url), dtype="float32")[0]
+    except Exception as e:
+        print(f"  no audio for the end snap ({e}); ends stay", flush=True)
+        return None
+    step = int(SR * LOUD_HOP)
+    n = len(a) // step
+    # The floor inside the log: digital silence is -100 dB, not -inf, which
+    # would make the median of a silent stretch NaN.
+    return 20 * np.log10(np.sqrt((a[:n * step].reshape(n, step) ** 2)
+                                 .mean(axis=1)) + 1e-5)
 
 
 def shifted(windows, dur):
