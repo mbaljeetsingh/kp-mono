@@ -39,6 +39,7 @@ import {
 import {
   clock,
   coverageOpen,
+  coveredBy,
   gapAt,
   markingWindow,
   overlapping,
@@ -56,6 +57,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Pause, Play, ScanLine } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { CoveredChoice, type CoveredDraft } from '~/components/CoveredChoice';
 import { Kbd } from '~/components/Kbd';
 import { LoadStatus } from '~/components/LoadStatus';
 import { SegmentEditor, type PuratanLoop } from '~/components/SegmentEditor';
@@ -105,6 +107,7 @@ const SHORTCUTS: [string, string][] = [
   ['[', 'start here — or move the start, inside a segment'],
   [']', 'end here — or move the end'],
   [', .', 'previous / next segment'],
+  ['o', 'the other segment under the playhead'],
   ['f', 'zoom the bar to the cut / show the whole recording'],
   ['esc', 'undo moved edges, or drop a new cut'],
 ];
@@ -257,7 +260,7 @@ function Workbench({ id }: { id: string }) {
       })),
     [rows, moved]
   );
-  const bands: TimelineBand[] = useMemo(
+  const plainBands: TimelineBand[] = useMemo(
     () =>
       segments.map((s) => ({
         ...s,
@@ -485,6 +488,40 @@ function Workbench({ id }: { id: string }) {
   const naming = !wholeFile && start !== null && end !== null;
 
   /*
+   * The drafts a cut waiting for its shabad lies mostly over, which it replaces
+   * unless told not to. Only rows this account may delete, and never a published
+   * one: published is settled. The choice is kept with the cut it was made for,
+   * so the next cut starts back at Replace.
+   */
+  const [keptFor, setKeptFor] = useState<number | null>(null);
+  const replace = keptFor !== formKey;
+  const setReplace = (yes: boolean) => setKeptFor(yes ? null : formKey);
+  const namedCut = naming && start !== null && end !== null ? { start, end } : null;
+  const coveredDrafts: CoveredDraft[] = namedCut
+    ? coveredBy(segments, namedCut).flatMap((s) => {
+        const r = byId.get(s.id);
+        if (
+          !r ||
+          r.status === 'published' ||
+          !canDeleteRendition(
+            r,
+            { propose: can['renditions.propose'], delete: can['renditions.delete'] },
+            userId
+          )
+        ) {
+          return [];
+        }
+        const whose = r.source === 'scan' ? 'scan' : r.created_by === userId ? 'yours' : 'other';
+        return [{ id: s.id, name: s.name, start: s.start, end: s.end, whose }];
+      })
+    : [];
+  const replacing = replace ? coveredDrafts : [];
+  /** Overlapped and staying: said in the picker, as it always was. */
+  const clipped = namedCut
+    ? overlapping(segments, namedCut).filter((s) => !coveredDrafts.some((c) => c.id === s.id))
+    : [];
+
+  /*
    * The segment the strip acts on, held between renders so a played end cut
    * does not let go of it (`stripSegment`). Kept by adjusting state during
    * render, as the deep link is: a ref written here would publish a value from
@@ -589,15 +626,36 @@ function Workbench({ id }: { id: string }) {
   /** The next or previous segment from where the strip is, by start. */
   const step = useCallback(
     (dir: 1 | -1) => {
-      const from = focusSeg ? focusSeg.start : position;
+      // By place in the list from a segment: two starting within the margin
+      // below were stepped over, and one under another could not be reached.
+      const at = focusId ? rows.findIndex((r) => r.id === focusId) : -1;
       const next =
-        dir === 1
-          ? rows.find((r) => Number(r.start_sec) > from + 0.5)
-          : [...rows].reverse().find((r) => Number(r.start_sec) < from - 0.5);
+        at >= 0
+          ? rows[at + dir]
+          : dir === 1
+            ? rows.find((r) => Number(r.start_sec) > position + 0.5)
+            : [...rows].reverse().find((r) => Number(r.start_sec) < position - 0.5);
       if (next) goTo(next);
     },
-    [focusSeg, position, rows, goTo]
+    [focusId, position, rows, goTo]
   );
+
+  /*
+   * The other segments under the playhead. The bar draws one over another and
+   * a seek lands on the later start, so a draft with a longer one on top of it
+   * had no way onto the strip but its row in the list. Not over unsaved edges,
+   * which hold the strip where it is.
+   */
+  const alsoHere =
+    focusSeg && !moved && !renaming && position >= focusSeg.start && position < focusSeg.end
+      ? segments.filter((s) => s.id !== focusSeg.id && position >= s.start && position < s.end)
+      : [];
+  /** No seek: the point is to act on the other segment from where you are listening. */
+  const chooseHere = (segmentId: string) => {
+    setChosen(segmentId);
+    setHeld(segmentId);
+    setStripError(null);
+  };
 
   /**
    * One edge, a second either way, then play from where it landed. On a cut
@@ -774,6 +832,16 @@ function Workbench({ id }: { id: string }) {
       case '.':
         step(1);
         break;
+      case 'o':
+        // Not with a modifier: Cmd/Ctrl+O is the browser's, as with `f`.
+        if (alsoHere.length && !e.metaKey && !e.ctrlKey && !e.altKey) {
+          // Through them in the list's order, so three are all reached — by
+          // place in the list, as segments sharing a start have no "later".
+          const ring = segments.filter((s) => s.id === focusSeg?.id || alsoHere.includes(s));
+          const at = ring.findIndex((s) => s.id === focusSeg?.id);
+          chooseHere(ring[(at + 1) % ring.length].id);
+        }
+        break;
       case 'Escape':
         if (moved) setMoved(null);
         else if (marking || naming) newForm(null, null);
@@ -877,28 +945,64 @@ function Workbench({ id }: { id: string }) {
    * The cut just ended, saved: linked to the shabad picked, or named by ear.
    * Then the strip has it like any other segment — Publish, or its line in
    * the lyrics first.
+   *
+   * The drafts it replaces go after it is saved, so a failed save loses
+   * nothing. A scan draft of the very shabad picked is not one of them: its
+   * deletion would be recorded as the scan being wrong, when it was only its
+   * edges, so it takes the cut's edges instead of a new row being made.
    */
   async function saveCut(link: ShabadLink | null, byEar?: string) {
     if (start === null || end === null) return;
     const made: { row?: Rendition } = {};
+    const going = replacing
+      .map((c) => byId.get(c.id))
+      .filter((r): r is Rendition => r !== undefined);
+    const right = link
+      ? going.find((r) => r.source === 'scan' && r.shabad_id === link.shabadId && canEdit(r))
+      : undefined;
+    const rest = going.filter((r) => r.id !== right?.id);
+    // The one kind of delete the page can take back, as `removeRow` has it.
+    const undoable =
+      rest.length === 1 &&
+      rest[0].created_by === userId &&
+      rest[0].status !== 'published' &&
+      rest[0].source !== 'scan'
+        ? rest[0]
+        : null;
     const ok = await act(async () => {
-      made.row = await createRendition(
-        supabase,
-        {
-          track_id: id,
-          name: link ? link.titles.name : (byEar ?? ''),
-          start_sec: cents(start),
-          end_sec: cents(end),
-          shabad_id: link?.shabadId ?? null,
-          main_verse_id: link?.verseId ?? null,
-          name_gurmukhi: link?.titles.gurmukhi ?? null,
-          raag: null,
-          taal: null,
-        },
-        userId
-      );
+      if (right && link) {
+        made.row = await updateRendition(supabase, right.id, {
+          ...recut(right, { start, end }),
+          name: link.titles.name,
+          name_gurmukhi: link.titles.gurmukhi,
+          shabad_id: link.shabadId,
+          main_verse_id: link.verseId,
+        });
+      } else {
+        made.row = await createRendition(
+          supabase,
+          {
+            track_id: id,
+            name: link ? link.titles.name : (byEar ?? ''),
+            start_sec: cents(start),
+            end_sec: cents(end),
+            shabad_id: link?.shabadId ?? null,
+            main_verse_id: link?.verseId ?? null,
+            name_gurmukhi: link?.titles.gurmukhi ?? null,
+            raag: null,
+            taal: null,
+          },
+          userId
+        );
+      }
+      if (!undoable) {
+        for (const r of rest) await deleteRendition(supabase, r.id);
+      }
     });
-    if (ok && made.row) {
+    // By the row, not `ok`: saved and a delete refused, the cut must not stay
+    // open to be saved twice. The refusal is in the strip.
+    if (made.row) {
+      if (undoable && ok) setDoomed(undoable);
       newForm(null, null);
       setHeld(made.row.id);
       setChosen(made.row.id);
@@ -1127,6 +1231,7 @@ function Workbench({ id }: { id: string }) {
       )
         ? () => removeRow(r)
         : null,
+      alsoHere: alsoHere.map((s) => ({ id: s.id, name: s.name })),
     };
   } else {
     const gap = gapAt(segments, duration, position);
@@ -1169,6 +1274,11 @@ function Workbench({ id }: { id: string }) {
     wholeFileOffered &&
     (wholeFile || (naming && wholeFileChoice !== null));
   const picking = can['renditions.propose'] && naming && !formShown;
+  /* Struck out only where the choice is on screen; the old form saves on its own terms. */
+  const bands =
+    picking && replacing.length
+      ? plainBands.map((b) => ({ ...b, doomed: replacing.some((c) => c.id === b.id) }))
+      : plainBands;
   const renamingRow = renaming ? (byId.get(renaming) ?? null) : null;
 
   /** An edge heard from the strip keeps the strip on its segment (see `chosen`). */
@@ -1389,6 +1499,7 @@ function Workbench({ id }: { id: string }) {
               onStart={markStart}
               onEnd={markEnd}
               onCancel={() => newForm(null, null)}
+              onAlsoHere={chooseHere}
               onTagPointer={() => {
                 const f = findings.find(
                   (x) => !covered(x) && position >= x.start - 5 && position <= x.end
@@ -1403,6 +1514,9 @@ function Workbench({ id }: { id: string }) {
               the strip's segment. Nothing when the strip is on a gap. */}
           {picking && start !== null && end !== null ? (
             <div ref={panelRef}>
+              {coveredDrafts.length ? (
+                <CoveredChoice covered={coveredDrafts} replace={replace} onChange={setReplace} />
+              ) : null}
               <ShabadPicker
                 key={`new-${formKey}`}
                 title={`Which shabad, ${clock(start)} to ${clock(end)}?`}
@@ -1410,10 +1524,8 @@ function Workbench({ id }: { id: string }) {
                 // another — but a `[` pressed a beat early inside the last
                 // shabad is the usual way one happens by accident.
                 warning={
-                  overlapping(segments, { start, end }).length
-                    ? `Overlaps ${overlapping(segments, { start, end })
-                        .map((c) => c.name)
-                        .join(', ')} — fine if you meant it.`
+                  clipped.length
+                    ? `Overlaps ${clipped.map((c) => c.name).join(', ')} — fine if you meant it.`
                     : null
                 }
                 seedName={seedName}

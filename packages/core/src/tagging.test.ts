@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   coverageOpen,
+  coveredBy,
   gapAt,
   overlapping,
   stripSegment,
@@ -111,6 +112,43 @@ describe('overlapping', () => {
 
   it('reports every segment a long range swallows', () => {
     expect(overlapping(segments, { start: 0, end: 500 }).map((s) => s.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('coveredBy', () => {
+  const small = seg('small', 100, 160);
+
+  it('takes a segment with most of its length inside', () => {
+    expect(coveredBy([small], { start: 110, end: 500 }).map((s) => s.id)).toEqual(['small']);
+  });
+
+  it('leaves one the range only clips', () => {
+    expect(coveredBy([small], { start: 150, end: 500 })).toEqual([]);
+  });
+
+  it('leaves one exactly half covered', () => {
+    expect(coveredBy([small], { start: 130, end: 500 })).toEqual([]);
+  });
+
+  it('leaves a longer segment the range sits inside', () => {
+    expect(coveredBy([seg('long', 0, 1000)], { start: 100, end: 200 })).toEqual([]);
+  });
+
+  it('takes a segment whose start the range clips when most of it is inside', () => {
+    expect(coveredBy([small], { start: 50, end: 150 }).map((s) => s.id)).toEqual(['small']);
+  });
+
+  it('leaves one whose start the range clips by a little', () => {
+    expect(coveredBy([small], { start: 0, end: 120 })).toEqual([]);
+  });
+
+  it('picks out the covered ones from several', () => {
+    const near = seg('near', 200, 260);
+    const far = seg('far', 400, 460);
+    expect(coveredBy([small, near, far], { start: 90, end: 270 }).map((s) => s.id)).toEqual([
+      'small',
+      'near',
+    ]);
   });
 });
 

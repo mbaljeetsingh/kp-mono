@@ -15,7 +15,7 @@ import { clock } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { ButtonGroup } from '@kp/ui/button-group';
 import { ArrowLeftToLine, ArrowRightToLine, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 
 import { Kbd } from '~/components/Kbd';
 import { cn } from '~/lib/utils';
@@ -50,6 +50,8 @@ export type StripMode =
       secondary: { label: string; onClick: () => void } | null;
       /** Neighbours the moved edges now run into, by name — said, not refused. */
       overlaps: string | null;
+      /** The other segments under the playhead, one tap from the strip. */
+      alsoHere: { id: string; name: string }[];
       /** What the scan heard here, for a draft with no shabad. */
       hint: { name: string; onUse: () => void } | null;
       onDelete: (() => void) | null;
@@ -78,6 +80,7 @@ export function SegmentStrip({
   onEnd,
   onCancel,
   onTagPointer,
+  onAlsoHere,
 }: {
   mode: StripMode;
   busy: boolean;
@@ -94,6 +97,7 @@ export function SegmentStrip({
   onEnd: () => void;
   onCancel: () => void;
   onTagPointer: () => void;
+  onAlsoHere: (id: string) => void;
 }) {
   if (mode.kind === 'none') return null;
 
@@ -227,6 +231,24 @@ export function SegmentStrip({
             {mode.hint ? (
               <span className="truncate text-xs text-muted-foreground">
                 Scan thinks: <span className="text-foreground">{mode.hint.name}</span>
+              </span>
+            ) : null}
+            {mode.alsoHere.length ? (
+              <span className="truncate text-xs text-muted-foreground">
+                Also here:{' '}
+                {mode.alsoHere.map((o, i) => (
+                  <Fragment key={o.id}>
+                    {i ? ', ' : ''}
+                    <button
+                      type="button"
+                      onClick={() => onAlsoHere(o.id)}
+                      title="Switch to this segment ( o )"
+                      className="text-foreground underline decoration-border underline-offset-2 hover:decoration-primary"
+                    >
+                      {o.name}
+                    </button>
+                  </Fragment>
+                ))}
               </span>
             ) : null}
           </span>
