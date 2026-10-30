@@ -855,15 +855,20 @@ function Workbench({ id }: { id: string }) {
   const perms = { review: can['renditions.review'], publish: can['renditions.publish'] };
 
   /**
-   * Publish, then on to the next one still waiting — read from the list as it
-   * stood, since the refetch is what the publish just started.
+   * The next segment still waiting after this one, read from the list as it
+   * stood: the refetch a publish or delete just started has not landed yet.
    */
-  async function publish(r: Rendition) {
+  function nextWaiting(r: Rendition) {
     const waiting = rows.filter(
       (x) => x.id !== r.id && x.status !== 'published' && Number(x.start_sec) > Number(r.start_sec)
     );
+    return waiting.find((x) => canPublishRendition(x, perms, userId)) ?? waiting[0];
+  }
+
+  /** Publish, then on to the next one still waiting. */
+  async function publish(r: Rendition) {
+    const next = nextWaiting(r);
     const ok = await act(() => setRenditionStatus(supabase, r.id, 'published'));
-    const next = waiting.find((x) => canPublishRendition(x, perms, userId)) ?? waiting[0];
     if (ok && next) goTo(next);
   }
 
@@ -953,10 +958,12 @@ function Workbench({ id }: { id: string }) {
    * keeps, so it is never undone by waiting.
    */
   function removeRow(r: Rendition) {
+    const next = nextWaiting(r);
     const own = r.created_by === userId && r.status !== 'published' && r.source !== 'scan';
     if (own) {
       setMoved(null);
       setDoomed(r);
+      if (next) goTo(next);
       return;
     }
     if (
@@ -966,7 +973,10 @@ function Workbench({ id }: { id: string }) {
     ) {
       return;
     }
-    void act(() => deleteRendition(supabase, r.id));
+    // Only once it has gone: a failed delete leaves the draft standing.
+    void act(() => deleteRendition(supabase, r.id)).then((ok) => {
+      if (ok && next) goTo(next);
+    });
   }
 
   /*
