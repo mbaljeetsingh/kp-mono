@@ -114,6 +114,21 @@ export function overlapping(
 }
 
 /**
+ * Segments lying mostly inside a range: more than half their length. These are
+ * what a new cut is taken to replace; a neighbour it merely clips, as a `[`
+ * pressed a beat early does, is `overlapping` and nothing more.
+ */
+export function coveredBy(
+  segments: TimelineSegment[],
+  range: { start: number; end: number }
+): TimelineSegment[] {
+  return segments.filter((s) => {
+    const inside = Math.min(s.end, range.end) - Math.max(s.start, range.start);
+    return s.end > s.start && inside > (s.end - s.start) / 2;
+  });
+}
+
+/**
  * How long past a segment's edge the tag page's strip stays on it.
  *
  * Hearing a cut means playing from it, and playing from an end cut runs

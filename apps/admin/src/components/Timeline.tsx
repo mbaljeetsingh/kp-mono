@@ -26,6 +26,8 @@ import { cn } from '~/lib/utils';
 /** A band on the axis: published, a person's draft, or a scan draft nobody has published. */
 export interface TimelineBand extends TimelineSegment {
   scan: boolean;
+  /** Goes when the cut being named is saved: struck out over the cut, so it is seen first. */
+  doomed?: boolean;
 }
 
 /** Something the scan heard and would not draft: a place worth a listen. */
@@ -266,17 +268,22 @@ export function Timeline({
                 style={span(s.start, s.end)}
                 className={cn(
                   'absolute inset-y-1 flex items-center overflow-hidden rounded-[4px] px-1.5',
+                  // On top when chosen: a draft under a longer one was chosen
+                  // and still hidden.
+                  (s.id === focusId || s.doomed) && 'z-[1]',
                   // Text dark on light and light on dark: the pale label that
                   // read on the dark theme vanished on parchment.
-                  s.id === focusId
-                    ? s.published
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-amber-500 text-amber-950'
-                    : s.published
-                      ? 'bg-emerald-600/20 text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100'
-                      : s.scan
-                        ? 'bg-[repeating-linear-gradient(135deg,rgb(245_158_11/0.30)_0_5px,rgb(245_158_11/0.12)_5px_10px)] text-amber-950 dark:text-amber-100'
-                        : 'bg-amber-500/25 text-amber-950 dark:text-amber-100'
+                  s.doomed
+                    ? 'bg-destructive/25 text-foreground line-through outline-1 -outline-offset-1 outline-destructive outline-dashed'
+                    : s.id === focusId
+                      ? s.published
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-amber-500 text-amber-950'
+                      : s.published
+                        ? 'bg-emerald-600/20 text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100'
+                        : s.scan
+                          ? 'bg-[repeating-linear-gradient(135deg,rgb(245_158_11/0.30)_0_5px,rgb(245_158_11/0.12)_5px_10px)] text-amber-950 dark:text-amber-100'
+                          : 'bg-amber-500/25 text-amber-950 dark:text-amber-100'
                 )}
               >
                 <span
