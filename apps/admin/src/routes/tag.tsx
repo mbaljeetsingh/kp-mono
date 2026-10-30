@@ -516,9 +516,9 @@ function Workbench({ id }: { id: string }) {
       })
     : [];
   const replacing = replace ? coveredDrafts : [];
-  /** Overlapped and staying: said in the picker, as it always was. */
+  /** Overlapped and staying: said in the picker, as it always was. Kept drafts stay overlapped. */
   const clipped = namedCut
-    ? overlapping(segments, namedCut).filter((s) => !coveredDrafts.some((c) => c.id === s.id))
+    ? overlapping(segments, namedCut).filter((s) => !replacing.some((c) => c.id === s.id))
     : [];
 
   /*
