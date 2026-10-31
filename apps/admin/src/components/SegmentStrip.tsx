@@ -14,7 +14,15 @@
 import { clock } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { ButtonGroup } from '@kp/ui/button-group';
-import { ArrowLeftToLine, ArrowRightToLine, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import {
+  ArrowLeftToLine,
+  ArrowRightToLine,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Trash2,
+} from 'lucide-react';
 import { Fragment, type ReactNode } from 'react';
 
 import { Kbd } from '~/components/Kbd';
@@ -52,6 +60,14 @@ export type StripMode =
       overlaps: string | null;
       /** The other segments under the playhead, one tap from the strip. */
       alsoHere: { id: string; name: string }[];
+      /**
+       * The same ragi's other tags of this shabad. Said, never refused: a ragi
+       * does sing a shabad again. `trackId` set opens that recording in its own
+       * tab, keeping the place here to compare against.
+       */
+      repeats: { id: string; label: string; trackId: string | null }[];
+      /** The other recordings could not be checked: not the same as nothing found. */
+      repeatsFailed: boolean;
       /** What the scan heard here, for a draft with no shabad. */
       hint: { name: string; onUse: () => void } | null;
       onDelete: (() => void) | null;
@@ -64,6 +80,9 @@ export type StripMode =
       /** The row has synced lyrics, which a saved re-cut clears until the next align run. */
       timed: boolean;
     };
+
+/** How many possible duplicates the strip names before counting the rest. */
+const REPEATS_SHOWN = 3;
 
 export function SegmentStrip({
   mode,
@@ -81,6 +100,7 @@ export function SegmentStrip({
   onCancel,
   onTagPointer,
   onAlsoHere,
+  onRepeatHere,
 }: {
   mode: StripMode;
   busy: boolean;
@@ -98,6 +118,8 @@ export function SegmentStrip({
   onCancel: () => void;
   onTagPointer: () => void;
   onAlsoHere: (id: string) => void;
+  /** Jumps and plays, unlike Also here: the point is to hear the two against each other. */
+  onRepeatHere: (id: string) => void;
 }) {
   if (mode.kind === 'none') return null;
 
@@ -400,6 +422,51 @@ export function SegmentStrip({
             </p>
           ) : null}
         </>
+      ) : null}
+      {/* Under the row too: beside the name, the date was the first thing truncated.
+          One line and a count, or a much-sung shabad pushed the lyrics down. */}
+      {mode.kind === 'segment' && mode.repeats.length ? (
+        <p className="truncate px-2 text-xs text-muted-foreground">
+          <span className="text-primary">
+            <Copy aria-hidden className="mr-1 inline size-3.5 align-[-2px]" />
+            Possible duplicate:
+          </span>{' '}
+          {mode.repeats.slice(0, REPEATS_SHOWN).map((o, i) => (
+            <Fragment key={o.id}>
+              {i ? ', ' : ''}
+              {o.trackId ? (
+                <Link
+                  to="/tag/$id"
+                  params={{ id: o.trackId }}
+                  search={{ rendition: o.id }}
+                  target="_blank"
+                  title="Open it in a new tab to compare"
+                  className="text-foreground underline decoration-border underline-offset-2 hover:decoration-primary"
+                >
+                  {o.label}
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onRepeatHere(o.id)}
+                  disabled={mode.dirty}
+                  title={mode.dirty ? 'Save or undo the edges first' : 'Play this segment'}
+                  className="text-foreground underline decoration-border underline-offset-2 hover:decoration-primary disabled:no-underline disabled:opacity-60"
+                >
+                  {o.label}
+                </button>
+              )}
+            </Fragment>
+          ))}
+          {mode.repeats.length > REPEATS_SHOWN
+            ? ` and ${mode.repeats.length - REPEATS_SHOWN} more`
+            : null}
+        </p>
+      ) : null}
+      {mode.kind === 'segment' && mode.repeatsFailed ? (
+        <p className="px-2 text-xs text-muted-foreground">
+          Couldn’t check this ragi’s other recordings for duplicates.
+        </p>
       ) : null}
       {error ? (
         <p role="alert" className="px-2 text-xs text-destructive">

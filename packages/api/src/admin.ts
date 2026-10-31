@@ -308,6 +308,42 @@ export async function listRenditions(client: KpClient, trackId: string): Promise
   return parseRows(renditionSchema, data ?? []).rows;
 }
 
+const repeatSchema = z.object({
+  id: z.string(),
+  track_id: z.string(),
+  shabad_id: z.number(),
+  start_sec: z.coerce.number(),
+  tracks: z.object({ date: z.string().nullish() }),
+});
+
+export type RenditionRepeat = z.infer<typeof repeatSchema>;
+
+/**
+ * The same ragi singing these shabads in other recordings, newest first. Not a
+ * mistake to stop — ragis do sing a shabad again — so the workbench only says so.
+ *
+ * The directory is the artist of record (see `tracks`), so a ragi filed under
+ * two spellings misses a repeat rather than raising a false one. RLS decides
+ * whose drafts are in the answer, as it does everywhere else.
+ */
+export async function listRepeats(
+  client: KpClient,
+  shabadIds: number[],
+  artistDir: string,
+  trackId: string
+): Promise<RenditionRepeat[]> {
+  const { data, error } = await client
+    .from('renditions')
+    .select('id,track_id,shabad_id,start_sec,tracks!inner(date)')
+    .in('shabad_id', shabadIds)
+    .eq('tracks.artist_dir', artistDir)
+    .neq('track_id', trackId);
+  if (error) throw toError(error);
+  return parseRows(repeatSchema, data ?? []).rows.sort((a, b) =>
+    (b.tracks.date ?? '').localeCompare(a.tracks.date ?? '')
+  );
+}
+
 export async function getRecording(client: KpClient, id: string): Promise<Recording | null> {
   const { data, error } = await client
     .from('recordings')
@@ -344,6 +380,26 @@ export function useRenditions(client: KpClient, trackId: string) {
     queryKey: ['renditions', trackId],
     queryFn: () => listRenditions(client, trackId),
     enabled: trackId.length > 0,
+  });
+}
+
+/**
+ * One query for the whole recording, so the list can mark its rows and the strip
+ * reads the same answer. Fresh on return: a repeat opens in its own tab, and
+ * whatever was changed there should not still be listed here.
+ */
+export function useRepeats(
+  client: KpClient,
+  shabadIds: number[],
+  artistDir: string | null | undefined,
+  trackId: string
+) {
+  return useQuery({
+    queryKey: ['rendition-repeats', shabadIds, artistDir, trackId],
+    queryFn: () => listRepeats(client, shabadIds, artistDir as string, trackId),
+    enabled: shabadIds.length > 0 && Boolean(artistDir),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
 
