@@ -22,7 +22,7 @@ import {
   type Playable,
 } from '@kp/core';
 import { Directory, File, Paths } from 'expo-file-system';
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import { useMMKVString } from 'react-native-mmkv';
 
 import { BANIDB_BASE } from './links';
@@ -61,6 +61,17 @@ function fileFor(fileName: string): File {
   return new File(folder(), fileName);
 }
 
+/**
+ * Downloads under way, here rather than in the sheet that started one: the sheet
+ * can close and reopen meanwhile, and a second run would write over the same file.
+ */
+const inFlight = new Map<string, Promise<void>>();
+const listeners = new Set<() => void>();
+
+function notify() {
+  listeners.forEach((listener) => listener());
+}
+
 function read(): Downloads {
   return parse(mmkv.getString(KEY));
 }
@@ -96,7 +107,30 @@ async function layoutOf(url: string): Promise<Mp3Layout> {
   return found;
 }
 
-export async function downloadRendition(item: Playable): Promise<void> {
+/** Asking for one already on its way joins it rather than starting another. */
+export function downloadRendition(item: Playable): Promise<void> {
+  const running = inFlight.get(item.id);
+  if (running) return running;
+  const started = fetchSlice(item).finally(() => {
+    inFlight.delete(item.id);
+    notify();
+  });
+  inFlight.set(item.id, started);
+  notify();
+  return started;
+}
+
+export function useIsDownloading(id: string): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    () => inFlight.has(id)
+  );
+}
+
+async function fetchSlice(item: Playable): Promise<void> {
   if (!canDownload(item)) throw new Error('Only a tagged shabad can be downloaded.');
   const layout = await layoutOf(item.url);
   const { from, to } = sliceBytes(layout, item.startSec!, item.endSec!);
@@ -133,17 +167,42 @@ export function removeDownload(id: string) {
   const all = read();
   const entry = all[id];
   if (!entry) return;
-  const file = fileFor(entry.fileName);
-  if (file.exists) file.delete();
   const { [id]: _removed, ...rest } = all;
   write(rest);
+  sweep();
 }
 
 export function removeAllDownloads() {
-  const dir = folder();
-  if (dir.exists) dir.delete();
   write({});
+  sweep();
 }
+
+/** The name of the file the player has open, which is left alone until it moves on. */
+let playingFile: string | null = null;
+
+/**
+ * Delete every file no record claims. Removing a download only drops its record
+ * and lands here, so the shabad playing keeps its file until the next one loads,
+ * and a download cut off by the app being killed does not take up room for good.
+ */
+function sweep() {
+  try {
+    const dir = folder();
+    if (!dir.exists) return;
+    const kept = new Set(Object.values(read()).map((e) => e.fileName));
+    for (const entry of dir.list()) {
+      if (!(entry instanceof File)) continue;
+      if (kept.has(entry.name) || entry.name === playingFile) continue;
+      if (inFlight.has(entry.name.replace(/\.mp3$/, ''))) continue;
+      entry.delete();
+    }
+  } catch {
+    // Tidying up: a file left behind costs room, and must not stop the audio.
+  }
+}
+
+// At launch, with nothing playing and nothing under way.
+sweep();
 
 /**
  * The local file for what is about to load, if there is one. Called by the audio
@@ -151,7 +210,16 @@ export function removeAllDownloads() {
  * segment is what tells them apart.
  */
 export function localSource(url: string, segment?: { start: number; end: number }): string | null {
-  if (!segment) return null;
+  const next = segment ? findLocal(url, segment) : null;
+  const name = next?.name ?? null;
+  if (name !== playingFile) {
+    playingFile = name;
+    sweep();
+  }
+  return next?.uri ?? null;
+}
+
+function findLocal(url: string, segment: { start: number; end: number }): File | null {
   for (const entry of Object.values(read())) {
     const { item } = entry;
     if (item.url !== url || item.startSec !== segment.start || item.endSec !== segment.end) {
@@ -160,7 +228,7 @@ export function localSource(url: string, segment?: { start: number; end: number 
     // Gone from under the record (the listener cleared storage, say): play from
     // the archive rather than fail.
     const file = fileFor(entry.fileName);
-    return file.exists ? file.uri : null;
+    return file.exists ? file : null;
   }
   return null;
 }

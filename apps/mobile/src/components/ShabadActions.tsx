@@ -25,7 +25,13 @@ import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Input } from '@kp/ui-native/input';
 
 import { ShabadTitle } from '~/components/ShabadTitle';
-import { canDownload, downloadRendition, removeDownload, useDownloads } from '~/lib/downloads';
+import {
+  canDownload,
+  downloadRendition,
+  removeDownload,
+  useDownloads,
+  useIsDownloading,
+} from '~/lib/downloads';
 import { playerActions, playerStore } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
@@ -97,17 +103,14 @@ function Sheet({
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
   const downloads = useDownloads();
-  const [downloading, setDownloading] = useState(false);
+  const downloading = useIsDownloading(item.id);
   const downloaded = downloads.ids.has(item.id);
 
   async function download() {
-    setDownloading(true);
     try {
       await downloadRendition(item);
     } catch (e) {
       Alert.alert('Could not download this shabad', e instanceof Error ? e.message : undefined);
-    } finally {
-      setDownloading(false);
     }
   }
 
