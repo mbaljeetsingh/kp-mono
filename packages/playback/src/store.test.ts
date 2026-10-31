@@ -64,6 +64,7 @@ describe('recently played', () => {
   it('remembers what starts, latest first, across a restart', async () => {
     const storage = memoryStorage();
     const first = createPlayerStore({ storage });
+    await first.getState().hydrate();
     first.getState().play(segment('a', 0, 10));
     first.getState().play(segment('b', 0, 10));
     expect(first.getState().recentIds).toEqual(['b', 'a']);
@@ -71,6 +72,18 @@ describe('recently played', () => {
     const second = createPlayerStore({ storage });
     await second.getState().hydrate();
     expect(second.getState().recentIds).toEqual(['b', 'a']);
+  });
+
+  it('keeps the saved list when a play starts before storage is read', async () => {
+    const storage = memoryStorage();
+    await storage.setItem('kp:recent', JSON.stringify(['old']));
+    const early = createPlayerStore({ storage });
+    early.getState().play(segment('a', 0, 10));
+    expect(await storage.getItem('kp:recent')).toBe(JSON.stringify(['old']));
+
+    await early.getState().hydrate();
+    expect(early.getState().recentIds).toEqual(['a', 'old']);
+    expect(await storage.getItem('kp:recent')).toBe(JSON.stringify(['a', 'old']));
   });
 
   it('does not count a shared link that was only cued', () => {

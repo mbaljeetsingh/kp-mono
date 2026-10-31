@@ -108,6 +108,9 @@ export interface PlayerStoreOptions {
 export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreOptions) {
   let driver: AudioDriver | null = null;
   let resume: Record<string, number> = {};
+  // Until storage has been read, writing the recent list would replace what is
+  // saved with the one play this session knows about. Hydrate writes it instead.
+  let recentRead = false;
 
   return createStore<PlayerState>()((set, get) => {
     function queueState(): QueueState {
@@ -148,7 +151,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
         position: startPositionFor(item, resume[item.id]),
         recentIds,
       });
-      void storage.setItem(RECENT_KEY, JSON.stringify(recentIds));
+      if (recentRead) void storage.setItem(RECENT_KEY, JSON.stringify(recentIds));
       driver?.load(item.url, startPositionFor(item, resume[item.id]), nowPlaying(item));
       driver?.play();
       persistQueue();
@@ -207,12 +210,13 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
         // was being read, and that play is the newest thing on the list.
         const stored = parseRecentIds(rawRecent);
         const fresh = get().recentIds;
-        set({
-          recentIds: [...fresh, ...stored.filter((id) => !fresh.includes(id))].slice(
-            0,
-            RECENT_LIMIT
-          ),
-        });
+        const recentIds = [...fresh, ...stored.filter((id) => !fresh.includes(id))].slice(
+          0,
+          RECENT_LIMIT
+        );
+        set({ recentIds });
+        recentRead = true;
+        if (fresh.length) void storage.setItem(RECENT_KEY, JSON.stringify(recentIds));
 
         try {
           resume = rawResume ? JSON.parse(rawResume) : {};
