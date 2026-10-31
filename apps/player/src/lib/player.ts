@@ -93,7 +93,6 @@ export const playerActions = {
   cycleRepeat: () => playerStore.getState().cycleRepeat(),
   swapCurrent: (...args: Parameters<PlayerState['swapCurrent']>) =>
     playerStore.getState().swapCurrent(...args),
-  toggleGentleStop: () => playerStore.getState().toggleGentleStop(),
   playAt: (index: number) => playerStore.getState().playAt(index),
   playList: (...args: Parameters<PlayerState['playList']>) =>
     playerStore.getState().playList(...args),

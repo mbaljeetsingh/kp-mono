@@ -113,9 +113,6 @@ export function createWebAudioDriver(onStatus: (status: DriverStatus) => void): 
       el.currentTime = seconds;
       report();
     },
-    setVolume(volume) {
-      el.volume = volume;
-    },
     // The widget's title in the newly chosen script; the audio is not touched.
     announce,
   };

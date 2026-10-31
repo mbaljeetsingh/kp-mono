@@ -6,7 +6,7 @@
  */
 import { REPEAT_LABELS } from '@kp/core';
 import { Button } from '@kp/ui/button';
-import { Moon, Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react';
+import { Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react';
 
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
@@ -29,30 +29,21 @@ export function PlayerControls({
   const playing = usePlayer((s) => s.playing);
   const repeat = usePlayer((s) => s.repeat);
   const isLive = usePlayer((s) => s.current?.isLive === true);
-  const gentleStop = usePlayer((s) => s.gentleStop);
-  // A broadcast and a raw file have no end to stop at.
-  const hasEnd = usePlayer((s) => s.current?.endSec != null);
 
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
   const big = size === 'lg';
 
   return (
     <div className="flex items-center gap-1">
-      {/* Answers repeat on the right, which keeps the play button in the middle
-          of this row, under a seek bar and beside a sheet that are both centred. */}
+      {/* Repeat hangs off the right with nothing to answer it on the left, so
+          the middle of this row is not the play button — it sits half a button
+          to the left of it, under a seek bar that is centred and beside a
+          sheet that is centred, which is exactly where it reads as a mistake.
+          An empty slot the size of repeat puts the play button back in the
+          middle. Empty rather than something useful: what belongs there is a
+          fourth control this player does not have. */}
       {compact ? null : (
-        <Button
-          variant="ghost"
-          size={big ? 'icon-lg' : 'icon'}
-          disabled={!hasEnd}
-          aria-label="Fade out and stop after this shabad"
-          title="Fade out and stop after this shabad"
-          aria-pressed={gentleStop}
-          onClick={playerActions.toggleGentleStop}
-          className={cn('rounded-full', gentleStop && 'text-primary')}
-        >
-          <Moon />
-        </Button>
+        <div aria-hidden="true" className={cn('shrink-0', big ? 'size-10' : 'size-9')} />
       )}
 
       {compact ? null : (
