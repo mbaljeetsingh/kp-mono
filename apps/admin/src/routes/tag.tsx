@@ -30,6 +30,7 @@ import {
   usePuratanLeft,
   useRecording,
   useRenditions,
+  useRepeats,
   useScanRequest,
   type Draft,
   type Rendition,
@@ -43,6 +44,7 @@ import {
   gapAt,
   markingWindow,
   overlapping,
+  sameShabadApart,
   STRIP_HOLD_SECONDS,
   stripSegment,
   untaggedGaps,
@@ -54,7 +56,7 @@ import { Button } from '@kp/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@kp/ui/popover';
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Pause, Play, ScanLine } from 'lucide-react';
+import { ChevronLeft, Copy, Pause, Play, ScanLine } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { CoveredChoice, type CoveredDraft } from '~/components/CoveredChoice';
@@ -650,6 +652,16 @@ function Workbench({ id }: { id: string }) {
     focusSeg && !moved && !renaming && position >= focusSeg.start && position < focusSeg.end
       ? segments.filter((s) => s.id !== focusSeg.id && position >= s.start && position < s.end)
       : [];
+  /** The same ragi's tags of this recording's shabads, in other recordings. */
+  const shabadIds = useMemo(
+    () => [...new Set(rows.flatMap((r) => (r.shabad_id == null ? [] : [r.shabad_id])))].sort(),
+    [rows]
+  );
+  const repeatsElsewhere = useRepeats(supabase, shabadIds, recording.data?.artist_dir, id);
+  const shabadSegments = useMemo(
+    () => segments.map((s) => ({ ...s, shabadId: byId.get(s.id)?.shabad_id })),
+    [segments, byId]
+  );
   /** No seek: the point is to act on the other segment from where you are listening. */
   const chooseHere = (segmentId: string) => {
     setChosen(segmentId);
@@ -923,15 +935,20 @@ function Workbench({ id }: { id: string }) {
   const perms = { review: can['renditions.review'], publish: can['renditions.publish'] };
 
   /**
-   * Publish, then on to the next one still waiting — read from the list as it
-   * stood, since the refetch is what the publish just started.
+   * The next segment still waiting after this one, read from the list as it
+   * stood: the refetch a publish or delete just started has not landed yet.
    */
-  async function publish(r: Rendition) {
+  function nextWaiting(r: Rendition) {
     const waiting = rows.filter(
       (x) => x.id !== r.id && x.status !== 'published' && Number(x.start_sec) > Number(r.start_sec)
     );
+    return waiting.find((x) => canPublishRendition(x, perms, userId)) ?? waiting[0];
+  }
+
+  /** Publish, then on to the next one still waiting. */
+  async function publish(r: Rendition) {
+    const next = nextWaiting(r);
     const ok = await act(() => setRenditionStatus(supabase, r.id, 'published'));
-    const next = waiting.find((x) => canPublishRendition(x, perms, userId)) ?? waiting[0];
     if (ok && next) goTo(next);
   }
 
@@ -1057,10 +1074,12 @@ function Workbench({ id }: { id: string }) {
    * keeps, so it is never undone by waiting.
    */
   function removeRow(r: Rendition) {
+    const next = nextWaiting(r);
     const own = r.created_by === userId && r.status !== 'published' && r.source !== 'scan';
     if (own) {
       setMoved(null);
       setDoomed(r);
+      if (next) goTo(next);
       return;
     }
     if (
@@ -1070,7 +1089,10 @@ function Workbench({ id }: { id: string }) {
     ) {
       return;
     }
-    void act(() => deleteRendition(supabase, r.id));
+    // Only once it has gone: a failed delete leaves the draft standing.
+    void act(() => deleteRendition(supabase, r.id)).then((ok) => {
+      if (ok && next) goTo(next);
+    });
   }
 
   /*
@@ -1163,6 +1185,21 @@ function Workbench({ id }: { id: string }) {
     // rendition can contain another, and the bar's sliver is easy to miss.
     const clash =
       moved?.id === r.id ? overlapping(segments, focusSeg, r.id).map((c) => c.name) : [];
+    const here = shabadSegments.find((s) => s.id === r.id);
+    const repeats = [
+      ...(here ? sameShabadApart(shabadSegments, here) : []).map((x) => ({
+        id: x.id,
+        label: `here at ${clock(x.start)}`,
+        trackId: null,
+      })),
+      ...(repeatsElsewhere.data ?? [])
+        .filter((x) => x.shabad_id === r.shabad_id)
+        .map((x) => ({
+          id: x.id,
+          label: `${x.tracks.date ?? 'undated'} at ${clock(x.start_sec)}`,
+          trackId: x.track_id,
+        })),
+    ];
     const editable = canEdit(r);
     const published = r.status === 'published';
     const hintFinding =
@@ -1232,6 +1269,8 @@ function Workbench({ id }: { id: string }) {
         ? () => removeRow(r)
         : null,
       alsoHere: alsoHere.map((s) => ({ id: s.id, name: s.name })),
+      repeats,
+      repeatsFailed: repeatsElsewhere.isError && r.shabad_id != null,
     };
   } else {
     const gap = gapAt(segments, duration, position);
@@ -1500,6 +1539,10 @@ function Workbench({ id }: { id: string }) {
               onEnd={markEnd}
               onCancel={() => newForm(null, null)}
               onAlsoHere={chooseHere}
+              onRepeatHere={(segmentId) => {
+                const r = byId.get(segmentId);
+                if (r) goTo(r);
+              }}
               onTagPointer={() => {
                 const f = findings.find(
                   (x) => !covered(x) && position >= x.start - 5 && position <= x.end
@@ -1662,6 +1705,13 @@ function Workbench({ id }: { id: string }) {
                     r={item.r}
                     current={item.r.id === focusId}
                     note={rowNote(item.r, publishRefusal(item.r, perms, userId), canEdit(item.r))}
+                    possibleDuplicate={
+                      item.r.shabad_id != null &&
+                      (repeatsElsewhere.data?.some((x) => x.shabad_id === item.r.shabad_id) ||
+                        shabadSegments.some(
+                          (s) => s.id === item.r.id && sameShabadApart(shabadSegments, s).length > 0
+                        ))
+                    }
                     onOpen={() => goTo(item.r)}
                   />
                 )
@@ -1811,11 +1861,13 @@ function SegmentRow({
   r,
   current,
   note,
+  possibleDuplicate,
   onOpen,
 }: {
   r: Rendition;
   current: boolean;
   note: string | null;
+  possibleDuplicate: boolean;
   onOpen: () => void;
 }) {
   const published = r.status === 'published';
@@ -1851,6 +1903,15 @@ function SegmentRow({
         </span>
         {note ? (
           <span className="hidden text-xs text-muted-foreground sm:inline">{note}</span>
+        ) : null}
+        {possibleDuplicate ? (
+          <span
+            title="Possible duplicate: this ragi has this shabad elsewhere"
+            className="flex shrink-0 items-center gap-1 text-xs text-primary"
+          >
+            <Copy aria-hidden className="size-3.5" />
+            <span className="sr-only sm:not-sr-only">Possible duplicate</span>
+          </span>
         ) : null}
         <span className="text-xs tabular-nums text-muted-foreground">
           {clock(Number(r.start_sec))}

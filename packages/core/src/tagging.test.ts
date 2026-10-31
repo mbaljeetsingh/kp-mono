@@ -5,6 +5,7 @@ import {
   coveredBy,
   gapAt,
   overlapping,
+  sameShabadApart,
   stripSegment,
   untaggedGaps,
   markingWindow,
@@ -228,5 +229,32 @@ describe('markingWindow', () => {
   });
   it('stays inside the recording', () => {
     expect(markingWindow(10, 9_990, 10_000, 30)).toEqual({ start: 0, end: 10_000 });
+  });
+});
+
+describe('sameShabadApart', () => {
+  const seg = (id: string, start: number, end: number, shabadId: number | null) => ({
+    id,
+    name: id,
+    start,
+    end,
+    published: false,
+    shabadId,
+  });
+
+  it('finds the same shabad at a separate time, and not the segment itself', () => {
+    const a = seg('a', 0, 100, 7);
+    const segments = [a, seg('b', 200, 300, 7), seg('c', 400, 500, 8)];
+    expect(sameShabadApart(segments, a).map((s) => s.id)).toEqual(['b']);
+  });
+
+  it('leaves out one lying over it, which is an overlap', () => {
+    const a = seg('a', 0, 100, 7);
+    expect(sameShabadApart([a, seg('b', 50, 150, 7)], a)).toEqual([]);
+  });
+
+  it('matches nothing without a shabad', () => {
+    const a = seg('a', 0, 100, null);
+    expect(sameShabadApart([a, seg('b', 200, 300, null)], a)).toEqual([]);
   });
 });
