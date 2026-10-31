@@ -13,7 +13,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@kp/ui/dropdown-menu';
-import { Check, SlidersHorizontal, Type } from 'lucide-react';
+import { Switch } from '@kp/ui/switch';
+import { SlidersHorizontal, Type } from 'lucide-react';
 
 import { useReadAlongOptions } from '~/lib/read-along-options';
 import { cn } from '~/lib/utils';
@@ -25,8 +26,24 @@ const TEXT_SIZE_ICON: Record<ReadAlongTextSize, string> = {
   large: 'size-5!',
 };
 
-function Mark({ on }: { on: boolean }) {
-  return <span className="w-4 shrink-0">{on ? <Check className="size-4" /> : null}</span>;
+/**
+ * The whole row is the target, so the switch only shows the state: a second
+ * handler on it would toggle twice, and a second tab stop would sit inside a
+ * menu item.
+ */
+function SwitchItem({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
+  return (
+    <DropdownMenuItem
+      closeOnClick={false}
+      role="menuitemcheckbox"
+      aria-checked={on}
+      onClick={onToggle}
+      className="justify-between gap-4"
+    >
+      {label}
+      <Switch checked={on} tabIndex={-1} aria-hidden className="pointer-events-none" />
+    </DropdownMenuItem>
+  );
 }
 
 export function ReadAlongOptionsMenu({ className }: { className?: string }) {
@@ -44,20 +61,16 @@ export function ReadAlongOptionsMenu({ className }: { className?: string }) {
         <SlidersHorizontal className="size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-44">
-        <DropdownMenuItem
-          closeOnClick={false}
-          onClick={() => onChange({ ...options, transliteration: !options.transliteration })}
-        >
-          <Mark on={options.transliteration} />
-          Transliteration
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          closeOnClick={false}
-          onClick={() => onChange({ ...options, larivaar: !options.larivaar })}
-        >
-          <Mark on={options.larivaar} />
-          Larivaar
-        </DropdownMenuItem>
+        <SwitchItem
+          label="Transliteration"
+          on={options.transliteration}
+          onToggle={() => onChange({ ...options, transliteration: !options.transliteration })}
+        />
+        <SwitchItem
+          label="Larivaar"
+          on={options.larivaar}
+          onToggle={() => onChange({ ...options, larivaar: !options.larivaar })}
+        />
         <DropdownMenuSeparator />
         <div className="flex items-center gap-1 p-1">
           {READ_ALONG_TEXT_SIZES.map(({ value, label }) => (

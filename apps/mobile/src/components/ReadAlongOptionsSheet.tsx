@@ -6,7 +6,8 @@
  * its backdrop is lighter than that sheet's.
  */
 import { READ_ALONG_TEXT_SIZES, type ReadAlongOptions, type ReadAlongTextSize } from '@kp/core';
-import { Check, SlidersHorizontal, Type, X } from 'lucide-react-native';
+import { Switch } from '@kp/ui-native/switch';
+import { SlidersHorizontal, Type, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
@@ -15,18 +16,16 @@ import { useColors } from '~/lib/theme';
 const TEXT_SIZE_ICON: Record<ReadAlongTextSize, number> = { small: 14, medium: 18, large: 24 };
 
 function Row({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
-  const colors = useColors();
   return (
     <Pressable
       onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: on }}
-      className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityState={{ checked: on }}
+      className="flex-row items-center justify-between gap-3 px-4 py-3 active:bg-accent"
     >
-      <View className="size-5 items-center justify-center">
-        {on ? <Check size={18} color={colors.primary} /> : null}
-      </View>
       <Text className="text-foreground">{label}</Text>
+      <Switch checked={on} onCheckedChange={onPress} />
     </Pressable>
   );
 }
