@@ -7,6 +7,7 @@ import {
   draftSchema,
   fetchPending,
   fetchPendingCount,
+  listRepeats,
   publishMissing,
   publishRefusal,
   scanStatus,
@@ -441,6 +442,33 @@ describe('fetchPendingCount', () => {
       'from renditions',
       'select id {"count":"exact","head":true}',
       'neq status published',
+    ]);
+  });
+});
+
+describe('listRepeats', () => {
+  it('asks for this ragi and these shabads outside this recording, newest first', async () => {
+    const calls: unknown[][] = [];
+    const data = [
+      { id: 'a', track_id: 't2', shabad_id: 42, start_sec: '10', tracks: { date: '2020-01-01' } },
+      { id: 'b', track_id: 't3', shabad_id: 42, start_sec: '20', tracks: { date: '2024-01-01' } },
+    ];
+    const chain = {
+      select: () => chain,
+      in: (...args: unknown[]) => (calls.push(['in', ...args]), chain),
+      eq: (...args: unknown[]) => (calls.push(['eq', ...args]), chain),
+      neq: (...args: unknown[]) => (calls.push(['neq', ...args]), { data, error: null }),
+    };
+    const client = { from: () => chain } as unknown as KpClient;
+
+    const rows = await listRepeats(client, [42], 'Bhai X', 't1');
+
+    expect(rows.map((r) => r.id)).toEqual(['b', 'a']);
+    expect(rows[0]?.start_sec).toBe(20);
+    expect(calls).toEqual([
+      ['in', 'shabad_id', [42]],
+      ['eq', 'tracks.artist_dir', 'Bhai X'],
+      ['neq', 'track_id', 't1'],
     ]);
   });
 });

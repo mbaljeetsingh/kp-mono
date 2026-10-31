@@ -114,6 +114,24 @@ export function overlapping(
 }
 
 /**
+ * Other segments of this recording singing the same shabad at a separate time.
+ *
+ * Possible duplicates, never refused: a ragi does sing a shabad twice in a
+ * sitting. One lying over `segment` is left out, because that is an overlap and
+ * already said as one. With no shabad linked there is nothing to match on.
+ */
+export function sameShabadApart<T extends TimelineSegment & { shabadId?: number | null }>(
+  segments: T[],
+  segment: T
+): T[] {
+  if (segment.shabadId == null) return [];
+  const over = overlapping(segments, segment);
+  return segments.filter(
+    (s) => s.shabadId === segment.shabadId && !over.some((o) => o.id === s.id)
+  );
+}
+
+/**
  * Segments lying mostly inside a range: more than half their length. These are
  * what a new cut is taken to replace; a neighbour it merely clips, as a `[`
  * pressed a beat early does, is `overlapping` and nothing more.
