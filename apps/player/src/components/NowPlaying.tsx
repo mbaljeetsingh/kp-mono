@@ -79,13 +79,7 @@ function Body({
             ) : (
               <p className="truncate text-sm text-muted-foreground">{current.subtitle}</p>
             )}
-            {current.isLive ? (
-              <LiveBadge />
-            ) : current.raag ? (
-              <span className="mt-1 inline-block rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                {current.raag}
-              </span>
-            ) : null}
+            {current.isLive ? <LiveBadge /> : null}
           </div>
           {/* Up here with the title, not mirroring the heart down in the
               transport: the right-hand end of that row is repeat's, and on a
