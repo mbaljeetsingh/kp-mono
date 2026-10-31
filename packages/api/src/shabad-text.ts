@@ -16,6 +16,7 @@ import { keys } from './keys';
 export interface ShabadVerse {
   verseId: number;
   verse?: { unicode?: string; gurmukhi?: string };
+  larivaar?: { unicode?: string; gurmukhi?: string };
   translation?: { en?: { bdb?: string; ssk?: string } };
   transliteration?: { english?: string };
 }
@@ -30,10 +31,16 @@ export async function fetchShabadText(base: string, shabadId: number): Promise<S
   return (await res.json()) as ShabadText;
 }
 
-export function useShabadText(base: string, shabadId: number | null | undefined) {
+export function useShabadText(
+  base: string,
+  shabadId: number | null | undefined,
+  /** A copy already on the device, which then answers without BaniDB. */
+  saved?: ShabadText
+) {
   return useQuery({
     queryKey: keys.shabadText(shabadId ?? 0),
     queryFn: () => fetchShabadText(base, shabadId!),
+    initialData: saved,
     enabled: Boolean(shabadId),
     // The text of a shabad does not change. Holding it for the session is the
     // whole point. 'static', not Infinity: Infinity still yields to an

@@ -9,6 +9,7 @@ import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
+import { localSource } from './downloads';
 import { storage } from './storage';
 import { tileArtworkUrl } from './lock-screen-art';
 import { readTitleScript } from './title-script';
@@ -27,7 +28,8 @@ playerStore.getState().attach(
     (status) => playerStore.getState().onStatus(status),
     // The lock screen's buttons do what the player's own do.
     (command) =>
-      command === 'next' ? playerStore.getState().next() : playerStore.getState().previous()
+      command === 'next' ? playerStore.getState().next() : playerStore.getState().previous(),
+    localSource
   )
 );
 
@@ -53,6 +55,8 @@ export const playerActions = {
   addToQueue: (...args: Parameters<PlayerState['addToQueue']>) =>
     playerStore.getState().addToQueue(...args),
   cycleRepeat: () => playerStore.getState().cycleRepeat(),
+  swapCurrent: (...args: Parameters<PlayerState['swapCurrent']>) =>
+    playerStore.getState().swapCurrent(...args),
   playAt: (index: number) => playerStore.getState().playAt(index),
   removeAt: (index: number) => playerStore.getState().removeAt(index),
   clearQueue: () => playerStore.getState().clearQueue(),

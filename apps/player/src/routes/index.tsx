@@ -5,16 +5,16 @@
  * set is not listenable until somebody has marked where each shabad begins and
  * ends. Search and shuffle live in the header, so Home is only shelves.
  */
-import { shelfShabads, useArtists, type ShabadSort } from '@kp/api';
+import { shabadsByIds, shelfShabads, useArtists, type ShabadSort } from '@kp/api';
 import { DEFAULT_STATION, stationPlayable } from '@kp/core';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Radio } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 import { RagiShelf } from '~/components/RagiCard';
 import { ShabadList } from '~/components/ShabadList';
-import { playerActions } from '~/lib/player';
+import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 /**
@@ -57,6 +57,7 @@ export function HomeRoute() {
         </Link>
       </button>
 
+      <RecentShelf />
       <Shelf title="Recently added" sort="newest" />
       <Shelf title="Popular" sort="popular" />
 
@@ -67,6 +68,31 @@ export function HomeRoute() {
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The way back in. Above the archive's shelves because it is the one list that
+ * is about this listener; nothing at all for somebody who has not played yet.
+ * What is playing now is left out, being already in the bar below.
+ */
+function RecentShelf() {
+  const ids = usePlayer((s) => s.recentIds);
+  const currentId = usePlayer((s) => s.current?.id);
+  const query = useQuery({
+    queryKey: ['shabads', 'recent', ids],
+    queryFn: () => shabadsByIds(supabase, [...ids]),
+    enabled: ids.length > 0,
+    placeholderData: keepPreviousData,
+  });
+  const items = (query.data ?? []).filter((item) => item.id !== currentId).slice(0, SHELF_LIMIT);
+  if (!items.length) return null;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-sm font-medium">Recently played</h2>
+      <ShabadList items={items} empty="" />
+    </section>
   );
 }
 

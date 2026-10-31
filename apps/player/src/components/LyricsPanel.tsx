@@ -7,7 +7,7 @@
  * lines already sung and the ones coming are the context that makes the lit
  * one mean anything.
  */
-import { highlightVerseId, isAligned } from '@kp/core';
+import { highlightVerseId, isAligned, verseGurmukhi, type ReadAlongTextSize } from '@kp/core';
 import { useShabadText } from '@kp/api';
 import { ShabadSearch } from '@kp/ui/app/shabad-search';
 import { Button } from '@kp/ui/button';
@@ -16,7 +16,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { usePlayer } from '~/lib/player';
 import { BANIDB_BASE } from '~/lib/links';
+import { useReadAlongOptions } from '~/lib/read-along-options';
 import { cn } from '~/lib/utils';
+
+const LINE_SIZE: Record<ReadAlongTextSize, string> = {
+  small: 'text-base leading-7',
+  medium: 'text-lg leading-8',
+  large: 'text-2xl leading-10',
+};
 
 /**
  * The panel is the reader's once they scroll it — for a while.
@@ -33,6 +40,7 @@ const READER_HOLD_MS = 8000;
 export function LyricsPanel({ className }: { className?: string }) {
   const current = usePlayer((s) => s.current);
   const position = usePlayer((s) => s.position);
+  const [options] = useReadAlongOptions();
 
   /**
    * A shabad the listener looked up themselves.
@@ -111,12 +119,13 @@ export function LyricsPanel({ className }: { className?: string }) {
 
   // `lines.length` too: the anchor is often known before BaniDB has answered,
   // and an effect keyed on the anchor alone would fire once, find no element,
-  // and not run again until the singing moved on.
+  // and not run again until the singing moved on. `options` because every one
+  // of them changes how tall the lines are, which moves the sung line away.
   useEffect(() => {
     if (anchorId == null) return;
     if (Date.now() - readerScrolledAt.current < READER_HOLD_MS) return;
     follow();
-  }, [anchorId, lines.length, follow]);
+  }, [anchorId, lines.length, options, follow]);
 
   if (!shabadId) {
     return (
@@ -181,13 +190,27 @@ export function LyricsPanel({ className }: { className?: string }) {
               className={cn(
                 // The edge is on every line, transparent, so lighting one never
                 // shifts the text beside it.
-                'rounded-r-md border-l-2 px-3 py-1.5 font-gurbani text-lg leading-8 text-verse transition-colors',
+                'rounded-r-md border-l-2 px-3 py-1.5 font-gurbani text-verse transition-colors',
+                LINE_SIZE[options.textSize],
+                // Larivaar has no spaces to wrap at, and a whole line is wider
+                // than the panel.
+                options.larivaar && 'wrap-anywhere',
                 isLit
                   ? 'border-highlight bg-linear-to-r from-verse-active-from to-verse-active-to font-semibold'
                   : 'border-transparent'
               )}
             >
-              {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
+              {verseGurmukhi(line, options)}
+              {options.transliteration && line.transliteration?.english ? (
+                <span
+                  className={cn(
+                    'mt-0.5 block font-sans text-xs italic',
+                    isLit ? 'text-muted-foreground' : 'text-verse-translation'
+                  )}
+                >
+                  {line.transliteration.english}
+                </span>
+              ) : null}
               {line.translation?.en?.bdb ? (
                 <span
                   className={cn(

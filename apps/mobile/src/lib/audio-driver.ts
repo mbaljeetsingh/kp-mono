@@ -29,7 +29,9 @@ export type LockScreenCommand = 'next' | 'previous';
 
 export function createNativeAudioDriver(
   onStatus: (status: DriverStatus) => void,
-  onCommand: (command: LockScreenCommand) => void
+  onCommand: (command: LockScreenCommand) => void,
+  /** A file on this phone holding this slice of this recording, if there is one. */
+  localSource: (url: string, segment?: { start: number; end: number }) => string | null
 ): AudioDriver {
   /*
    * One player for the whole session, its source swapped on each load.
@@ -43,6 +45,14 @@ export function createNativeAudioDriver(
    */
   let player: AudioPlayer | null = null;
   let loadedUrl: string | null = null;
+
+  /*
+   * Where the loaded file begins on the recording's clock. Zero for the archive
+   * file; a shabad's start for a downloaded slice. Everything above this driver
+   * works in the recording's seconds, timings included, so the difference is
+   * settled here, in the one place that talks to the player.
+   */
+  let clockOffset = 0;
 
   /*
    * Set while a load settles: from the swap until the new source is loaded and
@@ -99,8 +109,8 @@ export function createNativeAudioDriver(
         return;
       }
       onStatus({
-        position: status.currentTime ?? 0,
-        duration: Number.isFinite(status.duration) ? (status.duration ?? 0) : 0,
+        position: (status.currentTime ?? 0) + clockOffset,
+        duration: Number.isFinite(status.duration) ? (status.duration ?? 0) + clockOffset : 0,
         playing: status.playing ?? false,
       });
     });
@@ -129,7 +139,10 @@ export function createNativeAudioDriver(
    */
   function lockScreenOptions(nowPlaying?: NowPlaying): AudioLockScreenOptions {
     if (!nowPlaying?.isLive && nowPlaying?.segment && Platform.OS === 'ios') {
-      return { segmentStart: nowPlaying.segment.start, segmentEnd: nowPlaying.segment.end };
+      return {
+        segmentStart: nowPlaying.segment.start - clockOffset,
+        segmentEnd: nowPlaying.segment.end - clockOffset,
+      };
     }
     return { isLiveStream: true };
   }
@@ -145,9 +158,14 @@ export function createNativeAudioDriver(
   }
 
   return {
-    load(url, startAt, nowPlaying) {
+    load(archiveUrl, recordingStartAt, nowPlaying) {
       const id = ++loads;
       setTimeout(() => settle(id), SETTLE_TIMEOUT_MS);
+
+      const local = localSource(archiveUrl, nowPlaying?.segment);
+      const url = local ?? archiveUrl;
+      clockOffset = local ? (nowPlaying?.segment?.start ?? 0) : 0;
+      const startAt = Math.max(0, recordingStartAt - clockOffset);
 
       if (player && url === loadedUrl) {
         // The next shabad is often in the same recording: seek, don't reload.
@@ -177,7 +195,7 @@ export function createNativeAudioDriver(
       player?.pause();
     },
     seek(seconds) {
-      void player?.seekTo(Math.max(0, seconds));
+      void player?.seekTo(Math.max(0, seconds - clockOffset));
     },
     // The lock screen's title in the newly chosen script; the audio plays on.
     announce(nowPlaying) {

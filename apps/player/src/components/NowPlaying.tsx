@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@kp/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@kp/ui/tabs';
 import { Link } from '@tanstack/react-router';
 import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 
 import { PlayableArt } from '~/components/ArtTile';
 import { FavoriteButton } from '~/components/FavoriteButton';
@@ -18,6 +19,7 @@ import { LiveBadge } from '~/components/LiveBadge';
 import { LyricsPanel } from '~/components/LyricsPanel';
 import { PlayerControls } from '~/components/PlayerControls';
 import { QueueList } from '~/components/QueueList';
+import { ReadAlongOptionsMenu } from '~/components/ReadAlongOptionsMenu';
 import { SeekBar } from '~/components/SeekBar';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { ShareButton } from '~/components/ShareButton';
@@ -45,6 +47,7 @@ function Body({
 }) {
   const current = usePlayer((s) => s.current);
   const [script] = useTitleScript();
+  const [tab, setTab] = useState('lyrics');
   if (!current) return null;
 
   return (
@@ -86,14 +89,19 @@ function Body({
         </div>
       ) : null}
 
-      <Tabs defaultValue="lyrics" className="flex min-h-0 flex-1 flex-col">
+      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
         {/* Full width with equal halves: two tabs hugging the left edge leave
             a stripe of dead space beside them, and a wider target is easier to
             hit on a phone. */}
-        <TabsList className="mx-4 grid grid-cols-2">
-          <TabsTrigger value="lyrics">Read along</TabsTrigger>
-          <TabsTrigger value="queue">Up next</TabsTrigger>
-        </TabsList>
+        <div className="mx-4 flex items-center gap-2">
+          <TabsList className="grid flex-1 grid-cols-2">
+            <TabsTrigger value="lyrics">Read along</TabsTrigger>
+            <TabsTrigger value="queue">Up next</TabsTrigger>
+          </TabsList>
+          {/* Invisible rather than gone on Up next, so the tabs do not change
+              width under the finger that just tapped one. */}
+          <ReadAlongOptionsMenu className={tab === 'lyrics' ? undefined : 'invisible'} />
+        </div>
         <TabsContent value="lyrics" className="min-h-0 flex-1">
           <LyricsPanel className="h-full" />
         </TabsContent>

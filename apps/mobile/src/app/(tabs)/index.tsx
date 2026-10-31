@@ -6,9 +6,9 @@
  * Shelves rather than one endless list: short enough that the next one is
  * still in reach, with the whole archive a "See all" away.
  */
-import { randomShabads, shelfShabads, useArtists, type ShabadSort } from '@kp/api';
+import { randomShabads, shabadsByIds, shelfShabads, useArtists, type ShabadSort } from '@kp/api';
 import { DEFAULT_STATION, stationPlayable } from '@kp/core';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
 import { Play, Radio, Search, Shuffle } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -119,6 +119,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        <RecentShelf onMore={onMore} />
         <Shelf title="Recently added" sort="newest" onMore={onMore} />
         <Shelf title="Popular" sort="popular" onMore={onMore} />
 
@@ -142,6 +143,43 @@ function ShelfHeader({ title, href }: { title: string; href: Href }) {
       <Pressable onPress={() => router.navigate(href)} hitSlop={8}>
         <Text className="text-[13px] text-muted-foreground">See all</Text>
       </Pressable>
+    </View>
+  );
+}
+
+/**
+ * The way back in, as on the web's Home: first because it is the one list about
+ * this listener, nothing at all before they have played anything, and without
+ * what is playing now.
+ */
+function RecentShelf({ onMore }: { onMore: ReturnType<typeof useShabadActions>['onMore'] }) {
+  const ids = usePlayer((s) => s.recentIds);
+  const currentId = usePlayer((s) => s.current?.id);
+  const query = useQuery({
+    queryKey: ['shabads', 'recent', ids],
+    queryFn: () => shabadsByIds(supabase, [...ids]),
+    enabled: ids.length > 0,
+    placeholderData: keepPreviousData,
+  });
+  const items = (query.data ?? []).filter((item) => item.id !== currentId).slice(0, SHELF_LIMIT);
+  if (!items.length) return null;
+
+  return (
+    <View className="gap-1">
+      <Text className="px-5 font-display text-[22px] leading-7 text-foreground">
+        Recently played
+      </Text>
+      <View className="px-2">
+        {items.map((item, index) => (
+          <ShabadRow
+            key={item.id}
+            item={item}
+            isCurrent={false}
+            onPress={() => playerActions.playList(items, index)}
+            onMore={onMore}
+          />
+        ))}
+      </View>
     </View>
   );
 }

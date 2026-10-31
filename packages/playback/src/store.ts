@@ -17,12 +17,15 @@ import {
   onEnded,
   onNext,
   onPrevious,
+  parseRecentIds,
+  RECENT_LIMIT,
   parseRepeatMode,
   segmentStart,
   shouldRememberResume,
   startPositionFor,
   elapsedIn,
   nextRepeatMode,
+  withRecent,
   type Playable,
   type QueueState,
   type RepeatMode,
@@ -34,6 +37,7 @@ import type { AudioDriver, DriverStatus, NowPlaying, PlayerStorage } from './dri
 const QUEUE_KEY = 'kp:queue';
 const REPEAT_KEY = 'kp:repeat';
 const RESUME_KEY = 'kp:resume';
+const RECENT_KEY = 'kp:recent';
 
 export interface PlayerState {
   current: Playable | null;
@@ -46,6 +50,8 @@ export interface PlayerState {
   duration: number;
   /** True between asking for an item and the driver reporting it playing. */
   starting: string | null;
+  /** Renditions played on this device, latest first. See @kp/core's recent.ts. */
+  recentIds: readonly string[];
 
   attach(driver: AudioDriver): void;
   hydrate(): Promise<void>;
@@ -62,6 +68,11 @@ export interface PlayerState {
   /** Load a whole shelf as the queue and start at one of its rows. */
   playList(items: Playable[], index: number): void;
   playAt(index: number): void;
+  /**
+   * Another recording of what is playing, in its place. A different voice for
+   * the same shabad is not a change of plan: what was next stays next.
+   */
+  swapCurrent(item: Playable): void;
   toggle(): void;
   next(): void;
   previous(): void;
@@ -97,6 +108,9 @@ export interface PlayerStoreOptions {
 export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreOptions) {
   let driver: AudioDriver | null = null;
   let resume: Record<string, number> = {};
+  // Until storage has been read, writing the recent list would replace what is
+  // saved with the one play this session knows about. Hydrate writes it instead.
+  let recentRead = false;
 
   return createStore<PlayerState>()((set, get) => {
     function queueState(): QueueState {
@@ -129,12 +143,15 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
 
     /** Load an item and start it. The one place `driver.load` is called. */
     function start(item: Playable, index: number) {
+      const recentIds = withRecent(get().recentIds, item);
       set({
         current: item,
         index,
         starting: item.id,
         position: startPositionFor(item, resume[item.id]),
+        recentIds,
       });
+      if (recentRead) void storage.setItem(RECENT_KEY, JSON.stringify(recentIds));
       driver?.load(item.url, startPositionFor(item, resume[item.id]), nowPlaying(item));
       driver?.play();
       persistQueue();
@@ -175,17 +192,31 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       position: 0,
       duration: 0,
       starting: null,
+      recentIds: [],
 
       attach(next) {
         driver = next;
       },
 
       async hydrate() {
-        const [rawQueue, rawRepeat, rawResume] = await Promise.all([
+        const [rawQueue, rawRepeat, rawResume, rawRecent] = await Promise.all([
           storage.getItem(QUEUE_KEY),
           storage.getItem(REPEAT_KEY),
           storage.getItem(RESUME_KEY),
+          storage.getItem(RECENT_KEY),
         ]);
+
+        // Merged rather than replaced: something may have started while storage
+        // was being read, and that play is the newest thing on the list.
+        const stored = parseRecentIds(rawRecent);
+        const fresh = get().recentIds;
+        const recentIds = [...fresh, ...stored.filter((id) => !fresh.includes(id))].slice(
+          0,
+          RECENT_LIMIT
+        );
+        set({ recentIds });
+        recentRead = true;
+        if (fresh.length) void storage.setItem(RECENT_KEY, JSON.stringify(recentIds));
 
         try {
           resume = rawResume ? JSON.parse(rawResume) : {};
@@ -284,6 +315,20 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       playAt(index) {
         const item = get().items[index];
         if (item) start(item, index);
+      },
+
+      swapCurrent(item) {
+        const s = get();
+        if (s.index < 0 || !s.items[s.index]) {
+          get().play(item);
+          return;
+        }
+        // Dropped from elsewhere in the queue: a list from search already holds
+        // every recording, and this one should not then come round again.
+        const before = s.items.slice(0, s.index).filter((it) => it.id !== item.id);
+        const after = s.items.slice(s.index + 1).filter((it) => it.id !== item.id);
+        set({ items: [...before, item, ...after] });
+        start(item, before.length);
       },
 
       toggle() {

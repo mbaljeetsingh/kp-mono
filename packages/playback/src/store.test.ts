@@ -37,6 +37,61 @@ beforeEach(() => {
   store.getState().attach(fake.driver);
 });
 
+describe('swapCurrent', () => {
+  it('puts the other recording in place, so what was next stays next', () => {
+    store.getState().playList([segment('a', 0, 10), segment('b', 0, 10), segment('c', 0, 10)], 1);
+    store.getState().swapCurrent(segment('b2', 50, 60));
+    expect(store.getState().items.map((i) => i.id)).toEqual(['a', 'b2', 'c']);
+    expect(store.getState().index).toBe(1);
+    expect(store.getState().current?.id).toBe('b2');
+    expect(fake.calls.at(-2)).toBe('load https://x/b2.mp3@50');
+  });
+
+  it('does not leave the recording queued a second time', () => {
+    store.getState().playList([segment('a', 0, 10), segment('b', 0, 10), segment('c', 0, 10)], 0);
+    store.getState().swapCurrent(segment('b', 0, 10));
+    expect(store.getState().items.map((i) => i.id)).toEqual(['b', 'c']);
+    expect(store.getState().index).toBe(0);
+  });
+
+  it('plays it outright with nothing loaded', () => {
+    store.getState().swapCurrent(segment('a', 0, 10));
+    expect(store.getState().current?.id).toBe('a');
+  });
+});
+
+describe('recently played', () => {
+  it('remembers what starts, latest first, across a restart', async () => {
+    const storage = memoryStorage();
+    const first = createPlayerStore({ storage });
+    await first.getState().hydrate();
+    first.getState().play(segment('a', 0, 10));
+    first.getState().play(segment('b', 0, 10));
+    expect(first.getState().recentIds).toEqual(['b', 'a']);
+
+    const second = createPlayerStore({ storage });
+    await second.getState().hydrate();
+    expect(second.getState().recentIds).toEqual(['b', 'a']);
+  });
+
+  it('keeps the saved list when a play starts before storage is read', async () => {
+    const storage = memoryStorage();
+    await storage.setItem('kp:recent', JSON.stringify(['old']));
+    const early = createPlayerStore({ storage });
+    early.getState().play(segment('a', 0, 10));
+    expect(await storage.getItem('kp:recent')).toBe(JSON.stringify(['old']));
+
+    await early.getState().hydrate();
+    expect(early.getState().recentIds).toEqual(['a', 'old']);
+    expect(await storage.getItem('kp:recent')).toBe(JSON.stringify(['a', 'old']));
+  });
+
+  it('does not count a shared link that was only cued', () => {
+    store.getState().cue(segment('a', 0, 10), 0);
+    expect(store.getState().recentIds).toEqual([]);
+  });
+});
+
 describe('play', () => {
   it('starts a segment at its own offset, not the file`s', () => {
     store.getState().play(segment('a', 2530, 2575));

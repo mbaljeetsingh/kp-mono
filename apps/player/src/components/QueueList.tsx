@@ -6,12 +6,12 @@
  * nothing here is queued and nothing plays on its own, because a shabad is
  * often put on for its own sake and continuing unasked is the listener's call.
  */
-import { fetchSuggestionGroups } from '@kp/api';
-import { upNext, type Playable } from '@kp/core';
+import { fetchSuggestionGroups, useOtherRecordings } from '@kp/api';
+import { clock, segmentTotal, upNext, type Playable } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import { useQuery } from '@tanstack/react-query';
-import { Play, X } from 'lucide-react';
-import type { MouseEvent } from 'react';
+import { ChevronDown, ChevronRight, Play, X } from 'lucide-react';
+import { useState, type MouseEvent } from 'react';
 
 import { PlayableArt } from '~/components/ArtTile';
 import { ShabadTitle } from '~/components/ShabadTitle';
@@ -21,6 +21,61 @@ import { supabase } from '~/lib/supabase';
 import { cn } from '~/lib/utils';
 
 export function QueueList({ className }: { className?: string }) {
+  const currentId = usePlayer((s) => s.current?.id);
+  return (
+    <>
+      {/* Keyed, so it closes again when the shabad changes. */}
+      <OtherRecordings key={currentId} />
+      <Queue className={className} />
+    </>
+  );
+}
+
+/**
+ * The same shabad in other voices. Most listeners want this only now and then,
+ * so it is one line until asked for, and nothing at all for a shabad with one
+ * recording. Only a rendition's own tag counts: a looked-up shabad is the
+ * listener's guess, and the archive should not vouch for it.
+ */
+function OtherRecordings() {
+  const current = usePlayer((s) => s.current);
+  const others = useOtherRecordings(supabase, current?.shabadId, current?.id).data ?? [];
+  const [open, setOpen] = useState(false);
+  if (!others.length) return null;
+
+  const Chevron = open ? ChevronDown : ChevronRight;
+  return (
+    <div className="mb-2 border-b border-border pb-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between gap-2 rounded-md px-1 py-1.5 text-left text-xs font-medium text-primary hover:bg-accent/50"
+      >
+        {others.length === 1 ? '1 other recording' : `${others.length} other recordings`} of this
+        shabad
+        <Chevron className="size-3.5 shrink-0" />
+      </button>
+      {open
+        ? others.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => playerActions.swapCurrent(item)}
+              className="flex w-full items-center justify-between gap-3 rounded-md px-1 py-2 text-left text-sm hover:bg-accent/50"
+            >
+              <span className="min-w-0 truncate">{item.subtitle ?? item.artist ?? item.title}</span>
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                {clock(segmentTotal(item, 0))}
+              </span>
+            </button>
+          ))
+        : null}
+    </div>
+  );
+}
+
+function Queue({ className }: { className?: string }) {
   const items = usePlayer((s) => s.items);
   const index = usePlayer((s) => s.index);
   const repeat = usePlayer((s) => s.repeat);
