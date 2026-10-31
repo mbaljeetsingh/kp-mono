@@ -11,6 +11,7 @@ import {
   clock,
   highlightVerseId,
   isAligned,
+  playableTile,
   REPEAT_LABELS,
   titleIn,
   verseGurmukhi,
@@ -227,14 +228,12 @@ export default function NowPlayingScreen() {
 
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
   // The tile's leading colour, so the screen and the art agree.
-  const glow = artworkFor(current.artist ?? current.title).colors[0];
+  const glow = artworkFor(playableTile(current, script).seed).colors[0];
 
   return (
     <Screen edges={['top', 'bottom']} className="bg-background">
-      {/* The screen takes its cast from the ragi: the same hue the art tile is
-          drawn in, washed across the top and gone by the transport. Photos do
-          not carry a colour we can read cheaply, so the tile's gradient stands
-          in for both. */}
+      {/* The screen takes its cast from the tile: the same hue, washed across the
+          top and gone by the transport. */}
       <LinearGradient
         pointerEvents="none"
         colors={[`${glow}4d`, `${glow}00`]}
