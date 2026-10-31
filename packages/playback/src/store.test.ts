@@ -37,6 +37,69 @@ beforeEach(() => {
   store.getState().attach(fake.driver);
 });
 
+describe('gentle stop', () => {
+  function withVolume() {
+    const volumes: number[] = [];
+    store.getState().attach({ ...fake.driver, setVolume: (v) => volumes.push(v) });
+    return volumes;
+  }
+  const at = (position: number) =>
+    store.getState().onStatus({ position, duration: 1000, playing: true });
+
+  it('fades over the last seconds, then stops and disarms itself', () => {
+    const volumes = withVolume();
+    store.getState().playList([segment('a', 0, 100), segment('b', 200, 300)], 0);
+    store.getState().toggleGentleStop();
+
+    at(50);
+    expect(volumes).toEqual([]);
+    at(96);
+    expect(volumes).toEqual([0.5]);
+    at(100);
+
+    expect(store.getState().current?.id).toBe('a');
+    expect(store.getState().playing).toBe(false);
+    expect(store.getState().gentleStop).toBe(false);
+    expect(fake.calls).toContain('pause');
+    expect(volumes.at(-1)).toBe(1);
+  });
+
+  it('beats repeat-one', () => {
+    store.getState().play(segment('a', 0, 100));
+    store.getState().cycleRepeat();
+    store.getState().cycleRepeat();
+    store.getState().toggleGentleStop();
+    at(100);
+    expect(store.getState().playing).toBe(false);
+  });
+
+  it('brings the sound back when cancelled mid-fade', () => {
+    const volumes = withVolume();
+    store.getState().play(segment('a', 0, 100));
+    store.getState().toggleGentleStop();
+    at(96);
+    store.getState().toggleGentleStop();
+    expect(volumes.at(-1)).toBe(1);
+  });
+
+  it('does not carry the quiet into a shabad skipped to mid-fade', () => {
+    const volumes = withVolume();
+    store.getState().playList([segment('a', 0, 100), segment('b', 200, 300)], 0);
+    store.getState().toggleGentleStop();
+    at(96);
+    store.getState().next();
+    expect(volumes.at(-1)).toBe(1);
+    expect(store.getState().gentleStop).toBe(true);
+  });
+
+  it('leaves the volume alone when not asked for', () => {
+    const volumes = withVolume();
+    store.getState().playList([segment('a', 0, 100), segment('b', 200, 300)], 0);
+    at(96);
+    expect(volumes).toEqual([]);
+  });
+});
+
 describe('recently played', () => {
   it('remembers what starts, latest first, across a restart', async () => {
     const storage = memoryStorage();

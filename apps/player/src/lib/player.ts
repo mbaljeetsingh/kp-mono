@@ -91,6 +91,7 @@ export const playerActions = {
   addToQueue: (...args: Parameters<PlayerState['addToQueue']>) =>
     playerStore.getState().addToQueue(...args),
   cycleRepeat: () => playerStore.getState().cycleRepeat(),
+  toggleGentleStop: () => playerStore.getState().toggleGentleStop(),
   playAt: (index: number) => playerStore.getState().playAt(index),
   playList: (...args: Parameters<PlayerState['playList']>) =>
     playerStore.getState().playList(...args),

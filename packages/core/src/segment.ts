@@ -139,6 +139,19 @@ export function linkStartPosition(item: Playable, t: unknown): number {
  * and a format three apps show side by side is exactly the thing that should
  * not be able to drift.
  */
+/** Long enough to read as settling rather than a cut, short of losing the last line. */
+export const GENTLE_FADE_SECONDS = 8;
+
+/**
+ * How loud a shabad should be on its way to a gentle stop: full until the last
+ * few seconds, then down to nothing at its end. Worked out from the clock, not
+ * stepped, so a seek back during the fade simply brings the sound up again.
+ */
+export function gentleVolume(item: Playable | null, position: number): number {
+  if (item?.endSec == null) return 1;
+  return Math.min(1, Math.max(0, (item.endSec - position) / GENTLE_FADE_SECONDS));
+}
+
 export function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

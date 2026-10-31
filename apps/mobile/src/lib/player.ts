@@ -53,6 +53,7 @@ export const playerActions = {
   addToQueue: (...args: Parameters<PlayerState['addToQueue']>) =>
     playerStore.getState().addToQueue(...args),
   cycleRepeat: () => playerStore.getState().cycleRepeat(),
+  toggleGentleStop: () => playerStore.getState().toggleGentleStop(),
   playAt: (index: number) => playerStore.getState().playAt(index),
   removeAt: (index: number) => playerStore.getState().removeAt(index),
   clearQueue: () => playerStore.getState().clearQueue(),

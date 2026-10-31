@@ -22,6 +22,11 @@ export interface AudioDriver {
    * driver without it keeps the old title until the next item loads.
    */
   announce?(nowPlaying: NowPlaying): void;
+  /**
+   * 0 to 1. Optional, and allowed to do nothing: iPhone browsers keep media
+   * volume for the hardware buttons, so a gentle stop there just stops.
+   */
+  setVolume?(volume: number): void;
 }
 
 /**
