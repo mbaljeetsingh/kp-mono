@@ -55,6 +55,8 @@ export const playerActions = {
   addToQueue: (...args: Parameters<PlayerState['addToQueue']>) =>
     playerStore.getState().addToQueue(...args),
   cycleRepeat: () => playerStore.getState().cycleRepeat(),
+  swapCurrent: (...args: Parameters<PlayerState['swapCurrent']>) =>
+    playerStore.getState().swapCurrent(...args),
   toggleGentleStop: () => playerStore.getState().toggleGentleStop(),
   playAt: (index: number) => playerStore.getState().playAt(index),
   removeAt: (index: number) => playerStore.getState().removeAt(index),

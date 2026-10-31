@@ -6,10 +6,11 @@
  * is queued and nothing plays on its own, because a shabad is often put on for
  * its own sake and continuing unasked is the listener's call.
  */
-import { fetchSuggestionGroups } from '@kp/api';
-import { upNext, type Playable } from '@kp/core';
+import { fetchSuggestionGroups, useOtherRecordings } from '@kp/api';
+import { clock, segmentTotal, upNext, type Playable } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, X } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { PlayableArt } from '~/components/ArtTile';
@@ -20,6 +21,65 @@ import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
 
 export function QueueList() {
+  const currentId = usePlayer((s) => s.current?.id);
+  return (
+    <>
+      {/* Keyed, so it closes again when the shabad changes. */}
+      <OtherRecordings key={currentId} />
+      <Queue />
+    </>
+  );
+}
+
+/**
+ * The same shabad in other voices, as on the web: one line until asked for,
+ * nothing at all for a shabad with one recording, and only for a rendition's own
+ * tag, because a looked-up shabad is the listener's guess.
+ */
+function OtherRecordings() {
+  const colors = useColors();
+  const current = usePlayer((s) => s.current);
+  const others = useOtherRecordings(supabase, current?.shabadId, current?.id).data ?? [];
+  const [open, setOpen] = useState(false);
+  if (!others.length) return null;
+
+  const Chevron = open ? ChevronDown : ChevronRight;
+  return (
+    <View className="border-b border-border py-1">
+      <Pressable
+        onPress={() => setOpen(!open)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        className="flex-row items-center justify-between gap-2 px-1 py-2 active:opacity-60"
+      >
+        <Text className="text-[13px] font-medium text-primary">
+          {others.length === 1 ? '1 other recording' : `${others.length} other recordings`} of this
+          shabad
+        </Text>
+        <Chevron size={16} color={colors.primary} />
+      </Pressable>
+      {open
+        ? others.map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={() => playerActions.swapCurrent(item)}
+              accessibilityRole="button"
+              className="flex-row items-center justify-between gap-3 px-1 py-2.5 active:opacity-60"
+            >
+              <Text numberOfLines={1} className="flex-1 text-sm text-foreground">
+                {item.subtitle ?? item.artist ?? item.title}
+              </Text>
+              <Text className="text-xs tabular-nums text-muted-foreground">
+                {clock(segmentTotal(item, 0))}
+              </Text>
+            </Pressable>
+          ))
+        : null}
+    </View>
+  );
+}
+
+function Queue() {
   const items = usePlayer((s) => s.items);
   const index = usePlayer((s) => s.index);
   const repeat = usePlayer((s) => s.repeat);

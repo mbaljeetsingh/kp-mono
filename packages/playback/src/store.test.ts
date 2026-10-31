@@ -37,6 +37,29 @@ beforeEach(() => {
   store.getState().attach(fake.driver);
 });
 
+describe('swapCurrent', () => {
+  it('puts the other recording in place, so what was next stays next', () => {
+    store.getState().playList([segment('a', 0, 10), segment('b', 0, 10), segment('c', 0, 10)], 1);
+    store.getState().swapCurrent(segment('b2', 50, 60));
+    expect(store.getState().items.map((i) => i.id)).toEqual(['a', 'b2', 'c']);
+    expect(store.getState().index).toBe(1);
+    expect(store.getState().current?.id).toBe('b2');
+    expect(fake.calls.at(-2)).toBe('load https://x/b2.mp3@50');
+  });
+
+  it('does not leave the recording queued a second time', () => {
+    store.getState().playList([segment('a', 0, 10), segment('b', 0, 10), segment('c', 0, 10)], 0);
+    store.getState().swapCurrent(segment('b', 0, 10));
+    expect(store.getState().items.map((i) => i.id)).toEqual(['b', 'c']);
+    expect(store.getState().index).toBe(0);
+  });
+
+  it('plays it outright with nothing loaded', () => {
+    store.getState().swapCurrent(segment('a', 0, 10));
+    expect(store.getState().current?.id).toBe('a');
+  });
+});
+
 describe('gentle stop', () => {
   function withVolume() {
     const volumes: number[] = [];

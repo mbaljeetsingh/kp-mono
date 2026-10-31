@@ -71,6 +71,11 @@ export interface PlayerState {
   /** Load a whole shelf as the queue and start at one of its rows. */
   playList(items: Playable[], index: number): void;
   playAt(index: number): void;
+  /**
+   * Another recording of what is playing, in its place. A different voice for
+   * the same shabad is not a change of plan: what was next stays next.
+   */
+  swapCurrent(item: Playable): void;
   toggle(): void;
   next(): void;
   previous(): void;
@@ -331,6 +336,20 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       playAt(index) {
         const item = get().items[index];
         if (item) start(item, index);
+      },
+
+      swapCurrent(item) {
+        const s = get();
+        if (s.index < 0 || !s.items[s.index]) {
+          get().play(item);
+          return;
+        }
+        // Dropped from elsewhere in the queue: a list from search already holds
+        // every recording, and this one should not then come round again.
+        const before = s.items.slice(0, s.index).filter((it) => it.id !== item.id);
+        const after = s.items.slice(s.index + 1).filter((it) => it.id !== item.id);
+        set({ items: [...before, item, ...after] });
+        start(item, before.length);
       },
 
       toggle() {
