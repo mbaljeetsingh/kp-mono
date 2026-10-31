@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { id3Size, readMp3Layout, sliceBytes } from './mp3';
+import { confirmedKbps, id3Size, isExpectedSlice, readMp3Layout, sliceBytes } from './mp3';
 
 /** MPEG-1 Layer III, 128 kbps, 44.1 kHz. */
 const MPEG1_128 = [0xff, 0xfb, 0x90, 0x00];
@@ -50,6 +50,47 @@ describe('readMp3Layout', () => {
 
   it('is null with no frame at all', () => {
     expect(readMp3Layout(new Uint8Array([1, 2, 3, 4, 5]))).toBeNull();
+  });
+});
+
+describe('confirmedKbps', () => {
+  /** A 128 kbps, 44.1 kHz frame is 417 bytes without padding. */
+  const frame = () => [...MPEG1_128, ...new Array(413).fill(0)];
+
+  it('reads a header followed by another frame', () => {
+    expect(confirmedKbps(new Uint8Array([1, 2, ...frame(), ...MPEG1_128]))).toBe(128);
+  });
+
+  it('skips a false header with no frame after it', () => {
+    const bytes = [0xff, 0xfb, 0x50, 0x00, 0, 0, ...frame(), ...MPEG1_128];
+    expect(confirmedKbps(new Uint8Array(bytes))).toBe(128);
+  });
+
+  it('uses the MPEG-2 table and frame length', () => {
+    const mpeg2 = [...MPEG2_64, ...new Array(204).fill(0), ...MPEG2_64];
+    expect(confirmedKbps(new Uint8Array(mpeg2))).toBe(64);
+  });
+
+  it('is null with no confirmed frame', () => {
+    expect(confirmedKbps(new Uint8Array(MPEG1_128))).toBeNull();
+  });
+});
+
+describe('isExpectedSlice', () => {
+  const layout = { audioStart: 0, kbps: 64 };
+  const range = { from: 1000, to: 1000 + 100_000 - 1 };
+
+  it('accepts the slice, and one short by the padding', () => {
+    expect(isExpectedSlice(100_000, layout, range)).toBe(true);
+    expect(isExpectedSlice(100_000 - 16_000, layout, range)).toBe(true);
+  });
+
+  it('refuses a whole recording', () => {
+    expect(isExpectedSlice(50_000_000, layout, range)).toBe(false);
+  });
+
+  it('refuses a dropped connection', () => {
+    expect(isExpectedSlice(1000, layout, range)).toBe(false);
   });
 });
 

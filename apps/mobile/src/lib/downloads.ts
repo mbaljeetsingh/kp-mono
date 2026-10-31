@@ -12,7 +12,15 @@
  * queue's, which is why it may go stale here and not there.
  */
 import { fetchShabadText, type ShabadText } from '@kp/api';
-import { id3Size, readMp3Layout, sliceBytes, type Mp3Layout, type Playable } from '@kp/core';
+import {
+  confirmedKbps,
+  id3Size,
+  isExpectedSlice,
+  readMp3Layout,
+  sliceBytes,
+  type Mp3Layout,
+  type Playable,
+} from '@kp/core';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useMemo } from 'react';
 import { useMMKVString } from 'react-native-mmkv';
@@ -93,6 +101,15 @@ export async function downloadRendition(item: Playable): Promise<void> {
   const layout = await layoutOf(item.url);
   const { from, to } = sliceBytes(layout, item.startSec!, item.endSec!);
 
+  // The cut assumes one bitrate throughout, and the first frame cannot promise
+  // that. Looking where the cut lands, and halfway through, catches a variable
+  // or stitched recording before it plays the wrong passage under the wrong words.
+  for (const at of [from, Math.floor((from + to) / 2)]) {
+    if (confirmedKbps(await probe(item.url, at)) !== layout.kbps) {
+      throw new Error('This recording cannot be cut into a download.');
+    }
+  }
+
   const dir = folder();
   if (!dir.exists) dir.create({ intermediates: true });
   const fileName = `${item.id}.mp3`;
@@ -100,6 +117,10 @@ export async function downloadRendition(item: Playable): Promise<void> {
     headers: { Range: `bytes=${from}-${to}` },
     idempotent: true,
   });
+  if (!isExpectedSlice(file.size, layout, { from, to })) {
+    file.delete();
+    throw new Error('The download did not arrive whole. Try again.');
+  }
   // Asked for after the audio, and allowed to fail: the audio is what was asked
   // for, and it is worth keeping even if BaniDB is having a bad moment.
   const text = item.shabadId
