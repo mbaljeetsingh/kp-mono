@@ -15,12 +15,13 @@
 import {
   clock,
   elapsedIn,
+  lineMarkPcts,
   progressPct,
   seekTargetForPct,
   segmentTotal,
   type Playable,
 } from '@kp/core';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Text, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 
 import { playerActions } from '~/lib/player';
@@ -43,6 +44,8 @@ export function SeekBar({
   // Read on release, where the event's own coordinates are already gone if the
   // finger left the track.
   const latest = useRef<number | null>(null);
+  // Memoised because this renders ten times a second and the lines never move.
+  const marks = useMemo(() => lineMarkPcts(current, duration), [current, duration]);
 
   const ratioAt = (e: GestureResponderEvent) => {
     // Before onLayout there is no scale to measure against. Returning 0 without
@@ -84,6 +87,16 @@ export function SeekBar({
       >
         <View className="h-1 rounded-full bg-secondary">
           <View className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+          {/* Where each line starts, so a listener can find their way back to a
+              tuk. Taller than the track, which keeps them legible over the fill. */}
+          {marks.map((mark) => (
+            <View
+              key={mark}
+              pointerEvents="none"
+              className="absolute w-px bg-foreground/40"
+              style={{ left: `${mark}%`, height: 10, top: -3 }}
+            />
+          ))}
           {/* Drawn outside the track's own bounds, so it cannot be clipped by
               the rounded overflow the fill needs. Grows under the finger, which
               is the only feedback a thumb this small can give. */}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { highlightVerseId, isAligned, lineAt } from './timings';
+import { highlightVerseId, isAligned, lineAt, lineMarkPcts } from './timings';
 import type { LineTiming, Playable } from './types';
 
 /**
@@ -66,5 +66,39 @@ describe('isAligned', () => {
     expect(isAligned(aligned)).toBe(true);
     expect(isAligned(tagged)).toBe(false);
     expect(isAligned(null)).toBe(false);
+  });
+});
+
+describe('lineMarkPcts', () => {
+  const item = (lineTimings: LineTiming[] | null, startSec = 100, endSec = 200): Playable => ({
+    id: 'a',
+    title: 'Aligned',
+    url: 'u',
+    startSec,
+    endSec,
+    lineTimings,
+  });
+  const line = (start: number): LineTiming => ({ verse_id: 1, start, end: start + 1 });
+
+  it('places each line within the segment, not the file', () => {
+    expect(lineMarkPcts(item([line(110), line(150)]), 3000)).toEqual([10, 50]);
+  });
+
+  it('marks a refrain every time it returns, in sung order', () => {
+    expect(lineMarkPcts(item([line(150), line(110), line(180)]), 3000)).toEqual([10, 50, 80]);
+  });
+
+  it('drops a line too close to the one before it', () => {
+    expect(lineMarkPcts(item([line(110), line(110.5), line(112)]), 3000)).toEqual([10, 12]);
+  });
+
+  it('leaves out timings outside the segment', () => {
+    expect(lineMarkPcts(item([line(50), line(150), line(250)]), 3000)).toEqual([50]);
+  });
+
+  it('is empty with nothing to mark or no length yet', () => {
+    expect(lineMarkPcts(item(null), 3000)).toEqual([]);
+    expect(lineMarkPcts(null, 3000)).toEqual([]);
+    expect(lineMarkPcts({ id: 'a', title: 'A', url: 'u', lineTimings: [line(5)] }, 0)).toEqual([]);
   });
 });
