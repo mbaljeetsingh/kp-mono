@@ -6,7 +6,15 @@
  * puts it there: the bottom third of a phone is where a thumb already rests.
  */
 import { useShabadText } from '@kp/api';
-import { artworkFor, clock, highlightVerseId, isAligned, REPEAT_LABELS, titleIn } from '@kp/core';
+import {
+  artworkFor,
+  clock,
+  highlightVerseId,
+  isAligned,
+  REPEAT_LABELS,
+  titleIn,
+  verseGurmukhi,
+} from '@kp/core';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import {
@@ -29,6 +37,8 @@ import { BANIDB_BASE } from '~/lib/links';
 import { PlayableArt } from '~/components/ArtTile';
 import { QueueList } from '~/components/QueueList';
 import { ReadAlongLine } from '~/components/ReadAlongLine';
+import { ReadAlongOptionsSheet } from '~/components/ReadAlongOptionsSheet';
+import { useReadAlongOptions } from '~/lib/read-along-options';
 import { SeekBar } from '~/components/SeekBar';
 import { ShabadSearch } from '~/components/ShabadSearch';
 import { ShabadTitle } from '~/components/ShabadTitle';
@@ -47,6 +57,7 @@ export default function NowPlayingScreen() {
 
   const current = usePlayer((s) => s.current);
   const [script] = useTitleScript();
+  const [readAlong, setReadAlong] = useReadAlongOptions();
   const playing = usePlayer((s) => s.playing);
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
@@ -183,6 +194,14 @@ export default function NowPlayingScreen() {
     scrollToAnchor(anchorId);
   }, [anchorId, scrollToAnchor]);
 
+  // Every option changes how tall the lines are. Only forget the last target
+  // here: the lines have not been measured yet, and aiming now would latch the
+  // old offset. The sung line's own layout, in rememberLine, does the aiming.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
+    scrolledTo.current = null;
+  }, [readAlong]);
+
   const rememberLine = useCallback(
     (verseId: number, y: number) => {
       // Measured layout, not rendered state — same reasoning as scrolledTo.
@@ -294,28 +313,38 @@ export default function NowPlayingScreen() {
         </View>
       </View>
 
-      <View className="mx-5 mb-2 flex-row rounded-xl bg-card p-[3px]">
-        {(['lyrics', 'queue'] as const).map((value) => (
-          <Pressable
-            key={value}
-            onPress={() => setTab(value)}
-            className={
-              tab === value
-                ? 'flex-1 items-center rounded-[9px] bg-secondary py-2'
-                : 'flex-1 items-center rounded-[9px] py-2'
-            }
-          >
-            <Text
+      <View className="mx-5 mb-2 flex-row items-center gap-2">
+        <View className="flex-1 flex-row rounded-xl bg-card p-[3px]">
+          {(['lyrics', 'queue'] as const).map((value) => (
+            <Pressable
+              key={value}
+              onPress={() => setTab(value)}
               className={
                 tab === value
-                  ? 'text-sm font-semibold text-foreground'
-                  : 'text-sm font-medium text-muted-foreground'
+                  ? 'flex-1 items-center rounded-[9px] bg-secondary py-2'
+                  : 'flex-1 items-center rounded-[9px] py-2'
               }
             >
-              {value === 'lyrics' ? 'Read along' : 'Up next'}
-            </Text>
-          </Pressable>
-        ))}
+              <Text
+                className={
+                  tab === value
+                    ? 'text-sm font-semibold text-foreground'
+                    : 'text-sm font-medium text-muted-foreground'
+                }
+              >
+                {value === 'lyrics' ? 'Read along' : 'Up next'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {/* Kept in the row on Up next, unseen, so the tabs do not change width
+            under the finger that just tapped one. */}
+        <View
+          className={tab === 'lyrics' ? undefined : 'opacity-0'}
+          pointerEvents={tab === 'lyrics' ? 'auto' : 'none'}
+        >
+          <ReadAlongOptionsSheet options={readAlong} onChange={setReadAlong} />
+        </View>
       </View>
 
       <ScrollView
@@ -397,8 +426,12 @@ export default function NowPlayingScreen() {
               {lines.map((line) => (
                 <ReadAlongLine
                   key={line.verseId}
-                  gurmukhi={line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
+                  gurmukhi={verseGurmukhi(line, readAlong)}
+                  transliteration={
+                    readAlong.transliteration ? line.transliteration?.english : undefined
+                  }
                   translation={line.translation?.en?.bdb}
+                  textSize={readAlong.textSize}
                   lit={line.verseId === lit}
                   onLayout={(e) => rememberLine(line.verseId, e.nativeEvent.layout.y)}
                 />

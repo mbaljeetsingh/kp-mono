@@ -17,8 +17,15 @@ import Animated, {
   useDerivedValue,
   withTiming,
 } from 'react-native-reanimated';
+import type { ReadAlongTextSize } from '@kp/core';
 import { Text, View, type LayoutChangeEvent } from 'react-native';
 import { useColors } from '~/lib/theme';
+
+const LINE_SIZE: Record<ReadAlongTextSize, string> = {
+  small: 'text-[18px] leading-7',
+  medium: 'text-[21px] leading-8',
+  large: 'text-[26px] leading-10',
+};
 
 /**
  * Long enough to read as a fade, short enough that it has finished before the
@@ -28,12 +35,16 @@ const FADE_MS = 220;
 
 export function ReadAlongLine({
   gurmukhi,
+  transliteration,
   translation,
+  textSize,
   lit,
   onLayout,
 }: {
   gurmukhi: string;
+  transliteration?: string;
   translation?: string;
+  textSize: ReadAlongTextSize;
   lit: boolean;
   onLayout: (e: LayoutChangeEvent) => void;
 }) {
@@ -48,9 +59,20 @@ export function ReadAlongLine({
 
   return (
     <View className="py-2" onLayout={onLayout}>
-      <Animated.Text style={animated} className="font-gurbani text-[21px] leading-8">
+      <Animated.Text style={animated} className={`font-gurbani ${LINE_SIZE[textSize]}`}>
         {gurmukhi}
       </Animated.Text>
+      {transliteration ? (
+        <Text
+          className={
+            lit
+              ? 'pt-0.5 text-[13px] italic leading-[18px] text-foreground'
+              : 'pt-0.5 text-[13px] italic leading-[18px] text-subtle-foreground'
+          }
+        >
+          {transliteration}
+        </Text>
+      ) : null}
       {translation ? (
         <Text
           className={

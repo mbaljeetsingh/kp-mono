@@ -16,6 +16,7 @@ import { keys } from './keys';
 export interface ShabadVerse {
   verseId: number;
   verse?: { unicode?: string; gurmukhi?: string };
+  larivaar?: { unicode?: string; gurmukhi?: string };
   translation?: { en?: { bdb?: string; ssk?: string } };
   transliteration?: { english?: string };
 }
