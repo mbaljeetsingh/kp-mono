@@ -24,12 +24,12 @@ function hash(input: string): number {
 }
 
 /**
- * Hues are drawn from a warm, muted band (ambers, terracottas, deep reds and
- * greens) rather than the full wheel — a random 0–360 hue produces the
- * candy-coloured look that reads as generated. This stays close to the
- * devotional palette the material deserves.
+ * Hues are drawn from the theme's band (navies, blues, teals and indigos, with
+ * two golds) rather than the full wheel — a random 0–360 hue produces the
+ * candy-coloured look that reads as generated, and the warm band this used to
+ * be turned to browns and muddy greens beside the navy accent.
  */
-const HUES = [18, 32, 45, 8, 340, 268, 200, 165, 100, 55];
+const HUES = [195, 210, 225, 240, 255, 270, 285, 300, 70, 50];
 
 export interface Artwork {
   /** The gradient, as a CSS value. Native reads the stops instead. */
@@ -52,16 +52,16 @@ export function artworkFor(name: string): Artwork {
   const i = h % HUES.length;
   const hue = HUES[i]!;
 
-  // Offset rather than an independent pick: two hues can otherwise land on the
-  // same value, collapsing the gradient into a flat, muddy tile.
+  // A short step from the first hue rather than an independent pick: two far
+  // apart hues (a gold into a blue) meet in a muddy grey-brown, and two equal
+  // ones collapse into a flat tile.
   //
   // `>>>` rather than `>>`: `hash` returns an unsigned 32-bit value, and half
   // of those are negative once `>>` coerces them back to a signed int. A
-  // negative remainder then indexed HUES out of bounds, `undefined` went into
-  // the oklch() stop, and the browser threw the whole gradient away — leaving a
-  // transparent tile with initials floating on the page behind it. It hit
-  // roughly one name in seven, "Sri Harmandir Sahib" among them.
-  const hue2 = HUES[(i + 1 + ((h >>> 8) % (HUES.length - 1))) % HUES.length]!;
+  // negative remainder then put NaN into the stop, and the browser threw the
+  // whole gradient away — leaving a transparent tile with initials floating on
+  // the page behind it.
+  const hue2 = hue + 12 + ((h >>> 8) % 20);
   const angle = 115 + ((h >>> 16) % 60);
 
   const colors: [string, string, string] = [

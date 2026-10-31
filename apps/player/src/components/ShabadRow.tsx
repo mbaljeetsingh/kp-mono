@@ -86,7 +86,9 @@ export function ShabadRow({ item, isCurrent, playing, onPlay }: Props) {
           aria-label={isCurrent && playing ? `Pause ${title}` : `Play ${title}`}
           onClick={toggle}
           className={cn(
-            'absolute inset-0 size-10 rounded-md bg-black/45 text-white opacity-0 hover:bg-black/60 focus-visible:opacity-100 group-hover:opacity-100',
+            // The hover pairs are spelled out because the ghost variant's own
+            // hover text and dark hover fill would otherwise win over the artwork.
+            'absolute inset-0 size-10 rounded-md bg-black/45 text-white opacity-0 hover:bg-black/60 hover:text-white focus-visible:opacity-100 group-hover:opacity-100 dark:hover:bg-black/60',
             isCurrent && 'opacity-100'
           )}
         >

@@ -241,7 +241,7 @@ export function SegmentStrip({
               mode.tone === 'published'
                 ? 'bg-emerald-400'
                 : mode.tone === 'scan'
-                  ? 'bg-amber-400'
+                  ? 'bg-warning'
                   : 'bg-muted-foreground'
             )}
           />
