@@ -12,4 +12,5 @@ export * from './stations';
 export * from './shabad-name';
 export * from './title-script';
 export * from './read-along';
+export * from './recent';
 export * from './share';

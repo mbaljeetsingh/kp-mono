@@ -17,12 +17,15 @@ import {
   onEnded,
   onNext,
   onPrevious,
+  parseRecentIds,
+  RECENT_LIMIT,
   parseRepeatMode,
   segmentStart,
   shouldRememberResume,
   startPositionFor,
   elapsedIn,
   nextRepeatMode,
+  withRecent,
   type Playable,
   type QueueState,
   type RepeatMode,
@@ -34,6 +37,7 @@ import type { AudioDriver, DriverStatus, NowPlaying, PlayerStorage } from './dri
 const QUEUE_KEY = 'kp:queue';
 const REPEAT_KEY = 'kp:repeat';
 const RESUME_KEY = 'kp:resume';
+const RECENT_KEY = 'kp:recent';
 
 export interface PlayerState {
   current: Playable | null;
@@ -46,6 +50,8 @@ export interface PlayerState {
   duration: number;
   /** True between asking for an item and the driver reporting it playing. */
   starting: string | null;
+  /** Renditions played on this device, latest first. See @kp/core's recent.ts. */
+  recentIds: readonly string[];
 
   attach(driver: AudioDriver): void;
   hydrate(): Promise<void>;
@@ -129,12 +135,15 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
 
     /** Load an item and start it. The one place `driver.load` is called. */
     function start(item: Playable, index: number) {
+      const recentIds = withRecent(get().recentIds, item);
       set({
         current: item,
         index,
         starting: item.id,
         position: startPositionFor(item, resume[item.id]),
+        recentIds,
       });
+      void storage.setItem(RECENT_KEY, JSON.stringify(recentIds));
       driver?.load(item.url, startPositionFor(item, resume[item.id]), nowPlaying(item));
       driver?.play();
       persistQueue();
@@ -175,17 +184,30 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       position: 0,
       duration: 0,
       starting: null,
+      recentIds: [],
 
       attach(next) {
         driver = next;
       },
 
       async hydrate() {
-        const [rawQueue, rawRepeat, rawResume] = await Promise.all([
+        const [rawQueue, rawRepeat, rawResume, rawRecent] = await Promise.all([
           storage.getItem(QUEUE_KEY),
           storage.getItem(REPEAT_KEY),
           storage.getItem(RESUME_KEY),
+          storage.getItem(RECENT_KEY),
         ]);
+
+        // Merged rather than replaced: something may have started while storage
+        // was being read, and that play is the newest thing on the list.
+        const stored = parseRecentIds(rawRecent);
+        const fresh = get().recentIds;
+        set({
+          recentIds: [...fresh, ...stored.filter((id) => !fresh.includes(id))].slice(
+            0,
+            RECENT_LIMIT
+          ),
+        });
 
         try {
           resume = rawResume ? JSON.parse(rawResume) : {};

@@ -37,6 +37,25 @@ beforeEach(() => {
   store.getState().attach(fake.driver);
 });
 
+describe('recently played', () => {
+  it('remembers what starts, latest first, across a restart', async () => {
+    const storage = memoryStorage();
+    const first = createPlayerStore({ storage });
+    first.getState().play(segment('a', 0, 10));
+    first.getState().play(segment('b', 0, 10));
+    expect(first.getState().recentIds).toEqual(['b', 'a']);
+
+    const second = createPlayerStore({ storage });
+    await second.getState().hydrate();
+    expect(second.getState().recentIds).toEqual(['b', 'a']);
+  });
+
+  it('does not count a shared link that was only cued', () => {
+    store.getState().cue(segment('a', 0, 10), 0);
+    expect(store.getState().recentIds).toEqual([]);
+  });
+});
+
 describe('play', () => {
   it('starts a segment at its own offset, not the file`s', () => {
     store.getState().play(segment('a', 2530, 2575));
