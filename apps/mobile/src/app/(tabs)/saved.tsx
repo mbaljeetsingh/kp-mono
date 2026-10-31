@@ -4,16 +4,18 @@
  *
  * Saved works signed out: favorites live on the device until there is an
  * account to move them into. Playlists need one (PlaylistsList says why).
+ * Downloaded asks nothing of the network, so it works with none.
  */
 import { shabadsByIds } from '@kp/api';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 
 import { AccountButton } from '~/components/AccountSheet';
 import { PlaylistsList } from '~/components/PlaylistsList';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { removeAllDownloads, useDownloads } from '~/lib/downloads';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { useSession } from '~/lib/session';
@@ -21,7 +23,13 @@ import { supabase } from '~/lib/supabase';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { cn } from '~/lib/utils';
 
-type Shelf = 'saved' | 'playlists';
+type Shelf = 'saved' | 'playlists' | 'downloads';
+
+const SHELF_LABELS: Record<Shelf, string> = {
+  saved: 'Saved',
+  playlists: 'Playlists',
+  downloads: 'Downloaded',
+};
 
 function LibraryHeader({ shelf, onShelf }: { shelf: Shelf; onShelf: (shelf: Shelf) => void }) {
   return (
@@ -31,7 +39,7 @@ function LibraryHeader({ shelf, onShelf }: { shelf: Shelf; onShelf: (shelf: Shel
         <AccountButton />
       </View>
       <View accessibilityRole="tablist" className="flex-row gap-1">
-        {(['saved', 'playlists'] as const).map((s) => (
+        {(['saved', 'playlists', 'downloads'] as const).map((s) => (
           <Pressable
             key={s}
             accessibilityRole="tab"
@@ -48,7 +56,7 @@ function LibraryHeader({ shelf, onShelf }: { shelf: Shelf; onShelf: (shelf: Shel
                 s === shelf ? 'text-primary' : 'text-muted-foreground'
               )}
             >
-              {s === 'saved' ? 'Saved' : 'Playlists'}
+              {SHELF_LABELS[s]}
             </Text>
           </Pressable>
         ))}
@@ -63,8 +71,63 @@ export default function LibraryScreen() {
 
   return (
     <Screen edges={['top']} className="flex-1 bg-background">
-      {shelf === 'saved' ? <SavedList header={header} /> : <PlaylistsList header={header} />}
+      {shelf === 'saved' ? <SavedList header={header} /> : null}
+      {shelf === 'playlists' ? <PlaylistsList header={header} /> : null}
+      {shelf === 'downloads' ? <DownloadsList header={header} /> : null}
     </Screen>
+  );
+}
+
+function DownloadsList({ header }: { header: React.ReactElement }) {
+  const miniPlayerSpace = useMiniPlayerSpace();
+  const { onMore, sheet } = useShabadActions();
+  const currentId = usePlayer((s) => s.current?.id);
+  const { items, bytes } = useDownloads();
+
+  function confirmRemoveAll() {
+    Alert.alert('Remove all downloads?', 'They can be downloaded again while you are online.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Remove all', style: 'destructive', onPress: removeAllDownloads },
+    ]);
+  }
+
+  return (
+    <>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={miniPlayerSpace}
+        contentContainerClassName="pb-4"
+        ListHeaderComponent={
+          <View>
+            {header}
+            <View className="flex-row items-center justify-between px-5 pb-2">
+              <Text className="text-sm text-muted-foreground">
+                {items.length
+                  ? `${(bytes / 1_000_000).toFixed(0)} MB on this phone. They play without internet.`
+                  : 'Nothing downloaded yet. Find Download in any shabad’s menu.'}
+              </Text>
+              {items.length ? (
+                <Pressable onPress={confirmRemoveAll} hitSlop={8}>
+                  <Text className="text-sm text-muted-foreground">Remove all</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <View className="px-2">
+            <ShabadRow
+              item={item}
+              isCurrent={item.id === currentId}
+              onPress={() => playerActions.playList(items, index)}
+              onMore={onMore}
+            />
+          </View>
+        )}
+      />
+      {sheet}
+    </>
   );
 }
 

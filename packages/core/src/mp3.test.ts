@@ -1,0 +1,63 @@
+import { describe, expect, it } from 'vitest';
+
+import { id3Size, readMp3Layout, sliceBytes } from './mp3';
+
+/** MPEG-1 Layer III, 128 kbps, 44.1 kHz. */
+const MPEG1_128 = [0xff, 0xfb, 0x90, 0x00];
+/** MPEG-2 Layer III, 64 kbps, 22.05 kHz: the same rate index means something else. */
+const MPEG2_64 = [0xff, 0xf3, 0x80, 0x00];
+
+const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
+
+describe('id3Size', () => {
+  it('reads the synchsafe size and counts the header', () => {
+    expect(id3Size(new Uint8Array([...ascii('ID3'), 4, 0, 0, 0, 0, 1, 0]))).toBe(128 + 10);
+  });
+
+  it('is zero without a tag', () => {
+    expect(id3Size(new Uint8Array(MPEG1_128))).toBe(0);
+  });
+});
+
+describe('readMp3Layout', () => {
+  it('reads an MPEG-1 frame', () => {
+    expect(readMp3Layout(new Uint8Array(MPEG1_128))).toEqual({ audioStart: 0, kbps: 128 });
+  });
+
+  it('uses the MPEG-2 table for an MPEG-2 frame', () => {
+    expect(readMp3Layout(new Uint8Array(MPEG2_64))?.kbps).toBe(64);
+  });
+
+  it('adds where the bytes were read from', () => {
+    expect(readMp3Layout(new Uint8Array([0, 0, ...MPEG1_128]), 1000)?.audioStart).toBe(1002);
+  });
+
+  it('skips a stray 0xFF that is not a valid header', () => {
+    expect(readMp3Layout(new Uint8Array([0xff, 0xff, 0xff, 0xff, ...MPEG1_128]))?.audioStart).toBe(
+      4
+    );
+  });
+
+  it('refuses a variable bitrate file', () => {
+    const frame = [...MPEG1_128, ...new Array(32).fill(0), ...ascii('Xing')];
+    expect(readMp3Layout(new Uint8Array(frame))).toBeNull();
+  });
+
+  it('accepts the Info tag, which marks a constant bitrate file', () => {
+    const frame = [...MPEG1_128, ...new Array(32).fill(0), ...ascii('Info')];
+    expect(readMp3Layout(new Uint8Array(frame))?.kbps).toBe(128);
+  });
+
+  it('is null with no frame at all', () => {
+    expect(readMp3Layout(new Uint8Array([1, 2, 3, 4, 5]))).toBeNull();
+  });
+});
+
+describe('sliceBytes', () => {
+  it('counts from the first frame, with room past the end', () => {
+    expect(sliceBytes({ audioStart: 100, kbps: 64 }, 10, 20)).toEqual({
+      from: 100 + 80_000,
+      to: 100 + 176_000,
+    });
+  });
+});

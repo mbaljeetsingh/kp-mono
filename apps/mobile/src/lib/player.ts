@@ -9,6 +9,7 @@ import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
+import { localSource } from './downloads';
 import { storage } from './storage';
 import { tileArtworkUrl } from './lock-screen-art';
 import { readTitleScript } from './title-script';
@@ -27,7 +28,8 @@ playerStore.getState().attach(
     (status) => playerStore.getState().onStatus(status),
     // The lock screen's buttons do what the player's own do.
     (command) =>
-      command === 'next' ? playerStore.getState().next() : playerStore.getState().previous()
+      command === 'next' ? playerStore.getState().next() : playerStore.getState().previous(),
+    localSource
   )
 );
 

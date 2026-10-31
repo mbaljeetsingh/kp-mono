@@ -9,13 +9,23 @@
 import { usePlaylistMutations, usePlaylists } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useRouter } from 'expo-router';
-import { Heart, ListPlus, Plus, Share2, Users, X } from 'lucide-react-native';
+import {
+  CircleCheck,
+  Download,
+  Heart,
+  ListPlus,
+  Plus,
+  Share2,
+  Users,
+  X,
+} from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Input } from '@kp/ui-native/input';
 
 import { ShabadTitle } from '~/components/ShabadTitle';
+import { canDownload, downloadRendition, removeDownload, useDownloads } from '~/lib/downloads';
 import { playerActions, playerStore } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
@@ -86,6 +96,20 @@ function Sheet({
   const title = useShownTitle(item);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
+  const downloads = useDownloads();
+  const [downloading, setDownloading] = useState(false);
+  const downloaded = downloads.ids.has(item.id);
+
+  async function download() {
+    setDownloading(true);
+    try {
+      await downloadRendition(item);
+    } catch (e) {
+      Alert.alert('Could not download this shabad', e instanceof Error ? e.message : undefined);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
@@ -163,6 +187,25 @@ function Sheet({
             <Share2 size={18} color={colors.foreground} />
             <Text className="text-foreground">Share</Text>
           </Pressable>
+
+          {/* Stays open while it fetches: the row is what says it is working,
+              and a shabad takes a moment on the connections this is for. */}
+          {canDownload(item) ? (
+            <Pressable
+              disabled={downloading}
+              onPress={() => (downloaded ? removeDownload(item.id) : void download())}
+              className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+            >
+              {downloaded ? (
+                <CircleCheck size={18} color={colors.primary} />
+              ) : (
+                <Download size={18} color={colors.foreground} />
+              )}
+              <Text className="text-foreground">
+                {downloading ? 'Downloading…' : downloaded ? 'Remove download' : 'Download'}
+              </Text>
+            </Pressable>
+          ) : null}
 
           <Text className="px-4 pb-1 pt-3 text-xs text-muted-foreground">Add to playlist</Text>
 
