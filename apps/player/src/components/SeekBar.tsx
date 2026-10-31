@@ -11,8 +11,8 @@
  * let go — jumped once and then ignored the finger. The native app already
  * scrubs; this is the same behaviour with pointer events.
  */
-import { lineMarkPcts, progressPct, seekTargetForPct, elapsedIn, segmentTotal } from '@kp/core';
-import { useMemo, useRef, useState } from 'react';
+import { progressPct, seekTargetForPct, elapsedIn, segmentTotal } from '@kp/core';
+import { useRef, useState } from 'react';
 
 import { playerActions, usePlayer } from '~/lib/player';
 import { clock, cn } from '~/lib/utils';
@@ -24,8 +24,6 @@ export function SeekBar() {
   const track = useRef<HTMLDivElement>(null);
   /** Percentage under the pointer while dragging, or null when not. */
   const [scrub, setScrub] = useState<number | null>(null);
-  // Memoised because this renders ten times a second and the lines never move.
-  const marks = useMemo(() => lineMarkPcts(current, duration), [current, duration]);
 
   /**
    * A broadcast has no timeline to scrub and no end to scrub towards, and it
@@ -118,17 +116,6 @@ export function SeekBar() {
           <div className="h-full w-full overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
           </div>
-          {/* Where each line starts, so a listener can find their way back to
-              a tuk. Taller than the bar, which is what keeps them legible over
-              the fill as well as the track. */}
-          {marks.map((mark) => (
-            <div
-              key={mark}
-              aria-hidden="true"
-              style={{ left: `${mark}%` }}
-              className="pointer-events-none absolute top-1/2 h-2.5 w-px -translate-y-1/2 bg-foreground/40"
-            />
-          ))}
           {/* Outside the fill's own bounds, so the rounded overflow that keeps
               the fill's corners clean cannot clip it. It grows under the
               pointer, which is the only feedback a handle this small can give,
