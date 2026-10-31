@@ -1,18 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#1e2838"/>
-  <g transform="translate(5.12 5.12) scale(0.84)">
-    <g fill="none" stroke="#f4f0e6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-      <!-- Same K skeleton as the notation mark, so the two read as siblings. -->
-      <path d="M20 7v50"/>
-      <path d="M20 34 44 13.5"/>
-      <path d="M20 34 45.5 57"/>
-    </g>
-    <!-- Where the notation mark carries matra ticks and dots, the player mark
-         carries sound radiating from the stem — in the accent gold, so the mark
-         and the play control are visibly the same colour. -->
-    <g fill="none" stroke="#d1a64a" stroke-linecap="round">
-      <path d="M12.5 25.5a11 11 0 0 0 0 17" stroke-width="4.5"/>
-      <path d="M4.5 18a20 20 0 0 0 0 32" stroke-width="4.5" opacity="0.6"/>
+  <rect width="64" height="64" rx="14" fill="#232a36"/>
+  <g transform="translate(7.5 7) scale(.78)">
+    <!-- The Gurmukhi letter ka, for kirtan, inside a play button. The letter is
+       Noto Serif Gurmukhi Bold's outline, unaltered, so it stays correct: only its
+       top line is split off, in the gold the app uses for the lit line. -->
+    <path d="M9 8V56L62 32Z" fill="#d2e2f6" stroke="#d2e2f6" stroke-width="6" stroke-linejoin="round"/>
+    <g transform="translate(14.053 42.197) scale(0.03529 -0.03529)">
+      <clipPath id="ka-line"><rect x="-200" y="520" width="1200" height="400"/></clipPath>
+      <clipPath id="ka-body"><rect x="-200" y="-200" width="1200" height="720"/></clipPath>
+      <path fill="#d28423" clip-path="url(#ka-line)" d="M652 535 644 520H524Q528 499 529.5 478.0Q531 457 531 436Q531 376 518.5 321.5Q506 267 482 222Q509 170 531.5 105.5Q554 41 569 -33L553 -44L424 -7Q417 27 408.5 59.0Q400 91 390 119Q362 95 327.0 82.0Q292 69 255 69Q210 69 168.0 84.0Q126 99 92.5 125.5Q59 152 39.0 187.0Q19 222 19 263Q19 306 42.0 345.0Q65 384 107.0 408.0Q149 432 206 432Q258 432 304.5 409.0Q351 386 391 343Q399 366 403.0 391.5Q407 417 407 446Q407 463 405.5 482.0Q404 501 400 520H-11L-44 607L-36 622H619ZM220 156Q259 156 295.0 178.0Q331 200 354 238Q331 277 300.5 297.5Q270 318 232 318Q200 318 177.5 305.5Q155 293 143.0 274.0Q131 255 131 234Q131 215 141.5 197.0Q152 179 171.5 167.5Q191 156 220 156Z"/>
+      <path fill="#121720" clip-path="url(#ka-body)" d="M652 535 644 520H524Q528 499 529.5 478.0Q531 457 531 436Q531 376 518.5 321.5Q506 267 482 222Q509 170 531.5 105.5Q554 41 569 -33L553 -44L424 -7Q417 27 408.5 59.0Q400 91 390 119Q362 95 327.0 82.0Q292 69 255 69Q210 69 168.0 84.0Q126 99 92.5 125.5Q59 152 39.0 187.0Q19 222 19 263Q19 306 42.0 345.0Q65 384 107.0 408.0Q149 432 206 432Q258 432 304.5 409.0Q351 386 391 343Q399 366 403.0 391.5Q407 417 407 446Q407 463 405.5 482.0Q404 501 400 520H-11L-44 607L-36 622H619ZM220 156Q259 156 295.0 178.0Q331 200 354 238Q331 277 300.5 297.5Q270 318 232 318Q200 318 177.5 305.5Q155 293 143.0 274.0Q131 255 131 234Q131 215 141.5 197.0Q152 179 171.5 167.5Q191 156 220 156Z"/>
     </g>
   </g>
 </svg>
