@@ -11,11 +11,13 @@
  * to fetch it from. That copy is what a listener deliberately kept, unlike the
  * queue's, which is why it may go stale here and not there.
  */
+import { fetchShabadText, type ShabadText } from '@kp/api';
 import { id3Size, readMp3Layout, sliceBytes, type Mp3Layout, type Playable } from '@kp/core';
 import { Directory, File, Paths } from 'expo-file-system';
 import { useMemo } from 'react';
 import { useMMKVString } from 'react-native-mmkv';
 
+import { BANIDB_BASE } from './links';
 import { mmkv } from './storage';
 
 const KEY = 'kp:downloads';
@@ -27,6 +29,8 @@ interface Download {
   item: Playable;
   fileName: string;
   bytes: number;
+  /** The words, so the read-along works with no connection as well. */
+  text?: ShabadText;
 }
 
 type Downloads = Record<string, Download>;
@@ -96,7 +100,12 @@ export async function downloadRendition(item: Playable): Promise<void> {
     headers: { Range: `bytes=${from}-${to}` },
     idempotent: true,
   });
-  write({ ...read(), [item.id]: { item, fileName, bytes: file.size } });
+  // Asked for after the audio, and allowed to fail: the audio is what was asked
+  // for, and it is worth keeping even if BaniDB is having a bad moment.
+  const text = item.shabadId
+    ? await fetchShabadText(BANIDB_BASE, item.shabadId).catch(() => undefined)
+    : undefined;
+  write({ ...read(), [item.id]: { item, fileName, bytes: file.size, text } });
 }
 
 export function removeDownload(id: string) {
@@ -133,6 +142,12 @@ export function localSource(url: string, segment?: { start: number; end: number 
     return file.exists ? file.uri : null;
   }
   return null;
+}
+
+/** The words of a shabad, if a download holds them. Renditions of one shabad share them. */
+export function savedShabadText(shabadId: number | null | undefined): ShabadText | undefined {
+  if (!shabadId) return undefined;
+  return Object.values(read()).find((e) => e.item.shabadId === shabadId && e.text)?.text;
 }
 
 /** What is kept here, newest last, and how much room it takes. */

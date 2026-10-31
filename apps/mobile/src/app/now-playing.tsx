@@ -29,7 +29,7 @@ import {
   SkipBack,
   SkipForward,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
@@ -37,6 +37,7 @@ import { BANIDB_BASE } from '~/lib/links';
 import { PlayableArt } from '~/components/ArtTile';
 import { QueueList } from '~/components/QueueList';
 import { ReadAlongLine } from '~/components/ReadAlongLine';
+import { savedShabadText } from '~/lib/downloads';
 import { ReadAlongOptionsSheet } from '~/components/ReadAlongOptionsSheet';
 import { useReadAlongOptions } from '~/lib/read-along-options';
 import { SeekBar } from '~/components/SeekBar';
@@ -83,7 +84,10 @@ export default function NowPlayingScreen() {
   }, [current?.id]);
 
   const shabadId = current?.shabadId ?? lookedUp;
-  const query = useShabadText(BANIDB_BASE, shabadId);
+  // Memoised: this screen renders with every position update, and the lookup
+  // parses the whole download list.
+  const savedText = useMemo(() => savedShabadText(shabadId), [shabadId]);
+  const query = useShabadText(BANIDB_BASE, shabadId, savedText);
   const lines = query.data?.verses ?? [];
   // Timings belong to the tagged rendition, so a looked-up shabad lights
   // nothing — there is nothing aligning it to this audio.
