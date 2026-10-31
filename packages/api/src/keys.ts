@@ -11,6 +11,8 @@ export const keys = {
     search: (term: string) => ['shabads', 'search', term] as const,
     byArtist: (artist: string) => ['shabads', 'artist', artist] as const,
     random: (seed: number) => ['shabads', 'random', seed] as const,
+    others: (shabadId: number, exceptId: string) =>
+      ['shabads', 'others', shabadId, exceptId] as const,
   },
   artists: {
     all: ['artists'] as const,

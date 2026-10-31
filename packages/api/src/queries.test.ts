@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { KpClient } from './client';
-import { ilikePattern, shabadById, shabadsByIds } from './queries';
+import { ilikePattern, otherRecordings, shabadById, shabadsByIds } from './queries';
 
 describe('ilikePattern', () => {
   it('quotes the pattern so a comma cannot end the or() filter', () => {
@@ -24,6 +24,38 @@ describe('ilikePattern', () => {
 
   it('leaves an ordinary term alone but for the quotes', () => {
     expect(ilikePattern('gurwinder')).toBe('"%gurwinder%"');
+  });
+});
+
+describe('otherRecordings', () => {
+  function fakeClient(result: { data: unknown[] | null; error: unknown }) {
+    const calls: unknown[][] = [];
+    const chain = {
+      select: () => chain,
+      eq: (...args: unknown[]) => (calls.push(['eq', ...args]), chain),
+      neq: (...args: unknown[]) => (calls.push(['neq', ...args]), chain),
+      order: () => chain,
+      limit: () => Promise.resolve(result),
+    };
+    return { client: { from: () => chain } as unknown as KpClient, calls };
+  }
+
+  it('asks for the shabad, leaving out the recording already playing', async () => {
+    const { client, calls } = fakeClient({
+      data: [{ id: 'b', name: 'Other', url: 'https://example.test/b.mp3' }],
+      error: null,
+    });
+    const rows = await otherRecordings(client, 7, 'a');
+    expect(rows.map((r) => r.id)).toEqual(['b']);
+    expect(calls).toEqual([
+      ['eq', 'shabad_id', 7],
+      ['neq', 'id', 'a'],
+    ]);
+  });
+
+  it('throws what the server refused', async () => {
+    const { client } = fakeClient({ data: null, error: { code: '42501', message: 'nope' } });
+    await expect(otherRecordings(client, 7, 'a')).rejects.toThrow();
   });
 });
 

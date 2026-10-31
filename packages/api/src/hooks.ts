@@ -18,6 +18,7 @@ import { keys } from './keys';
 import {
   listArtists,
   listShabads,
+  otherRecordings,
   searchShabads,
   shabadsByArtist,
   PAGE_SIZE,
@@ -68,6 +69,19 @@ export function useSearch(client: KpClient, term: string) {
     queryFn: ({ pageParam }) => searchShabads(client, trimmed, pageParam as number),
     enabled: trimmed.length >= 2,
     ...pageParams(),
+  });
+}
+
+/** Other recordings of what is playing. Asks nothing until the rendition is linked. */
+export function useOtherRecordings(
+  client: KpClient,
+  shabadId: number | null | undefined,
+  exceptId: string | undefined
+): UseQueryResult<Playable[]> {
+  return useQuery({
+    queryKey: keys.shabads.others(shabadId ?? 0, exceptId ?? ''),
+    queryFn: () => otherRecordings(client, shabadId!, exceptId!),
+    enabled: Boolean(shabadId && exceptId),
   });
 }
 

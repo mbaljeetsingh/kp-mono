@@ -91,6 +91,31 @@ export async function shabadById(client: KpClient, id: string): Promise<Playable
   return row ? toPlayable(row) : null;
 }
 
+/** More than this and it is a list to browse, not a choice beside the words. */
+const OTHER_RECORDINGS_LIMIT = 20;
+
+/**
+ * The same shabad in other voices, the most listened to first.
+ *
+ * `id` breaks ties for the reason `listShabads` gives: most play counts are equal.
+ */
+export async function otherRecordings(
+  client: KpClient,
+  shabadId: number,
+  exceptId: string
+): Promise<Playable[]> {
+  const { data, error } = await client
+    .from('shabads')
+    .select(SHABAD_COLUMNS)
+    .eq('shabad_id', shabadId)
+    .neq('id', exceptId)
+    .order('play_count', { ascending: false })
+    .order('id')
+    .limit(OTHER_RECORDINGS_LIMIT);
+  if (error) throw toError(error);
+  return parseRows(shabadRowSchema, data ?? []).rows.map(toPlayable);
+}
+
 /** The orders a listener can put the archive in. */
 export type ShabadSort = 'newest' | 'popular';
 

@@ -5,13 +5,14 @@
  * transport is pinned below the scrolling text for the reason every music app
  * puts it there: the bottom third of a phone is where a thumb already rests.
  */
-import { useShabadText } from '@kp/api';
+import { useOtherRecordings, useShabadText } from '@kp/api';
 import {
   artworkFor,
   clock,
   highlightVerseId,
   isAligned,
   REPEAT_LABELS,
+  segmentTotal,
   titleIn,
   verseGurmukhi,
 } from '@kp/core';
@@ -39,6 +40,7 @@ import { QueueList } from '~/components/QueueList';
 import { ReadAlongLine } from '~/components/ReadAlongLine';
 import { ReadAlongOptionsSheet } from '~/components/ReadAlongOptionsSheet';
 import { useReadAlongOptions } from '~/lib/read-along-options';
+import { supabase } from '~/lib/supabase';
 import { SeekBar } from '~/components/SeekBar';
 import { ShabadSearch } from '~/components/ShabadSearch';
 import { ShabadTitle } from '~/components/ShabadTitle';
@@ -85,6 +87,9 @@ export default function NowPlayingScreen() {
   const shabadId = current?.shabadId ?? lookedUp;
   const query = useShabadText(BANIDB_BASE, shabadId);
   const lines = query.data?.verses ?? [];
+  // Only a rendition's own tag: a looked-up shabad is the listener's guess, and
+  // the archive should not vouch for it by offering recordings of it.
+  const others = useOtherRecordings(supabase, current?.shabadId, current?.id).data ?? [];
   // Timings belong to the tagged rendition, so a looked-up shabad lights
   // nothing — there is nothing aligning it to this audio.
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
@@ -443,6 +448,29 @@ export default function NowPlayingScreen() {
               <Text className="pb-6 text-center text-xs text-muted-foreground">
                 This rendition has no line timings yet — the highlight is the tagged line.
               </Text>
+            ) : null}
+
+            {/* At the foot, because the words come first. Appended to the queue
+                rather than replacing it: this is a detour from what was lined up. */}
+            {others.length ? (
+              <View className="mb-4 border-t border-border pt-3">
+                <Text className="pb-1 text-xs font-medium text-muted-foreground">Also sung by</Text>
+                {others.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => playerActions.play(item, false)}
+                    accessibilityRole="button"
+                    className="flex-row items-center justify-between gap-3 py-2.5 active:opacity-60"
+                  >
+                    <Text numberOfLines={1} className="flex-1 text-sm text-foreground">
+                      {item.subtitle ?? item.artist ?? item.title}
+                    </Text>
+                    <Text className="text-xs tabular-nums text-muted-foreground">
+                      {clock(segmentTotal(item, 0))}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             ) : null}
           </>
         )}

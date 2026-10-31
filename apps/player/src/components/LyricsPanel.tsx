@@ -7,15 +7,23 @@
  * lines already sung and the ones coming are the context that makes the lit
  * one mean anything.
  */
-import { highlightVerseId, isAligned, verseGurmukhi, type ReadAlongTextSize } from '@kp/core';
-import { useShabadText } from '@kp/api';
+import {
+  clock,
+  highlightVerseId,
+  isAligned,
+  segmentTotal,
+  verseGurmukhi,
+  type ReadAlongTextSize,
+} from '@kp/core';
+import { useOtherRecordings, useShabadText } from '@kp/api';
 import { ShabadSearch } from '@kp/ui/app/shabad-search';
 import { Button } from '@kp/ui/button';
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { usePlayer } from '~/lib/player';
+import { playerActions, usePlayer } from '~/lib/player';
 import { BANIDB_BASE } from '~/lib/links';
+import { supabase } from '~/lib/supabase';
 import { useReadAlongOptions } from '~/lib/read-along-options';
 import { cn } from '~/lib/utils';
 
@@ -60,6 +68,9 @@ export function LyricsPanel({ className }: { className?: string }) {
   const shabadId = current?.shabadId ?? lookedUp;
   const query = useShabadText(BANIDB_BASE, shabadId);
   const lines = query.data?.verses ?? [];
+  // Only a rendition's own tag: a looked-up shabad is the listener's guess, and
+  // the archive should not vouch for it by offering recordings of it.
+  const others = useOtherRecordings(supabase, current?.shabadId, current?.id).data ?? [];
 
   // Timings belong to the tagged rendition, so a looked-up shabad lights
   // nothing — there is nothing aligning it to this audio.
@@ -234,6 +245,27 @@ export function LyricsPanel({ className }: { className?: string }) {
         <p className="py-4 text-center text-xs text-muted-foreground/60">
           This rendition has no line timings yet — the highlight is the tagged line.
         </p>
+      ) : null}
+
+      {/* At the foot, because the words come first. Appended to the queue rather
+          than replacing it: this is a detour from what the listener had lined up. */}
+      {others.length ? (
+        <section className="mt-4 border-t border-border pt-3">
+          <h3 className="px-3 pb-1 text-xs font-medium text-muted-foreground">Also sung by</h3>
+          {others.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => playerActions.play(item, false)}
+              className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm hover:bg-accent/50"
+            >
+              <span className="min-w-0 truncate">{item.subtitle ?? item.artist ?? item.title}</span>
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                {clock(segmentTotal(item, 0))}
+              </span>
+            </button>
+          ))}
+        </section>
       ) : null}
     </div>
   );
