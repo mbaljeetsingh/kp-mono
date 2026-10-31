@@ -165,6 +165,18 @@ Cost: align's RTF, ~0.24 on a runner — ~9 minutes for a 35-minute duty. On
 prod's published tags (25 renditions, 17 recordings) against the old sparse
 scan: found 0.88 → 0.96, median edge error 19.5 s → 7.2 s.
 
+## Fill in raags from BaniDB
+
+```bash
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_raags.py           # list what would change
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_raags.py --apply   # and change it
+```
+
+Copies BaniDB's raag onto linked renditions that have none. A raag somebody typed
+is never replaced, and a heading that is not a raag (Jap, So Dar, Sohila) is
+listed and left alone. It sees only what is linked when it runs, so run it again
+after a round of tagging.
+
 ## Title renditions from their anchor line
 
 ```bash
