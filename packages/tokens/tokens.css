@@ -24,6 +24,17 @@
   --color-subtle-foreground: var(--subtle-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-verse: var(--verse);
+  --color-verse-translation: var(--verse-translation);
+  --color-verse-active-from: var(--verse-active-from);
+  --color-verse-active-to: var(--verse-active-to);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-strong: var(--warning-strong);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-live: var(--live);
@@ -45,125 +56,146 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* radii-sm to radii-3xl. Stated rather than derived from --radius: theirs is a 5px ladder. */
+  --radius-sm: 0.3125rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.9375rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5625rem;
+  --radius-3xl: 1.875rem;
 }
 
 :root {
   /*
-   * Warm parchment, one accent.
+   * SikhiToTheMax's light theme: white page, slate text, navy accent, from its
+   * `--sui-semantic-*` and `--sui-atom-*` tokens (named beside each value).
    *
-   * The accent is kesari — a deep ochre here, a lantern gold in the dark
-   * palette — and it is spent on one thing per screen: the play control, the
-   * lit line, the selected tab. Everything else is a step on a low-chroma warm
-   * ladder, so the artwork and the Gurmukhi carry the colour, not the chrome.
-   *
-   * Three text tiers, not two. `muted-foreground` is secondary copy; the new
-   * `subtle-foreground` is metadata — timestamps, counts, the "· raag" tail —
-   * and sits just above the 4.5:1 floor so hierarchy reads at a glance.
-   * Every text token here clears 4.5:1 on background and card.
+   * The accent is spent on one thing per screen: the play control, the lit
+   * line, the selected tab. Three text tiers, not two: `muted-foreground` is
+   * secondary copy, `subtle-foreground` is metadata. Marked `was` where a value
+   * departs from theirs, because it fell under the 4.5:1 our text tokens hold to.
    */
-  --radius: 0.75rem;
+  --radius: 0.625rem; /* radii-md, 10px */
 
   /*
    * Tells the browser which way its own chrome should go — form controls, the
-   * caret, and the default scrollbar where the custom one below does not
-   * apply. Without it a light page keeps dark native widgets (and vice versa),
-   * which is the one part of the palette CSS cannot restyle. The player now
-   * switches palettes at runtime, so this switches with it.
+   * caret, and the default scrollbar where the custom one does not apply.
+   * Without it a light page keeps dark native widgets (and vice versa). The
+   * player switches palettes at runtime, so this switches with it.
    */
   color-scheme: light;
 
-  --background: #f6f2e9; /* parchment */
-  --foreground: #1a1612; /* warm ink */
-  --card: #fcfaf5; /* ivory — the raised surface */
-  --card-foreground: #1a1612;
-  --popover: #fcfaf5;
-  --popover-foreground: #1a1612;
-  --primary: #8f5c0f; /* deep ochre — the kesari accent, dark enough for ivory text (5.4:1) */
-  --primary-foreground: #fcfaf5;
-  --primary-soft: #f4e7c8; /* accent tint for chips and the active segment */
-  --secondary: #ece6d9; /* warm sand */
-  --secondary-foreground: #4a4237;
-  --muted: #efeadf;
-  --muted-foreground: #5c5347; /* secondary copy, 6.8:1 */
-  --subtle-foreground: #6f665a; /* metadata, 5.1:1 */
-  --accent: #e6dfd0; /* hover / pressed — a notch below secondary */
-  --accent-foreground: #1a1612;
-  --destructive: #b83a32;
-  --destructive-foreground: #fcfaf5;
-  --live: #c4302b; /* the broadcast dot */
-  --success: #37703f; /* aligned, tagged, saved */
-  --border: #e4dccb; /* hairline — separates, never outlines */
-  --input: #d3c9b4; /* form strokes want a touch more than a hairline */
-  --ring: #8f5c0f;
+  --background: #ffffff; /* background-page */
+  --foreground: #0f172a; /* foreground-default, 17.9:1 */
+  --card: #f8fafc; /* background-surface */
+  --card-foreground: #0f172a;
+  --popover: #f1f3f6; /* autocomplete-background */
+  --popover-foreground: #0f172a;
+  --primary: #113979; /* accent-default, 11.1:1 */
+  --primary-foreground: #ffffff;
+  --primary-hover: #0e2f63; /* accent-hover */
+  --primary-active: #0a244d; /* accent-active */
+  --primary-soft: #e3e7ed; /* accent-muted */
+  --secondary: #e3e7ed; /* button-secondary-background */
+  --secondary-foreground: #0f172a;
+  --muted: #eff2f7; /* box-solid-background */
+  --muted-foreground: #475569; /* foreground-muted, 7.6:1 */
+  --subtle-foreground: #64748b; /* was #94a3b8, 2.6:1 */
+  --accent: #e2e8f0; /* button-ghost-background-hover */
+  --accent-foreground: #0f172a;
+  /* Their active-verse gold, for marks rather than text — the lit-line bar, the now-playing dot. */
+  --highlight: #d28423; /* gurbani-verse-active-border */
+  --highlight-foreground: #0f172a;
+  --verse: #113979; /* gurbani-verse-bani-color */
+  --verse-translation: #64748b; /* was #888888, 3.5:1 */
+  --verse-active-from: #d8e7ff; /* gurbani-verse-active-background; its edge is --highlight */
+  --verse-active-to: #f2f4f8;
+  --warning: #f59e0b; /* colors-warning — fills and marks, 2.1:1 as text */
+  --warning-foreground: #0f172a;
+  --warning-strong: #b45309; /* the same warning as text, 5:1 */
+  --destructive: #c21717; /* colors-error */
+  --destructive-foreground: #ffffff;
+  --live: #c21717; /* indicator-red */
+  --success: #1f7a17; /* was #22c55e, 2.3:1 */
+  --border: #e2e8f0; /* border-default */
+  --input: #cfd0d2; /* range-track */
+  --ring: #113979; /* border-focus */
 
-  --chart-1: #8f5c0f;
-  --chart-2: #b98a3a;
-  --chart-3: #7a6f5f;
-  --chart-4: #c9a15a;
-  --chart-5: #a89c88;
+  --chart-1: #113979;
+  --chart-2: #4f7fd6;
+  --chart-3: #697586;
+  --chart-4: #d28423;
+  --chart-5: #94a3b8;
 
-  --sidebar: #fcfaf5;
-  --sidebar-foreground: #1a1612;
-  --sidebar-primary: #8f5c0f;
-  --sidebar-primary-foreground: #fcfaf5;
-  --sidebar-accent: #e6dfd0;
-  --sidebar-accent-foreground: #1a1612;
-  --sidebar-border: #e4dccb;
-  --sidebar-ring: #8f5c0f;
+  --sidebar: #e3e7ed; /* sidebar-background */
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #113979;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e2e8f0;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #113979;
 }
 
 .dark {
   color-scheme: dark;
 
   /*
-   * Lamp-lit dark.
+   * SikhiToTheMax's dark theme: a blue-black page, with surfaces, cool grey text
+   * and the pale blue accent from its `--sui-semantic-*` tokens. The accent is
+   * their accent-default rather than their button fill, because ours is also
+   * used as text and #203c6a cannot be read on this page.
    *
-   * The canvas is near-black with a warm cast, and the surfaces climb from it
-   * in visible steps — what used to be the background is now the card, so a
-   * card finally reads as raised. Text is warm ivory rather than white. The
-   * accent is a lantern gold that glows on the dark ground; it takes dark ink
-   * for its own text, the canonical dark-mode button.
+   * Their two lower text greys are each moved up a step (tertiary to secondary
+   * copy, muted to metadata), because their subtle grey is only 3.8:1 here.
    */
-  --background: #0f0d0b; /* near-black, warm */
-  --foreground: #f4efe3; /* warm ivory, 16.9:1 */
-  --card: #1a1612; /* surface 1 */
-  --card-foreground: #f4efe3;
-  --popover: #241f1a; /* surface 2 — sheets, menus */
-  --popover-foreground: #f4efe3;
-  --primary: #e8a33d; /* lantern gold, 9:1 on the canvas */
-  --primary-foreground: #1a1206;
-  --primary-soft: #2f2513; /* gold tint for chips and the raag badge */
-  --secondary: #2c261f; /* surface 3 — pills, tracks */
-  --secondary-foreground: #f4efe3;
-  --muted: #2c261f;
-  --muted-foreground: #a99d89; /* secondary copy, 7.3:1 */
-  --subtle-foreground: #8a7f70; /* metadata, 4.9:1 */
-  --accent: #372f27; /* hover / pressed — a notch above secondary */
-  --accent-foreground: #f4efe3;
-  --destructive: #d2554b;
-  --destructive-foreground: #f4efe3;
-  --live: #e5484d;
-  --success: #7dab86;
-  --border: #2a241e; /* hairline — visible against the canvas, quiet on a card */
-  --input: #3a322a;
-  --ring: #e8a33d;
+  --background: #121720; /* background-page */
+  --foreground: #f0f2f4; /* foreground-default, 16:1 */
+  --card: #141a23; /* background-surface */
+  --card-foreground: #f0f2f4;
+  --popover: #232a36; /* autocomplete-background — sheets, menus */
+  --popover-foreground: #f0f2f4;
+  --primary: #d2e2f6; /* accent-default, 13.6:1 on the canvas */
+  --primary-foreground: #121720;
+  --primary-hover: #4a86e7; /* accent-hover */
+  --primary-active: #3569db; /* accent-active */
+  --primary-soft: #203c6a; /* accent-muted, chips and the raag badge; primary on it 8.3:1 */
+  --secondary: #212a3c; /* their raised controls — pills, tracks */
+  --secondary-foreground: #f0f2f4;
+  --muted: #212a3c;
+  --muted-foreground: #a8b3c2; /* foreground-tertiary, secondary copy, 8.2:1 on card */
+  --subtle-foreground: #98a4b4; /* foreground-muted, metadata, 6.9:1 on card */
+  --accent: #2c3648; /* hover / pressed — a notch above secondary; their #384250 left muted text under 4.5:1 */
+  --accent-foreground: #f0f2f4;
+  --highlight: #d28423; /* gurbani-verse-active-border */
+  --highlight-foreground: #121720;
+  --verse: #d9e4f0; /* gurbani-verse-bani-color */
+  --verse-translation: #98a4b4; /* foreground-muted */
+  --verse-active-from: #222d42; /* gurbani-verse-active-background; its edge is --highlight */
+  --verse-active-to: #141926;
+  --warning: #f59e0b; /* colors-warning */
+  --warning-foreground: #121720;
+  --warning-strong: #fbbf24; /* the same warning as text, 11:1 */
+  --destructive: #ef6461; /* their #c21717 is 2.9:1 as text */
+  --destructive-foreground: #121720;
+  --live: #ef5350;
+  --success: #22c55e; /* colors-success */
+  --border: #282e37; /* border-muted — visible against the canvas, quiet on a card */
+  --input: #384250; /* border-default */
+  --ring: #6ca6ee; /* border-focus */
 
-  --chart-1: #e8a33d;
-  --chart-2: #b8ad96;
-  --chart-3: #8a806f;
-  --chart-4: #c98a2e;
-  --chart-5: #6a6054;
+  --chart-1: #d2e2f6;
+  --chart-2: #6ca6ee;
+  --chart-3: #98a4b4;
+  --chart-4: #d28423;
+  --chart-5: #697586;
 
-  --sidebar: #1a1612;
-  --sidebar-foreground: #f4efe3;
-  --sidebar-primary: #e8a33d;
-  --sidebar-primary-foreground: #1a1206;
-  --sidebar-accent: #372f27;
-  --sidebar-accent-foreground: #f4efe3;
-  --sidebar-border: #2a241e;
-  --sidebar-ring: #e8a33d;
+  --sidebar: #141a23;
+  --sidebar-foreground: #f0f2f4;
+  --sidebar-primary: #d2e2f6;
+  --sidebar-primary-foreground: #121720;
+  --sidebar-accent: #2c3648;
+  --sidebar-accent-foreground: #f0f2f4;
+  --sidebar-border: #282e37;
+  --sidebar-ring: #6ca6ee;
 }

@@ -179,13 +179,23 @@ export function LyricsPanel({ className }: { className?: string }) {
               key={line.verseId}
               ref={line.verseId === anchorId ? anchor : undefined}
               className={cn(
-                'font-gurbani text-lg leading-8 transition-colors',
-                isLit ? 'font-semibold text-primary' : 'text-muted-foreground'
+                // The edge is on every line, transparent, so lighting one never
+                // shifts the text beside it.
+                'rounded-r-md border-l-2 px-3 py-1.5 font-gurbani text-lg leading-8 text-verse transition-colors',
+                isLit
+                  ? 'border-highlight bg-linear-to-r from-verse-active-from to-verse-active-to font-semibold'
+                  : 'border-transparent'
               )}
             >
               {line.verse?.unicode ?? line.verse?.gurmukhi ?? ''}
               {line.translation?.en?.bdb ? (
-                <span className="mt-0.5 block font-sans text-xs text-subtle-foreground">
+                <span
+                  className={cn(
+                    'mt-0.5 block font-sans text-xs',
+                    // verse-translation is 3.8:1 on the lit line's blue.
+                    isLit ? 'text-muted-foreground' : 'text-verse-translation'
+                  )}
+                >
                   {line.translation.en.bdb}
                 </span>
               ) : null}

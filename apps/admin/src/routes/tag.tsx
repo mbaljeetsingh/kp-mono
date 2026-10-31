@@ -1889,7 +1889,7 @@ function SegmentRow({
             published
               ? 'bg-emerald-400'
               : r.source === 'scan'
-                ? 'bg-amber-400'
+                ? 'bg-warning'
                 : 'bg-muted-foreground'
           )}
         />

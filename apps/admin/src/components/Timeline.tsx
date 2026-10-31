@@ -278,12 +278,12 @@ export function Timeline({
                     : s.id === focusId
                       ? s.published
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-amber-500 text-amber-950'
+                        : 'bg-warning text-warning-foreground'
                       : s.published
                         ? 'bg-emerald-600/20 text-emerald-900 dark:bg-emerald-500/25 dark:text-emerald-100'
                         : s.scan
-                          ? 'bg-[repeating-linear-gradient(135deg,rgb(245_158_11/0.30)_0_5px,rgb(245_158_11/0.12)_5px_10px)] text-amber-950 dark:text-amber-100'
-                          : 'bg-amber-500/25 text-amber-950 dark:text-amber-100'
+                          ? 'bg-[repeating-linear-gradient(135deg,color-mix(in_srgb,var(--warning)_30%,transparent)_0_5px,color-mix(in_srgb,var(--warning)_12%,transparent)_5px_10px)] text-foreground'
+                          : 'bg-warning/25 text-foreground'
                 )}
               >
                 <span
@@ -348,7 +348,7 @@ export function Timeline({
                   className={
                     hovered.published
                       ? 'text-emerald-700 dark:text-emerald-300'
-                      : 'text-amber-700 dark:text-amber-300'
+                      : 'text-warning-strong'
                   }
                 >
                   {hovered.name}

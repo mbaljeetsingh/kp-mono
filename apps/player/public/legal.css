@@ -1,28 +1,28 @@
 /*
  * The static pages' styles: /privacy/ and /delete-account/.
  *
- * Hand-copied from packages/tokens/tokens.css (parchment and ink in light,
- * warm near-black and lantern gold in dark) rather than imported — these pages
+ * Hand-copied from packages/tokens/tokens.css (white and navy in light,
+ * blue-black and pale blue in dark) rather than imported — these pages
  * are plain HTML outside the Vite build, so they can move to a landing page
  * as they are. Newsreader for headings, as in the app.
  */
 @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&display=swap');
 
 :root {
-  --background: #f6f2e9;
-  --foreground: #1a1612;
-  --muted-foreground: #5c5347;
-  --primary: #8f5c0f;
-  --border: #e4dccb;
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --muted-foreground: #475569;
+  --primary: #113979;
+  --border: #e2e8f0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0f0d0b;
-    --foreground: #f4efe3;
-    --muted-foreground: #a99d89;
-    --primary: #e8a33d;
-    --border: #2a241e;
+    --background: #121720;
+    --foreground: #f0f2f4;
+    --muted-foreground: #a8b3c2;
+    --primary: #d2e2f6;
+    --border: #282e37;
   }
 }
 

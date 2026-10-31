@@ -48,21 +48,6 @@ body {
 }
 
 /*
- * Dark-mode atmospheric glow — subtle warm radial from top center, fixed so
- * it doesn't scroll-swim. Hardcoded rgba because CSS custom props don't
- * resolve inside rgba() reliably across browsers.
- */
-.dark body {
-  background-color: var(--background);
-  background-image: radial-gradient(
-    ellipse 60% 40% at 50% -10%,
-    rgba(232, 163, 61, 0.12),
-    transparent 70%
-  );
-  background-attachment: fixed;
-}
-
-/*
  * Default border colour, restored.
  *
  * Tailwind v4's bare `border` utility falls back to `currentColor` — so every
@@ -116,6 +101,18 @@ body {
   .dark ::-webkit-scrollbar-corner {
     @apply bg-background;
   }
+}
+
+/*
+ * SikhiToTheMax's shadow scale (`--sui-shadows-*`). Here rather than in tokens.css
+ * because box-shadow strings are a browser concern; the phone keeps its own.
+ */
+@theme {
+  --shadow-xs: 0px 4px 4px 0px #00000008;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+  --shadow-xl: 15px 15px 45px 0px #11397926;
 }
 
 @utility featured-surface {
