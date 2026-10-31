@@ -22,7 +22,6 @@ import {
   Share2,
   X,
   Heart,
-  Moon,
   Pause,
   Play,
   Repeat,
@@ -63,7 +62,6 @@ export default function NowPlayingScreen() {
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
   const repeat = usePlayer((s) => s.repeat);
-  const gentleStop = usePlayer((s) => s.gentleStop);
 
   /**
    * A shabad the listener looked up themselves. A broadcast is never tagged and
@@ -247,48 +245,22 @@ export default function NowPlayingScreen() {
         >
           <ChevronDown size={24} color={colors.foreground} />
         </Pressable>
-        {/* Laid over the row rather than in it, so it stays centred with two
-            buttons on the right and one on the left. */}
-        <View
-          pointerEvents="none"
-          className="absolute inset-x-0 top-1 h-11 items-center justify-center"
-        >
-          <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Now playing
-          </Text>
-        </View>
-        <View className="flex-row">
-          {/* Up here because the transport below already has five buttons across
-            a phone. A broadcast and a raw file have no end to stop at. */}
-          {current.endSec != null ? (
-            <Pressable
-              onPress={playerActions.toggleGentleStop}
-              accessibilityRole="button"
-              accessibilityLabel="Fade out and stop after this shabad"
-              accessibilityState={{ selected: gentleStop }}
-              className="size-11 items-center justify-center"
-            >
-              <Moon
-                size={20}
-                color={gentleStop ? colors.primary : colors.foreground}
-                fill={gentleStop ? colors.primary : 'none'}
-              />
-            </Pressable>
-          ) : null}
-          {/* Share, as the web's player has: a link that opens on this line once
+        <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Now playing
+        </Text>
+        {/* Share, as the web's player has: a link that opens on this line once
             you are a little way in. A broadcast has no rendition to link to. */}
-          {current.isLive ? (
-            <View className="size-11" />
-          ) : (
-            <Pressable
-              onPress={() => void shareRendition(current, position, titleIn(current, script))}
-              accessibilityLabel="Share"
-              className="size-11 items-center justify-center"
-            >
-              <Share2 size={20} color={colors.foreground} />
-            </Pressable>
-          )}
-        </View>
+        {current.isLive ? (
+          <View className="size-11" />
+        ) : (
+          <Pressable
+            onPress={() => void shareRendition(current, position, titleIn(current, script))}
+            accessibilityLabel="Share"
+            className="size-11 items-center justify-center"
+          >
+            <Share2 size={20} color={colors.foreground} />
+          </Pressable>
+        )}
       </View>
 
       <View className="flex-row items-center gap-4 px-5 pb-4 pt-3">

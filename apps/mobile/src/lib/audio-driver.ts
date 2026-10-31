@@ -197,9 +197,6 @@ export function createNativeAudioDriver(
     seek(seconds) {
       void player?.seekTo(Math.max(0, seconds - clockOffset));
     },
-    setVolume(volume) {
-      if (player) player.volume = volume;
-    },
     // The lock screen's title in the newly chosen script; the audio plays on.
     announce(nowPlaying) {
       const m = metadata(nowPlaying);

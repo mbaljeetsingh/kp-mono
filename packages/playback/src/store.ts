@@ -24,7 +24,6 @@ import {
   shouldRememberResume,
   startPositionFor,
   elapsedIn,
-  gentleVolume,
   nextRepeatMode,
   withRecent,
   type Playable,
@@ -53,8 +52,6 @@ export interface PlayerState {
   starting: string | null;
   /** Renditions played on this device, latest first. See @kp/core's recent.ts. */
   recentIds: readonly string[];
-  /** Fade out and stop when this shabad ends, whatever the queue or repeat says. */
-  gentleStop: boolean;
 
   attach(driver: AudioDriver): void;
   hydrate(): Promise<void>;
@@ -84,7 +81,6 @@ export interface PlayerState {
   removeAt(index: number): void;
   clearQueue(): void;
   cycleRepeat(): void;
-  toggleGentleStop(): void;
   /** Re-announce what is playing, for a title shown in another script now. */
   retitle(): void;
 }
@@ -112,20 +108,11 @@ export interface PlayerStoreOptions {
 export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreOptions) {
   let driver: AudioDriver | null = null;
   let resume: Record<string, number> = {};
-  // Last asked of the driver, so a status tick ten times a second only reaches
-  // it while the fade is actually moving.
-  let volume = 1;
 
   return createStore<PlayerState>()((set, get) => {
     function queueState(): QueueState {
       const s = get();
       return { items: s.items, index: s.index, repeat: s.repeat };
-    }
-
-    function setVolume(next: number) {
-      if (next === volume) return;
-      volume = next;
-      driver?.setVolume?.(next);
     }
 
     function persistQueue() {
@@ -153,8 +140,6 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
 
     /** Load an item and start it. The one place `driver.load` is called. */
     function start(item: Playable, index: number) {
-      // Skipping away mid-fade must not carry the quiet into the next shabad.
-      setVolume(1);
       const recentIds = withRecent(get().recentIds, item);
       set({
         current: item,
@@ -205,7 +190,6 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       duration: 0,
       starting: null,
       recentIds: [],
-      gentleStop: false,
 
       attach(next) {
         driver = next;
@@ -283,16 +267,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
 
         // A segment's end is not the file's end, so no driver will ever report
         // `ended` here. The store watches the clock and advances itself.
-        if (playing && s.gentleStop) setVolume(gentleVolume(s.current, position));
-
         if (playing && hasReachedEnd(s.current, position)) {
-          if (s.gentleStop) {
-            // Once only: tomorrow's listening should not stop by itself too.
-            driver?.pause();
-            setVolume(1);
-            set({ playing: false, gentleStop: false });
-            return;
-          }
           perform(onEnded(queueState(), s.current.isLive === true));
           return;
         }
@@ -400,13 +375,6 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
         const repeat = nextRepeatMode(get().repeat);
         set({ repeat });
         void storage.setItem(REPEAT_KEY, repeat);
-      },
-
-      toggleGentleStop() {
-        const gentleStop = !get().gentleStop;
-        set({ gentleStop });
-        // Changed their mind during the fade: the sound comes straight back.
-        if (!gentleStop) setVolume(1);
       },
 
       /*
