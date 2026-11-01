@@ -87,6 +87,9 @@ export default function TabLayout() {
          * rediscovering this.
          */
         minimizeBehavior="onScrollDown"
+        // Material hides the unselected labels from a fourth tab on, which left
+        // Android with bare icons where iOS names every tab.
+        labelVisibilityMode="labeled"
         tintColor={colors.primary}
         iconColor={{ default: colors.subtleForeground, selected: colors.primary }}
         labelStyle={{ color: colors.subtleForeground }}

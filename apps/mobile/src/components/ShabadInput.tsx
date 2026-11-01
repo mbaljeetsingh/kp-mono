@@ -81,10 +81,14 @@ export function ShabadInput({
         // placeholder in the field's font, and GurbaniLipi would garble it.
         className={cn(
           'h-11 pl-9 pr-10',
-          punjabi && 'py-0',
+          // Android's Gurmukhi faces carry their weight high in the line.
+          punjabi && (Platform.OS === 'android' ? 'pb-0 pt-1' : 'py-0'),
           // Each centred by eye: the system Gurmukhi of the placeholder and
           // the GurbaniLipi of the text sit differently on one line height.
-          punjabi && (value.length > 0 ? 'font-gurmukhi text-lg leading-7' : 'leading-[18px]')
+          punjabi &&
+            (value.length > 0
+              ? 'font-gurmukhi text-lg leading-7'
+              : Platform.OS === 'ios' && 'leading-[18px]')
         )}
       />
       {value ? (

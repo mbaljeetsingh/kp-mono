@@ -9,3 +9,9 @@ declare module '*.css' {
   const classes: Record<string, string>;
   export default classes;
 }
+
+/** Metro resolves an imported font to the asset id `useFonts` takes. */
+declare module '*.ttf' {
+  const asset: number;
+  export default asset;
+}
