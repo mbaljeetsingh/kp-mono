@@ -47,7 +47,10 @@ export function GurmukhiKeyboard({
                 className={cn(
                   'w-full px-0',
                   // Two shades split each row in half, as np-mono's keyboard does.
-                  i % 10 < 5 && 'bg-primary-soft',
+                  // Named both ways: the button's own secondary is all but the left shade in light.
+                  i % 10 < 5
+                    ? 'bg-primary-soft hover:bg-primary-soft/80'
+                    : 'bg-muted hover:bg-muted/80',
                   key === GURMUKHI_BACKSPACE ? 'text-xs' : 'font-gurmukhi text-lg'
                 )}
                 aria-label={key === GURMUKHI_BACKSPACE ? 'Backspace' : GURMUKHI_KEY_LETTERS[key]}
