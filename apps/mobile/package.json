@@ -62,5 +62,14 @@
     "start": "expo start",
     "typecheck": "tsc --noEmit"
   },
+  "expo": {
+    "autolinking": {
+      "android": {
+        "buildFromSource": [
+          "expo-audio"
+        ]
+      }
+    }
+  },
   "private": true
 }

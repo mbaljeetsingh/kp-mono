@@ -1,3 +1,233 @@
+diff --git a/android/src/main/java/expo/modules/audio/AudioRecords.kt b/android/src/main/java/expo/modules/audio/AudioRecords.kt
+index 86880d92fd5b6413e8596e1b2b8ae28f2981addd..c41275af7f624d3a3344f32eefd2a807cb9c40a3 100644
+--- a/android/src/main/java/expo/modules/audio/AudioRecords.kt
++++ b/android/src/main/java/expo/modules/audio/AudioRecords.kt
+@@ -110,7 +110,10 @@ enum class AndroidAudioEncoder(val value: String) : Enumerable {
+ class AudioLockScreenOptions(
+   @Field val showSeekForward: Boolean,
+   @Field val showSeekBackward: Boolean,
+-  @Field val isLiveStream: Boolean? = null
++  @Field val isLiveStream: Boolean? = null,
++  // kp-mono: a slice of the file to present as the whole track.
++  @Field val segmentStart: Double? = null,
++  @Field val segmentEnd: Double? = null
+ ) : Record
+ 
+ enum class InterruptionMode(val value: String) : Enumerable {
+diff --git a/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+index 196a5d57f887c2667a88543bd2f6a80044a044f2..b614bcf6abfeae78311f9b805af19c4cc49f5e50 100644
+--- a/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
++++ b/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+@@ -15,7 +15,6 @@ import android.os.Bundle
+ import android.os.IBinder
+ import androidx.annotation.OptIn
+ import androidx.core.app.NotificationCompat
+-import androidx.media3.common.ForwardingPlayer
+ import androidx.media3.common.Player
+ import androidx.media3.common.util.UnstableApi
+ import androidx.media3.session.CommandButton
+@@ -90,6 +89,8 @@ class AudioControlsService : MediaSessionService() {
+ 
+         ACTION_SEEK_FORWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition + SEEK_INTERVAL_MS)
+         ACTION_SEEK_BACKWARD -> currentPlayerRef.seekTo(currentPlayerRef.currentPosition - SEEK_INTERVAL_MS)
++        ACTION_NEXT -> currentPlayer?.emit("lockScreenCommand", mapOf("command" to "next"))
++        ACTION_PREVIOUS -> currentPlayer?.emit("lockScreenCommand", mapOf("command" to "previous"))
+       }
+     }
+ 
+@@ -192,6 +193,17 @@ class AudioControlsService : MediaSessionService() {
+       val compactViewIndices = mutableListOf<Int>()
+       var currentIndex = 0
+ 
++      // kp-mono: next/previous, which expo-audio does not offer.
++      builder.addAction(
++        NotificationCompat.Action(
++          androidx.media3.session.R.drawable.media3_icon_previous,
++          "Previous",
++          buildActionPendingIntent(ACTION_PREVIOUS)
++        )
++      )
++      compactViewIndices.add(currentIndex)
++      currentIndex++
++
+       if (currentOptions?.showSeekBackward == true) {
+         builder.addAction(
+           NotificationCompat.Action(
+@@ -200,7 +212,6 @@ class AudioControlsService : MediaSessionService() {
+             buildActionPendingIntent(ACTION_SEEK_BACKWARD)
+           )
+         )
+-        compactViewIndices.add(currentIndex)
+         currentIndex++
+       }
+ 
+@@ -226,9 +237,18 @@ class AudioControlsService : MediaSessionService() {
+             buildActionPendingIntent(ACTION_SEEK_FORWARD)
+           )
+         )
+-        compactViewIndices.add(currentIndex)
++        currentIndex++
+       }
+ 
++      builder.addAction(
++        NotificationCompat.Action(
++          androidx.media3.session.R.drawable.media3_icon_next,
++          "Next",
++          buildActionPendingIntent(ACTION_NEXT)
++        )
++      )
++      compactViewIndices.add(currentIndex)
++
+       style.setShowActionsInCompactView(*compactViewIndices.toIntArray())
+     }
+ 
+@@ -322,16 +342,17 @@ class AudioControlsService : MediaSessionService() {
+ 
+   private fun resolveSessionPlayer(player: AudioPlayer, options: AudioLockScreenOptions?): Player {
+     val isLive = options?.isLiveStream ?: player.isLive
+-    if (!isLive) {
+-      return player.ref
+-    }
+-
+-    return object : ForwardingPlayer(player.ref) {
+-      override fun getAvailableCommands(): Player.Commands {
+-        return super.getAvailableCommands().buildUpon()
+-          .remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+-          .build()
++    val start = options?.segmentStart
++    val end = options?.segmentEnd
++    val segmentMs =
++      if (!isLive && start != null && end != null && end > start) {
++        (start * 1000).toLong()..(end * 1000).toLong()
++      } else {
++        null
+       }
++
++    return LockScreenPlayer(player.ref, isLive, segmentMs) { command ->
++      player.emit("lockScreenCommand", mapOf("command" to command))
+     }
+   }
+ 
+@@ -559,6 +580,9 @@ class AudioControlsService : MediaSessionService() {
+     const val ACTION_SEEK_FORWARD = "expo.modules.audio.action.SEEK_FORWARD"
+     const val ACTION_SEEK_BACKWARD = "expo.modules.audio.action.SEEK_BACKWARD"
+ 
++    private const val ACTION_NEXT = "expo.modules.audio.action.NEXT"
++    private const val ACTION_PREVIOUS = "expo.modules.audio.action.PREVIOUS"
++
+     const val SEEK_INTERVAL_MS = 10000L
+   }
+ }
+diff --git a/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt b/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+index 839aaef12d7699ea1a89037b31849775daa079f4..fbe39fe8961f34cc659c41262f73025779c0874d 100644
+--- a/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
++++ b/android/src/main/java/expo/modules/audio/service/AudioMediaSessionCallback.kt
+@@ -24,11 +24,11 @@ class AudioMediaSessionCallback : MediaSession.Callback {
+             .add(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+             .add(Player.COMMAND_SEEK_FORWARD)
+             .add(Player.COMMAND_SEEK_BACK)
+-            // Remove track navigation commands
+-            .remove(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+-            .remove(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+-            .remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+-            .remove(Player.COMMAND_SEEK_TO_NEXT)
++            // kp-mono: track navigation, which LockScreenPlayer hands to the queue
++            .add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
++            .add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
++            .add(Player.COMMAND_SEEK_TO_PREVIOUS)
++            .add(Player.COMMAND_SEEK_TO_NEXT)
+             .build()
+         )
+         .setAvailableSessionCommands(
+diff --git a/android/src/main/java/expo/modules/audio/service/LockScreenPlayer.kt b/android/src/main/java/expo/modules/audio/service/LockScreenPlayer.kt
+new file mode 100644
+index 0000000000000000000000000000000000000000..b0e5fe77dc93b624f02f5df6a6fc3548bea734ce
+--- /dev/null
++++ b/android/src/main/java/expo/modules/audio/service/LockScreenPlayer.kt
+@@ -0,0 +1,83 @@
++package expo.modules.audio.service
++
++import androidx.media3.common.C
++import androidx.media3.common.ForwardingPlayer
++import androidx.media3.common.Player
++import androidx.media3.common.util.UnstableApi
++
++/**
++ * kp-mono: what the media session sees of the player.
++ *
++ * The session reads its clock and its commands from this, so the lock screen
++ * shows a slice of the file as the whole track — its own length, its own
++ * position, a drag that stays inside it — while the real player and everything
++ * JavaScript hears stay on the file's clock. Next and previous are offered even
++ * though the player holds one item: the queue lives in JavaScript, so the
++ * buttons only say they were pressed.
++ */
++@UnstableApi
++internal class LockScreenPlayer(
++  player: Player,
++  private val isLive: Boolean,
++  segmentMs: LongRange?,
++  private val onCommand: (String) -> Unit
++) : ForwardingPlayer(player) {
++  private val startMs = segmentMs?.first ?: 0L
++  private val lengthMs = segmentMs?.let { it.last - it.first }
++
++  override fun isCommandAvailable(command: Int): Boolean =
++    when (command) {
++      in TRACK_COMMANDS -> true
++      Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM -> !isLive && super.isCommandAvailable(command)
++      else -> super.isCommandAvailable(command)
++    }
++
++  override fun getAvailableCommands(): Player.Commands {
++    val commands = super.getAvailableCommands().buildUpon().addAll(*TRACK_COMMANDS)
++    if (isLive) commands.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
++    return commands.build()
++  }
++
++  override fun hasNextMediaItem() = true
++  override fun hasPreviousMediaItem() = true
++  override fun seekToNext() = onCommand("next")
++  override fun seekToNextMediaItem() = onCommand("next")
++  override fun seekToPrevious() = onCommand("previous")
++  override fun seekToPreviousMediaItem() = onCommand("previous")
++
++  private fun toSegment(fileMs: Long): Long {
++    val length = lengthMs ?: return fileMs
++    return (fileMs - startMs).coerceIn(0L, length)
++  }
++
++  private fun toFile(segmentPositionMs: Long): Long {
++    val length = lengthMs ?: return segmentPositionMs
++    return startMs + segmentPositionMs.coerceIn(0L, length)
++  }
++
++  override fun getDuration(): Long = lengthMs ?: super.getDuration()
++  override fun getContentDuration(): Long = lengthMs ?: super.getContentDuration()
++  override fun getCurrentPosition(): Long = toSegment(super.getCurrentPosition())
++  override fun getContentPosition(): Long = toSegment(super.getContentPosition())
++  override fun getBufferedPosition(): Long = toSegment(super.getBufferedPosition())
++  override fun getContentBufferedPosition(): Long = toSegment(super.getContentBufferedPosition())
++
++  override fun getBufferedPercentage(): Int {
++    val length = lengthMs ?: return super.getBufferedPercentage()
++    return if (length == 0L) 0 else (bufferedPosition * 100 / length).toInt()
++  }
++
++  override fun seekTo(positionMs: Long) = super.seekTo(toFile(positionMs))
++
++  override fun seekTo(mediaItemIndex: Int, positionMs: Long) =
++    super.seekTo(mediaItemIndex, if (positionMs == C.TIME_UNSET) positionMs else toFile(positionMs))
++
++  private companion object {
++    val TRACK_COMMANDS = intArrayOf(
++      Player.COMMAND_SEEK_TO_PREVIOUS,
++      Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
++      Player.COMMAND_SEEK_TO_NEXT,
++      Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM
++    )
++  }
++}
 diff --git a/build/AudioConstants.d.ts b/build/AudioConstants.d.ts
 index cfd92ad0ff5765254c4e6db974fe44bce34aad06..c4d5f7cd332aab81eccc50ddfbd31e01bdc0a9ee 100644
 --- a/build/AudioConstants.d.ts
