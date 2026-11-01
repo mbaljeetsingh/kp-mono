@@ -15,6 +15,7 @@ import {
 import { Pause, Play, Radio } from 'lucide-react-native';
 import { FlatList, Linking, Pressable, Text, View } from 'react-native';
 
+import { AppHeader } from '~/components/AppHeader';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { Screen } from '~/components/Screen';
 import { useIsOnline } from '~/lib/network';
@@ -101,11 +102,14 @@ export default function RadioScreen() {
         contentContainerStyle={miniPlayerSpace}
         contentContainerClassName="pb-4"
         ListHeaderComponent={
-          <View className="px-4 pb-2 pt-3">
-            <Text className="font-display text-[34px] leading-10 text-foreground">Radio</Text>
-            <Text className="text-sm text-muted-foreground">
-              Live darbars, and feeds this archive does not hold.
-            </Text>
+          <View className="gap-3 px-5 pb-2 pt-3">
+            <AppHeader />
+            <View>
+              <Text className="font-display text-[34px] leading-10 text-foreground">Radio</Text>
+              <Text className="text-sm text-muted-foreground">
+                Live darbars, and feeds this archive does not hold.
+              </Text>
+            </View>
           </View>
         }
         renderItem={({ item: section }) => (

@@ -6,7 +6,7 @@
  * full player, which is the gesture people already expect from every other
  * music app; the controls stop that from firing so a tap on Play is a play.
  */
-import { ChevronUp } from 'lucide-react';
+import { ChevronUp, Music } from 'lucide-react';
 import { useState } from 'react';
 
 import { PlayableArt } from '~/components/ArtTile';
@@ -17,6 +17,7 @@ import { PlayerControls } from '~/components/PlayerControls';
 import { SeekBar } from '~/components/SeekBar';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { ShareButton } from '~/components/ShareButton';
+import { ShuffleButton } from '~/components/ShuffleButton';
 import { usePlayer } from '~/lib/player';
 import { useTitleScript } from '~/lib/title-script';
 import { titleIn } from '@kp/core';
@@ -26,8 +27,25 @@ export function PlayerBar() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [script] = useTitleScript();
 
-  // Nothing loaded means no bar at all, rather than a dead strip of controls.
-  if (!current) return null;
+  // Nothing loaded is a way in rather than a dead strip of controls.
+  if (!current) {
+    return (
+      <footer className="border-t border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-3 py-2 sm:px-4 sm:py-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Music className="size-4 text-muted-foreground" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">Nothing playing</span>
+            <span className="block truncate text-xs text-muted-foreground">
+              Select something to play
+            </span>
+          </span>
+          <ShuffleButton />
+        </div>
+      </footer>
+    );
+  }
 
   return (
     <>

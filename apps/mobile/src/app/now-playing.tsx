@@ -287,9 +287,16 @@ export default function NowPlayingScreen() {
               name while the display name is the one worth reading. */}
           {current.artist ? (
             <Pressable
-              onPress={() =>
-                router.push({ pathname: '/ragi/[name]', params: { name: current.artist ?? '' } })
-              }
+              // Off the modal first, and pushed a frame later: while the modal
+              // is still focused the route resolves to the first tab, not the
+              // one the listener came from.
+              onPress={() => {
+                const name = current.artist ?? '';
+                router.back();
+                requestAnimationFrame(() =>
+                  router.push({ pathname: '/ragi/[name]', params: { name } })
+                );
+              }}
               accessibilityRole="link"
               accessibilityLabel={`Shabads by ${current.subtitle ?? current.artist}`}
               hitSlop={6}

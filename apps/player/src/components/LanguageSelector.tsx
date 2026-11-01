@@ -1,5 +1,6 @@
 /**
- * The listener's language — for now, the script shabad titles are shown in.
+ * The listener's language — for now, the script shabad titles are shown in and
+ * searched by.
  *
  * The same control as np-mono's language selector: one button naming the
  * current language in its own script — two letters on a phone, the whole name
@@ -18,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@kp/ui/dropdown-menu';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { Check, ChevronDown, Languages } from 'lucide-react';
 
 import { playerActions } from '~/lib/player';
@@ -27,11 +29,15 @@ import { cn } from '~/lib/utils';
 export function LanguageSelector() {
   const [script, setScript] = useTitleScript();
   const current = titleScriptOption(script);
+  const onSearchPage = useLocation({ select: (l) => l.pathname === '/search' });
+  const navigate = useNavigate();
 
   function choose(next: TitleScript) {
     if (next === script) return;
     setScript(next);
     playerActions.retitle();
+    // A term means different letters in the other language.
+    if (onSearchPage) void navigate({ to: '/search', search: { q: '' }, replace: true });
   }
 
   return (
@@ -55,7 +61,7 @@ export function LanguageSelector() {
           {/* "Language" because the app's own words follow it later; until
               then a listener should not expect the buttons to change. */}
           <span className="mt-0.5 block whitespace-nowrap text-xs font-normal text-muted-foreground">
-            Shabad titles for now
+            Shabad titles and search
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

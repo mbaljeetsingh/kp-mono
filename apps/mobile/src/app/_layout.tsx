@@ -12,6 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import gurbaniLipi from '../../assets/fonts/Gurb_rg.ttf';
 import { LockScreenArtwork } from '~/components/LockScreenArtwork';
 import { SessionProvider } from '~/lib/session';
 import { useColors } from '~/lib/theme';
@@ -40,6 +41,9 @@ SplashScreen.preventAutoHideAsync();
  * weight under a name of our own is the one form both platforms read the same.
  */
 const FONTS = {
+  // Android looks a linked font up by its file name, not the name inside it, so
+  // `font-gurmukhi` fell back to Latin there: the keys showed `a` instead of ੳ.
+  GurbaniLipi: gurbaniLipi,
   'Newsreader-Medium': Newsreader_500Medium,
   'Newsreader-SemiBold': Newsreader_600SemiBold,
   'NotoSerifGurmukhi-Regular': NotoSerifGurmukhi_400Regular,

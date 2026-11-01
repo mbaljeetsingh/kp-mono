@@ -8,7 +8,7 @@
  * one mean anything.
  */
 import { highlightVerseId, isAligned, verseSegments, type ReadAlongTextSize } from '@kp/core';
-import { useShabadText } from '@kp/api';
+import { READ_ALONG_SEARCH_TYPE, useShabadText } from '@kp/api';
 import { ShabadSearch } from '@kp/ui/app/shabad-search';
 import { Button } from '@kp/ui/button';
 import { X } from 'lucide-react';
@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePlayer } from '~/lib/player';
 import { BANIDB_BASE } from '~/lib/links';
 import { useReadAlongOptions } from '~/lib/read-along-options';
+import { useTitleScript } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
 
 const LINE_SIZE: Record<ReadAlongTextSize, string> = {
@@ -38,6 +39,7 @@ const LINE_SIZE: Record<ReadAlongTextSize, string> = {
 const READER_HOLD_MS = 8000;
 
 export function LyricsPanel({ className }: { className?: string }) {
+  const [script] = useTitleScript();
   const current = usePlayer((s) => s.current);
   const position = usePlayer((s) => s.position);
   const [options] = useReadAlongOptions();
@@ -137,6 +139,8 @@ export function LyricsPanel({ className }: { className?: string }) {
         </p>
         <ShabadSearch
           base={BANIDB_BASE}
+          searchType={READ_ALONG_SEARCH_TYPE[script]}
+          placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : undefined}
           onSelect={(chosen) =>
             current && setPick({ trackId: current.id, shabadId: chosen.shabadId })
           }

@@ -10,8 +10,9 @@ import { randomShabads } from '@kp/api';
 import { Button } from '@kp/ui/button';
 import { useMutation } from '@tanstack/react-query';
 import { Shuffle } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { playerActions } from '~/lib/player';
+import { playerActions, playerStore } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 /**
@@ -22,11 +23,16 @@ const SHUFFLE_SIZE = 30;
 
 export function ShuffleButton() {
   const shuffle = useMutation({
-    mutationFn: () => randomShabads(supabase, SHUFFLE_SIZE),
-    onSuccess: (items) => {
+    // The variable is what was playing at the tap, so a slow answer never
+    // replaces something the listener has chosen since.
+    mutationFn: (_playing: string | undefined) => randomShabads(supabase, SHUFFLE_SIZE),
+    onSuccess: (items, playing) => {
       // An empty archive is a race rather than a state to explain.
-      if (items.length) playerActions.playList(items, 0);
+      if (items.length && playerStore.getState().current?.id === playing) {
+        playerActions.playList(items, 0);
+      }
     },
+    onError: () => toast.error('Could not shuffle. Try again.'),
   });
 
   return (
@@ -36,7 +42,7 @@ export function ShuffleButton() {
       aria-label="Shuffle"
       title="Shuffle"
       disabled={shuffle.isPending}
-      onClick={() => shuffle.mutate()}
+      onClick={() => shuffle.mutate(playerStore.getState().current?.id)}
     >
       <Shuffle />
     </Button>

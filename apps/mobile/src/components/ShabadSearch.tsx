@@ -1,79 +1,44 @@
 /**
  * Search BaniDB for a line — the native half of what the web app offers.
  *
- * Typing is GurbaniLipi: the field keeps raw keystrokes and renders them in the
- * GurbaniLipi font, so `mdmA` shows as ਮਦਮਅ while the query still holds the
- * ASCII BaniDB's first-letter search wants. No transliteration step, so nothing
- * can disagree about what was typed.
+ * Typing goes through ShabadInput, with the Gurmukhi keys under it in Punjabi.
  */
-import { SEARCH_TYPES, useBaniDbSearch, type BaniDbHit } from '@kp/api';
+import { READ_ALONG_SEARCH_TYPE, useBaniDbSearch, type BaniDbHit } from '@kp/api';
 import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
+import { GurmukhiKeys, ShabadInput } from '~/components/ShabadInput';
 import { BANIDB_BASE } from '~/lib/links';
-import { cn } from '~/lib/utils';
-import { useColors } from '~/lib/theme';
+import { useTitleScript } from '~/lib/title-script';
 
 export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => void }) {
-  const colors = useColors();
-  const [lang, setLang] = useState<number>(0);
+  const [script] = useTitleScript();
   const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 300);
 
-  const query = useBaniDbSearch(BANIDB_BASE, debounced, lang);
+  const query = useBaniDbSearch(BANIDB_BASE, debounced, READ_ALONG_SEARCH_TYPE[script]);
   const hits = query.data ?? [];
-
-  // English search is a different alphabet, so it drops the font and reads as
-  // roman.
-  const gurbaniLipi = lang === 0;
 
   return (
     <View className="gap-3">
-      <TextInput
+      <ShabadInput
         value={term}
         onChangeText={setTerm}
-        autoCapitalize="none"
-        autoCorrect={false}
-        placeholder={gurbaniLipi ? 'First letters…' : 'Words in English…'}
-        placeholderTextColor={colors.mutedForeground}
-        className={cn(
-          'rounded-lg border border-border bg-card px-4 py-3 text-foreground',
-          gurbaniLipi && 'text-lg',
-          // Only once there is something to render in it. React Native draws
-          // the placeholder in the field's own font, and GurbaniLipi maps ASCII
-          // to Gurmukhi glyphs — so an English hint came out as nonsense words.
-          gurbaniLipi && term.length > 0 && 'font-gurmukhi'
-        )}
+        script={script}
+        placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'First letters…'}
       />
-
-      <View className="flex-row gap-2">
-        {SEARCH_TYPES.map((type) => (
-          <Pressable
-            key={type.key}
-            onPress={() => setLang(type.key)}
-            className={cn(
-              'rounded-md px-3 py-1.5',
-              lang === type.key ? 'bg-primary/20' : 'bg-muted'
-            )}
-          >
-            <Text
-              className={cn(
-                'text-xs',
-                lang === type.key ? 'text-primary' : 'text-muted-foreground'
-              )}
-            >
-              {type.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+      {script === 'pa' ? (
+        <View className="rounded-lg bg-popover p-2">
+          <GurmukhiKeys value={term} onChangeText={setTerm} />
+        </View>
+      ) : null}
 
       {query.isLoading ? <Text className="text-sm text-muted-foreground">Searching…</Text> : null}
       {query.isError ? (
         <Text className="text-sm text-muted-foreground">Could not reach BaniDB.</Text>
       ) : null}
-      {!query.isLoading && debounced.trim().length >= 2 && !hits.length ? (
+      {!query.isLoading && !query.isError && debounced.trim().length >= 2 && !hits.length ? (
         <Text className="text-sm text-muted-foreground">Nothing matches.</Text>
       ) : null}
 

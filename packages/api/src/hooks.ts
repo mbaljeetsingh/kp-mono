@@ -8,11 +8,18 @@
 import {
   useInfiniteQuery,
   useQuery,
+  useQueryClient,
   type UseInfiniteQueryResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import type { Playable } from '@kp/core';
+import type { Playable, TitleScript } from '@kp/core';
 
+import {
+  LANGUAGE_SEARCH_TYPE,
+  MIN_FIRST_LETTERS,
+  shabadIdsMatching,
+  type ShabadIdMatches,
+} from './banidb';
 import type { KpClient } from './client';
 import { keys } from './keys';
 import {
@@ -58,18 +65,65 @@ export function useShabadsByArtist(client: KpClient, artist: string) {
 }
 
 /**
+ * How much a listener must type. Punjabi has only first letters to go on; roman
+ * has titles and ragis too, which two letters can already narrow.
+ */
+export function minSearchLength(script: TitleScript): number {
+  return script === 'pa' ? MIN_FIRST_LETTERS : 2;
+}
+
+type SearchMatches = ShabadIdMatches & {
+  /** BaniDB could not be asked, so only titles and ragis were searched. */
+  degraded: boolean;
+};
+
+interface SearchPageParam {
+  from: number;
+  matches: SearchMatches | null;
+}
+
+/**
  * Search, held back until the term is worth a round trip.
  *
  * One character matches most of a 49k-row archive, which is a slow query for a
  * result nobody wanted.
+ *
+ * BaniDB is asked once per term, through the cache, not once per page. If it is
+ * down, roman search still has titles and ragis to offer, so that is what it
+ * shows, flagged `degraded`; Punjabi has nothing else, so the failure surfaces as an error.
  */
-export function useSearch(client: KpClient, term: string) {
+export function useSearch(client: KpClient, base: string, term: string, script: TitleScript) {
   const trimmed = term.trim();
+  const queryClient = useQueryClient();
+  // A space means words, which no first-letter search can match.
+  const initials = trimmed.length >= MIN_FIRST_LETTERS && !/\s/.test(trimmed);
   return useInfiniteQuery({
-    queryKey: keys.shabads.search(trimmed),
-    queryFn: ({ pageParam }) => searchShabads(client, trimmed, pageParam as number),
-    enabled: trimmed.length >= 2,
-    ...pageParams(),
+    queryKey: keys.shabads.search(trimmed, script),
+    initialPageParam: { from: 0, matches: null } as SearchPageParam,
+    queryFn: async ({ pageParam }) => {
+      const matches =
+        pageParam.matches ??
+        (initials
+          ? await queryClient
+              .fetchQuery({
+                queryKey: keys.banidb.shabadIds(script, trimmed),
+                queryFn: () => shabadIdsMatching(base, trimmed, LANGUAGE_SEARCH_TYPE[script]),
+                staleTime: 1000 * 60 * 10,
+              })
+              .then((found): SearchMatches => ({ ...found, degraded: false }))
+              .catch((failure: unknown): SearchMatches => {
+                if (script === 'pa') throw failure;
+                return { ids: [], partial: false, degraded: true };
+              })
+          : { ids: [], partial: false, degraded: false });
+      const page = await searchShabads(client, trimmed, script, matches.ids, pageParam.from);
+      return { ...page, ...matches, matches };
+    },
+    // Every page keeps the first page's matches. Asked again, BaniDB could fail
+    // or expire partway, and the offset would then count a different result set.
+    getNextPageParam: (last, all): SearchPageParam | undefined =>
+      last.hasMore ? { from: all.length * PAGE_SIZE, matches: last.matches } : undefined,
+    enabled: trimmed.length >= minSearchLength(script),
   });
 }
 

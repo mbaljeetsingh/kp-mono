@@ -6,12 +6,14 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
+import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
 
 export default function RagiScreen() {
+  const miniPlayerSpace = useMiniPlayerSpace();
   const colors = useColors();
   const { onMore, sheet } = useShabadActions();
   const router = useRouter();
@@ -25,12 +27,15 @@ export default function RagiScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
+        // Past the tab bar and the play controls riding above it.
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={miniPlayerSpace}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
           <View className="px-3 pb-2 pt-3">
             <Pressable onPress={() => router.back()} className="flex-row items-center gap-1 pb-2">
               <ChevronLeft size={16} color={colors.mutedForeground} />
-              <Text className="text-sm text-muted-foreground">Ragis</Text>
+              <Text className="text-sm text-muted-foreground">Back</Text>
             </Pressable>
             <Text className="font-display text-[28px] leading-8 text-foreground">{name}</Text>
           </View>

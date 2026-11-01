@@ -1,13 +1,17 @@
+import { randomShabads } from '@kp/api';
 import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
+import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Heart, Pause, Play, SkipForward } from 'lucide-react-native';
+import { Heart, Music, Pause, Play, Shuffle, SkipForward } from 'lucide-react-native';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 
 import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
-import { playerActions, usePlayer } from '~/lib/player';
+import { useIsOnline } from '~/lib/network';
+import { playerActions, playerStore, usePlayer } from '~/lib/player';
 import { useSession } from '~/lib/session';
+import { supabase } from '~/lib/supabase';
 import { skipToNext } from '~/lib/skip';
 import { useColors } from '~/lib/theme';
 
@@ -30,7 +34,7 @@ export function MiniPlayer() {
   const starting = usePlayer((s) => s.starting !== null && s.starting === s.current?.id);
   const { favorites } = useSession();
 
-  if (!current) return null;
+  if (!current) return <IdleMiniPlayer />;
 
   const saved = favorites.has(current.id);
 
@@ -121,6 +125,61 @@ export function MiniPlayer() {
           <View className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
         </View>
       )}
+    </View>
+  );
+}
+
+/**
+ * Nothing loaded: the way in for arriving with nothing in mind, which for kirtan
+ * is not the unusual case. Thirty is enough to listen through without thinking
+ * about it again, few enough that the queue stays readable.
+ */
+function IdleMiniPlayer() {
+  const colors = useColors();
+  const online = useIsOnline();
+  const shuffle = useMutation({
+    mutationFn: () => randomShabads(supabase, 30),
+    onSuccess: (rows) => {
+      // Something chosen while this loaded is what the listener wants now.
+      if (rows.length && !playerStore.getState().current) playerActions.playList(rows, 0);
+    },
+  });
+
+  return (
+    <View className={Platform.OS === 'ios' ? 'flex-1 justify-center' : 'h-14 justify-center'}>
+      <View className="flex-row items-center gap-3 pl-2 pr-3">
+        <View className="size-9 items-center justify-center rounded-lg bg-muted">
+          <Music size={18} color={colors.mutedForeground} />
+        </View>
+        <View className="min-w-0 flex-1">
+          <Text numberOfLines={1} className="text-sm font-semibold text-foreground">
+            Nothing playing
+          </Text>
+          <Text numberOfLines={1} className="text-xs text-muted-foreground">
+            {!online
+              ? 'You are offline'
+              : shuffle.isError
+                ? 'Could not shuffle. Try again.'
+                : 'Select something to play'}
+          </Text>
+        </View>
+        {/* Offline it could only wait, so it is not offered. */}
+        {online ? (
+          <PressableScale
+            onPress={() => shuffle.mutate()}
+            disabled={shuffle.isPending}
+            accessibilityLabel="Shuffle the archive"
+            scaleTo={0.9}
+            className="size-10 items-center justify-center"
+          >
+            {shuffle.isPending ? (
+              <ActivityIndicator color={colors.foreground} />
+            ) : (
+              <Shuffle size={20} color={colors.foreground} />
+            )}
+          </PressableScale>
+        ) : null}
+      </View>
     </View>
   );
 }

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { KpClient } from './client';
-import { ilikePattern, otherRecordings, shabadById, shabadsByIds } from './queries';
+import { ilikePattern, otherRecordings, searchShabads, shabadById, shabadsByIds } from './queries';
 
 describe('ilikePattern', () => {
   it('quotes the pattern so a comma cannot end the or() filter', () => {
@@ -162,5 +162,40 @@ describe('shabadById', () => {
   it('throws a real failure, so a link that could not load is not called missing', async () => {
     const { client } = fakeClient({ data: null, error: { code: '08006', message: 'down' } });
     await expect(shabadById(client, ID)).rejects.toThrow('down');
+  });
+});
+
+describe('searchShabads', () => {
+  function fakeClient() {
+    const filters: string[] = [];
+    const chain = {
+      select: () => chain,
+      range: () => chain,
+      or: (filter: string) => (filters.push(filter), chain),
+      order: () => chain,
+      then: (resolve: (r: { data: unknown[]; error: null }) => void) =>
+        resolve({ data: [], error: null }),
+    };
+    return { client: { from: () => chain } as unknown as KpClient, filters };
+  }
+
+  it('finds roman titles, ragis and the shabads BaniDB matched', async () => {
+    const { client, filters } = fakeClient();
+    await searchShabads(client, 'jjas', 'en', [1794, 3022]);
+    expect(filters).toEqual([
+      'name.ilike."%jjas%",artist_display.ilike."%jjas%",shabad_id.in.(1794,3022)',
+    ]);
+  });
+
+  it('keeps a roman search working with nothing from BaniDB', async () => {
+    const { client, filters } = fakeClient();
+    await searchShabads(client, 'jag jivan', 'en', []);
+    expect(filters).toEqual(['name.ilike."%jag jivan%",artist_display.ilike."%jag jivan%"']);
+  });
+
+  it('never holds Punjabi keystrokes against roman titles', async () => {
+    const { client, filters } = fakeClient();
+    await searchShabads(client, 'jjAs', 'pa', [1794]);
+    expect(filters).toEqual(['name_gurmukhi.ilike."%jjAs%",shabad_id.in.(1794)']);
   });
 });

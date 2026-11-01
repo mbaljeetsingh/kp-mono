@@ -1,0 +1,38 @@
+/**
+ * The brand mark, drawn from packages/tokens/brand/logo-badge{,-dark}.svg: the
+ * Gurmukhi letter ka inside a play button, its top line in gold. Metro cannot
+ * import an SVG file here, so the outline is copied; change it there first.
+ */
+import Svg, { ClipPath, Defs, G, Path, Rect } from 'react-native-svg';
+
+import { useIsDark } from '~/lib/theme';
+
+const LETTER =
+  'M652 535 644 520H524Q528 499 529.5 478.0Q531 457 531 436Q531 376 518.5 321.5Q506 267 482 222Q509 170 531.5 105.5Q554 41 569 -33L553 -44L424 -7Q417 27 408.5 59.0Q400 91 390 119Q362 95 327.0 82.0Q292 69 255 69Q210 69 168.0 84.0Q126 99 92.5 125.5Q59 152 39.0 187.0Q19 222 19 263Q19 306 42.0 345.0Q65 384 107.0 408.0Q149 432 206 432Q258 432 304.5 409.0Q351 386 391 343Q399 366 403.0 391.5Q407 417 407 446Q407 463 405.5 482.0Q404 501 400 520H-11L-44 607L-36 622H619ZM220 156Q259 156 295.0 178.0Q331 200 354 238Q331 277 300.5 297.5Q270 318 232 318Q200 318 177.5 305.5Q155 293 143.0 274.0Q131 255 131 234Q131 215 141.5 197.0Q152 179 171.5 167.5Q191 156 220 156Z';
+
+export function LogoBadge({ size }: { size: number }) {
+  const dark = useIsDark();
+  const badge = dark ? '#232a36' : '#113979';
+  const play = dark ? '#d2e2f6' : '#ffffff';
+  const letter = dark ? '#121720' : '#113979';
+  return (
+    <Svg width={size} height={size} viewBox="0 0 64 64" accessibilityLabel="Kirtan Player">
+      <Defs>
+        <ClipPath id="ka-line">
+          <Rect x={-200} y={520} width={1200} height={400} />
+        </ClipPath>
+        <ClipPath id="ka-body">
+          <Rect x={-200} y={-200} width={1200} height={720} />
+        </ClipPath>
+      </Defs>
+      <Rect width={64} height={64} rx={14} fill={badge} />
+      <G transform="translate(7.5 7) scale(.78)">
+        <Path d="M9 8V56L62 32Z" fill={play} stroke={play} strokeWidth={6} strokeLinejoin="round" />
+        <G transform="translate(14.053 42.197) scale(0.03529 -0.03529)">
+          <Path d={LETTER} fill="#d28423" clipPath="url(#ka-line)" />
+          <Path d={LETTER} fill={letter} clipPath="url(#ka-body)" />
+        </G>
+      </G>
+    </Svg>
+  );
+}

@@ -13,6 +13,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
+import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
@@ -25,6 +26,7 @@ const SORTS: { sort: ShabadSort; label: string }[] = [
 ];
 
 export default function AllShabadsScreen() {
+  const miniPlayerSpace = useMiniPlayerSpace();
   const colors = useColors();
   const router = useRouter();
   const { onMore, sheet } = useShabadActions();
@@ -39,6 +41,9 @@ export default function AllShabadsScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
+        // Past the tab bar and the play controls riding above it.
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={miniPlayerSpace}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
           <View className="gap-3 px-3 pb-2 pt-3">

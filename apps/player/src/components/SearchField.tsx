@@ -11,8 +11,11 @@
  * Escape, or deleting the last character) goes back to wherever the search
  * began — an empty results page there reads as something broken. The phone's
  * box is its page, so it stays put and waits for a new term.
+ *
+ * The header language decides what is typed: roman letters, or GurbaniLipi keys
+ * drawn in the GurbaniLipi font, as the read-along's search takes them.
  */
-import { Input } from '@kp/ui/input';
+import { ShabadInput } from '@kp/ui/app/shabad-input';
 import {
   useCanGoBack,
   useLocation,
@@ -20,9 +23,8 @@ import {
   useRouter,
   useSearch,
 } from '@tanstack/react-router';
-import { Search } from 'lucide-react';
 
-import { cn } from '~/lib/utils';
+import { useTitleScript } from '~/lib/title-script';
 
 interface Props {
   autoFocus?: boolean;
@@ -37,6 +39,8 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
   const navigate = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
+  const [script] = useTitleScript();
+  const punjabi = script === 'pa';
 
   function onChange(value: string) {
     if (!value && exitOnClear && onSearchPage) {
@@ -49,17 +53,15 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
   }
 
   return (
-    <div className={cn('relative', className)}>
-      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        type="search"
-        value={q}
-        autoFocus={autoFocus}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Shabad or ragi…"
-        aria-label="Search shabads and ragis"
-        className="rounded-full pl-9"
-      />
-    </div>
+    <ShabadInput
+      value={q}
+      onChange={onChange}
+      gurbaniLipi={punjabi}
+      autoFocus={autoFocus}
+      placeholder={punjabi ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'Shabad first letters or ragi…'}
+      ariaLabel={punjabi ? 'Search shabads' : 'Search shabads and ragis'}
+      className={className}
+      inputClassName="rounded-full"
+    />
   );
 }

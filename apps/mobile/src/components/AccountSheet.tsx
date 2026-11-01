@@ -1,10 +1,10 @@
 /**
- * The account, behind one button in Library's header — the web's AccountButton.
+ * The account, behind one button in the tabs' header — the web's AccountButton.
  *
  * Signed out it is a way to sign in; signed in it says which account this is
  * (the web's menu does, and nothing here did), and holds sign out and the
- * delete both stores require. The links out live here too: privacy, the
- * tagging workbench, the source.
+ * delete both stores require. Theme and the links out live here too: privacy,
+ * the tagging workbench, the source.
  */
 import { deleteOwnAccount, signOut } from '@kp/api';
 import { useRouter } from 'expo-router';
@@ -12,6 +12,7 @@ import { ExternalLink, UserRound, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Linking, Modal, Pressable, Text, View } from 'react-native';
 
+import { ThemeSelector } from '~/components/ThemeSelector';
 import { CONTRIBUTE_URL, GITHUB_URL, PRIVACY_URL } from '~/lib/links';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
@@ -139,6 +140,8 @@ export function AccountButton() {
               />
             )}
 
+            <View className="mx-4 my-2 h-px bg-border" />
+            <ThemeSelector />
             <View className="mx-4 my-2 h-px bg-border" />
             <Row label="Contribute shabads" onPress={() => visit(CONTRIBUTE_URL)} external />
             <Row label="Source code" onPress={() => visit(GITHUB_URL)} external />
