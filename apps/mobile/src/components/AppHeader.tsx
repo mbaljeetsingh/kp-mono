@@ -8,7 +8,6 @@ import { View } from 'react-native';
 import { AccountButton } from '~/components/AccountSheet';
 import { LanguageSelector } from '~/components/LanguageSelector';
 import { LogoBadge } from '~/components/LogoBadge';
-import { ThemeSelector } from '~/components/ThemeSelector';
 
 export function AppHeader() {
   return (
@@ -16,7 +15,6 @@ export function AppHeader() {
       <LogoBadge size={32} />
       <View className="flex-1" />
       <LanguageSelector />
-      <ThemeSelector />
       <AccountButton />
     </View>
   );

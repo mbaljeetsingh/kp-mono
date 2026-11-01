@@ -47,7 +47,7 @@ export function LanguageSelector() {
               : 'text-sm font-medium text-foreground'
           }
         >
-          {current.short}
+          {current.label}
         </Text>
         <ChevronDown size={12} color={colors.mutedForeground} />
       </Pressable>

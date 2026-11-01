@@ -5,12 +5,14 @@
  * Three rather than a switch: "System" is a real preference, and a toggle that
  * silently pins one of the two takes it away from anyone who had it.
  * A sheet, as LanguageSelector is, because that is how this app offers choices.
+ * Opened from a row in the account sheet, not the header: it is set once, where
+ * language changes what is on screen and earns its place there.
  */
-import { Check, Moon, Smartphone, Sun, X } from 'lucide-react-native';
+import { Check, ChevronRight, Moon, Smartphone, Sun, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
-import { useColors, useIsDark, useThemeChoice, type ThemeChoice } from '~/lib/theme';
+import { useColors, useThemeChoice, type ThemeChoice } from '~/lib/theme';
 
 const OPTIONS: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -20,10 +22,9 @@ const OPTIONS: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
 
 export function ThemeSelector() {
   const colors = useColors();
-  const dark = useIsDark();
   const [choice, setChoice] = useThemeChoice();
   const [open, setOpen] = useState(false);
-  const Icon = choice === 'system' ? Smartphone : dark ? Moon : Sun;
+  const current = OPTIONS.find((option) => option.value === choice)?.label;
 
   function choose(next: ThemeChoice) {
     setOpen(false);
@@ -35,11 +36,12 @@ export function ThemeSelector() {
       <Pressable
         onPress={() => setOpen(true)}
         accessibilityRole="button"
-        accessibilityLabel={`Theme: ${choice}`}
-        hitSlop={6}
-        className="size-8 items-center justify-center rounded-lg bg-muted active:bg-accent"
+        accessibilityLabel={`Theme: ${current}`}
+        className="flex-row items-center gap-2 px-4 py-3 active:bg-accent"
       >
-        <Icon size={16} color={colors.foreground} />
+        <Text className="flex-1 text-foreground">Theme</Text>
+        <Text className="text-muted-foreground">{current}</Text>
+        <ChevronRight size={16} color={colors.mutedForeground} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
