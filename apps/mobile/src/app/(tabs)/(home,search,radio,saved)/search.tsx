@@ -19,6 +19,7 @@ import { useDebounceValue } from 'usehooks-ts';
 
 import { Input } from '@kp/ui-native/input';
 
+import { AppHeader } from '~/components/AppHeader';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { RagiShelf } from '~/components/RagiShelf';
 import { Screen } from '~/components/Screen';
@@ -64,7 +65,8 @@ export default function SearchScreen() {
 
   return (
     <Screen edges={['top']} className="flex-1 bg-background">
-      <View className="px-4 pb-2 pt-3">
+      <View className="gap-3 px-5 pb-2 pt-3">
+        <AppHeader />
         <Input
           value={term}
           onChangeText={setTerm}

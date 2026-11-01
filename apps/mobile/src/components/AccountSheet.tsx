@@ -1,5 +1,5 @@
 /**
- * The account, behind one button in Library's header — the web's AccountButton.
+ * The account, behind one button in the tabs' header — the web's AccountButton.
  *
  * Signed out it is a way to sign in; signed in it says which account this is
  * (the web's menu does, and nothing here did), and holds sign out and the

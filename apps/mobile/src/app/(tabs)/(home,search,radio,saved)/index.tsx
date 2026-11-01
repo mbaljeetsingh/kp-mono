@@ -13,12 +13,10 @@ import { useRouter, type Href } from 'expo-router';
 import { Play, Radio } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
-import { LanguageSelector } from '~/components/LanguageSelector';
-import { LogoBadge } from '~/components/LogoBadge';
+import { AppHeader } from '~/components/AppHeader';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { Screen } from '~/components/Screen';
 import { RagiShelf } from '~/components/RagiShelf';
-import { ThemeSelector } from '~/components/ThemeSelector';
 import { ShabadRow } from '~/components/ShabadRow';
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { useShabadActions } from '~/lib/use-shabad-actions';
@@ -52,12 +50,7 @@ export default function HomeScreen() {
         contentContainerClassName="gap-6 pb-6"
       >
         <View className="gap-4 px-5 pt-3">
-          <View className="flex-row items-center gap-2">
-            <LogoBadge size={32} />
-            <View className="flex-1" />
-            <LanguageSelector />
-            <ThemeSelector />
-          </View>
+          <AppHeader />
           {/* The broadcast is the one thing on this screen that is happening
                 right now, so it gets the raised card and the accent. */}
           <View className="overflow-hidden rounded-2xl bg-card">

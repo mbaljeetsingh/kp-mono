@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 
-import { AccountButton } from '~/components/AccountSheet';
+import { AppHeader } from '~/components/AppHeader';
 import { PlaylistsList } from '~/components/PlaylistsList';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
@@ -38,10 +38,8 @@ function LibraryHeader({ shelf, onShelf }: { shelf: Shelf; onShelf: (shelf: Shel
   const online = useIsOnline();
   return (
     <View className="gap-3 px-5 pb-3 pt-3">
-      <View className="flex-row items-center justify-between">
-        <Text className="font-display text-[34px] leading-10 text-foreground">Library</Text>
-        <AccountButton />
-      </View>
+      <AppHeader />
+      <Text className="font-display text-[34px] leading-10 text-foreground">Library</Text>
       {online ? (
         <View accessibilityRole="tablist" className="flex-row gap-1">
           {(['saved', 'playlists', 'downloads'] as const).map((s) => (
