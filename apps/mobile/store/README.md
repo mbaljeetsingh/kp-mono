@@ -91,8 +91,8 @@ npx eas-cli submit --platform android --profile production --latest
   API key, so submitting asks for no Apple login.
 - **Android**: Play's API cannot create an app's first release, so upload the
   first `.aab` by hand in Play Console (Internal testing). After that,
-  `submit` sends builds to the internal track as drafts (`eas.json`), to be
-  promoted in the console.
+  `submit` rolls builds out to the internal track, so testers get them without
+  a trip to the console (`eas.json`). Production stays a manual promotion there.
 
 ## The App Store listing, from the repo
 
