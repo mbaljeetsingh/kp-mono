@@ -123,3 +123,53 @@ export function useBaniDbSearch(base: string, term: string, searchType: number) 
     retry: 1,
   });
 }
+
+export const GURMUKHI_BACKSPACE = '⇐';
+
+/**
+ * The GurbaniLipi keys of the on-screen keyboards, ten to a row, as np-mono's
+ * tested one lays them out. Blanks hold the grid's shape: the rows follow how the
+ * letters group, so the last is short and the gap is part of the layout.
+ */
+export const GURMUKHI_KEYS: readonly string[] = [
+  'a',
+  'A',
+  'e',
+  's',
+  'h',
+  'q',
+  'Q',
+  'd',
+  'D',
+  'n',
+  'k',
+  'K',
+  'g',
+  'G',
+  '|',
+  'p',
+  'P',
+  'b',
+  'B',
+  'm',
+  'c',
+  'C',
+  'j',
+  'J',
+  '\\',
+  'X',
+  'r',
+  'l',
+  'v',
+  'V',
+  't',
+  'T',
+  'f',
+  'F',
+  'x',
+  '',
+  '',
+  '',
+  '',
+  GURMUKHI_BACKSPACE,
+];

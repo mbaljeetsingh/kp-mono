@@ -17,15 +17,14 @@ import { useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
-import { Input } from '@kp/ui-native/input';
-
 import { AppHeader } from '~/components/AppHeader';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { RagiShelf } from '~/components/RagiShelf';
 import { Screen } from '~/components/Screen';
+import { GurmukhiKeys, ShabadInput } from '~/components/ShabadInput';
 import { ShabadRow } from '~/components/ShabadRow';
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
-import { useMiniPlayerSpace } from '~/lib/mini-player-space';
+import { useMiniPlayerSpace, usePlayControlsClearance } from '~/lib/mini-player-space';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -39,9 +38,11 @@ const RAGI_LIMIT = 8;
 
 export default function SearchScreen() {
   const miniPlayerSpace = useMiniPlayerSpace();
+  const clearance = usePlayControlsClearance();
   const colors = useColors();
   const { onMore, sheet } = useShabadActions();
   const [term, setTerm] = useState('');
+  const [keysOpen, setKeysOpen] = useState(true);
   const [debounced] = useDebounceValue(term, 250);
   const [script] = useTitleScript();
   const query = useSearch(supabase, BANIDB_BASE, debounced, script);
@@ -67,112 +68,118 @@ export default function SearchScreen() {
     <Screen edges={['top']} className="flex-1 bg-background">
       <View className="gap-3 px-5 pb-2 pt-3">
         <AppHeader />
-        <Input
+        <ShabadInput
           value={term}
           onChangeText={setTerm}
+          script={script}
           autoFocus
           placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'Shabad first letters or ragi…'}
-          placeholderTextColor={colors.mutedForeground}
-          autoCorrect={false}
-          // A shabad name is not a sentence, and iOS would shift the first
-          // letter of every new query.
-          autoCapitalize="none"
-          returnKeyType="search"
-          // Only once there is something to draw in it: React Native draws the
-          // placeholder in the field's font, and GurbaniLipi would garble it.
-          className={cn('h-11', script === 'pa' && term.length > 0 && 'font-gurmukhi text-lg')}
+          onPress={() => setKeysOpen(true)}
         />
       </View>
 
-      {/* Said rather than left blank: a search box that does nothing for one
+      {/* Takes what is left, so the results end where the keys begin. */}
+      <View className="flex-1">
+        {/* Said rather than left blank: a search box that does nothing for one
           character reads as broken. */}
-      {!ready ? (
-        <Text className="px-5 py-2 text-sm text-muted-foreground">
-          Type at least {min} characters.
-        </Text>
-      ) : (
-        <FlatList
-          data={items}
-          keyExtractor={(item: Playable) => item.id}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          // Past the tab bar and the play controls riding above it.
-          contentInsetAdjustmentBehavior="automatic"
-          contentContainerStyle={miniPlayerSpace}
-          contentContainerClassName="pb-4"
-          ListHeaderComponent={
-            <View className="gap-2 pb-1 pt-2">
-              {ragis.length ? (
-                <>
-                  <Text className="px-5 text-sm font-medium text-foreground">Ragis</Text>
-                  <RagiShelf artists={ragis} />
-                </>
-              ) : null}
-              <Text className="px-5 pt-2 text-sm font-medium text-foreground">Shabads</Text>
-              {query.data?.pages[0]?.partial ? (
-                <Text className="px-5 text-sm text-muted-foreground">
-                  Many lines match. Type another letter to narrow it.
-                </Text>
-              ) : null}
-              {query.data?.pages[0]?.degraded ? (
-                <Text className="px-5 text-sm text-muted-foreground">
-                  First-letter search is unavailable right now. Showing titles and ragis.
-                </Text>
-              ) : null}
-            </View>
-          }
-          renderItem={({ item, index }) => (
-            <View className="px-2">
-              <ShabadRow
-                item={item}
-                isCurrent={item.id === currentId}
-                onPress={() => playerActions.playList(items, index)}
-                onMore={onMore}
-              />
-            </View>
-          )}
-          onEndReached={() => {
-            if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
-          }}
-          onEndReachedThreshold={0.6}
-          ListFooterComponent={
-            query.isFetchNextPageError ? (
-              <Pressable
-                onPress={() => void query.fetchNextPage()}
-                accessibilityRole="button"
-                className="px-5 py-3 active:opacity-60"
-              >
-                <Text className="text-sm text-muted-foreground">
-                  Could not load more. Tap to try again.
-                </Text>
-              </Pressable>
-            ) : null
-          }
-          ListEmptyComponent={
-            // Pending, not loading: a request held for a connection is not loading, and
-            // this empty text over it would say the list has nothing in it.
-            query.isLoading ? (
+        {!ready ? (
+          <Text className="px-5 py-2 text-sm text-muted-foreground">
+            Type at least {min} characters.
+          </Text>
+        ) : (
+          <FlatList
+            data={items}
+            keyExtractor={(item: Playable) => item.id}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            // Reading the results takes the letters away, as it does the phone's keyboard.
+            onScrollBeginDrag={() => setKeysOpen(false)}
+            // Past the tab bar and the play controls riding above it.
+            contentInsetAdjustmentBehavior="automatic"
+            contentContainerStyle={miniPlayerSpace}
+            contentContainerClassName="pb-4"
+            ListHeaderComponent={
+              <View className="gap-2 pb-1 pt-2">
+                {ragis.length ? (
+                  <>
+                    <Text className="px-5 text-sm font-medium text-foreground">Ragis</Text>
+                    <RagiShelf artists={ragis} />
+                  </>
+                ) : null}
+                <Text className="px-5 pt-2 text-sm font-medium text-foreground">Shabads</Text>
+                {query.data?.pages[0]?.partial ? (
+                  <Text className="px-5 text-sm text-muted-foreground">
+                    Many lines match. Type another letter to narrow it.
+                  </Text>
+                ) : null}
+                {query.data?.pages[0]?.degraded ? (
+                  <Text className="px-5 text-sm text-muted-foreground">
+                    First-letter search is unavailable right now. Showing titles and ragis.
+                  </Text>
+                ) : null}
+              </View>
+            }
+            renderItem={({ item, index }) => (
               <View className="px-2">
-                <ShabadRowSkeletons />
+                <ShabadRow
+                  item={item}
+                  isCurrent={item.id === currentId}
+                  onPress={() => playerActions.playList(items, index)}
+                  onMore={onMore}
+                />
               </View>
-            ) : query.isPending ? null : (
-              <View className="gap-1 px-5 py-6">
-                <Text className="text-sm text-foreground">
-                  {query.isError
-                    ? 'Could not search just now.'
-                    : // Punjabi's term is GurbaniLipi keystrokes, which read as nonsense here.
-                      script === 'pa'
-                      ? 'Nothing matches.'
-                      : `Nothing matches “${trimmed}”.`}
-                </Text>
-                <Text className="text-sm text-muted-foreground">
-                  Most of the archive is still untagged — it may simply not be findable yet.
-                </Text>
-              </View>
-            )
-          }
-        />
-      )}
+            )}
+            onEndReached={() => {
+              if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
+            }}
+            onEndReachedThreshold={0.6}
+            ListFooterComponent={
+              query.isFetchNextPageError ? (
+                <Pressable
+                  onPress={() => void query.fetchNextPage()}
+                  accessibilityRole="button"
+                  className="px-5 py-3 active:opacity-60"
+                >
+                  <Text className="text-sm text-muted-foreground">
+                    Could not load more. Tap to try again.
+                  </Text>
+                </Pressable>
+              ) : null
+            }
+            ListEmptyComponent={
+              // Pending, not loading: a request held for a connection is not loading, and
+              // this empty text over it would say the list has nothing in it.
+              query.isLoading ? (
+                <View className="px-2">
+                  <ShabadRowSkeletons />
+                </View>
+              ) : query.isPending ? null : (
+                <View className="gap-1 px-5 py-6">
+                  <Text className="text-sm text-foreground">
+                    {query.isError
+                      ? 'Could not search just now.'
+                      : // Punjabi's term is GurbaniLipi keystrokes, which read as nonsense here.
+                        script === 'pa'
+                        ? 'Nothing matches.'
+                        : `Nothing matches “${trimmed}”.`}
+                  </Text>
+                  <Text className="text-sm text-muted-foreground">
+                    Most of the archive is still untagged — it may simply not be findable yet.
+                  </Text>
+                </View>
+              )
+            }
+          />
+        )}
+      </View>
+
+      {/* Where the phone's keyboard would be, but above the play controls and
+          without dimming: results change as you type, and one is what you tap next. */}
+      {script === 'pa' && keysOpen ? (
+        <View className="px-2 pt-2" style={{ marginBottom: clearance + 8 }}>
+          <GurmukhiKeys value={term} onChangeText={setTerm} />
+        </View>
+      ) : null}
       {sheet}
     </Screen>
   );
