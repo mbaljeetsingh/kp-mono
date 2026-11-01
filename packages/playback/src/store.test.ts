@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Playable } from '@kp/core';
 
@@ -242,6 +242,48 @@ describe('hydrate', () => {
     expect(s.getState().position).toBe(90);
     expect(s.getState().repeat).toBe('all');
     expect(fake.calls).not.toContain('load https://x/old.mp3@0');
+  });
+});
+
+describe('starting', () => {
+  it('stops when the listener pauses during a skip', () => {
+    store.getState().play(whole('a'));
+    store.getState().onStatus({ position: 1, duration: 10, playing: true });
+    store.getState().play(whole('b'));
+    store.getState().toggle();
+    expect(store.getState().playing).toBe(false);
+    expect(store.getState().starting).toBeNull();
+  });
+
+  it('stops when the item being started is cued instead', () => {
+    store.getState().play(whole('a'));
+    store.getState().cue(whole('a'), 5);
+    expect(store.getState().starting).toBeNull();
+  });
+
+  it('gives up on a file that never plays, so the button stops spinning', () => {
+    vi.useFakeTimers();
+    try {
+      store.getState().play(whole('a'));
+      expect(store.getState().starting).toBe('a');
+      vi.advanceTimersByTime(15_000);
+      expect(store.getState().starting).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not let the last attempt end the next one early', () => {
+    vi.useFakeTimers();
+    try {
+      store.getState().play(whole('a'));
+      vi.advanceTimersByTime(10_000);
+      store.getState().play(whole('b'));
+      vi.advanceTimersByTime(10_000);
+      expect(store.getState().starting).toBe('b');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -9,6 +9,7 @@ import type { Playable } from '@kp/core';
 import { EmptyState } from '~/components/EmptyState';
 import { InfiniteScroll } from '~/components/InfiniteScroll';
 import { ShabadRow } from '~/components/ShabadRow';
+import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { playerActions, usePlayer } from '~/lib/player';
 
 interface Props {
@@ -50,9 +51,7 @@ export function ShabadList({ items, loading, onLoadMore, hasMore, empty, emptyHi
         />
       ))}
 
-      {loading && items.length === 0 ? (
-        <p className="px-3 py-4 text-sm text-muted-foreground">Loading…</p>
-      ) : null}
+      {loading && items.length === 0 ? <ShabadRowSkeletons /> : null}
 
       {onLoadMore ? (
         <InfiniteScroll

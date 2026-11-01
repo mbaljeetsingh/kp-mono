@@ -19,6 +19,7 @@ import { Screen } from '~/components/Screen';
 import { RagiShelf } from '~/components/RagiShelf';
 import { ThemeSelector } from '~/components/ThemeSelector';
 import { ShabadRow } from '~/components/ShabadRow';
+import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -223,6 +224,7 @@ function Shelf({
             onMore={onMore}
           />
         ))}
+        {query.isLoading ? <ShabadRowSkeletons /> : null}
         {!query.isLoading && !items.length ? (
           <Text className="px-3 py-4 text-sm text-muted-foreground">Nothing published yet.</Text>
         ) : null}

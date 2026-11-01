@@ -16,6 +16,13 @@ import { useSession } from '~/lib/session';
 import { useShownTitle } from '~/lib/title-script';
 import { useColors } from '~/lib/theme';
 
+/**
+ * Text kept but unseen, so the row is exactly its loaded height. Lines sit flush
+ * against each other, so the bars are squeezed where only the eye sees it, which
+ * is what parts them without moving the layout.
+ */
+const LOADING_TEXT = 'scale-y-75 self-start overflow-hidden rounded bg-accent text-transparent';
+
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -26,11 +33,14 @@ export function ShabadRow({
   isCurrent,
   onPress,
   onMore,
+  loading = false,
 }: {
   item: Playable;
   isCurrent: boolean;
   onPress: () => void;
   onMore?: (item: Playable) => void;
+  /** Grey bars in this row's own layout; see ShabadRowSkeletons. */
+  loading?: boolean;
 }) {
   const colors = useColors();
   const { favorites } = useSession();
@@ -51,15 +61,28 @@ export function ShabadRow({
           : 'flex-row items-center gap-3 rounded-xl px-2 py-2 active:bg-card'
       }
     >
-      <PlayableArt item={item} size={52} rounded={10} />
+      {loading ? (
+        <View className="size-[52px] rounded-[10px] bg-accent" />
+      ) : (
+        <PlayableArt item={item} size={52} rounded={10} />
+      )}
 
       <View className="min-w-0 flex-1">
         <ShabadTitle
           item={item}
           numberOfLines={1}
-          className={isCurrent ? 'font-medium text-primary' : 'font-medium text-foreground'}
+          className={
+            loading
+              ? `font-medium ${LOADING_TEXT}`
+              : isCurrent
+                ? 'font-medium text-primary'
+                : 'font-medium text-foreground'
+          }
         />
-        <Text numberOfLines={1} className="text-[13px] leading-[18px] text-muted-foreground">
+        <Text
+          numberOfLines={1}
+          className={`text-[13px] leading-[18px] ${loading ? LOADING_TEXT : 'text-muted-foreground'}`}
+        >
           {item.subtitle ?? item.artist}
           {item.raag ? ` · ${item.raag}` : ''}
         </Text>
@@ -76,7 +99,7 @@ export function ShabadRow({
         onPress={() => favorites.toggle(item.id)}
         accessibilityLabel={saved ? `Remove ${title} from saved` : `Save ${title}`}
         hitSlop={6}
-        className="size-8 items-center justify-center"
+        className={`size-8 items-center justify-center ${loading ? 'opacity-0' : ''}`}
       >
         <Heart
           size={16}

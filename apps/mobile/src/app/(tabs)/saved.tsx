@@ -16,6 +16,7 @@ import { AccountButton } from '~/components/AccountSheet';
 import { PlaylistsList } from '~/components/PlaylistsList';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { removeAllDownloads, useDownloads } from '~/lib/downloads';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -181,7 +182,11 @@ function SavedList({ header }: { header: React.ReactElement }) {
           </View>
         )}
         ListEmptyComponent={
-          favorites.failed || (query.isError && query.data === undefined) ? (
+          query.isLoading ? (
+            <View className="px-2">
+              <ShabadRowSkeletons />
+            </View>
+          ) : favorites.failed || (query.isError && query.data === undefined) ? (
             // A failed read is not an empty list: "Nothing saved yet" over an
             // account with saved shabads reads as losing them.
             <Pressable

@@ -38,6 +38,13 @@ const QUEUE_KEY = 'kp:queue';
 const REPEAT_KEY = 'kp:repeat';
 const RESUME_KEY = 'kp:resume';
 const RECENT_KEY = 'kp:recent';
+/** As long as the mobile driver lets a load settle before giving up on it. */
+const STARTING_TIMEOUT_MS = 15_000;
+
+// Every runtime this runs in has timers; this package compiles against neither
+// the DOM's types nor Node's, so it says which two it uses.
+declare function setTimeout(callback: () => void, ms: number): unknown;
+declare function clearTimeout(id: unknown): void;
 
 export interface PlayerState {
   current: Playable | null;
@@ -157,10 +164,18 @@ export function createPlayerStore({
       };
     }
 
+    let startingTimer: unknown;
+
     /** Load an item and start it. The one place `driver.load` is called. */
     function start(item: Playable, index: number) {
       if (!canPlay(item)) return;
       const recentIds = withRecent(get().recentIds, item);
+      // Only playing clears `starting`, and a file sgpc.net has moved never
+      // plays: without this the play button would spin for good.
+      if (startingTimer) clearTimeout(startingTimer);
+      startingTimer = setTimeout(() => {
+        if (get().starting === item.id) set({ starting: null });
+      }, STARTING_TIMEOUT_MS);
       set({
         current: item,
         index,
@@ -330,7 +345,14 @@ export function createPlayerStore({
         // Paused first: a new src on a playing element is not guaranteed to
         // stop it, and a cue must never start sound by itself.
         driver?.pause();
-        set({ items: [item], index: 0, current: item, position: at, playing: false });
+        set({
+          items: [item],
+          index: 0,
+          current: item,
+          position: at,
+          playing: false,
+          starting: null,
+        });
         driver?.load(item.url, at, nowPlaying(item));
         persistQueue();
       },
@@ -370,7 +392,8 @@ export function createPlayerStore({
         if (!s.current) return;
         if (s.playing) {
           driver?.pause();
-          set({ playing: false });
+          // Tapped mid-skip: nothing is starting any more, so nothing may spin.
+          set({ playing: false, starting: null });
           return;
         }
         // Asked to resume something it no longer has any way of fetching.
