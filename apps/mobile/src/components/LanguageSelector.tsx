@@ -1,5 +1,6 @@
 /**
- * The listener's language — for now, the script shabad titles are shown in.
+ * The listener's language — for now, the script shabad titles are shown in and
+ * searched by.
  * The phone's version of the web's selector (and np-mono's): the current
  * language named in its own script, and the choices in a sheet, each in its
  * own script, the current one checked.
@@ -46,7 +47,7 @@ export function LanguageSelector() {
               : 'text-sm font-medium text-foreground'
           }
         >
-          {current.short}
+          {current.label}
         </Text>
         <ChevronDown size={12} color={colors.mutedForeground} />
       </Pressable>
@@ -61,7 +62,7 @@ export function LanguageSelector() {
                 <Text className="font-display-medium text-lg text-foreground">Language</Text>
                 {/* "Language" because the app's own words follow it later;
                     until then a listener should not expect the buttons to change. */}
-                <Text className="text-xs text-muted-foreground">Shabad titles for now</Text>
+                <Text className="text-xs text-muted-foreground">Shabad titles and search</Text>
               </View>
               <Pressable
                 onPress={() => setOpen(false)}

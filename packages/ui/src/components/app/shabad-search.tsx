@@ -3,7 +3,8 @@
  *
  * Shared by the workbench, where it links a shabad to a rendition, and by the
  * player's read-along, where a listener on a live broadcast can look up what
- * they are hearing.
+ * they are hearing. The player has a header language to follow, passed as
+ * `searchType`; the workbench has none, so it keeps its own toggle.
  *
  * Typing is GurbaniLipi. The field keeps raw keystrokes and renders them in the
  * GurbaniLipi font, so `mdmA` shows as ਮਦਮਅ while the query still holds the
@@ -12,7 +13,7 @@
  * never jumps, and paste, backspace and selection behave like a normal input
  * because it is one.
  */
-import { SEARCH_TYPES, useBaniDbSearch, type BaniDbHit } from '@kp/api';
+import { LANGUAGE_SEARCH_TYPE, SEARCH_TYPES, useBaniDbSearch, type BaniDbHit } from '@kp/api';
 import { Search, X } from 'lucide-react';
 import * as React from 'react';
 import { useLocalStorage } from 'usehooks-ts';
@@ -34,14 +35,18 @@ export function ShabadSearch({
   base,
   onSelect,
   placeholder = 'Type the first letters…',
+  searchType,
   className,
 }: {
   base: string;
+  /** Fixes the search, and takes the toggle away. */
+  searchType?: number;
   onSelect: (pick: ShabadPick) => void;
   placeholder?: string;
   className?: string;
 }) {
-  const [lang, setLang] = useLocalStorage<number>('kp:shabad-lang', 0);
+  const [chosen, setChosen] = useLocalStorage<number>('kp:shabad-lang', 0);
+  const lang = searchType ?? chosen;
   const [term, setTerm] = React.useState('');
 
   const query = useBaniDbSearch(base, term, lang);
@@ -49,7 +54,7 @@ export function ShabadSearch({
 
   // English search is a different alphabet, so it drops the font and reads as
   // roman.
-  const gurbaniLipi = lang === 0;
+  const gurbaniLipi = lang !== LANGUAGE_SEARCH_TYPE.en;
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -85,19 +90,21 @@ export function ShabadSearch({
         {gurbaniLipi ? <GurmukhiKeyboard value={term} onChange={setTerm} /> : null}
       </div>
 
-      <div className="flex gap-1">
-        {SEARCH_TYPES.map((type) => (
-          <Button
-            key={type.key}
-            variant={lang === type.key ? 'secondary' : 'ghost'}
-            size="xs"
-            aria-pressed={lang === type.key}
-            onClick={() => setLang(type.key)}
-          >
-            {type.label}
-          </Button>
-        ))}
-      </div>
+      {searchType === undefined ? (
+        <div className="flex gap-1">
+          {SEARCH_TYPES.map((type) => (
+            <Button
+              key={type.key}
+              variant={lang === type.key ? 'secondary' : 'ghost'}
+              size="xs"
+              aria-pressed={lang === type.key}
+              onClick={() => setChosen(type.key)}
+            >
+              {type.label}
+            </Button>
+          ))}
+        </div>
+      ) : null}
 
       {query.isLoading ? (
         <p className="px-1 py-2 text-sm text-muted-foreground">Searching…</p>

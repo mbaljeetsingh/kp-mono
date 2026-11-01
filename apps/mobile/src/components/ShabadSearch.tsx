@@ -4,9 +4,10 @@
  * Typing is GurbaniLipi: the field keeps raw keystrokes and renders them in the
  * GurbaniLipi font, so `mdmA` shows as ਮਦਮਅ while the query still holds the
  * ASCII BaniDB's first-letter search wants. No transliteration step, so nothing
- * can disagree about what was typed.
+ * can disagree about what was typed. English types roman letters. The header
+ * language decides which.
  */
-import { SEARCH_TYPES, useBaniDbSearch, type BaniDbHit } from '@kp/api';
+import { READ_ALONG_SEARCH_TYPE, useBaniDbSearch, type BaniDbHit } from '@kp/api';
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
@@ -14,19 +15,20 @@ import { useDebounceValue } from 'usehooks-ts';
 import { BANIDB_BASE } from '~/lib/links';
 import { cn } from '~/lib/utils';
 import { useColors } from '~/lib/theme';
+import { useTitleScript } from '~/lib/title-script';
 
 export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => void }) {
   const colors = useColors();
-  const [lang, setLang] = useState<number>(0);
+  const [script] = useTitleScript();
   const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 300);
 
-  const query = useBaniDbSearch(BANIDB_BASE, debounced, lang);
+  const query = useBaniDbSearch(BANIDB_BASE, debounced, READ_ALONG_SEARCH_TYPE[script]);
   const hits = query.data ?? [];
 
   // English search is a different alphabet, so it drops the font and reads as
   // roman.
-  const gurbaniLipi = lang === 0;
+  const gurbaniLipi = script === 'pa';
 
   return (
     <View className="gap-3">
@@ -35,7 +37,7 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
         onChangeText={setTerm}
         autoCapitalize="none"
         autoCorrect={false}
-        placeholder={gurbaniLipi ? 'First letters…' : 'Words in English…'}
+        placeholder={gurbaniLipi ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'First letters…'}
         placeholderTextColor={colors.mutedForeground}
         className={cn(
           'rounded-lg border border-border bg-card px-4 py-3 text-foreground',
@@ -46,28 +48,6 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
           gurbaniLipi && term.length > 0 && 'font-gurmukhi'
         )}
       />
-
-      <View className="flex-row gap-2">
-        {SEARCH_TYPES.map((type) => (
-          <Pressable
-            key={type.key}
-            onPress={() => setLang(type.key)}
-            className={cn(
-              'rounded-md px-3 py-1.5',
-              lang === type.key ? 'bg-primary/20' : 'bg-muted'
-            )}
-          >
-            <Text
-              className={cn(
-                'text-xs',
-                lang === type.key ? 'text-primary' : 'text-muted-foreground'
-              )}
-            >
-              {type.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
 
       {query.isLoading ? <Text className="text-sm text-muted-foreground">Searching…</Text> : null}
       {query.isError ? (

@@ -9,9 +9,10 @@ import { shelfShabads, useArtists, useRecentShabads, type ShabadSort } from '@kp
 import { DEFAULT_STATION, RECENT_SHELF_FETCH, stationPlayable } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Radio } from 'lucide-react';
+import { Play, Radio } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { LiveBadge } from '~/components/LiveBadge';
 import { RagiShelf } from '~/components/RagiCard';
 import { ShabadList } from '~/components/ShabadList';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -30,33 +31,31 @@ export function HomeRoute() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header>
-        <h1 className="font-display text-3xl font-semibold">Kirtan Player</h1>
-        <p className="text-sm text-muted-foreground">
-          Twenty years of kirtan from Sri Harmandir Sahib.
-        </p>
-      </header>
+      {/* Unseen, but a screen reader still needs the page to have a heading. */}
+      <h1 className="sr-only">Kirtan Player</h1>
 
-      <button
-        type="button"
-        onClick={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
-        className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 text-left hover:bg-accent/50"
-      >
-        <Radio className="size-5 shrink-0 text-primary" />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">{DEFAULT_STATION.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">
-            Live now · {DEFAULT_STATION.place}
-          </span>
-        </span>
-        <Link
-          to="/radio"
-          onClick={(e) => e.stopPropagation()}
-          className="shrink-0 text-xs text-muted-foreground hover:text-foreground"
+      {/* The same card as the phone's. */}
+      <div className="overflow-hidden rounded-2xl bg-card">
+        <button
+          type="button"
+          onClick={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
+          className="flex w-full items-center gap-3 p-3 text-left hover:bg-accent/50"
         >
-          All stations
-        </Link>
-      </button>
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary-soft">
+            <Radio className="size-6 text-primary" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <LiveBadge />
+            <span className="block truncate text-[17px] font-semibold">{DEFAULT_STATION.name}</span>
+            <span className="block truncate text-[13px] text-muted-foreground">
+              {DEFAULT_STATION.place}
+            </span>
+          </span>
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary">
+            <Play className="size-5 fill-primary-foreground text-primary-foreground" />
+          </span>
+        </button>
+      </div>
 
       <RecentShelf />
       <Shelf title="Recently added" sort="newest" />

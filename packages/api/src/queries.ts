@@ -5,7 +5,7 @@
  * prefetch, or a test, and every one of those wants the same query. The hooks
  * in `hooks.ts` are thin wrappers around these.
  */
-import { chunk, toPlayable, type Playable } from '@kp/core';
+import { chunk, toPlayable, type Playable, type TitleScript } from '@kp/core';
 
 import { toError, type KpClient } from './client';
 import { artistSchema, parseRows, shabadRowSchema, type Artist } from './schemas';
@@ -149,7 +149,7 @@ export async function shabadsByArtist(
 }
 
 /**
- * Title or artist, case-insensitive.
+ * Title or artist, case-insensitive, or a shabad BaniDB matched.
  *
  * Two levels of escaping, both load-bearing:
  *
@@ -173,15 +173,31 @@ export function ilikePattern(term: string): string {
   return `"%${escaped}%"`;
 }
 
+/**
+ * One filter rather than two searches merged here, so a recording that matches
+ * twice is one row and the paging stays the server's. Roman words stay alongside
+ * the initials because `jag jivan` is no first-letter search at all; Punjabi has
+ * no roman title to match, since its keystrokes are GurbaniLipi.
+ *
+ * `id` breaks ties for the reason `listShabads` gives.
+ */
 export async function searchShabads(
   client: KpClient,
   term: string,
+  script: TitleScript,
+  shabadIds: number[],
   from = 0
 ): Promise<Page<Playable>> {
   const like = ilikePattern(term);
-  const { data, error } = await shabads(client, from).or(
-    `name.ilike.${like},artist_display.ilike.${like}`
-  );
+  const text =
+    script === 'pa'
+      ? `name_gurmukhi.ilike.${like}`
+      : `name.ilike.${like},artist_display.ilike.${like}`;
+  const linked = shabadIds.length ? `,shabad_id.in.(${shabadIds.join(',')})` : '';
+  const { data, error } = await shabads(client, from)
+    .or(text + linked)
+    .order('play_count', { ascending: false })
+    .order('id');
   if (error) throw toError(error);
   return toPage(data);
 }

@@ -6,20 +6,15 @@
  * Shelves rather than one endless list: short enough that the next one is
  * still in reach, with the whole archive a "See all" away.
  */
-import {
-  randomShabads,
-  shelfShabads,
-  useArtists,
-  useRecentShabads,
-  type ShabadSort,
-} from '@kp/api';
+import { shelfShabads, useArtists, useRecentShabads, type ShabadSort } from '@kp/api';
 import { DEFAULT_STATION, RECENT_SHELF_FETCH, stationPlayable } from '@kp/core';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
-import { Play, Radio, Search, Shuffle } from 'lucide-react-native';
+import { Play, Radio } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LanguageSelector } from '~/components/LanguageSelector';
+import { LogoBadge } from '~/components/LogoBadge';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { Screen } from '~/components/Screen';
 import { RagiShelf } from '~/components/RagiShelf';
@@ -40,22 +35,10 @@ const RAGI_LIMIT = 12;
 
 export default function HomeScreen() {
   const colors = useColors();
-  const router = useRouter();
   const { onMore, sheet } = useShabadActions();
   const artists = useArtists(supabase);
   const miniPlayerSpace = useMiniPlayerSpace();
   const online = useIsOnline();
-
-  /**
-   * Enough to listen through without thinking about it again, few enough that
-   * the queue stays readable and a reshuffle is cheap.
-   */
-  const shuffle = useMutation({
-    mutationFn: () => randomShabads(supabase, 30),
-    onSuccess: (rows) => {
-      if (rows.length) playerActions.playList(rows, 0);
-    },
-  });
 
   if (!online) return <OfflineNotice />;
 
@@ -69,67 +52,41 @@ export default function HomeScreen() {
         contentContainerClassName="gap-6 pb-6"
       >
         <View className="gap-4 px-5 pt-3">
-          {/* The web's phone header: search, shuffle, the language and the
-              theme — the things a listener reaches for from anywhere. */}
-          <View className="flex-row items-center justify-end gap-2">
-            <Pressable
-              onPress={() => router.push('/search')}
-              accessibilityLabel="Search"
-              className="size-8 items-center justify-center rounded-lg bg-muted active:bg-accent"
-            >
-              <Search size={16} color={colors.foreground} />
-            </Pressable>
-            {/* For arriving with nothing in mind — which for kirtan is not the
-                unusual case. */}
-            <Pressable
-              disabled={shuffle.isPending}
-              onPress={() => shuffle.mutate()}
-              accessibilityLabel="Shuffle the archive"
-              className="size-8 items-center justify-center rounded-lg bg-muted active:bg-accent"
-            >
-              <Shuffle size={16} color={colors.foreground} />
-            </Pressable>
+          <View className="flex-row items-center gap-2">
+            <LogoBadge size={32} />
+            <View className="flex-1" />
             <LanguageSelector />
             <ThemeSelector />
           </View>
-          <View className="gap-1">
-            <Text className="font-display text-[34px] leading-10 text-foreground">
-              Kirtan Player
-            </Text>
-            <Text className="text-[15px] leading-5 text-muted-foreground">
-              Twenty years of kirtan from Sri Harmandir Sahib.
-            </Text>
-          </View>
           {/* The broadcast is the one thing on this screen that is happening
                 right now, so it gets the raised card and the accent. */}
-          <Pressable
-            onPress={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
-            className="flex-row items-center gap-3 rounded-2xl bg-card p-3 active:bg-accent"
-          >
-            <View className="size-14 items-center justify-center rounded-xl bg-primary-soft">
-              <Radio size={24} color={colors.primary} />
-            </View>
-            <View className="min-w-0 flex-1 gap-0.5">
-              <View className="flex-row items-center gap-1.5">
-                <View className="size-1.5 rounded-full bg-live" />
-                <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-live">
-                  Live
+          <View className="overflow-hidden rounded-2xl bg-card">
+            <Pressable
+              onPress={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
+              className="flex-row items-center gap-3 p-3 active:bg-accent"
+            >
+              <View className="size-14 items-center justify-center rounded-xl bg-primary-soft">
+                <Radio size={24} color={colors.primary} />
+              </View>
+              <View className="min-w-0 flex-1 gap-0.5">
+                <View className="flex-row items-center gap-1.5">
+                  <View className="size-1.5 rounded-full bg-live" />
+                  <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-live">
+                    Live
+                  </Text>
+                </View>
+                <Text numberOfLines={1} className="text-[17px] font-semibold text-foreground">
+                  {DEFAULT_STATION.name}
+                </Text>
+                <Text numberOfLines={1} className="text-[13px] text-muted-foreground">
+                  {DEFAULT_STATION.place}
                 </Text>
               </View>
-              <Text numberOfLines={1} className="text-[17px] font-semibold text-foreground">
-                {DEFAULT_STATION.name}
-              </Text>
-              <Text numberOfLines={1} className="text-[13px] text-muted-foreground">
-                {DEFAULT_STATION.place}
-              </Text>
-            </View>
-            <View className="size-11 items-center justify-center rounded-full bg-primary">
-              <Play size={20} color={colors.primaryForeground} fill={colors.primaryForeground} />
-            </View>
-          </Pressable>
-          <Pressable onPress={() => router.navigate('/radio')} className="self-end -mt-2">
-            <Text className="text-[13px] text-muted-foreground">All stations</Text>
-          </Pressable>
+              <View className="size-11 items-center justify-center rounded-full bg-primary">
+                <Play size={20} color={colors.primaryForeground} fill={colors.primaryForeground} />
+              </View>
+            </Pressable>
+          </View>
         </View>
 
         <RecentShelf onMore={onMore} />

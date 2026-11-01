@@ -6,13 +6,8 @@
  * being attributed to, and Sign out — and the workbench had them as loose text
  * and a bare button pinned to the bottom of the sidebar, where a long queue
  * pushed them off the screen entirely.
- *
- * Whatever else belongs in the menu is the app's own business and arrives as
- * children: the player puts its library links here, the workbench has none.
- * That keeps this component clear of either app's router.
  */
 import { LogOut } from 'lucide-react';
-import type { ReactNode } from 'react';
 
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -29,7 +24,6 @@ export function AccountMenu({
   email,
   onSignOut,
   variant = 'avatar',
-  children,
 }: {
   email: string;
   onSignOut: () => void;
@@ -41,8 +35,6 @@ export function AccountMenu({
    * truncated address would crowd out the title.
    */
   variant?: 'avatar' | 'row';
-  /** Items to sit above the separator and Sign out. */
-  children?: ReactNode;
 }) {
   // An address with no local part is not worth a blank circle.
   const initial = email.slice(0, 1).toUpperCase() || '?';
@@ -76,12 +68,6 @@ export function AccountMenu({
         <DropdownMenuLabel className="truncate font-normal text-muted-foreground">
           {email}
         </DropdownMenuLabel>
-        {children ? (
-          <>
-            <DropdownMenuSeparator />
-            {children}
-          </>
-        ) : null}
         <DropdownMenuSeparator />
         {/* `onClick`, not Radix's `onSelect` — see the note in ThemeToggle.
             This one is why Sign out did nothing at all. */}

@@ -11,7 +11,11 @@
  * Escape, or deleting the last character) goes back to wherever the search
  * began — an empty results page there reads as something broken. The phone's
  * box is its page, so it stays put and waits for a new term.
+ *
+ * The header language decides what is typed: roman letters, or GurbaniLipi keys
+ * drawn in the GurbaniLipi font, as the read-along's search takes them.
  */
+import { GurmukhiKeyboard } from '@kp/ui/app/gurmukhi-keyboard';
 import { Input } from '@kp/ui/input';
 import {
   useCanGoBack,
@@ -22,6 +26,7 @@ import {
 } from '@tanstack/react-router';
 import { Search } from 'lucide-react';
 
+import { useTitleScript } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
 
 interface Props {
@@ -37,6 +42,8 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
   const navigate = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
+  const [script] = useTitleScript();
+  const punjabi = script === 'pa';
 
   function onChange(value: string) {
     if (!value && exitOnClear && onSearchPage) {
@@ -56,10 +63,19 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
         value={q}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Shabad or ragi…"
+        placeholder={punjabi ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'Shabad first letters or ragi…'}
         aria-label="Search shabads and ragis"
-        className="rounded-full pl-9"
+        // The placeholder is real Gurmukhi: GurbaniLipi would draw it as nonsense.
+        className={cn(
+          'rounded-full pl-9',
+          punjabi && 'pr-10 font-gurmukhi text-lg placeholder:font-gurbani placeholder:text-sm'
+        )}
       />
+      {punjabi ? (
+        <div className="absolute right-1 top-1/2 -translate-y-1/2">
+          <GurmukhiKeyboard value={q} onChange={onChange} />
+        </div>
+      ) : null}
     </div>
   );
 }

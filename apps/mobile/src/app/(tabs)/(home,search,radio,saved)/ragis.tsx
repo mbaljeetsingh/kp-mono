@@ -8,10 +8,12 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { ArtTile } from '~/components/ArtTile';
+import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { artistPhotoUrl, supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
 
 export default function RagisScreen() {
+  const miniPlayerSpace = useMiniPlayerSpace();
   const colors = useColors();
   const router = useRouter();
   const query = useArtists(supabase);
@@ -22,6 +24,9 @@ export default function RagisScreen() {
         data={query.data ?? []}
         keyExtractor={(a) => a.name}
         numColumns={3}
+        // Past the tab bar and the play controls riding above it.
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={miniPlayerSpace}
         contentContainerClassName="px-2 pb-4"
         ListHeaderComponent={
           <View className="gap-1 px-3 pb-2 pt-3">

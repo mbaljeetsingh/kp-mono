@@ -1,5 +1,6 @@
 /**
- * The listener's language — for now, the script shabad titles are shown in.
+ * The listener's language — for now, the script shabad titles are shown in and
+ * searched by.
  *
  * The same control as np-mono's language selector: one button naming the
  * current language in its own script — two letters on a phone, the whole name
@@ -55,7 +56,7 @@ export function LanguageSelector() {
           {/* "Language" because the app's own words follow it later; until
               then a listener should not expect the buttons to change. */}
           <span className="mt-0.5 block whitespace-nowrap text-xs font-normal text-muted-foreground">
-            Shabad titles for now
+            Shabad titles and search
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />

@@ -8,11 +8,13 @@
 import {
   useInfiniteQuery,
   useQuery,
+  useQueryClient,
   type UseInfiniteQueryResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import type { Playable } from '@kp/core';
+import type { Playable, TitleScript } from '@kp/core';
 
+import { LANGUAGE_SEARCH_TYPE, MIN_FIRST_LETTERS, shabadIdsMatching } from './banidb';
 import type { KpClient } from './client';
 import { keys } from './keys';
 import {
@@ -58,17 +60,47 @@ export function useShabadsByArtist(client: KpClient, artist: string) {
 }
 
 /**
+ * How much a listener must type. Punjabi has only first letters to go on; roman
+ * has titles and ragis too, which two letters can already narrow.
+ */
+export function minSearchLength(script: TitleScript): number {
+  return script === 'pa' ? MIN_FIRST_LETTERS : 2;
+}
+
+/**
  * Search, held back until the term is worth a round trip.
  *
  * One character matches most of a 49k-row archive, which is a slow query for a
  * result nobody wanted.
+ *
+ * BaniDB is asked once per term, through the cache, not once per page. If it is
+ * down, roman search still has titles and ragis to offer, so that is what it
+ * shows; Punjabi has nothing else, so the failure surfaces as an error.
  */
-export function useSearch(client: KpClient, term: string) {
+export function useSearch(client: KpClient, base: string, term: string, script: TitleScript) {
   const trimmed = term.trim();
+  const queryClient = useQueryClient();
+  // A space means words, which no first-letter search can match.
+  const initials = trimmed.length >= MIN_FIRST_LETTERS && !/\s/.test(trimmed);
   return useInfiniteQuery({
-    queryKey: keys.shabads.search(trimmed),
-    queryFn: ({ pageParam }) => searchShabads(client, trimmed, pageParam as number),
-    enabled: trimmed.length >= 2,
+    queryKey: keys.shabads.search(trimmed, script),
+    queryFn: async ({ pageParam }) => {
+      const { ids, partial } = initials
+        ? await queryClient
+            .fetchQuery({
+              queryKey: keys.banidb.shabadIds(script, trimmed),
+              queryFn: () => shabadIdsMatching(base, trimmed, LANGUAGE_SEARCH_TYPE[script]),
+              staleTime: 1000 * 60 * 10,
+            })
+            .catch((failure: unknown) => {
+              if (script === 'pa') throw failure;
+              return { ids: [], partial: false };
+            })
+        : { ids: [], partial: false };
+      const page = await searchShabads(client, trimmed, script, ids, pageParam as number);
+      return { ...page, partial };
+    },
+    enabled: trimmed.length >= minSearchLength(script),
     ...pageParams(),
   });
 }

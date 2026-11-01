@@ -5,16 +5,12 @@
  * someone who turns out to be signed out, or the reverse, is worse than a beat
  * of nothing.
  *
- * The menu itself is shared with the workbench; what the player adds to it is
- * the two library destinations, which are the only things here that know about
- * this app's router.
+ * Saved and Playlists are not in its menu: the sidebar and the phone's Library
+ * tab already go there, and a second door to each only asked which to use.
  */
 import { signOut } from '@kp/api';
 import { AccountMenu } from '@kp/ui/app/account-menu';
 import { Button } from '@kp/ui/button';
-import { DropdownMenuItem } from '@kp/ui/dropdown-menu';
-import { Link } from '@tanstack/react-router';
-import { Heart, ListMusic } from 'lucide-react';
 
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
@@ -42,15 +38,6 @@ export function AccountButton({ variant = 'avatar' }: { variant?: 'avatar' | 'ro
       email={session.user.email ?? ''}
       onSignOut={() => void signOut(supabase)}
       variant={variant}
-    >
-      <DropdownMenuItem render={<Link to="/favorites" />}>
-        <Heart />
-        Saved
-      </DropdownMenuItem>
-      <DropdownMenuItem render={<Link to="/playlists" />}>
-        <ListMusic />
-        Playlists
-      </DropdownMenuItem>
-    </AccountMenu>
+    />
   );
 }

@@ -19,24 +19,25 @@
  * else in the app.
  */
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Platform, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Keyboard, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MiniPlayer } from '~/components/MiniPlayer';
-import { usePlayer } from '~/lib/player';
 import { useColors } from '~/lib/theme';
 
 /*
- * Three, as the web has on a phone (apps/player/src/routes/root.tsx).
- *
- * Search and Ragis are not places of their own: search is a button in Home's
- * header and finds ragis too, and the directory is a shelf on Home with a
- * "See all". Library is Saved and Playlists together, one switch apart.
+ * Search is a tab because it is what a listener reaches for most, and a page
+ * pushed over the tabs took the play controls away while they looked. Ragis is
+ * not a place of its own: search finds ragis too, and the directory is a shelf
+ * on Home with a "See all". Library is Saved and Playlists together, one switch
+ * apart.
  */
 const TABS = [
-  { name: 'index', label: 'Home', sf: 'house', md: 'home' },
-  { name: 'radio', label: 'Radio', sf: 'dot.radiowaves.left.and.right', md: 'radio' },
-  { name: 'saved', label: 'Library', sf: 'books.vertical', md: 'library_music' },
+  { name: '(home)', label: 'Home', sf: 'house', md: 'home' },
+  { name: '(search)', label: 'Search', sf: 'magnifyingglass', md: 'search' },
+  { name: '(radio)', label: 'Radio', sf: 'dot.radiowaves.left.and.right', md: 'radio' },
+  { name: '(saved)', label: 'Library', sf: 'books.vertical', md: 'library_music' },
 ] as const;
 
 /*
@@ -47,10 +48,19 @@ const ANDROID_TAB_BAR_HEIGHT = 80;
 
 export default function TabLayout() {
   const colors = useColors();
-  // Only whether there is anything loaded, so this does not re-render at the
-  // 10Hz the status updates arrive at.
-  const playing = usePlayer((state) => state.current !== null);
   const insets = useSafeAreaInsets();
+  // The Android card is measured from the foot of the window, so with the
+  // keyboard up it would ride above it and cover what is being searched.
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -90,13 +100,10 @@ export default function TabLayout() {
         ))}
 
         {/*
-         * Outside every screen, so navigating never interrupts playback.
-         *
-         * Omitted entirely rather than rendered empty: the accessory is a pill
-         * iOS draws and blurs itself, so a MiniPlayer that returns null on a
-         * fresh install still left a blank capsule floating above the tabs.
+         * Outside every screen, so navigating never interrupts playback. Always
+         * there: with nothing loaded it offers a shuffle instead of a transport.
          */}
-        {playing && Platform.OS === 'ios' ? (
+        {Platform.OS === 'ios' ? (
           <NativeTabs.BottomAccessory>
             <MiniPlayer />
           </NativeTabs.BottomAccessory>
@@ -111,7 +118,7 @@ export default function TabLayout() {
        * painting-over problem the file's header describes is an iOS one), and
        * it is still outside every screen, so navigating never stops playback.
        */}
-      {playing && Platform.OS === 'android' ? (
+      {Platform.OS === 'android' && !keyboardOpen ? (
         <View
           pointerEvents="box-none"
           style={{
