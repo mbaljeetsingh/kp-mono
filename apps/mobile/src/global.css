@@ -47,3 +47,7 @@
 @utility font-gurbani {
   font-family: 'NotoSerifGurmukhi-Regular';
 }
+
+@utility font-gurbani-semibold {
+  font-family: 'NotoSerifGurmukhi-SemiBold';
+}

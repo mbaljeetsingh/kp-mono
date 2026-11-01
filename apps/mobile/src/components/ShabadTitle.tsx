@@ -11,7 +11,7 @@
  * The caller's own face and weight come off first. A second family class
  * resolves by stylesheet order, not by the order written, so a sheet's
  * `font-display-medium` would otherwise be what decides the Gurmukhi's face;
- * and the Gurbani face has one weight, which global.css says never to stack a
+ * and each Gurbani weight is its own family, which global.css says never to stack a
  * weight on (iOS happens to ignore a row's `font-medium`; that is luck, not
  * the contract).
  *

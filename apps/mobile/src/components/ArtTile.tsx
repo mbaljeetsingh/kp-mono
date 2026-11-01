@@ -94,7 +94,7 @@ export function ArtTile({
             style={{
               color: 'rgba(255,255,255,0.9)',
               fontSize: size * 0.3,
-              // The Gurbani face has one weight, registered as its own family:
+              // Each Gurbani weight is registered as its own family:
               // asking it for 600 would fall back to the system font.
               ...(gurmukhi
                 ? { fontFamily: 'NotoSerifGurmukhi-Regular' }

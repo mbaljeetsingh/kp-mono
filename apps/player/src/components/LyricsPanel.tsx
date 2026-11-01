@@ -7,7 +7,7 @@
  * lines already sung and the ones coming are the context that makes the lit
  * one mean anything.
  */
-import { highlightVerseId, isAligned, verseGurmukhi, type ReadAlongTextSize } from '@kp/core';
+import { highlightVerseId, isAligned, verseSegments, type ReadAlongTextSize } from '@kp/core';
 import { useShabadText } from '@kp/api';
 import { ShabadSearch } from '@kp/ui/app/shabad-search';
 import { Button } from '@kp/ui/button';
@@ -200,7 +200,11 @@ export function LyricsPanel({ className }: { className?: string }) {
                   : 'border-transparent'
               )}
             >
-              {verseGurmukhi(line, options)}
+              {verseSegments(line, options).map((segment, index) => (
+                <span key={index} className={segment.accent ? 'text-highlight' : undefined}>
+                  {segment.text}
+                </span>
+              ))}
               {options.transliteration && line.transliteration?.english ? (
                 <span
                   className={cn(
