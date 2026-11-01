@@ -9,7 +9,8 @@ import { createPlayerStore, type PlayerState } from '@kp/playback';
 import { useStore } from 'zustand';
 
 import { createNativeAudioDriver } from './audio-driver';
-import { localSource } from './downloads';
+import { isDownloaded, localSource } from './downloads';
+import { isOnline } from './network';
 import { storage } from './storage';
 import { tileArtworkUrl } from './lock-screen-art';
 import { readTitleScript } from './title-script';
@@ -21,6 +22,7 @@ export const playerStore = createPlayerStore({
   artworkUrl: (item) => tileArtworkUrl(playableTile(item, readTitleScript())),
   // And the title in the listener's script, read when the item loads.
   titleOf: (item) => titleIn(item, readTitleScript()),
+  canPlay: (item) => isOnline() || isDownloaded(item),
 });
 
 playerStore.getState().attach(

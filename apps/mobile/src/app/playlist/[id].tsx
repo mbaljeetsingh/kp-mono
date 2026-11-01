@@ -62,7 +62,9 @@ export default function PlaylistScreen() {
           />
         )}
         ListEmptyComponent={
-          items.isLoading ? null : (
+          // Pending, not loading: a request held for a connection is not loading, and
+          // this empty text over it would say the list has nothing in it.
+          items.isPending ? null : (
             <Text className="px-3 py-8 text-sm text-muted-foreground">
               Nothing in this playlist yet.
             </Text>

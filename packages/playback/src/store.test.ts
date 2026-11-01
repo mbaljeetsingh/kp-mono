@@ -325,3 +325,76 @@ describe('titles in the chosen script', () => {
     expect(fake.calls).toEqual([]);
   });
 });
+
+describe('canPlay', () => {
+  const a = segment('a', 0, 10);
+  const b = segment('b', 0, 10);
+  const c = segment('c', 0, 10);
+
+  function offlineWith(...kept: string[]) {
+    const fake = fakeDriver();
+    const offline = createPlayerStore({
+      storage: memoryStorage(),
+      canPlay: (item) => kept.includes(item.id),
+    });
+    offline.getState().attach(fake.driver);
+    return { offline, fake };
+  }
+
+  it('starts nothing and leaves the queue alone for an item it cannot play', () => {
+    const { offline, fake } = offlineWith('a');
+    offline.getState().playList([a, b], 0);
+    fake.calls.length = 0;
+    offline.getState().playList([b, c], 0);
+    offline.getState().play(b);
+    expect(fake.calls).toEqual([]);
+    expect(offline.getState().current).toBe(a);
+    expect(offline.getState().items).toEqual([a, b]);
+  });
+
+  it('skips forward past what it cannot play', () => {
+    const { offline } = offlineWith('a', 'c');
+    offline.getState().playList([a, b, c], 0);
+    offline.getState().next();
+    expect(offline.getState().current).toBe(c);
+    expect(offline.getState().index).toBe(2);
+  });
+
+  it('skips backward past what it cannot play', () => {
+    const { offline } = offlineWith('a', 'c');
+    offline.getState().playList([a, b, c], 2);
+    offline.getState().previous();
+    expect(offline.getState().current).toBe(a);
+  });
+
+  it('keeps playing when Next finds nothing it can play', () => {
+    const { offline, fake } = offlineWith('a');
+    offline.getState().playList([a, b], 0);
+    offline.getState().next();
+    expect(offline.getState().current).toBe(a);
+    expect(fake.calls).not.toContain('pause');
+  });
+
+  it('stops when the item runs out and nothing further along can play', () => {
+    const { offline, fake } = offlineWith('a');
+    offline.getState().playList([a, b], 0);
+    offline.getState().onStatus({ position: 10, duration: 100, playing: true });
+    expect(offline.getState().current).toBe(a);
+    expect(fake.calls.at(-1)).toBe('pause');
+  });
+});
+
+describe('setRecent', () => {
+  it('replaces the list and survives a reload', async () => {
+    const storage = memoryStorage();
+    const first = createPlayerStore({ storage });
+    await first.getState().hydrate();
+    expect(first.getState().recentReady).toBe(true);
+    first.getState().setRecent(['x', 'y']);
+
+    const second = createPlayerStore({ storage });
+    expect(second.getState().recentReady).toBe(false);
+    await second.getState().hydrate();
+    expect(second.getState().recentIds).toEqual(['x', 'y']);
+  });
+});

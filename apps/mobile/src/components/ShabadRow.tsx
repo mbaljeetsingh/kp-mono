@@ -11,6 +11,7 @@ import { Pressable, Text, View } from 'react-native';
 import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
+import { useCanPlay } from '~/lib/network';
 import { playerActions } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { useShownTitle } from '~/lib/title-script';
@@ -37,12 +38,17 @@ export function ShabadRow({
   const length = segmentTotal(item, 0);
   const saved = favorites.has(item.id);
   const title = useShownTitle(item);
+  // What is already loaded can still be paused; anything else needs a connection
+  // or a download. Dimmed rather than hidden, so a list keeps its shape.
+  const playable = useCanPlay(item) || isCurrent;
 
   return (
     <PressableScale
       // The row already playing pauses and resumes, as on the web — starting
       // it again from the top is never what a tap on it means.
       onPress={isCurrent ? playerActions.toggle : onPress}
+      disabled={!playable}
+      accessibilityState={{ disabled: !playable }}
       // A whole row, so it moves less than a button would.
       scaleTo={0.985}
       className={
@@ -51,9 +57,11 @@ export function ShabadRow({
           : 'flex-row items-center gap-3 rounded-xl px-2 py-2 active:bg-card'
       }
     >
-      <PlayableArt item={item} size={52} rounded={10} />
+      <View className={playable ? undefined : 'opacity-40'}>
+        <PlayableArt item={item} size={52} rounded={10} />
+      </View>
 
-      <View className="min-w-0 flex-1">
+      <View className={playable ? 'min-w-0 flex-1' : 'min-w-0 flex-1 opacity-40'}>
         <ShabadTitle
           item={item}
           numberOfLines={1}

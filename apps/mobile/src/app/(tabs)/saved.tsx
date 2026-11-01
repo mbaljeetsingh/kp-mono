@@ -4,7 +4,8 @@
  *
  * Saved works signed out: favorites live on the device until there is an
  * account to move them into. Playlists need one (PlaylistsList says why).
- * Downloaded asks nothing of the network, so it works with none.
+ * Downloaded asks nothing of the network, so with none it is all this shows:
+ * the other two would only be empty lists explaining why.
  */
 import { shabadsByIds } from '@kp/api';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import { PlaylistsList } from '~/components/PlaylistsList';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
 import { removeAllDownloads, useDownloads } from '~/lib/downloads';
+import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { useSession } from '~/lib/session';
@@ -32,42 +34,47 @@ const SHELF_LABELS: Record<Shelf, string> = {
 };
 
 function LibraryHeader({ shelf, onShelf }: { shelf: Shelf; onShelf: (shelf: Shelf) => void }) {
+  const online = useIsOnline();
   return (
     <View className="gap-3 px-5 pb-3 pt-3">
       <View className="flex-row items-center justify-between">
         <Text className="font-display text-[34px] leading-10 text-foreground">Library</Text>
         <AccountButton />
       </View>
-      <View accessibilityRole="tablist" className="flex-row gap-1">
-        {(['saved', 'playlists', 'downloads'] as const).map((s) => (
-          <Pressable
-            key={s}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: s === shelf }}
-            onPress={() => onShelf(s)}
-            className={cn(
-              'rounded-full px-4 py-1.5',
-              s === shelf ? 'bg-primary-soft' : 'active:bg-accent'
-            )}
-          >
-            <Text
+      {online ? (
+        <View accessibilityRole="tablist" className="flex-row gap-1">
+          {(['saved', 'playlists', 'downloads'] as const).map((s) => (
+            <Pressable
+              key={s}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: s === shelf }}
+              onPress={() => onShelf(s)}
               className={cn(
-                'text-sm font-medium',
-                s === shelf ? 'text-primary' : 'text-muted-foreground'
+                'rounded-full px-4 py-1.5',
+                s === shelf ? 'bg-primary-soft' : 'active:bg-accent'
               )}
             >
-              {SHELF_LABELS[s]}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+              <Text
+                className={cn(
+                  'text-sm font-medium',
+                  s === shelf ? 'text-primary' : 'text-muted-foreground'
+                )}
+              >
+                {SHELF_LABELS[s]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 export default function LibraryScreen() {
-  const [shelf, setShelf] = useState<Shelf>('saved');
-  const header = <LibraryHeader shelf={shelf} onShelf={setShelf} />;
+  const [picked, setPicked] = useState<Shelf>('saved');
+  const online = useIsOnline();
+  const shelf = online ? picked : 'downloads';
+  const header = <LibraryHeader shelf={shelf} onShelf={setPicked} />;
 
   return (
     <Screen edges={['top']} className="flex-1 bg-background">
