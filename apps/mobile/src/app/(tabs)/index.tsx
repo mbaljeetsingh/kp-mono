@@ -30,6 +30,7 @@ import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
 
@@ -168,9 +169,10 @@ function ShelfHeader({ title, href }: { title: string; href: Href }) {
  * the only entry there was took the whole shelf with it.
  */
 function RecentShelf({ onMore }: { onMore: ReturnType<typeof useShabadActions>['onMore'] }) {
+  const { userId } = useSession();
   const ids = usePlayer((s) => s.recentIds);
   const currentId = usePlayer((s) => s.current?.id);
-  const query = useRecentShabads(supabase, ids.slice(0, RECENT_SHELF_FETCH));
+  const query = useRecentShabads(supabase, userId, ids.slice(0, RECENT_SHELF_FETCH));
   const items = (query.data ?? []).slice(0, SHELF_LIMIT);
   if (!items.length) return null;
 

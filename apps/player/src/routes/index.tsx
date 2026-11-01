@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 import { RagiShelf } from '~/components/RagiCard';
 import { ShabadList } from '~/components/ShabadList';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 
 /**
@@ -78,8 +79,9 @@ export function HomeRoute() {
  * here looked like playing it removed it.
  */
 function RecentShelf() {
+  const { userId } = useSession();
   const ids = usePlayer((s) => s.recentIds);
-  const query = useRecentShabads(supabase, ids.slice(0, RECENT_SHELF_FETCH));
+  const query = useRecentShabads(supabase, userId, ids.slice(0, RECENT_SHELF_FETCH));
   const items = (query.data ?? []).slice(0, SHELF_LIMIT);
   if (!items.length) return null;
 

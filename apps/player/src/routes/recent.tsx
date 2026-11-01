@@ -17,7 +17,7 @@ export function RecentRoute() {
   const ids = usePlayer((s) => s.recentIds);
   const ready = usePlayer((s) => s.recentReady);
 
-  const query = useRecentShabads(supabase, ids);
+  const query = useRecentShabads(supabase, userId, ids);
 
   return (
     <section className="flex flex-col gap-4">

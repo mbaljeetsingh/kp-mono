@@ -25,7 +25,7 @@ export default function RecentScreen() {
   const ready = usePlayer((s) => s.recentReady);
   const currentId = usePlayer((s) => s.current?.id);
 
-  const query = useRecentShabads(supabase, ids);
+  const query = useRecentShabads(supabase, userId, ids);
   const items = query.data ?? [];
 
   return (

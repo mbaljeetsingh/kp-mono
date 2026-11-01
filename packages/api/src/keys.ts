@@ -10,7 +10,8 @@ export const keys = {
     list: (filters: Record<string, unknown> = {}) => ['shabads', 'list', filters] as const,
     search: (term: string) => ['shabads', 'search', term] as const,
     byArtist: (artist: string) => ['shabads', 'artist', artist] as const,
-    recent: (ids: readonly string[]) => ['shabads', 'recent', ids] as const,
+    recent: (userId: string | null, ids: readonly string[]) =>
+      ['shabads', 'recent', userId, ids] as const,
     random: (seed: number) => ['shabads', 'random', seed] as const,
     others: (shabadId: number, exceptId: string) =>
       ['shabads', 'others', shabadId, exceptId] as const,
