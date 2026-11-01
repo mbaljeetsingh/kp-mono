@@ -47,7 +47,9 @@ export default function RagiScreen() {
         }}
         onEndReachedThreshold={0.6}
         ListEmptyComponent={
-          query.isLoading ? null : (
+          // Pending, not loading: a request held for a connection is not loading, and
+          // this empty text over it would say the list has nothing in it.
+          query.isPending ? null : (
             <Text className="px-3 py-8 text-sm text-muted-foreground">
               Nothing tagged for this ragi yet.
             </Text>

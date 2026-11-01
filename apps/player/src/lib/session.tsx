@@ -6,10 +6,11 @@
  * be openable from anywhere: a row menu that mounts its own dialog is one
  * mounted dialog per visible shabad.
  */
-import { useAuth, useFavorites, type Favorites } from '@kp/api';
+import { useAuth, useFavorites, useRecentSync, webFavoritesStorage, type Favorites } from '@kp/api';
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
+import { playerStore } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
 
 interface SessionValue {
@@ -49,6 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth(supabase);
   const userId = session?.user.id ?? null;
   const favorites = useFavorites(supabase, userId);
+  useRecentSync(supabase, userId, playerStore, webFavoritesStorage);
 
   const [promptOpen, setPromptOpen] = useState(false);
   const [pendingPick, setPendingPick] = useState<{ id: string; name: string } | null>(null);

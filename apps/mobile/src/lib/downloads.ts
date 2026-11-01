@@ -233,6 +233,12 @@ function findLocal(url: string, segment: { start: number; end: number }): File |
   return null;
 }
 
+/** Whether this exact rendition is on the phone, file and all. */
+export function isDownloaded(item: Playable): boolean {
+  if (item.startSec == null || item.endSec == null) return false;
+  return findLocal(item.url, { start: item.startSec, end: item.endSec }) !== null;
+}
+
 /** The words of a shabad, if a download holds them. Renditions of one shabad share them. */
 export function savedShabadText(shabadId: number | null | undefined): ShabadText | undefined {
   if (!shabadId) return undefined;

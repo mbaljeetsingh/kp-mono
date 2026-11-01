@@ -8,6 +8,7 @@ export * from './permissions';
 export * from './admin';
 export * from './playlists';
 export * from './favorites';
+export * from './recent';
 export * from './shabad-text';
 export * from './suggestions';
 export * from './banidb';

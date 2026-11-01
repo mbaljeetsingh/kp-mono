@@ -15,14 +15,18 @@
 import { View, type ViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { OfflineBanner } from '~/components/OfflineBanner';
+
 type Edge = 'top' | 'bottom';
 
 export function Screen({
   edges = ['top'],
   className,
   style,
+  children,
+  offlineBanner = true,
   ...props
-}: ViewProps & { edges?: Edge[] }) {
+}: ViewProps & { edges?: Edge[]; offlineBanner?: boolean }) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -37,6 +41,9 @@ export function Screen({
         style,
       ]}
       {...props}
-    />
+    >
+      {offlineBanner ? <OfflineBanner /> : null}
+      {children}
+    </View>
   );
 }

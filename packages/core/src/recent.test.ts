@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseRecentIds, RECENT_LIMIT, withRecent } from './recent';
+import { mergeRecent, parseRecentIds, playedSince, RECENT_LIMIT, withRecent } from './recent';
 import type { Playable } from './types';
 
 const item = (id: string, extra: Partial<Playable> = { startSec: 10, endSec: 20 }): Playable => ({
@@ -26,6 +26,35 @@ describe('withRecent', () => {
   it('ignores a broadcast and a raw file, which have no row to fetch back', () => {
     expect(withRecent(['a'], item('live', { isLive: true, startSec: 1 }))).toEqual(['a']);
     expect(withRecent(['a'], item('raw', {}))).toEqual(['a']);
+  });
+});
+
+describe('mergeRecent', () => {
+  it('keeps the first list in order, then adds what only the second has', () => {
+    expect(mergeRecent(['a', 'b'], ['b', 'c', 'a', 'd'])).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('keeps only the most recent', () => {
+    const many = Array.from({ length: RECENT_LIMIT }, (_, i) => String(i));
+    expect(mergeRecent(['new'], many)).toEqual(['new', ...many.slice(0, RECENT_LIMIT - 1)]);
+  });
+});
+
+describe('playedSince', () => {
+  it('is what now sits ahead of the old head', () => {
+    expect(playedSince(['a', 'b'], ['c', 'a', 'b'])).toEqual(['c']);
+  });
+
+  it('counts a replay of something already on the list', () => {
+    expect(playedSince(['a', 'b'], ['b', 'a'])).toEqual(['b']);
+  });
+
+  it('is nothing when nothing was played', () => {
+    expect(playedSince(['a', 'b'], ['a', 'b'])).toEqual([]);
+  });
+
+  it('is everything when there was no list before', () => {
+    expect(playedSince([], ['a'])).toEqual(['a']);
   });
 });
 

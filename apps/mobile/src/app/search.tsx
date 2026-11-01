@@ -111,7 +111,9 @@ export default function SearchScreen() {
           }}
           onEndReachedThreshold={0.6}
           ListEmptyComponent={
-            query.isLoading ? null : (
+            // Pending, not loading: a request held for a connection is not loading, and
+            // this empty text over it would say the list has nothing in it.
+            query.isPending ? null : (
               <View className="gap-1 px-5 py-6">
                 <Text className="text-sm text-foreground">Nothing matches “{trimmed}”.</Text>
                 <Text className="text-sm text-muted-foreground">

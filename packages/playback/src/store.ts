@@ -17,8 +17,8 @@ import {
   onEnded,
   onNext,
   onPrevious,
+  mergeRecent,
   parseRecentIds,
-  RECENT_LIMIT,
   parseRepeatMode,
   segmentStart,
   shouldRememberResume,
@@ -52,6 +52,8 @@ export interface PlayerState {
   starting: string | null;
   /** Renditions played on this device, latest first. See @kp/core's recent.ts. */
   recentIds: readonly string[];
+  /** Storage has been read, so `recentIds` is the whole list and not just this session's. */
+  recentReady: boolean;
 
   attach(driver: AudioDriver): void;
   hydrate(): Promise<void>;
@@ -81,6 +83,8 @@ export interface PlayerState {
   removeAt(index: number): void;
   clearQueue(): void;
   cycleRepeat(): void;
+  /** The whole recent list, as an account's sync settled it. */
+  setRecent(ids: readonly string[]): void;
   /** Re-announce what is playing, for a title shown in another script now. */
   retitle(): void;
 }
@@ -103,9 +107,21 @@ export interface PlayerStoreOptions {
    * title, which is what the lock screen showed before there was a choice.
    */
   titleOf?: (item: Playable) => string;
+  /**
+   * Whether this item can start at all, right now. Asked here because so many
+   * things start one: a row, Next, the lock screen's buttons, a segment running
+   * out. A phone with no connection can only play what it has downloaded, and
+   * only the app knows that. Omitted, everything can.
+   */
+  canPlay?: (item: Playable) => boolean;
 }
 
-export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreOptions) {
+export function createPlayerStore({
+  storage,
+  artworkUrl,
+  titleOf,
+  canPlay = () => true,
+}: PlayerStoreOptions) {
   let driver: AudioDriver | null = null;
   let resume: Record<string, number> = {};
   // Until storage has been read, writing the recent list would replace what is
@@ -143,6 +159,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
 
     /** Load an item and start it. The one place `driver.load` is called. */
     function start(item: Playable, index: number) {
+      if (!canPlay(item)) return;
       const recentIds = withRecent(get().recentIds, item);
       set({
         current: item,
@@ -157,12 +174,29 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       persistQueue();
     }
 
-    function perform(advance: ReturnType<typeof onNext>) {
+    /**
+     * `step` is the way to keep looking when the queue's choice cannot play, and
+     * `ended` says the item ran out, rather than somebody pressing a button: only
+     * then does finding nothing stop the player. A press leaves it playing.
+     */
+    function perform(advance: ReturnType<typeof onNext>, step: 1 | -1 = 1, ended = false) {
       const s = get();
       switch (advance.kind) {
         case 'play': {
-          const item = s.items[advance.index];
-          if (item) start(item, advance.index);
+          // Past what cannot play, rather than stopping on it: with no connection
+          // a queue is downloads with gaps between them. Off the end of the list
+          // is the end of the road, even on repeat, where it would only come
+          // round to what is playing.
+          for (let i = advance.index; s.items[i]; i += step) {
+            if (canPlay(s.items[i]!)) {
+              start(s.items[i]!, i);
+              return;
+            }
+          }
+          if (ended) {
+            driver?.pause();
+            set({ playing: false });
+          }
           return;
         }
         case 'restart': {
@@ -193,6 +227,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       duration: 0,
       starting: null,
       recentIds: [],
+      recentReady: false,
 
       attach(next) {
         driver = next;
@@ -210,12 +245,9 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
         // was being read, and that play is the newest thing on the list.
         const stored = parseRecentIds(rawRecent);
         const fresh = get().recentIds;
-        const recentIds = [...fresh, ...stored.filter((id) => !fresh.includes(id))].slice(
-          0,
-          RECENT_LIMIT
-        );
-        set({ recentIds });
+        const recentIds = mergeRecent(fresh, stored);
         recentRead = true;
+        set({ recentIds, recentReady: true });
         if (fresh.length) void storage.setItem(RECENT_KEY, JSON.stringify(recentIds));
 
         try {
@@ -272,7 +304,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
         // A segment's end is not the file's end, so no driver will ever report
         // `ended` here. The store watches the clock and advances itself.
         if (playing && hasReachedEnd(s.current, position)) {
-          perform(onEnded(queueState(), s.current.isLive === true));
+          perform(onEnded(queueState(), s.current.isLive === true), 1, true);
           return;
         }
 
@@ -283,6 +315,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       },
 
       play(item, replaceQueue = true) {
+        if (!canPlay(item)) return;
         if (replaceQueue) {
           set({ items: [item], index: 0 });
           start(item, 0);
@@ -304,7 +337,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
 
       playList(items, index) {
         const item = items[index];
-        if (!item) return;
+        if (!item || !canPlay(item)) return;
         // The queue becomes the shelf, which is what makes one tap on a list
         // play a shabad and line up what follows — without this the queue holds
         // a single row and playback stops dead at its end.
@@ -318,6 +351,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
       },
 
       swapCurrent(item) {
+        if (!canPlay(item)) return;
         const s = get();
         if (s.index < 0 || !s.items[s.index]) {
           get().play(item);
@@ -339,6 +373,8 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
           set({ playing: false });
           return;
         }
+        // Asked to resume something it no longer has any way of fetching.
+        if (!canPlay(s.current)) return;
         driver?.play();
       },
 
@@ -348,7 +384,7 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
 
       previous() {
         const s = get();
-        perform(onPrevious(queueState(), elapsedIn(s.current, s.position)));
+        perform(onPrevious(queueState(), elapsedIn(s.current, s.position)), -1);
       },
 
       seek(seconds) {
@@ -379,6 +415,11 @@ export function createPlayerStore({ storage, artworkUrl, titleOf }: PlayerStoreO
         const repeat = nextRepeatMode(get().repeat);
         set({ repeat });
         void storage.setItem(REPEAT_KEY, repeat);
+      },
+
+      setRecent(ids) {
+        set({ recentIds: ids });
+        void storage.setItem(RECENT_KEY, JSON.stringify(ids));
       },
 
       /*

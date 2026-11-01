@@ -6,10 +6,11 @@
  * anywhere, because a row that mounts its own sheet is one sheet per visible
  * shabad.
  */
-import { useAuth, useFavorites, type Favorites, type FavoritesStorage } from '@kp/api';
+import { useAuth, useFavorites, useRecentSync, type Favorites } from '@kp/api';
 import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
+import { playerStore } from '~/lib/player';
 import { storage } from '~/lib/storage';
 import { supabase } from '~/lib/supabase';
 
@@ -26,6 +27,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth(supabase);
   const userId = session?.user.id ?? null;
   const favorites = useFavorites(supabase, userId, storage);
+  useRecentSync(supabase, userId, playerStore, storage);
 
   /*
    * No sign-in prompt flag here, unlike the web's provider. Sign-in on a phone

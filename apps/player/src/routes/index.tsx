@@ -74,18 +74,18 @@ export function HomeRoute() {
 /**
  * The way back in. Above the archive's shelves because it is the one list that
  * is about this listener; nothing at all for somebody who has not played yet.
- * What is playing now is left out, being already in the bar below.
+ * What is playing stays on it, lit by the row: left out, replaying a shabad from
+ * here looked like playing it removed it.
  */
 function RecentShelf() {
   const ids = usePlayer((s) => s.recentIds);
-  const currentId = usePlayer((s) => s.current?.id);
   const query = useQuery({
     queryKey: ['shabads', 'recent', ids],
     queryFn: () => shabadsByIds(supabase, [...ids]),
     enabled: ids.length > 0,
     placeholderData: keepPreviousData,
   });
-  const items = (query.data ?? []).filter((item) => item.id !== currentId).slice(0, SHELF_LIMIT);
+  const items = (query.data ?? []).slice(0, SHELF_LIMIT);
   if (!items.length) return null;
 
   return (

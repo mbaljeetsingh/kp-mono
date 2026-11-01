@@ -15,7 +15,9 @@ import {
 import { Pause, Play, Radio } from 'lucide-react-native';
 import { FlatList, Linking, Pressable, Text, View } from 'react-native';
 
+import { OfflineNotice } from '~/components/OfflineNotice';
 import { Screen } from '~/components/Screen';
+import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { useColors } from '~/lib/theme';
@@ -81,11 +83,15 @@ function StationCard({ station }: { station: Station }) {
 
 export default function RadioScreen() {
   const miniPlayerSpace = useMiniPlayerSpace();
+  const online = useIsOnline();
   const sections: { title: string; data: Station[] }[] = [
     { title: '', data: [DEFAULT_STATION] },
     { title: 'Gurdwaras', data: OTHER_GURDWARAS },
     { title: 'Channels', data: CHANNELS },
   ];
+
+  // Every station is a live stream: there is nothing here to play without a connection.
+  if (!online) return <OfflineNotice />;
 
   return (
     <Screen edges={['top']} className="flex-1 bg-background">

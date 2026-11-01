@@ -46,6 +46,7 @@ import { ShabadSearch } from '~/components/ShabadSearch';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
+import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
 import { shareRendition } from '~/lib/share';
 import { skipToNext } from '~/lib/skip';
@@ -95,6 +96,7 @@ export default function NowPlayingScreen() {
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
 
   const [tab, setTab] = useState<'lyrics' | 'queue'>('lyrics');
+  const online = useIsOnline();
   const { favorites } = useSession();
 
   /**
@@ -394,6 +396,14 @@ export default function NowPlayingScreen() {
             {query.isLoading ? (
               <Text className="py-6 text-center text-sm text-muted-foreground">
                 Loading the shabad…
+              </Text>
+            ) : null}
+
+            {/* Held for a connection, so neither loading nor failed, and without
+                this a shabad with no download showed a blank panel. */}
+            {!online && shabadId && !lines.length ? (
+              <Text className="py-6 text-center text-sm text-muted-foreground">
+                The words will be here when you’re back online.
               </Text>
             ) : null}
 

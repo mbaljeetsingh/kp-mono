@@ -134,7 +134,8 @@ function Queue() {
         <Text className="px-1 py-2 text-sm text-muted-foreground">Loading…</Text>
       ) : null}
 
-      {!suggestions.isLoading && !(suggestions.data ?? []).length ? (
+      {/* Pending: a request held for a connection has not found nothing. */}
+      {!suggestions.isPending && !(suggestions.data ?? []).length ? (
         <Text className="px-1 py-2 text-sm text-muted-foreground">
           Nothing published yet to suggest.
         </Text>

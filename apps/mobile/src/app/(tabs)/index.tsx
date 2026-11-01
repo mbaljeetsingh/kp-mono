@@ -14,11 +14,13 @@ import { Play, Radio, Search, Shuffle } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { LanguageSelector } from '~/components/LanguageSelector';
+import { OfflineNotice } from '~/components/OfflineNotice';
 import { Screen } from '~/components/Screen';
 import { RagiShelf } from '~/components/RagiShelf';
 import { ThemeSelector } from '~/components/ThemeSelector';
 import { ShabadRow } from '~/components/ShabadRow';
 import { useShabadActions } from '~/lib/use-shabad-actions';
+import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { supabase } from '~/lib/supabase';
@@ -34,6 +36,7 @@ export default function HomeScreen() {
   const { onMore, sheet } = useShabadActions();
   const artists = useArtists(supabase);
   const miniPlayerSpace = useMiniPlayerSpace();
+  const online = useIsOnline();
 
   /**
    * Enough to listen through without thinking about it again, few enough that
@@ -45,6 +48,8 @@ export default function HomeScreen() {
       if (rows.length) playerActions.playList(rows, 0);
     },
   });
+
+  if (!online) return <OfflineNotice />;
 
   return (
     <Screen edges={['top']} className="flex-1 bg-background">
@@ -149,8 +154,11 @@ function ShelfHeader({ title, href }: { title: string; href: Href }) {
 
 /**
  * The way back in, as on the web's Home: first because it is the one list about
- * this listener, nothing at all before they have played anything, and without
- * what is playing now.
+ * this listener, and nothing at all before they have played anything.
+ *
+ * What is playing stays on it, lit like any other shelf's row. It used to be left
+ * out, so replaying a shabad from here looked like playing it removed it, and
+ * the only entry there was took the whole shelf with it.
  */
 function RecentShelf({ onMore }: { onMore: ReturnType<typeof useShabadActions>['onMore'] }) {
   const ids = usePlayer((s) => s.recentIds);
@@ -161,7 +169,7 @@ function RecentShelf({ onMore }: { onMore: ReturnType<typeof useShabadActions>['
     enabled: ids.length > 0,
     placeholderData: keepPreviousData,
   });
-  const items = (query.data ?? []).filter((item) => item.id !== currentId).slice(0, SHELF_LIMIT);
+  const items = (query.data ?? []).slice(0, SHELF_LIMIT);
   if (!items.length) return null;
 
   return (
@@ -174,7 +182,7 @@ function RecentShelf({ onMore }: { onMore: ReturnType<typeof useShabadActions>['
           <ShabadRow
             key={item.id}
             item={item}
-            isCurrent={false}
+            isCurrent={item.id === currentId}
             onPress={() => playerActions.playList(items, index)}
             onMore={onMore}
           />
