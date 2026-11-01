@@ -21,6 +21,7 @@ import {
   otherRecordings,
   searchShabads,
   shabadsByArtist,
+  shabadsByIds,
   PAGE_SIZE,
   type Page,
   type ShabadSort,
@@ -82,6 +83,26 @@ export function useOtherRecordings(
     queryKey: keys.shabads.others(shabadId ?? 0, exceptId ?? ''),
     queryFn: () => otherRecordings(client, shabadId!, exceptId!),
     enabled: Boolean(shabadId && exceptId),
+  });
+}
+
+/**
+ * Rows for these recently played ids, in that order. The last rows stay up while
+ * a play reorders the list, so it does not blink; but only for the same listener.
+ * The placeholder outlives the ids: signing out left the account's list on screen,
+ * and the next guest play would have brought it back. Hence `userId` in the key.
+ */
+export function useRecentShabads(
+  client: KpClient,
+  userId: string | null,
+  ids: readonly string[]
+): UseQueryResult<Playable[]> {
+  return useQuery({
+    queryKey: keys.shabads.recent(userId, ids),
+    queryFn: () => shabadsByIds(client, [...ids]),
+    enabled: ids.length > 0,
+    placeholderData: (previous, previousQuery) =>
+      ids.length > 0 && previousQuery?.queryKey[2] === userId ? previous : undefined,
   });
 }
 

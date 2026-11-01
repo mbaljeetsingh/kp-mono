@@ -5,9 +5,9 @@
  * set is not listenable until somebody has marked where each shabad begins and
  * ends. Search and shuffle live in the header, so Home is only shelves.
  */
-import { shabadsByIds, shelfShabads, useArtists, type ShabadSort } from '@kp/api';
-import { DEFAULT_STATION, stationPlayable } from '@kp/core';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { shelfShabads, useArtists, useRecentShabads, type ShabadSort } from '@kp/api';
+import { DEFAULT_STATION, RECENT_SHELF_FETCH, stationPlayable } from '@kp/core';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { Radio } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -15,6 +15,7 @@ import type { ReactNode } from 'react';
 import { RagiShelf } from '~/components/RagiCard';
 import { ShabadList } from '~/components/ShabadList';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 
 /**
@@ -78,19 +79,15 @@ export function HomeRoute() {
  * here looked like playing it removed it.
  */
 function RecentShelf() {
+  const { userId } = useSession();
   const ids = usePlayer((s) => s.recentIds);
-  const query = useQuery({
-    queryKey: ['shabads', 'recent', ids],
-    queryFn: () => shabadsByIds(supabase, [...ids]),
-    enabled: ids.length > 0,
-    placeholderData: keepPreviousData,
-  });
+  const query = useRecentShabads(supabase, userId, ids.slice(0, RECENT_SHELF_FETCH));
   const items = (query.data ?? []).slice(0, SHELF_LIMIT);
   if (!items.length) return null;
 
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium">Recently played</h2>
+      <ShelfHeader title="Recently played" link={<Link to="/recent">See all</Link>} />
       <ShabadList items={items} empty="" />
     </section>
   );
