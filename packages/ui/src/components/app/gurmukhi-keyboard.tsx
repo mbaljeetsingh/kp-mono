@@ -36,7 +36,7 @@ export function GurmukhiKeyboard({
         <Keyboard />
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-80 p-2">
+      <PopoverContent align="end" className="w-80 max-w-[calc(100vw-1rem)] p-2">
         <div className="grid grid-cols-10 gap-1">
           {GURMUKHI_KEYS.map((key, i) =>
             key ? (
@@ -53,9 +53,12 @@ export function GurmukhiKeyboard({
                   key === GURMUKHI_BACKSPACE ? 'text-xs' : 'font-gurmukhi text-lg'
                 )}
                 aria-label={key === GURMUKHI_BACKSPACE ? 'Backspace' : GURMUKHI_KEY_LETTERS[key]}
-                onClick={() =>
-                  onChange(key === GURMUKHI_BACKSPACE ? value.slice(0, -1) : `${value}${key}`)
-                }
+                onClick={() => {
+                  // Nothing to delete is not an edit: the header's field reads an
+                  // emptied box as a reason to leave the search page.
+                  if (key === GURMUKHI_BACKSPACE && !value) return;
+                  onChange(key === GURMUKHI_BACKSPACE ? value.slice(0, -1) : `${value}${key}`);
+                }}
               >
                 {key}
               </Button>

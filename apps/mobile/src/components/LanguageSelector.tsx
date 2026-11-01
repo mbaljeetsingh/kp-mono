@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import { playerActions } from '~/lib/player';
+import { useSearchKeys } from '~/lib/search-keys';
 import { useTitleScript } from '~/lib/title-script';
 import { useColors } from '~/lib/theme';
 
@@ -27,6 +28,9 @@ export function LanguageSelector() {
     setOpen(false);
     if (next === script) return;
     setScript(next);
+    // A term means different letters in the other language, and the keys come
+    // back up for Punjabi, whatever touching this button did to them.
+    useSearchKeys.setState({ term: '', keysOpen: true });
     playerActions.retitle();
   }
 

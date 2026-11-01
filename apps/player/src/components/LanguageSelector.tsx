@@ -19,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@kp/ui/dropdown-menu';
+import { useLocation, useNavigate } from '@tanstack/react-router';
 import { Check, ChevronDown, Languages } from 'lucide-react';
 
 import { playerActions } from '~/lib/player';
@@ -28,11 +29,15 @@ import { cn } from '~/lib/utils';
 export function LanguageSelector() {
   const [script, setScript] = useTitleScript();
   const current = titleScriptOption(script);
+  const onSearchPage = useLocation({ select: (l) => l.pathname === '/search' });
+  const navigate = useNavigate();
 
   function choose(next: TitleScript) {
     if (next === script) return;
     setScript(next);
     playerActions.retitle();
+    // A term means different letters in the other language.
+    if (onSearchPage) void navigate({ to: '/search', search: { q: '' }, replace: true });
   }
 
   return (

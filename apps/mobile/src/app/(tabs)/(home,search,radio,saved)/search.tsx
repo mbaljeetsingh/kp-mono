@@ -41,7 +41,7 @@ const RAGI_LIMIT = 8;
 export default function SearchScreen() {
   const miniPlayerSpace = useMiniPlayerSpace();
   const colors = useColors();
-  const { onMore: openMenu, sheet } = useShabadActions();
+  const { onMore, sheet } = useShabadActions();
   const term = useSearchKeys((s) => s.term);
   const setTerm = useSearchKeys((s) => s.setTerm);
   const keysOpen = useSearchKeys((s) => s.keysOpen);
@@ -63,15 +63,13 @@ export default function SearchScreen() {
       return () => setFocused(false);
     }, [])
   );
-  useEffect(() => setKeysAvailable(keysAvailable), [keysAvailable, setKeysAvailable]);
+  useEffect(() => {
+    setKeysAvailable(keysAvailable);
+    // They are drawn outside this screen, so nothing else takes them down with it.
+    return () => setKeysAvailable(false);
+  }, [keysAvailable, setKeysAvailable]);
 
   if (!online) return <OfflineNotice />;
-
-  // The keys sit above any sheet on iOS, so they go down before one opens.
-  const onMore: typeof openMenu = (...args) => {
-    setKeysOpen(false);
-    openMenu(...args);
-  };
 
   const trimmed = debounced.trim();
   const min = minSearchLength(script);
@@ -87,6 +85,8 @@ export default function SearchScreen() {
   return (
     <Screen edges={['top']} className="flex-1 bg-background">
       <View className="gap-3 px-5 pb-2 pt-3">
+        {/* The keys sit above any sheet on iOS, so a touch here, as in the results,
+            puts them down before one opens. */}
         <View onTouchStart={() => setKeysOpen(false)}>
           <AppHeader />
         </View>
