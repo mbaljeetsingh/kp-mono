@@ -67,9 +67,12 @@ both stores hold them.
   the **Play app signing** certificate (Play Console → App signing, added
   2026-10-07). Builds signed by anything else — the EAS upload key on a
   sideloaded `.aab`/`.apk` — are not verified and open links in the browser.
-- `patches/expo-audio@57.0.5.patch` (iOS) adds lock-screen next/previous, a
-  shabad-length scrub bar and no "LIVE" badge. Redo it on any expo-audio
-  upgrade; each change in it is marked `kp-mono:`.
+- `patches/expo-audio@57.0.5.patch` adds lock-screen next/previous and a
+  shabad-length scrub bar on both platforms, and no "LIVE" badge on iOS. Redo it
+  on any expo-audio upgrade; each change in it is marked `kp-mono:`. On Android
+  the patch only reaches a build because `expo.autolinking.android.buildFromSource`
+  in `apps/mobile/package.json` names expo-audio: otherwise Gradle uses the
+  prebuilt library inside the package and silently ignores the patched Kotlin.
 
 ## Build and submit
 

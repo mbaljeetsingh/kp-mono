@@ -157,8 +157,8 @@
   --popover-foreground: #f0f2f4;
   --primary: #d2e2f6; /* accent-default, 13.6:1 on the canvas */
   --primary-foreground: #121720;
-  --primary-hover: #4a86e7; /* accent-hover */
-  --primary-active: #3569db; /* accent-active */
+  --primary-hover: #b9d0ee; /* a notch below accent-default; their #4a86e7 turned a pale button saturated blue */
+  --primary-active: #a3c0e6; /* a notch below hover */
   --primary-soft: #203c6a; /* accent-muted, chips and the raag badge; primary on it 8.3:1 */
   --secondary: #212a3c; /* their raised controls — pills, tracks */
   --secondary-foreground: #f0f2f4;

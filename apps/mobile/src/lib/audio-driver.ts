@@ -12,7 +12,6 @@ import {
   type AudioLockScreenOptions,
   type AudioPlayer,
 } from 'expo-audio';
-import { Platform } from 'react-native';
 import type { AudioDriver, DriverStatus, NowPlaying } from '@kp/playback';
 
 /**
@@ -115,7 +114,7 @@ export function createNativeAudioDriver(
       });
     });
     // Not in expo-audio: patches/expo-audio@57.0.5.patch adds the buttons and
-    // this event (iOS only, for now).
+    // this event.
     (
       next as unknown as {
         addListener(event: 'lockScreenCommand', cb: (e: { command: string }) => void): void;
@@ -131,14 +130,13 @@ export function createNativeAudioDriver(
    *
    * A shabad is a slice of a recording that often runs 70 minutes, and the
    * lock screen reads the file's clock: left alone it shows that 70-minute
-   * bar, and a drag on it lands in some other shabad. On iOS the patch takes
-   * the slice and shows the shabad as the whole track — its own length, its
-   * own position, a drag that stays inside it. Android is not patched yet, so
-   * there `isLiveStream` hides the bar and the seek controls instead, as it did
-   * everywhere before. A broadcast has no length on either.
+   * bar, and a drag on it lands in some other shabad. The patch takes the slice
+   * and shows the shabad as the whole track — its own length, its own position,
+   * a drag that stays inside it. A broadcast has no length, and neither has
+   * anything else without a slice, so `isLiveStream` hides the seek controls.
    */
   function lockScreenOptions(nowPlaying?: NowPlaying): AudioLockScreenOptions {
-    if (!nowPlaying?.isLive && nowPlaying?.segment && Platform.OS === 'ios') {
+    if (!nowPlaying?.isLive && nowPlaying?.segment) {
       return {
         segmentStart: nowPlaying.segment.start - clockOffset,
         segmentEnd: nowPlaying.segment.end - clockOffset,
