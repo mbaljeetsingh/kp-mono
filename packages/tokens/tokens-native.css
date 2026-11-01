@@ -103,7 +103,7 @@
   --subtle-foreground: #64748b; /* was #94a3b8, 2.6:1 */
   --accent: #e2e8f0; /* button-ghost-background-hover */
   --accent-foreground: #0f172a;
-  /* Their active-verse gold, for marks rather than text — the lit-line bar, the now-playing dot. */
+  /* Their active-verse gold: the lit-line bar, the now-playing dot, larivaar's alternate words. */
   --highlight: #d28423; /* gurbani-verse-active-border */
   --highlight-foreground: #0f172a;
   --verse: #113979; /* gurbani-verse-bani-color */

@@ -73,7 +73,7 @@ export function LockScreenArtwork() {
           alignmentBaseline="central"
           fill="rgba(255,255,255,0.9)"
           fontSize={SIZE * 0.3}
-          // As ArtTile: the Gurbani face has one weight, registered on its own.
+          // As ArtTile: each Gurbani weight is registered as its own family.
           fontFamily={tile.gurmukhi ? 'NotoSerifGurmukhi-Regular' : undefined}
           fontWeight={tile.gurmukhi ? undefined : '600'}
         >

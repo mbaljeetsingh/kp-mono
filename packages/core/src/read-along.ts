@@ -73,3 +73,40 @@ export function verseGurmukhi(
     : undefined;
   return larivaar || line.verse?.unicode || line.verse?.gurmukhi || '';
 }
+
+/** One run of a line's Gurmukhi, drawn in the verse colour or its accent. */
+export interface VerseSegment {
+  text: string;
+  accent: boolean;
+}
+
+/** A letter, so the `॥੧॥` that closes a line is not counted as a word. */
+const GURMUKHI_LETTER = /[ਅ-ਹਖ਼-ਫ਼ੲ-ੴ]/;
+
+/**
+ * The line in runs to draw, with every other word of larivaar in the accent.
+ *
+ * Larivaar has no breaks to find a word by, so a learner cannot tell where one
+ * ends; alternating colour shows it without adding the spaces back. BaniDB's
+ * larivaar carries no word boundaries, so they come from the pad-chhed. If the
+ * two ever disagree on the letters, the line is drawn whole: one colour is
+ * better than a colour change in the middle of a word.
+ */
+export function verseSegments(
+  line: { verse?: VerseText; larivaar?: VerseText },
+  options: Pick<ReadAlongOptions, 'larivaar'>
+): VerseSegment[] {
+  const whole = [{ text: verseGurmukhi(line, options), accent: false }];
+  const larivaar = line.larivaar?.unicode;
+  if (!options.larivaar || !larivaar) return whole;
+
+  const words = line.verse?.unicode?.split(/\s+/).filter(Boolean) ?? [];
+  if (words.join('') !== larivaar.replace(/\s+/g, '')) return whole;
+
+  let counted = 0;
+  return words.map((text) => {
+    if (!GURMUKHI_LETTER.test(text)) return { text, accent: false };
+    counted += 1;
+    return { text, accent: counted % 2 === 0 };
+  });
+}

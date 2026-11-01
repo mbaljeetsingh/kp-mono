@@ -1,7 +1,10 @@
 import '../global.css';
 
 import { Newsreader_500Medium, Newsreader_600SemiBold } from '@expo-google-fonts/newsreader';
-import { NotoSerifGurmukhi_400Regular } from '@expo-google-fonts/noto-serif-gurmukhi';
+import {
+  NotoSerifGurmukhi_400Regular,
+  NotoSerifGurmukhi_600SemiBold,
+} from '@expo-google-fonts/noto-serif-gurmukhi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -40,6 +43,7 @@ const FONTS = {
   'Newsreader-Medium': Newsreader_500Medium,
   'Newsreader-SemiBold': Newsreader_600SemiBold,
   'NotoSerifGurmukhi-Regular': NotoSerifGurmukhi_400Regular,
+  'NotoSerifGurmukhi-SemiBold': NotoSerifGurmukhi_600SemiBold,
 };
 
 /*

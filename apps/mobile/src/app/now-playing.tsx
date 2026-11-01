@@ -14,7 +14,7 @@ import {
   playableTile,
   REPEAT_LABELS,
   titleIn,
-  verseGurmukhi,
+  verseSegments,
 } from '@kp/core';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -416,7 +416,7 @@ export default function NowPlayingScreen() {
             ) : null}
 
             <View
-              className="gap-1 pb-4"
+              className="gap-3 pb-4"
               onLayout={(e) => {
                 const y = e.nativeEvent.layout.y;
                 if (y === linesTop.current) return;
@@ -441,7 +441,7 @@ export default function NowPlayingScreen() {
               {lines.map((line) => (
                 <ReadAlongLine
                   key={line.verseId}
-                  gurmukhi={verseGurmukhi(line, readAlong)}
+                  segments={verseSegments(line, readAlong)}
                   transliteration={
                     readAlong.transliteration ? line.transliteration?.english : undefined
                   }
