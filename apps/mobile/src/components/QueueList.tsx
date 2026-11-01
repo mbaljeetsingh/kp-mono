@@ -15,7 +15,6 @@ import { Pressable, Text, View } from 'react-native';
 
 import { PlayableArt } from '~/components/ArtTile';
 import { ShabadTitle } from '~/components/ShabadTitle';
-import { useCanPlay } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
 import { useShownTitle } from '~/lib/title-script';
 import { supabase } from '~/lib/supabase';
@@ -156,17 +155,13 @@ function Row({
 }) {
   const colors = useColors();
   const title = useShownTitle(item);
-  const playable = useCanPlay(item);
   return (
     <Pressable
       onPress={onPlay}
-      disabled={!playable}
       className="flex-row items-center gap-3 rounded-lg px-1 py-2 active:bg-accent"
     >
-      <View className={playable ? undefined : 'opacity-40'}>
-        <PlayableArt item={item} size={36} />
-      </View>
-      <View className={playable ? 'min-w-0 flex-1' : 'min-w-0 flex-1 opacity-40'}>
+      <PlayableArt item={item} size={36} />
+      <View className="min-w-0 flex-1">
         <ShabadTitle item={item} numberOfLines={1} className="text-sm text-foreground" />
         <Text numberOfLines={1} className="text-xs text-muted-foreground">
           {item.subtitle ?? item.artist}

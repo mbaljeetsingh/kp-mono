@@ -9,10 +9,7 @@
  */
 import { onlineManager } from '@tanstack/react-query';
 import { addNetworkStateListener, getNetworkStateAsync, type NetworkState } from 'expo-network';
-import type { Playable } from '@kp/core';
 import { useSyncExternalStore } from 'react';
-
-import { isDownloaded } from './downloads';
 
 // Online until told otherwise: a false "you're offline" on launch is worse than
 // the one failed request a false "online" costs.
@@ -45,12 +42,4 @@ export function useIsOnline(): boolean {
     listeners.add(listener);
     return () => listeners.delete(listener);
   }, isOnline);
-}
-
-/**
- * Whether a row's tap can do anything. Online this costs nothing; only offline,
- * when the list is short anyway, does each row read the downloads.
- */
-export function useCanPlay(item: Playable): boolean {
-  return useIsOnline() || isDownloaded(item);
 }

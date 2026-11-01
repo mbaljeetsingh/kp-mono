@@ -93,9 +93,6 @@ export function useRecentSync(
     let synced = false;
     let sent: string | undefined;
 
-    let failed = false;
-    let startHead: string | undefined;
-
     async function settle(id: string, local: readonly string[]) {
       const handedOver = (await storage.getItem(SYNCED_KEY)) === id;
       const remote = await readRemote(client);
@@ -109,7 +106,6 @@ export function useRecentSync(
     function begin(id: string) {
       started = true;
       const local = store.getState().recentIds;
-      startHead = local[0];
       settle(id, local)
         .then((merged) => {
           if (!live) return;
@@ -123,11 +119,9 @@ export function useRecentSync(
           synced = true;
         })
         .catch(() => {
-          // Nothing lost: the device keeps its list. The marker stays as it was, so
-          // one launch with no signal does not make this device's list outrank
-          // newer plays from another; a play after this clears it, below. The table
-          // not being there yet lands here too.
-          failed = true;
+          // Nothing lost: the device keeps its list, and with the marker gone the
+          // next launch sends it. The table not being there yet lands here too.
+          void storage.setItem(SYNCED_KEY, '');
         });
     }
 
@@ -139,11 +133,6 @@ export function useRecentSync(
       const { recentIds, recentReady } = store.getState();
       if (!started && recentReady) begin(userId);
       const head = recentIds[0];
-      if (failed && head !== startHead) {
-        // Now the device does know something the account does not.
-        failed = false;
-        void storage.setItem(SYNCED_KEY, '');
-      }
       if (!synced || !head || head === sent) return;
       sent = head;
       void Promise.resolve(
