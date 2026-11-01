@@ -88,7 +88,7 @@ export function ShabadSearch({
         <p className="px-1 py-2 text-sm text-muted-foreground">Could not reach BaniDB.</p>
       ) : null}
 
-      {!query.isLoading && term.trim().length >= 2 && !hits.length ? (
+      {!query.isLoading && !query.isError && term.trim().length >= 2 && !hits.length ? (
         <p className="px-1 py-2 text-sm text-muted-foreground">Nothing matches.</p>
       ) : null}
 

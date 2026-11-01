@@ -173,3 +173,45 @@ export const GURMUKHI_KEYS: readonly string[] = [
   '',
   GURMUKHI_BACKSPACE,
 ];
+
+/**
+ * The letter each key enters, for screen readers: a key's text is a Latin code
+ * that only the font turns into Gurmukhi, so read aloud it would say `Type a`.
+ */
+export const GURMUKHI_KEY_LETTERS: Readonly<Record<string, string>> = {
+  a: 'ੳ',
+  A: 'ਅ',
+  e: 'ੲ',
+  s: 'ਸ',
+  h: 'ਹ',
+  q: 'ਤ',
+  Q: 'ਥ',
+  d: 'ਦ',
+  D: 'ਧ',
+  n: 'ਨ',
+  k: 'ਕ',
+  K: 'ਖ',
+  g: 'ਗ',
+  G: 'ਘ',
+  '|': 'ਙ',
+  p: 'ਪ',
+  P: 'ਫ',
+  b: 'ਬ',
+  B: 'ਭ',
+  m: 'ਮ',
+  c: 'ਚ',
+  C: 'ਛ',
+  j: 'ਜ',
+  J: 'ਝ',
+  '\\': 'ਞ',
+  X: 'ਯ',
+  r: 'ਰ',
+  l: 'ਲ',
+  v: 'ਵ',
+  V: 'ੜ',
+  t: 'ਟ',
+  T: 'ਠ',
+  f: 'ਡ',
+  F: 'ਢ',
+  x: 'ਣ',
+};

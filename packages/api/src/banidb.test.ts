@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { shabadIdsMatching } from './banidb';
+import {
+  GURMUKHI_BACKSPACE,
+  GURMUKHI_KEY_LETTERS,
+  GURMUKHI_KEYS,
+  shabadIdsMatching,
+} from './banidb';
 
 describe('shabadIdsMatching', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -35,5 +40,12 @@ describe('shabadIdsMatching', () => {
       vi.fn(async () => new Response('', { status: 503 }))
     );
     await expect(shabadIdsMatching('/banidb', 'jjas', 7)).rejects.toThrow('503');
+  });
+});
+
+describe('GURMUKHI_KEY_LETTERS', () => {
+  it('names every key on the keyboard, so none is read aloud as its Latin code', () => {
+    const letterKeys = GURMUKHI_KEYS.filter((key) => key && key !== GURMUKHI_BACKSPACE);
+    expect(Object.keys(GURMUKHI_KEY_LETTERS).sort()).toEqual([...letterKeys].sort());
   });
 });

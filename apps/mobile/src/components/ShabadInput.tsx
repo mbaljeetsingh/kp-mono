@@ -7,7 +7,7 @@
  * and np-mono's keyboard. English keeps the phone's keyboard. The keys are their
  * own component because where they sit is the screen's to decide.
  */
-import { GURMUKHI_BACKSPACE, GURMUKHI_KEYS } from '@kp/api';
+import { GURMUKHI_BACKSPACE, GURMUKHI_KEY_LETTERS, GURMUKHI_KEYS } from '@kp/api';
 import type { TitleScript } from '@kp/core';
 import { ChevronDown, Delete, Keyboard, Search, X } from 'lucide-react-native';
 import { Platform, Pressable, Text, View } from 'react-native';
@@ -126,7 +126,10 @@ export function GurmukhiKeys({
                   onChangeText(key === GURMUKHI_BACKSPACE ? value.slice(0, -1) : value + key)
                 }
                 accessibilityRole="button"
-                accessibilityLabel={key === GURMUKHI_BACKSPACE ? 'Backspace' : `Type ${key}`}
+                accessibilityLabel={
+                  key === GURMUKHI_BACKSPACE ? 'Backspace' : GURMUKHI_KEY_LETTERS[key]
+                }
+                accessibilityLanguage={key === GURMUKHI_BACKSPACE ? undefined : 'pa'}
                 // Two shades split each row in half, as np-mono's keyboard does, so a
                 // key is found by which side it is on rather than read across ten.
                 className={cn(

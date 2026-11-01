@@ -7,7 +7,7 @@
  * knows the line but not that ੜ lives on `V` can click it once and learn where
  * it is.
  */
-import { GURMUKHI_BACKSPACE, GURMUKHI_KEYS } from '@kp/api';
+import { GURMUKHI_BACKSPACE, GURMUKHI_KEY_LETTERS, GURMUKHI_KEYS } from '@kp/api';
 import { Keyboard } from 'lucide-react';
 
 import { Button } from '../ui/button';
@@ -50,7 +50,7 @@ export function GurmukhiKeyboard({
                   i % 10 < 5 && 'bg-primary-soft',
                   key === GURMUKHI_BACKSPACE ? 'text-xs' : 'font-gurmukhi text-lg'
                 )}
-                aria-label={key === GURMUKHI_BACKSPACE ? 'Backspace' : `Type ${key}`}
+                aria-label={key === GURMUKHI_BACKSPACE ? 'Backspace' : GURMUKHI_KEY_LETTERS[key]}
                 onClick={() =>
                   onChange(key === GURMUKHI_BACKSPACE ? value.slice(0, -1) : `${value}${key}`)
                 }

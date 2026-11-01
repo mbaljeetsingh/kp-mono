@@ -34,7 +34,7 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
       {query.isError ? (
         <Text className="text-sm text-muted-foreground">Could not reach BaniDB.</Text>
       ) : null}
-      {!query.isLoading && debounced.trim().length >= 2 && !hits.length ? (
+      {!query.isLoading && !query.isError && debounced.trim().length >= 2 && !hits.length ? (
         <Text className="text-sm text-muted-foreground">Nothing matches.</Text>
       ) : null}
 

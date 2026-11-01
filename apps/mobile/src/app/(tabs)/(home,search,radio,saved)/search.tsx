@@ -135,6 +135,11 @@ export default function SearchScreen() {
                     Many lines match. Type another letter to narrow it.
                   </Text>
                 ) : null}
+                {query.isRefetchError ? (
+                  <Text className="px-5 text-sm text-muted-foreground">
+                    Could not refresh these results.
+                  </Text>
+                ) : null}
                 {query.data?.pages[0]?.degraded ? (
                   <Text className="px-5 text-sm text-muted-foreground">
                     First-letter search is unavailable right now. Showing titles and ragis.

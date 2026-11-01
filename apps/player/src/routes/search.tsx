@@ -58,6 +58,9 @@ export function SearchRoute() {
                 Many lines match. Type another letter to narrow it.
               </p>
             ) : null}
+            {results.isRefetchError ? (
+              <p className="px-1 text-sm text-muted-foreground">Could not refresh these results.</p>
+            ) : null}
             {results.data?.pages[0]?.degraded ? (
               <p className="px-1 text-sm text-muted-foreground">
                 First-letter search is unavailable right now. Showing titles and ragis.
