@@ -15,3 +15,4 @@ export * from './read-along';
 export * from './recent';
 export * from './mp3';
 export * from './share';
+export * from './skeleton';

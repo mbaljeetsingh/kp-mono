@@ -5,6 +5,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
@@ -64,7 +65,9 @@ export default function PlaylistScreen() {
         ListEmptyComponent={
           // Pending, not loading: a request held for a connection is not loading, and
           // this empty text over it would say the list has nothing in it.
-          items.isPending ? null : (
+          items.isLoading ? (
+            <ShabadRowSkeletons />
+          ) : items.isPending ? null : (
             <Text className="px-3 py-8 text-sm text-muted-foreground">
               Nothing in this playlist yet.
             </Text>

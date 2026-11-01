@@ -6,7 +6,7 @@
  */
 import { REPEAT_LABELS } from '@kp/core';
 import { Button } from '@kp/ui/button';
-import { Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react';
+import { LoaderCircle, Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react';
 
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
@@ -29,6 +29,8 @@ export function PlayerControls({
   const playing = usePlayer((s) => s.playing);
   const repeat = usePlayer((s) => s.repeat);
   const isLive = usePlayer((s) => s.current?.isLive === true);
+  // Audio streams from sgpc.net, so a tap can be followed by seconds of silence.
+  const starting = usePlayer((s) => s.starting !== null && s.starting === s.current?.id);
 
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
   const big = size === 'lg';
@@ -66,7 +68,7 @@ export function PlayerControls({
         onClick={playerActions.toggle}
         className={cn('rounded-full', big && 'size-12')}
       >
-        {playing ? <Pause /> : <Play />}
+        {starting ? <LoaderCircle className="animate-spin" /> : playing ? <Pause /> : <Play />}
       </Button>
 
       <Button

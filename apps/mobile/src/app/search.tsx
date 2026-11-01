@@ -20,6 +20,7 @@ import { Input } from '@kp/ui-native/input';
 import { RagiShelf } from '~/components/RagiShelf';
 import { Screen } from '~/components/Screen';
 import { ShabadRow } from '~/components/ShabadRow';
+import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { playerActions, usePlayer } from '~/lib/player';
 import { supabase } from '~/lib/supabase';
@@ -113,7 +114,11 @@ export default function SearchScreen() {
           ListEmptyComponent={
             // Pending, not loading: a request held for a connection is not loading, and
             // this empty text over it would say the list has nothing in it.
-            query.isPending ? null : (
+            query.isLoading ? (
+              <View className="px-2">
+                <ShabadRowSkeletons />
+              </View>
+            ) : query.isPending ? null : (
               <View className="gap-1 px-5 py-6">
                 <Text className="text-sm text-foreground">Nothing matches “{trimmed}”.</Text>
                 <Text className="text-sm text-muted-foreground">

@@ -1,7 +1,7 @@
 import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
 import { useRouter } from 'expo-router';
 import { Heart, Pause, Play, SkipForward } from 'lucide-react-native';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
 
 import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
@@ -26,6 +26,8 @@ export function MiniPlayer() {
   const playing = usePlayer((s) => s.playing);
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
+  // Audio streams from sgpc.net, so a tap can be followed by seconds of silence.
+  const starting = usePlayer((s) => s.starting !== null && s.starting === s.current?.id);
   const { favorites } = useSession();
 
   if (!current) return null;
@@ -83,7 +85,9 @@ export function MiniPlayer() {
           scaleTo={0.9}
           className="size-10 items-center justify-center"
         >
-          {playing ? (
+          {starting ? (
+            <ActivityIndicator color={colors.foreground} />
+          ) : playing ? (
             <Pause size={22} color={colors.foreground} fill={colors.foreground} />
           ) : (
             <Play size={22} color={colors.foreground} fill={colors.foreground} />

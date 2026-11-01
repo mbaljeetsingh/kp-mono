@@ -31,7 +31,7 @@ import {
   SkipForward,
 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Screen } from '~/components/Screen';
 import { BANIDB_BASE } from '~/lib/links';
@@ -62,6 +62,8 @@ export default function NowPlayingScreen() {
   const [script] = useTitleScript();
   const [readAlong, setReadAlong] = useReadAlongOptions();
   const playing = usePlayer((s) => s.playing);
+  // Audio streams from sgpc.net, so a tap can be followed by seconds of silence.
+  const starting = usePlayer((s) => s.starting !== null && s.starting === s.current?.id);
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
   const repeat = usePlayer((s) => s.repeat);
@@ -519,7 +521,9 @@ export default function NowPlayingScreen() {
             accessibilityLabel={playing ? 'Pause' : 'Play'}
             className="size-[72px] items-center justify-center rounded-full bg-primary active:opacity-90"
           >
-            {playing ? (
+            {starting ? (
+              <ActivityIndicator size="large" color={colors.primaryForeground} />
+            ) : playing ? (
               <Pause size={30} color={colors.primaryForeground} fill={colors.primaryForeground} />
             ) : (
               <Play size={30} color={colors.primaryForeground} fill={colors.primaryForeground} />
