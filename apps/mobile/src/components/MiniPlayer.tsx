@@ -9,7 +9,7 @@ import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { useIsOnline } from '~/lib/network';
-import { playerActions, usePlayer } from '~/lib/player';
+import { playerActions, playerStore, usePlayer } from '~/lib/player';
 import { useSession } from '~/lib/session';
 import { supabase } from '~/lib/supabase';
 import { skipToNext } from '~/lib/skip';
@@ -140,7 +140,8 @@ function IdleMiniPlayer() {
   const shuffle = useMutation({
     mutationFn: () => randomShabads(supabase, 30),
     onSuccess: (rows) => {
-      if (rows.length) playerActions.playList(rows, 0);
+      // Something chosen while this loaded is what the listener wants now.
+      if (rows.length && !playerStore.getState().current) playerActions.playList(rows, 0);
     },
   });
 

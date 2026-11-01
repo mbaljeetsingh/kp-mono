@@ -64,7 +64,7 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
         placeholder={punjabi ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'Shabad first letters or ragi…'}
-        aria-label="Search shabads and ragis"
+        aria-label={punjabi ? 'Search shabads' : 'Search shabads and ragis'}
         // The placeholder is real Gurmukhi: GurbaniLipi would draw it as nonsense.
         className={cn(
           'rounded-full pl-9',

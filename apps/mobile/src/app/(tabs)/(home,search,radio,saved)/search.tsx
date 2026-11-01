@@ -114,6 +114,11 @@ export default function SearchScreen() {
                   Many lines match. Type another letter to narrow it.
                 </Text>
               ) : null}
+              {query.data?.pages[0]?.degraded ? (
+                <Text className="px-5 text-sm text-muted-foreground">
+                  First-letter search is unavailable right now. Showing titles and ragis.
+                </Text>
+              ) : null}
             </View>
           }
           renderItem={({ item, index }) => (
@@ -130,6 +135,19 @@ export default function SearchScreen() {
             if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
           }}
           onEndReachedThreshold={0.6}
+          ListFooterComponent={
+            query.isFetchNextPageError ? (
+              <Pressable
+                onPress={() => void query.fetchNextPage()}
+                accessibilityRole="button"
+                className="px-5 py-3 active:opacity-60"
+              >
+                <Text className="text-sm text-muted-foreground">
+                  Could not load more. Tap to try again.
+                </Text>
+              </Pressable>
+            ) : null
+          }
           ListEmptyComponent={
             // Pending, not loading: a request held for a connection is not loading, and
             // this empty text over it would say the list has nothing in it.
