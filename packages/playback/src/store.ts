@@ -166,20 +166,24 @@ export function createPlayerStore({
 
     let startingTimer: unknown;
 
-    /** Load an item and start it. The one place `driver.load` is called. */
-    function start(item: Playable, index: number) {
-      if (!canPlay(item)) return;
-      const recentIds = withRecent(get().recentIds, item);
+    function markStarting(id: string) {
       // Only playing clears `starting`, and a file sgpc.net has moved never
       // plays: without this the play button would spin for good.
       if (startingTimer) clearTimeout(startingTimer);
       startingTimer = setTimeout(() => {
-        if (get().starting === item.id) set({ starting: null });
+        if (get().starting === id) set({ starting: null });
       }, STARTING_TIMEOUT_MS);
+      set({ starting: id });
+    }
+
+    /** Load an item and start it. The one place `driver.load` is called. */
+    function start(item: Playable, index: number) {
+      if (!canPlay(item)) return;
+      const recentIds = withRecent(get().recentIds, item);
+      markStarting(item.id);
       set({
         current: item,
         index,
-        starting: item.id,
         position: startPositionFor(item, resume[item.id]),
         recentIds,
       });
@@ -398,6 +402,8 @@ export function createPlayerStore({
         }
         // Asked to resume something it no longer has any way of fetching.
         if (!canPlay(s.current)) return;
+        // A restored or cued file may still be settling, so this can wait too.
+        markStarting(s.current.id);
         driver?.play();
       },
 

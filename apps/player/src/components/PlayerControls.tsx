@@ -64,7 +64,7 @@ export function PlayerControls({
 
       <Button
         size={big ? 'icon-lg' : 'icon'}
-        aria-label={starting ? 'Loading' : playing ? 'Pause' : 'Play'}
+        aria-label={playing ? 'Pause' : 'Play'}
         onClick={playerActions.toggle}
         className={cn('rounded-full', big && 'size-12')}
       >

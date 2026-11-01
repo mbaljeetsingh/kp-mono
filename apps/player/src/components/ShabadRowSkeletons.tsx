@@ -27,14 +27,17 @@ export function ShabadRowSkeletons() {
   }, []);
 
   return (
-    <div
-      inert
-      aria-hidden
-      className={cn('flex flex-col gap-0.5', GREYED_OUT, show ? 'animate-pulse' : 'invisible')}
-    >
-      {Array.from({ length: SKELETON_ROWS }, (_, i) => (
-        <ShabadRow key={i} item={PLACEHOLDER_PLAYABLE} isCurrent={false} playing={false} />
-      ))}
-    </div>
+    <>
+      <p className="sr-only">Loading…</p>
+      <div
+        inert
+        aria-hidden
+        className={cn('flex flex-col gap-0.5', GREYED_OUT, show ? 'animate-pulse' : 'invisible')}
+      >
+        {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+          <ShabadRow key={i} item={PLACEHOLDER_PLAYABLE} isCurrent={false} playing={false} />
+        ))}
+      </div>
+    </>
   );
 }

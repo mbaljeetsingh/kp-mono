@@ -81,7 +81,7 @@ export function MiniPlayer() {
         )}
         <PressableScale
           onPress={playerActions.toggle}
-          accessibilityLabel={starting ? 'Loading' : playing ? 'Pause' : 'Play'}
+          accessibilityLabel={playing ? 'Pause' : 'Play'}
           scaleTo={0.9}
           className="size-10 items-center justify-center"
         >

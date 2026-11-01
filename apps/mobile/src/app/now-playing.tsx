@@ -518,7 +518,7 @@ export default function NowPlayingScreen() {
 
           <Pressable
             onPress={playerActions.toggle}
-            accessibilityLabel={starting ? 'Loading' : playing ? 'Pause' : 'Play'}
+            accessibilityLabel={playing ? 'Pause' : 'Play'}
             className="size-[72px] items-center justify-center rounded-full bg-primary active:opacity-90"
           >
             {starting ? (

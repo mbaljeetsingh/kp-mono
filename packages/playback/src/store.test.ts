@@ -255,6 +255,14 @@ describe('starting', () => {
     expect(store.getState().starting).toBeNull();
   });
 
+  it('runs while a cued item is resumed, until it plays', () => {
+    store.getState().cue(whole('a'), 5);
+    store.getState().toggle();
+    expect(store.getState().starting).toBe('a');
+    store.getState().onStatus({ position: 5, duration: 10, playing: true });
+    expect(store.getState().starting).toBeNull();
+  });
+
   it('stops when the item being started is cued instead', () => {
     store.getState().play(whole('a'));
     store.getState().cue(whole('a'), 5);
@@ -281,6 +289,8 @@ describe('starting', () => {
       store.getState().play(whole('b'));
       vi.advanceTimersByTime(10_000);
       expect(store.getState().starting).toBe('b');
+      vi.advanceTimersByTime(5_000);
+      expect(store.getState().starting).toBeNull();
     } finally {
       vi.useRealTimers();
     }
