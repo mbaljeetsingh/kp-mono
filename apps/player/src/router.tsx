@@ -18,6 +18,7 @@ import { PlaylistsRoute } from '~/routes/playlists';
 import { RadioRoute } from '~/routes/radio';
 import { RagiRoute } from '~/routes/ragi';
 import { RagisRoute } from '~/routes/ragis';
+import { RecentRoute } from '~/routes/recent';
 import { RootLayout } from '~/routes/root';
 import { SearchRoute } from '~/routes/search';
 import { ShabadsRoute } from '~/routes/shabads';
@@ -64,6 +65,11 @@ const favoritesRoute = createRoute({
   path: '/favorites',
   component: FavoritesRoute,
 });
+const recentRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/recent',
+  component: RecentRoute,
+});
 const playlistsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/playlists',
@@ -91,6 +97,7 @@ const routeTree = rootRoute.addChildren([
   ragiRoute,
   radioRoute,
   favoritesRoute,
+  recentRoute,
   playlistsRoute,
   playlistRoute,
   sharedRoute,

@@ -11,7 +11,14 @@
  */
 import type { Playable } from './types';
 
-export const RECENT_LIMIT = 12;
+export const RECENT_LIMIT = 50;
+
+/**
+ * How many of those Home asks for. A row carries its line timings and the list
+ * changes with every play, so the whole list is for the screen that shows it.
+ * A few more than the shelf holds, since anything unpublished drops out.
+ */
+export const RECENT_SHELF_FETCH = 12;
 
 /**
  * The list with this item at the front. Only a published rendition counts: a

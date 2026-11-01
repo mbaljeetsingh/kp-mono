@@ -21,6 +21,7 @@ import {
   otherRecordings,
   searchShabads,
   shabadsByArtist,
+  shabadsByIds,
   PAGE_SIZE,
   type Page,
   type ShabadSort,
@@ -82,6 +83,24 @@ export function useOtherRecordings(
     queryKey: keys.shabads.others(shabadId ?? 0, exceptId ?? ''),
     queryFn: () => otherRecordings(client, shabadId!, exceptId!),
     enabled: Boolean(shabadId && exceptId),
+  });
+}
+
+/**
+ * Rows for these recently played ids, in that order. The last rows stay up while
+ * a play reorders the list, so it does not blink; but not once there are no ids.
+ * A disabled query still shows its placeholder, so signing out left the account's
+ * list on screen, under a heading saying it was kept on this device.
+ */
+export function useRecentShabads(
+  client: KpClient,
+  ids: readonly string[]
+): UseQueryResult<Playable[]> {
+  return useQuery({
+    queryKey: keys.shabads.recent(ids),
+    queryFn: () => shabadsByIds(client, [...ids]),
+    enabled: ids.length > 0,
+    placeholderData: (previous) => (ids.length > 0 ? previous : undefined),
   });
 }
 

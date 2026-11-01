@@ -6,9 +6,15 @@
  * Shelves rather than one endless list: short enough that the next one is
  * still in reach, with the whole archive a "See all" away.
  */
-import { randomShabads, shabadsByIds, shelfShabads, useArtists, type ShabadSort } from '@kp/api';
-import { DEFAULT_STATION, stationPlayable } from '@kp/core';
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
+import {
+  randomShabads,
+  shelfShabads,
+  useArtists,
+  useRecentShabads,
+  type ShabadSort,
+} from '@kp/api';
+import { DEFAULT_STATION, RECENT_SHELF_FETCH, stationPlayable } from '@kp/core';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter, type Href } from 'expo-router';
 import { Play, Radio, Search, Shuffle } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
@@ -164,20 +170,13 @@ function ShelfHeader({ title, href }: { title: string; href: Href }) {
 function RecentShelf({ onMore }: { onMore: ReturnType<typeof useShabadActions>['onMore'] }) {
   const ids = usePlayer((s) => s.recentIds);
   const currentId = usePlayer((s) => s.current?.id);
-  const query = useQuery({
-    queryKey: ['shabads', 'recent', ids],
-    queryFn: () => shabadsByIds(supabase, [...ids]),
-    enabled: ids.length > 0,
-    placeholderData: keepPreviousData,
-  });
+  const query = useRecentShabads(supabase, ids.slice(0, RECENT_SHELF_FETCH));
   const items = (query.data ?? []).slice(0, SHELF_LIMIT);
   if (!items.length) return null;
 
   return (
     <View className="gap-1">
-      <Text className="px-5 font-display text-[22px] leading-7 text-foreground">
-        Recently played
-      </Text>
+      <ShelfHeader title="Recently played" href="/recent" />
       <View className="px-2">
         {items.map((item, index) => (
           <ShabadRow
