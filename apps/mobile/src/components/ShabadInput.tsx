@@ -9,17 +9,33 @@
  */
 import { GURMUKHI_BACKSPACE, GURMUKHI_KEYS } from '@kp/api';
 import type { TitleScript } from '@kp/core';
-import { Delete, Search } from 'lucide-react-native';
-import { Pressable, Text, View } from 'react-native';
+import { ChevronDown, Delete, Keyboard, Search, X } from 'lucide-react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
+import { FullWindowOverlay } from 'react-native-screens';
+import { initialWindowMetrics } from 'react-native-safe-area-context';
 
 import { Input } from '@kp/ui-native/input';
 
 import { cn } from '~/lib/utils';
+import { useSearchKeys } from '~/lib/search-keys';
 import { useColors } from '~/lib/theme';
 
 const ROW_LENGTH = 10;
+const ROWS_COUNT = GURMUKHI_KEYS.length / ROW_LENGTH;
 const HALF_ROW = ROW_LENGTH / 2;
-const ROWS = Array.from({ length: GURMUKHI_KEYS.length / ROW_LENGTH }, (_, row) =>
+const KEY_HEIGHT = 44;
+const KEY_GAP = 4;
+const PANEL_TOP = 8;
+/** Android's tab bar, which the panel covers instead of pushing the list above. */
+const ANDROID_TAB_BAR_HEIGHT = 80;
+const DEVICE_BOTTOM = Math.max(initialWindowMetrics?.insets.bottom ?? 0, 8);
+const PANEL_HEIGHT =
+  PANEL_TOP + ROWS_COUNT * KEY_HEIGHT + (ROWS_COUNT - 1) * KEY_GAP + DEVICE_BOTTOM;
+
+/** Room for a screen to leave under its content while the docked keys are up. */
+export const DOCKED_KEYS_SPACE =
+  Platform.OS === 'android' ? PANEL_HEIGHT - ANDROID_TAB_BAR_HEIGHT - DEVICE_BOTTOM : PANEL_HEIGHT;
+const ROWS = Array.from({ length: ROWS_COUNT }, (_, row) =>
   GURMUKHI_KEYS.slice(row * ROW_LENGTH, (row + 1) * ROW_LENGTH)
 );
 
@@ -58,17 +74,30 @@ export function ShabadInput({
         autoCapitalize="none"
         returnKeyType="search"
         showSoftInputOnFocus={!punjabi}
+        // Paste and AutoFill belong to the phone's keyboard, and it is not up.
+        contextMenuHidden={punjabi}
         onPressIn={onPress}
         // Only once there is something to draw in it: React Native draws the
         // placeholder in the field's font, and GurbaniLipi would garble it.
         className={cn(
-          'h-11 pl-9',
+          'h-11 pl-9 pr-10',
           punjabi && 'py-0',
           // Each centred by eye: the system Gurmukhi of the placeholder and
           // the GurbaniLipi of the text sit differently on one line height.
           punjabi && (value.length > 0 ? 'font-gurmukhi text-lg leading-7' : 'leading-[18px]')
         )}
       />
+      {value ? (
+        <Pressable
+          onPress={() => onChangeText('')}
+          accessibilityRole="button"
+          accessibilityLabel="Clear search"
+          hitSlop={6}
+          className="absolute right-1 size-9 items-center justify-center"
+        >
+          <X size={16} color={colors.mutedForeground} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -76,9 +105,12 @@ export function ShabadInput({
 export function GurmukhiKeys({
   value,
   onChangeText,
+  onHide,
 }: {
   value: string;
   onChangeText: (next: string) => void;
+  /** Offers a way to put the keys down, in the slot beside backspace. */
+  onHide?: () => void;
 }) {
   const colors = useColors();
 
@@ -108,6 +140,18 @@ export function GurmukhiKeys({
                   <Text className="font-gurmukhi text-lg text-foreground">{key}</Text>
                 )}
               </Pressable>
+            ) : onHide && keyIndex === ROW_LENGTH - 2 ? (
+              <Pressable
+                key={keyIndex}
+                onPress={onHide}
+                accessibilityRole="button"
+                accessibilityLabel="Hide Gurmukhi keyboard"
+                className="h-11 flex-1 items-center justify-center rounded-md bg-muted active:bg-accent"
+              >
+                {/* The phone keyboard's own way down: a keyboard over an arrow. */}
+                <Keyboard size={16} color={colors.foreground} />
+                <ChevronDown size={12} color={colors.foreground} />
+              </Pressable>
             ) : (
               // A spacer, not a key: it keeps the short row's letters in line.
               <View key={keyIndex} className="flex-1" />
@@ -117,4 +161,30 @@ export function GurmukhiKeys({
       ))}
     </View>
   );
+}
+
+/**
+ * Search's keys where the phone's keyboard would be, over the play controls and
+ * the tabs, and without dimming: results change as you type, and one is what you
+ * tap next. iOS paints native tabs over anything beside them, so there it takes
+ * an overlay above the window, which passes on touches that miss the keys. That
+ * overlay is above any open sheet too, so Search puts the keys down before one
+ * opens. Android draws a later sibling on top.
+ */
+export function DockedGurmukhiKeys() {
+  const term = useSearchKeys((s) => s.term);
+  const setTerm = useSearchKeys((s) => s.setTerm);
+  const visible = useSearchKeys((s) => s.keysOpen && s.keysAvailable);
+  const setKeysOpen = useSearchKeys((s) => s.setKeysOpen);
+  if (!visible) return null;
+
+  const panel = (
+    <View
+      className="absolute inset-x-0 bottom-0 border-t border-border bg-background px-2"
+      style={{ paddingTop: PANEL_TOP, paddingBottom: DEVICE_BOTTOM }}
+    >
+      <GurmukhiKeys value={term} onChangeText={setTerm} onHide={() => setKeysOpen(false)} />
+    </View>
+  );
+  return Platform.OS === 'ios' ? <FullWindowOverlay>{panel}</FullWindowOverlay> : panel;
 }

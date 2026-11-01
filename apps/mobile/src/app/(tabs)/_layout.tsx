@@ -24,6 +24,7 @@ import { Keyboard, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MiniPlayer } from '~/components/MiniPlayer';
+import { DockedGurmukhiKeys } from '~/components/ShabadInput';
 import { useColors } from '~/lib/theme';
 
 /*
@@ -133,6 +134,7 @@ export default function TabLayout() {
           </View>
         </View>
       ) : null}
+      <DockedGurmukhiKeys />
     </View>
   );
 }

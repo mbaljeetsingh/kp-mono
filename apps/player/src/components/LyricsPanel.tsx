@@ -140,6 +140,7 @@ export function LyricsPanel({ className }: { className?: string }) {
         <ShabadSearch
           base={BANIDB_BASE}
           searchType={READ_ALONG_SEARCH_TYPE[script]}
+          placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : undefined}
           onSelect={(chosen) =>
             current && setPick({ trackId: current.id, shabadId: chosen.shabadId })
           }

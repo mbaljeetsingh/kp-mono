@@ -13,7 +13,8 @@
  */
 import { minSearchLength, useArtists, useSearch } from '@kp/api';
 import type { Playable } from '@kp/core';
-import { useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
@@ -21,10 +22,11 @@ import { AppHeader } from '~/components/AppHeader';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { RagiShelf } from '~/components/RagiShelf';
 import { Screen } from '~/components/Screen';
-import { GurmukhiKeys, ShabadInput } from '~/components/ShabadInput';
+import { DOCKED_KEYS_SPACE, ShabadInput } from '~/components/ShabadInput';
 import { ShabadRow } from '~/components/ShabadRow';
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
-import { useMiniPlayerSpace, usePlayControlsClearance } from '~/lib/mini-player-space';
+import { useMiniPlayerSpace } from '~/lib/mini-player-space';
+import { useSearchKeys } from '~/lib/search-keys';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
@@ -38,11 +40,14 @@ const RAGI_LIMIT = 8;
 
 export default function SearchScreen() {
   const miniPlayerSpace = useMiniPlayerSpace();
-  const clearance = usePlayControlsClearance();
   const colors = useColors();
-  const { onMore, sheet } = useShabadActions();
-  const [term, setTerm] = useState('');
-  const [keysOpen, setKeysOpen] = useState(true);
+  const { onMore: openMenu, sheet } = useShabadActions();
+  const term = useSearchKeys((s) => s.term);
+  const setTerm = useSearchKeys((s) => s.setTerm);
+  const keysOpen = useSearchKeys((s) => s.keysOpen);
+  const setKeysOpen = useSearchKeys((s) => s.setKeysOpen);
+  const setKeysAvailable = useSearchKeys((s) => s.setKeysAvailable);
+  const [focused, setFocused] = useState(false);
   const [debounced] = useDebounceValue(term, 250);
   const [script] = useTitleScript();
   const query = useSearch(supabase, BANIDB_BASE, debounced, script);
@@ -50,8 +55,23 @@ export default function SearchScreen() {
   const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const currentId = usePlayer((s) => s.current?.id);
   const online = useIsOnline();
+  const keysAvailable = focused && online && script === 'pa';
+
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, [])
+  );
+  useEffect(() => setKeysAvailable(keysAvailable), [keysAvailable, setKeysAvailable]);
 
   if (!online) return <OfflineNotice />;
+
+  // The keys sit above any sheet on iOS, so they go down before one opens.
+  const onMore: typeof openMenu = (...args) => {
+    setKeysOpen(false);
+    openMenu(...args);
+  };
 
   const trimmed = debounced.trim();
   const min = minSearchLength(script);
@@ -67,7 +87,9 @@ export default function SearchScreen() {
   return (
     <Screen edges={['top']} className="flex-1 bg-background">
       <View className="gap-3 px-5 pb-2 pt-3">
-        <AppHeader />
+        <View onTouchStart={() => setKeysOpen(false)}>
+          <AppHeader />
+        </View>
         <ShabadInput
           value={term}
           onChangeText={setTerm}
@@ -78,8 +100,9 @@ export default function SearchScreen() {
         />
       </View>
 
-      {/* Takes what is left, so the results end where the keys begin. */}
-      <View className="flex-1">
+      {/* Takes what is left, so the results end where the keys begin. A touch
+          here puts the keys down, as one outside the phone's keyboard would. */}
+      <View className="flex-1" onTouchStart={() => setKeysOpen(false)}>
         {/* Said rather than left blank: a search box that does nothing for one
           character reads as broken. */}
         {!ready ? (
@@ -173,13 +196,7 @@ export default function SearchScreen() {
         )}
       </View>
 
-      {/* Where the phone's keyboard would be, but above the play controls and
-          without dimming: results change as you type, and one is what you tap next. */}
-      {script === 'pa' && keysOpen ? (
-        <View className="px-2 pt-2" style={{ marginBottom: clearance + 8 }}>
-          <GurmukhiKeys value={term} onChangeText={setTerm} />
-        </View>
-      ) : null}
+      {keysAvailable && keysOpen ? <View style={{ height: DOCKED_KEYS_SPACE }} /> : null}
       {sheet}
     </Screen>
   );

@@ -1,0 +1,62 @@
+/**
+ * The field a shabad is searched from, wherever it is drawn: the header's search
+ * and the read-along's. One component, so the magnifier, the clear button and the
+ * Gurmukhi keyboard sit in the same places in both.
+ */
+import { Search, X } from 'lucide-react';
+
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { GurmukhiKeyboard } from './gurmukhi-keyboard';
+import { cn } from '../../lib/utils';
+
+export function ShabadInput({
+  value,
+  onChange,
+  gurbaniLipi,
+  placeholder,
+  ariaLabel,
+  autoFocus,
+  className,
+  inputClassName,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  /** The term is GurbaniLipi keys, drawn in that font and with its keyboard to hand. */
+  gurbaniLipi: boolean;
+  placeholder: string;
+  ariaLabel: string;
+  autoFocus?: boolean;
+  className?: string;
+  inputClassName?: string;
+}) {
+  return (
+    <div className={cn('relative', className)}>
+      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={value}
+        autoFocus={autoFocus}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        className={cn(
+          'pl-9',
+          gurbaniLipi ? 'pr-16' : 'pr-9',
+          // Only once there is something to draw in it. The font sets the line
+          // the placeholder sits on, so a smaller placeholder in another face
+          // rode off centre, and GurbaniLipi would draw a hint as nonsense.
+          gurbaniLipi && (value ? 'font-gurmukhi text-lg' : 'font-gurbani'),
+          inputClassName
+        )}
+      />
+      <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center">
+        {value ? (
+          <Button variant="ghost" size="icon-sm" aria-label="Clear" onClick={() => onChange('')}>
+            <X />
+          </Button>
+        ) : null}
+        {gurbaniLipi ? <GurmukhiKeyboard value={value} onChange={onChange} /> : null}
+      </div>
+    </div>
+  );
+}

@@ -14,13 +14,11 @@
  * because it is one.
  */
 import { LANGUAGE_SEARCH_TYPE, SEARCH_TYPES, useBaniDbSearch, type BaniDbHit } from '@kp/api';
-import { Search, X } from 'lucide-react';
 import * as React from 'react';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { GurmukhiKeyboard } from './gurmukhi-keyboard';
+import { ShabadInput } from './shabad-input';
 import { cn } from '../../lib/utils';
 
 /**
@@ -58,37 +56,13 @@ export function ShabadSearch({
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="flex items-center gap-1">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            placeholder={placeholder}
-            aria-label="Search BaniDB"
-            // The placeholder stays in the UI font: GurbaniLipi maps ASCII to
-            // Gurmukhi glyphs, so an English hint set in it renders as
-            // nonsense words rather than as a hint.
-            className={cn(
-              'pl-9 pr-8',
-              gurbaniLipi && 'font-gurmukhi text-lg placeholder:font-sans placeholder:text-sm'
-            )}
-          />
-          {term ? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Clear"
-              onClick={() => setTerm('')}
-              className="absolute right-1 top-1/2 -translate-y-1/2"
-            >
-              <X />
-            </Button>
-          ) : null}
-        </div>
-
-        {gurbaniLipi ? <GurmukhiKeyboard value={term} onChange={setTerm} /> : null}
-      </div>
+      <ShabadInput
+        value={term}
+        onChange={setTerm}
+        gurbaniLipi={gurbaniLipi}
+        placeholder={placeholder}
+        ariaLabel="Search BaniDB"
+      />
 
       {searchType === undefined ? (
         <div className="flex gap-1">
