@@ -47,10 +47,9 @@ export function GurmukhiKeyboard({
                 className={cn(
                   'w-full px-0',
                   // Two shades split each row in half, as np-mono's keyboard does.
-                  // Named both ways: the button's own secondary is all but the left shade in light.
-                  i % 10 < 5
-                    ? 'bg-primary-soft hover:bg-primary-soft/80'
-                    : 'bg-muted hover:bg-muted/80',
+                  // Solid keys on the popover's tray, as a keyboard's are, with two neutrals
+                  // splitting the row in half. No key reads as selected in either theme.
+                  i % 10 < 5 ? 'bg-accent hover:bg-input' : 'bg-background hover:bg-accent',
                   key === GURMUKHI_BACKSPACE ? 'text-xs' : 'font-gurmukhi text-lg'
                 )}
                 aria-label={key === GURMUKHI_BACKSPACE ? 'Backspace' : GURMUKHI_KEY_LETTERS[key]}

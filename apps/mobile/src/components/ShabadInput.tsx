@@ -133,8 +133,10 @@ export function GurmukhiKeys({
                 // Two shades split each row in half, as np-mono's keyboard does, so a
                 // key is found by which side it is on rather than read across ten.
                 className={cn(
-                  'h-11 flex-1 items-center justify-center rounded-md active:bg-accent',
-                  keyIndex < HALF_ROW ? 'bg-primary-soft' : 'bg-muted'
+                  'h-11 flex-1 items-center justify-center rounded-md',
+                  keyIndex < HALF_ROW
+                    ? 'bg-accent active:bg-input'
+                    : 'bg-background active:bg-accent'
                 )}
               >
                 {key === GURMUKHI_BACKSPACE ? (
@@ -149,7 +151,7 @@ export function GurmukhiKeys({
                 onPress={onHide}
                 accessibilityRole="button"
                 accessibilityLabel="Hide Gurmukhi keyboard"
-                className="h-11 flex-1 items-center justify-center rounded-md bg-muted active:bg-accent"
+                className="h-11 flex-1 items-center justify-center rounded-md bg-background active:bg-accent"
               >
                 {/* The phone keyboard's own way down: a keyboard over an arrow. */}
                 <Keyboard size={16} color={colors.foreground} />
@@ -183,7 +185,7 @@ export function DockedGurmukhiKeys() {
 
   const panel = (
     <View
-      className="absolute inset-x-0 bottom-0 border-t border-border bg-background px-2"
+      className="absolute inset-x-0 bottom-0 border-t border-border bg-popover px-2"
       style={{ paddingTop: PANEL_TOP, paddingBottom: DEVICE_BOTTOM }}
     >
       <GurmukhiKeys value={term} onChangeText={setTerm} onHide={() => setKeysOpen(false)} />

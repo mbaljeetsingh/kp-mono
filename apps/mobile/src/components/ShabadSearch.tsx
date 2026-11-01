@@ -28,7 +28,11 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
         script={script}
         placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'First letters…'}
       />
-      {script === 'pa' ? <GurmukhiKeys value={term} onChangeText={setTerm} /> : null}
+      {script === 'pa' ? (
+        <View className="rounded-lg bg-popover p-2">
+          <GurmukhiKeys value={term} onChangeText={setTerm} />
+        </View>
+      ) : null}
 
       {query.isLoading ? <Text className="text-sm text-muted-foreground">Searching…</Text> : null}
       {query.isError ? (
