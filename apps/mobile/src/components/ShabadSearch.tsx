@@ -8,33 +8,24 @@ import {
   hitSegments,
   lineTextIn,
   MIN_FIRST_LETTERS,
-  useFirstLetterLines,
+  useMatchingLines,
   type BaniDbHit,
-  type LineSegment,
 } from '@kp/api';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
+import { MarkedLine } from '~/components/MarkedLine';
 import { GurmukhiKeys, ShabadInput } from '~/components/ShabadInput';
 import { BANIDB_BASE } from '~/lib/links';
 import { useTitleScript } from '~/lib/title-script';
-
-/** A line with the words the letters landed on picked out. */
-function Marked({ parts }: { parts: LineSegment[] }) {
-  return parts.map((part, i) => (
-    <Text key={i} className={part.match ? 'font-semibold text-primary' : undefined}>
-      {part.text}
-    </Text>
-  ));
-}
 
 export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => void }) {
   const [script] = useTitleScript();
   const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 300);
 
-  const query = useFirstLetterLines(BANIDB_BASE, debounced, script);
+  const query = useMatchingLines(BANIDB_BASE, debounced, script);
   const hits = query.data ?? [];
 
   return (
@@ -71,14 +62,14 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
           >
             <Text className="text-base text-foreground">
               {script === 'pa' ? (
-                <Marked parts={hitSegments(hit, debounced, 'pa')} />
+                <MarkedLine parts={hitSegments(hit, debounced, 'pa')} />
               ) : (
                 lineTextIn(hit, 'pa')
               )}
             </Text>
             <Text className="text-xs text-muted-foreground">
               {script === 'en' ? (
-                <Marked parts={hitSegments(hit, debounced, 'en')} />
+                <MarkedLine parts={hitSegments(hit, debounced, 'en')} />
               ) : (
                 lineTextIn(hit, 'en')
               )}

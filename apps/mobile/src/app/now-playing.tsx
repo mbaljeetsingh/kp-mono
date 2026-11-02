@@ -327,8 +327,8 @@ export default function NowPlayingScreen() {
         </View>
       </View>
 
-      <View className="mx-5 mb-2 flex-row items-center gap-2">
-        <View className="flex-1 flex-row rounded-xl bg-card p-[3px]">
+      <View className="mx-5 mb-2">
+        <View className="flex-row rounded-xl bg-card p-[3px]">
           {(['lyrics', 'queue'] as const).map((value) => (
             <Pressable
               key={value}
@@ -351,14 +351,16 @@ export default function NowPlayingScreen() {
             </Pressable>
           ))}
         </View>
-        {/* Kept in the row on Up next, unseen, so the tabs do not change width
-            under the finger that just tapped one. */}
-        <View
-          className={tab === 'lyrics' ? undefined : 'opacity-0'}
-          pointerEvents={tab === 'lyrics' ? 'auto' : 'none'}
-        >
-          <ReadAlongOptionsSheet options={readAlong} onChange={setReadAlong} />
-        </View>
+        {/* Over the selected tab it belongs to, not beside the tabs, where it
+            read as a setting for both. */}
+        {tab === 'lyrics' ? (
+          <View
+            pointerEvents="box-none"
+            className="absolute inset-y-0 left-0 w-1/2 items-end justify-center pr-1"
+          >
+            <ReadAlongOptionsSheet options={readAlong} onChange={setReadAlong} />
+          </View>
+        ) : null}
       </View>
 
       <ScrollView

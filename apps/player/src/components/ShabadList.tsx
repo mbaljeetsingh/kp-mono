@@ -7,6 +7,8 @@
 import type { LineSegment } from '@kp/api';
 import type { Playable } from '@kp/core';
 
+import { MarkedLine } from '@kp/ui/app/marked-line';
+
 import { EmptyState } from '~/components/EmptyState';
 import { InfiniteScroll } from '~/components/InfiniteScroll';
 import { ShabadRow } from '~/components/ShabadRow';
@@ -29,15 +31,7 @@ interface Props {
 function LineHeadingRow({ parts }: { parts: LineSegment[] }) {
   return (
     <p className="px-2 pb-0.5 pt-3 text-sm text-muted-foreground">
-      {parts.map((part, i) =>
-        part.match ? (
-          <mark key={i} className="bg-transparent font-semibold text-primary">
-            {part.text}
-          </mark>
-        ) : (
-          part.text
-        )
-      )}
+      <MarkedLine parts={parts} />
     </p>
   );
 }
@@ -75,6 +69,14 @@ export function ShabadList({
         const heading = headings?.get(item.id);
         const grouped = firstGrouped >= 0 && index >= firstGrouped;
         const next = items[index + 1];
+        const row = (
+          <ShabadRow
+            item={item}
+            isCurrent={item.id === currentId}
+            playing={playing}
+            onPlay={playFrom}
+          />
+        );
         return (
           <div key={item.id}>
             {heading ? <LineHeadingRow parts={heading} /> : null}
@@ -91,20 +93,10 @@ export function ShabadList({
                   )}
                 />
                 <span aria-hidden className="absolute left-2 top-1/2 h-px w-2 bg-input" />
-                <ShabadRow
-                  item={item}
-                  isCurrent={item.id === currentId}
-                  playing={playing}
-                  onPlay={playFrom}
-                />
+                {row}
               </div>
             ) : (
-              <ShabadRow
-                item={item}
-                isCurrent={item.id === currentId}
-                playing={playing}
-                onPlay={playFrom}
-              />
+              row
             )}
           </div>
         );

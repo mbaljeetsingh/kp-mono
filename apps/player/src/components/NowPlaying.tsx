@@ -93,14 +93,19 @@ function Body({
         {/* Full width with equal halves: two tabs hugging the left edge leave
             a stripe of dead space beside them, and a wider target is easier to
             hit on a phone. */}
-        <div className="mx-4 flex items-center gap-2">
-          <TabsList className="grid flex-1 grid-cols-2">
+        <div className="relative mx-4">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="lyrics">Read along</TabsTrigger>
             <TabsTrigger value="queue">Up next</TabsTrigger>
           </TabsList>
-          {/* Invisible rather than gone on Up next, so the tabs do not change
-              width under the finger that just tapped one. */}
-          <ReadAlongOptionsMenu className={tab === 'lyrics' ? undefined : 'invisible'} />
+          {/* Over the selected tab it belongs to, not beside the tabs, where it
+              read as a setting for both. A sibling, since a button cannot nest
+              in a tab's button. */}
+          {tab === 'lyrics' ? (
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex w-1/2 items-center justify-end pr-1">
+              <ReadAlongOptionsMenu className="pointer-events-auto" />
+            </div>
+          ) : null}
         </div>
         <TabsContent value="lyrics" className="min-h-0 flex-1">
           <LyricsPanel className="h-full" />

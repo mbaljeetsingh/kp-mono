@@ -19,6 +19,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
 import { AppHeader } from '~/components/AppHeader';
+import { MarkedLine } from '~/components/MarkedLine';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { RagiShelf } from '~/components/RagiShelf';
 import { Screen } from '~/components/Screen';
@@ -75,7 +76,7 @@ export default function SearchScreen() {
   const ready = trimmed.length >= min;
   const { items, headings } = groupByLine(
     query.data?.pages.flatMap((p) => p.items) ?? [],
-    query.data?.pages[0]?.lines,
+    query.data?.pages[0]?.matches.lines,
     trimmed,
     script
   );
@@ -136,7 +137,7 @@ export default function SearchScreen() {
                   </>
                 ) : null}
                 <Text className="px-5 pt-2 text-sm font-medium text-foreground">Shabads</Text>
-                {query.data?.pages[0]?.partial ? (
+                {query.data?.pages[0]?.matches.partial ? (
                   <Text className="px-5 text-sm text-muted-foreground">
                     Many lines match. Type another letter to narrow it.
                   </Text>
@@ -146,7 +147,7 @@ export default function SearchScreen() {
                     Could not refresh these results.
                   </Text>
                 ) : null}
-                {query.data?.pages[0]?.degraded ? (
+                {query.data?.pages[0]?.matches.degraded ? (
                   <Text className="px-5 text-sm text-muted-foreground">
                     First-letter search is unavailable right now. Showing titles and ragis.
                   </Text>
@@ -168,14 +169,7 @@ export default function SearchScreen() {
                 <View className="px-2">
                   {heading ? (
                     <Text className="px-2 pb-0.5 pt-3 text-sm text-muted-foreground">
-                      {heading.map((part, i) => (
-                        <Text
-                          key={i}
-                          className={part.match ? 'font-semibold text-primary' : undefined}
-                        >
-                          {part.text}
-                        </Text>
-                      ))}
+                      <MarkedLine parts={heading} />
                     </Text>
                   ) : null}
                   {firstGrouped >= 0 && index >= firstGrouped ? (

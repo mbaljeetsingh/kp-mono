@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import type { KpClient } from './client';
-import { ilikePattern, otherRecordings, searchShabads, shabadById, shabadsByIds } from './queries';
+import {
+  ilikePattern,
+  otherRecordings,
+  PAGE_SIZE,
+  rankedSearchPage,
+  searchShabads,
+  shabadById,
+  shabadsByIds,
+} from './queries';
 
 describe('ilikePattern', () => {
   it('quotes the pattern so a comma cannot end the or() filter', () => {
@@ -197,5 +205,92 @@ describe('searchShabads', () => {
     const { client, filters } = fakeClient();
     await searchShabads(client, 'jjAs', 'pa', [1794]);
     expect(filters).toEqual(['name_gurmukhi.ilike."%jjAs%",shabad_id.in.(1794)']);
+  });
+});
+
+describe('rankedSearchPage', () => {
+  const rows = (n: number, prefix: string) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `${prefix}${i}`,
+      name: 'x',
+      url: 'https://example.test/a.mp3',
+    }));
+  const lineOf = (shabadId: number, atStart: boolean) => ({
+    hit: { verseId: shabadId, shabadId },
+    atStart,
+  });
+  const matches = {
+    lines: [lineOf(1, true), lineOf(2, false)],
+    partial: false,
+  };
+
+  function fakeClient(pages: unknown[][]) {
+    const calls: { in?: unknown; or: string[]; from?: number }[] = [];
+    const client = {
+      from: () => {
+        const call: (typeof calls)[number] = { or: [] };
+        calls.push(call);
+        const result = { data: pages.shift() ?? [], error: null };
+        const chain = {
+          select: () => chain,
+          range: (from: number) => ((call.from = from), chain),
+          in: (_: string, ids: unknown) => ((call.in = ids), chain),
+          or: (filter: string) => (call.or.push(filter), chain),
+          order: () => chain,
+          then: (resolve: (r: typeof result) => void) => resolve(result),
+        };
+        return chain;
+      },
+    } as unknown as KpClient;
+    return { client, calls };
+  }
+
+  it('moves on to the rest in the same page once the openers run out', async () => {
+    const { client, calls } = fakeClient([rows(2, 'open'), rows(1, 'rest')]);
+    const page = await rankedSearchPage(client, 'hjb', 'pa', matches, {
+      stage: 'opening',
+      from: 0,
+    });
+    expect(page.items.map((i) => i.id)).toEqual(['open0', 'open1', 'rest0']);
+    expect(page.next).toBeUndefined();
+    expect(calls[0]?.in).toEqual([1]);
+    // Everything else, without the openers, and without losing unlinked recordings.
+    expect(calls[1]?.or).toEqual([
+      'name_gurmukhi.ilike."%hjb%",shabad_id.in.(2)',
+      'shabad_id.is.null,shabad_id.not.in.(1)',
+    ]);
+  });
+
+  it('stays with the openers while they fill a page', async () => {
+    const { client, calls } = fakeClient([rows(PAGE_SIZE, 'open')]);
+    const page = await rankedSearchPage(client, 'hjb', 'pa', matches, {
+      stage: 'opening',
+      from: 0,
+    });
+    expect(calls).toHaveLength(1);
+    expect(page.next).toMatchObject({ stage: 'opening', from: PAGE_SIZE });
+  });
+
+  it('counts the rest from where its own pages reached', async () => {
+    const { client, calls } = fakeClient([rows(PAGE_SIZE, 'rest')]);
+    const page = await rankedSearchPage(client, 'hjb', 'pa', matches, {
+      stage: 'rest',
+      from: PAGE_SIZE,
+    });
+    expect(calls[0]?.from).toBe(PAGE_SIZE);
+    expect(page.next).toMatchObject({ stage: 'rest', from: PAGE_SIZE * 2 });
+  });
+
+  it('goes straight to the rest when no line opens on the letters', async () => {
+    const { client, calls } = fakeClient([rows(1, 'rest')]);
+    await rankedSearchPage(
+      client,
+      'jag jivan',
+      'en',
+      { lines: [lineOf(2, false)], partial: false },
+      { stage: 'opening', from: 0 }
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.in).toBeUndefined();
   });
 });

@@ -20,15 +20,15 @@ import {
   lineTextIn,
   MIN_FIRST_LETTERS,
   SEARCH_TYPES,
-  useFirstLetterLines,
+  useMatchingLines,
   type BaniDbHit,
-  type LineSegment,
 } from '@kp/api';
 import * as React from 'react';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { Button } from '../ui/button';
 import { ShabadInput } from './shabad-input';
+import { MarkedLine } from './marked-line';
 import { cn } from '../../lib/utils';
 
 /**
@@ -38,19 +38,6 @@ import { cn } from '../../lib/utils';
  * one line into a title, free to drift from the first.
  */
 export type ShabadPick = BaniDbHit;
-
-/** A line with the words the letters landed on picked out. */
-function Marked({ parts }: { parts: LineSegment[] }) {
-  return parts.map((part, i) =>
-    part.match ? (
-      <mark key={i} className="bg-transparent font-semibold text-primary">
-        {part.text}
-      </mark>
-    ) : (
-      part.text
-    )
-  );
-}
 
 export function ShabadSearch({
   base,
@@ -70,7 +57,7 @@ export function ShabadSearch({
   const lang = script ?? (chosen === LANGUAGE_SEARCH_TYPE.en ? 'en' : 'pa');
   const [term, setTerm] = React.useState('');
 
-  const query = useFirstLetterLines(base, term, lang);
+  const query = useMatchingLines(base, term, lang);
   const hits = query.data ?? [];
 
   // English search is a different alphabet, so it drops the font and reads as
@@ -131,14 +118,14 @@ export function ShabadSearch({
           >
             <p className="text-sm">
               {lang === 'pa' ? (
-                <Marked parts={hitSegments(hit, term, 'pa')} />
+                <MarkedLine parts={hitSegments(hit, term, 'pa')} />
               ) : (
                 lineTextIn(hit, 'pa')
               )}
             </p>
             <p className="text-xs text-muted-foreground">
               {lang === 'en' ? (
-                <Marked parts={hitSegments(hit, term, 'en')} />
+                <MarkedLine parts={hitSegments(hit, term, 'en')} />
               ) : (
                 lineTextIn(hit, 'en')
               )}

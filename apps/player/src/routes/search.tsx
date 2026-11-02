@@ -32,7 +32,7 @@ export function SearchRoute() {
 
   const grouped = groupByLine(
     results.data?.pages.flatMap((p) => p.items) ?? [],
-    results.data?.pages[0]?.lines,
+    results.data?.pages[0]?.matches.lines,
     term,
     script
   );
@@ -60,7 +60,7 @@ export function SearchRoute() {
 
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-medium">Shabads</h2>
-            {results.data?.pages[0]?.partial ? (
+            {results.data?.pages[0]?.matches.partial ? (
               <p className="px-1 text-sm text-muted-foreground">
                 Many lines match. Type another letter to narrow it.
               </p>
@@ -68,7 +68,7 @@ export function SearchRoute() {
             {results.isRefetchError ? (
               <p className="px-1 text-sm text-muted-foreground">Could not refresh these results.</p>
             ) : null}
-            {results.data?.pages[0]?.degraded ? (
+            {results.data?.pages[0]?.matches.degraded ? (
               <p className="px-1 text-sm text-muted-foreground">
                 First-letter search is unavailable right now. Showing titles and ragis.
               </p>

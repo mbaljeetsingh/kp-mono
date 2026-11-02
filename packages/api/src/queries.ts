@@ -7,6 +7,7 @@
  */
 import { chunk, toPlayable, type Playable, type TitleScript } from '@kp/core';
 
+import { shabadIdsOf, type LineMatches } from './banidb';
 import { toError, type KpClient } from './client';
 import { artistSchema, parseRows, shabadRowSchema, type Artist } from './schemas';
 
@@ -198,7 +199,9 @@ export async function searchShabads(
   const linked = shabadIds.length ? `,shabad_id.in.(${shabadIds.join(',')})` : '';
   let query = shabads(client, from).or(text + linked);
   if (exceptShabadIds.length) {
-    query = query.not('shabad_id', 'in', `(${exceptShabadIds.join(',')})`);
+    // A plain `not in` is unknown for a null, which would drop every recording
+    // with no shabad linked, however well its title matched.
+    query = query.or(`shabad_id.is.null,shabad_id.not.in.(${exceptShabadIds.join(',')})`);
   }
   const { data, error } = await query.order('play_count', { ascending: false }).order('id');
   if (error) throw toError(error);
@@ -217,6 +220,58 @@ export async function shabadsWithIds(
     .order('id');
   if (error) throw toError(error);
   return toPage(data);
+}
+
+/** One step through ranked search: where a page starts, and the term's lines from BaniDB. */
+export interface SearchStep<M extends LineMatches> {
+  /** Recordings of shabads with a line opening on the letters come first. */
+  stage: 'opening' | 'rest';
+  from: number;
+  matches: M | null;
+}
+
+/** The listed and the excluded share one query string; see `shabadsByIds`. */
+const MAX_FILTERED_SHABADS = 240;
+
+/**
+ * A page of ranked results, and the step after it. Two queries, because PostgREST
+ * cannot order by membership of a list. Every step keeps the first page's matches:
+ * asked again, BaniDB could fail or expire partway, and the offset would then
+ * count a different result set.
+ */
+export async function rankedSearchPage<M extends LineMatches>(
+  client: KpClient,
+  term: string,
+  script: TitleScript,
+  matches: M,
+  step: Pick<SearchStep<M>, 'stage' | 'from'>
+) {
+  const opening = shabadIdsOf(matches.lines.filter((line) => line.atStart));
+  const others = shabadIdsOf(matches.lines)
+    .filter((id) => !opening.includes(id))
+    .slice(0, MAX_FILTERED_SHABADS - opening.length);
+  const rest = (from: number) => searchShabads(client, term, script, others, from, opening);
+  const after = (
+    stage: SearchStep<M>['stage'],
+    from: number,
+    hasMore: boolean
+  ): SearchStep<M> | undefined => (hasMore ? { stage, from, matches } : undefined);
+
+  if (step.stage === 'opening' && opening.length) {
+    const page = await shabadsWithIds(client, opening, step.from);
+    if (page.hasMore) {
+      return { ...page, matches, next: after('opening', step.from + PAGE_SIZE, true) };
+    }
+    const first = await rest(0);
+    return {
+      ...first,
+      items: [...page.items, ...first.items],
+      matches,
+      next: after('rest', PAGE_SIZE, first.hasMore),
+    };
+  }
+  const page = await rest(step.from);
+  return { ...page, matches, next: after('rest', step.from + PAGE_SIZE, page.hasMore) };
 }
 
 export async function listArtists(client: KpClient): Promise<Artist[]> {

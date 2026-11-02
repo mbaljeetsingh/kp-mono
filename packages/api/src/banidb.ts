@@ -5,10 +5,9 @@
  * by the player's read-along, where a listener on a live broadcast can look up
  * what they are hearing for themselves.
  */
-import type { Playable, TitleScript } from '@kp/core';
+import { matchesLineStart, type LineHit, type TitleScript } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
 
-import { lineSegments, matchesLineStart, phraseSegments, type LineSegment } from './first-letters';
 import { keys } from './keys';
 
 /**
@@ -31,10 +30,6 @@ export const SEARCH_TYPES = [
  */
 export const LANGUAGE_SEARCH_TYPE: Record<TitleScript, number> = { en: 7, pa: 1 };
 
-/**
- * Below this, initials match too much of Gurbani to be worth asking: `jj` is
- * 4,304 lines, `jja` 205.
- */
 /** First letters from the start of a line only: Gurmukhi or GurbaniLipi keys. */
 const LINE_START_SEARCH_TYPE = 0;
 
@@ -47,14 +42,18 @@ const LINE_START_SEARCH_TYPE = 0;
  */
 const WORD_SEARCH_TYPE: Record<TitleScript, number> = { en: 8, pa: 2 };
 
+/**
+ * Below this, initials match too much of Gurbani to be worth asking: `jj` is
+ * 4,304 lines, `jja` 205.
+ */
 export const MIN_FIRST_LETTERS = 3;
 
 /** Enough to recognise the line without turning a panel into a second list to read. */
 const LINE_LIST_LIMIT = 20;
 
 /**
- * As many hits as one search reads. `jja` is about 190 shabads at this size, and
- * the ids travel in a query string, whose limit `shabadsByIds` gives as about 250.
+ * As many lines as one search reads. `jja` is about 190 shabads at this size, and
+ * their ids travel in a query string, whose limit `shabadsByIds` gives as about 250.
  */
 const MAX_SHABAD_HITS = 200;
 
@@ -62,17 +61,9 @@ const MAX_SHABAD_HITS = 200;
  * Long enough for BaniDB's slower answers (two to three seconds for 200 hits),
  * short enough that its stalls do not hold up the titles and ragis waiting on it.
  */
-const SHABAD_IDS_TIMEOUT_MS = 6000;
+const LINE_SEARCH_TIMEOUT_MS = 6000;
 
-export interface BaniDbHit {
-  shabadId: number;
-  verseId: number;
-  verse?: { unicode?: string; gurmukhi?: string };
-  transliteration?: { english?: string };
-  translation?: { en?: { bdb?: string } };
-  source?: { english?: string; sourceId?: string };
-  pageNo?: number;
-  writer?: { english?: string };
+export interface BaniDbHit extends LineHit {
   raag?: { english?: string };
 }
 
@@ -104,7 +95,7 @@ export interface LineMatches {
 
 async function readHits(base: string, term: string, searchType: number) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), SHABAD_IDS_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), LINE_SEARCH_TIMEOUT_MS);
   try {
     const res = await fetch(
       `${base}/search/${encodeURIComponent(term)}?searchtype=${searchType}&results=${MAX_SHABAD_HITS}`,
@@ -185,89 +176,13 @@ export async function linesMatching(
   return found.lines.length || script === 'pa' ? found : wordLines(base, term, script);
 }
 
-/** A line as shown in `script`, with the words the term landed on marked. */
-export function hitSegments(hit: BaniDbHit, term: string, script: TitleScript): LineSegment[] {
-  const line = lineTextIn(hit, script);
-  const trimmed = term.trim();
-  const letters = lineSegments(line, trimmed, script);
-  if (letters.some((part) => part.match)) return letters;
-  // Not first letters: read it as words, against what the term was typed in.
-  const typedInUnicode = /[\u0A00-\u0A7F]/.test(trimmed);
-  const compareTo = script === 'pa' && !typedInUnicode ? (hit.verse?.gurmukhi ?? '') : line;
-  return phraseSegments(line, compareTo, trimmed);
-}
-
 /** A shabad's id once, keeping the order: its best line decides where it ranks. */
 export function shabadIdsOf(lines: LineMatch[]): number[] {
   return [...new Set(lines.map((line) => line.hit.shabadId))];
 }
 
-/** What a line reads in the language being searched. */
-export function lineTextIn(hit: BaniDbHit, script: TitleScript): string {
-  return script === 'en'
-    ? (hit.transliteration?.english ?? '')
-    : (hit.verse?.unicode ?? hit.verse?.gurmukhi ?? '');
-}
-
-/**
- * Search results in the order to show them, and the headings that go before some.
- *
- * Recordings found through a line in their shabad gather under that line, once,
- * however many recordings it has: that line is why they are here, and their
- * titles may share no letters with what was typed. The rest come first, with no
- * heading, because their own title is the match. Groups keep the order their first
- * recording arrived in, which is most played first. A later page joins a heading
- * already on screen, so this runs over everything loaded rather than page by page.
- */
-export function groupByLine(
-  items: Playable[],
-  lines: LineMatch[] | undefined,
-  term: string,
-  script: TitleScript
-): { items: Playable[]; headings: Map<string, LineSegment[]> } {
-  const bestLine = new Map<number, BaniDbHit>();
-  for (const { hit } of lines ?? []) {
-    if (!bestLine.has(hit.shabadId)) bestLine.set(hit.shabadId, hit);
-  }
-  // Decided per shabad: its recordings stay together even when only some of them
-  // are titled by the matched line, rather than one at the top and the rest below.
-  const titledByLine = new Set(
-    [...bestLine.values()]
-      .filter((hit) =>
-        items
-          .filter((item) => item.shabadId === hit.shabadId)
-          .every((item) => item.mainVerseId === hit.verseId)
-      )
-      .map((hit) => hit.shabadId)
-  );
-  const plain: Playable[] = [];
-  const groups = new Map<number, Playable[]>();
-  for (const item of items) {
-    const hit = item.shabadId == null ? undefined : bestLine.get(item.shabadId);
-    if (!hit || titledByLine.has(hit.shabadId)) plain.push(item);
-    else groups.set(hit.shabadId, [...(groups.get(hit.shabadId) ?? []), item]);
-  }
-  const headings = new Map<string, LineSegment[]>();
-  for (const [shabadId, group] of groups) {
-    headings.set(group[0]!.id, hitSegments(bestLine.get(shabadId)!, term, script));
-  }
-  return { items: [...plain, ...[...groups.values()].flat()], headings };
-}
-
-/** Who wrote a line and where it is: enough to tell two like lines apart. */
-export function lineDetails(hit: BaniDbHit): string {
-  const inGranth = hit.source?.sourceId === 'G';
-  return [
-    inGranth ? null : hit.source?.english,
-    hit.writer?.english,
-    hit.pageNo == null ? null : `${inGranth ? 'Ang' : 'Page'} ${hit.pageNo}`,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-}
-
 /** The read-along's and the workbench's list: the best few lines to recognise. */
-export function useFirstLetterLines(base: string, term: string, script: TitleScript) {
+export function useMatchingLines(base: string, term: string, script: TitleScript) {
   const trimmed = term.trim();
   return useQuery({
     queryKey: keys.banidb.lines(script, trimmed),
