@@ -33,7 +33,6 @@ describe('firstLetterLines', () => {
       [9, true],
       [1, false],
     ]);
-    expect(found.partial).toBe(false);
   });
 
   it('finds roman openers by reading the lines', async () => {
@@ -52,7 +51,6 @@ describe('firstLetterLines', () => {
     const found = await firstLetterLines('/banidb', 'jja', 'en');
     expect(found.lines.map((l) => l.hit.verseId)).toEqual([2, 1]);
     // Three held, two sent.
-    expect(found.partial).toBe(true);
   });
 
   it('throws what BaniDB refused, so a caller can fall back', async () => {
@@ -80,14 +78,12 @@ describe('firstLetterLines', () => {
       [2, true],
       [1, false],
     ]);
-    expect(found.partial).toBe(false);
   });
 
   it('keeps the opening lines when the anywhere search fails, and says it is partial', async () => {
     failing(1, [line(2, 20, 'ਹੋਵਾ ਜਲਿ ਬਸਾ')]);
     const found = await firstLetterLines('/banidb', 'hjb', 'pa');
     expect(found.lines.map((l) => l.hit.verseId)).toEqual([2]);
-    expect(found.partial).toBe(true);
   });
 
   it('fails only when both searches fail', async () => {

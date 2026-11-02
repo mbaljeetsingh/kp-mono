@@ -44,6 +44,15 @@ export const shabadRowSchema = z.object({
   created_at: z.string().nullish(),
 });
 
+/** A search result: the recording, and the line that found it, if one did. */
+export const searchRowSchema = z.object({
+  shabad: shabadRowSchema,
+  verse_id: z.number().nullable(),
+  gurmukhi: z.string().nullable(),
+  gurmukhi_keys: z.string().nullable(),
+  roman: z.string().nullable(),
+});
+
 export const artistSchema = z.object({
   name: z.string(),
   display_name: z.string().nullish(),

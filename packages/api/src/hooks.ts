@@ -8,21 +8,19 @@
 import {
   useInfiniteQuery,
   useQuery,
-  useQueryClient,
   type UseInfiniteQueryResult,
   type UseQueryResult,
 } from '@tanstack/react-query';
-import type { Playable, TitleScript } from '@kp/core';
+import { groupByLine, type Playable, type TitleScript } from '@kp/core';
 
-import { linesMatching, MIN_FIRST_LETTERS, type LineMatches } from './banidb';
+import { MIN_FIRST_LETTERS } from './banidb';
 import type { KpClient } from './client';
 import { keys } from './keys';
 import {
   listArtists,
   listShabads,
   otherRecordings,
-  rankedSearchPage,
-  type SearchStep,
+  searchPage,
   shabadsByArtist,
   shabadsByIds,
   PAGE_SIZE,
@@ -60,13 +58,6 @@ export function useShabadsByArtist(client: KpClient, artist: string) {
   });
 }
 
-type SearchMatches = LineMatches & {
-  /** BaniDB could not be asked, so only titles and ragis were searched. */
-  degraded: boolean;
-};
-
-const NO_MATCHES: SearchMatches = { lines: [], partial: false, degraded: false };
-
 /**
  * How much a listener must type. Punjabi has only Gurbani to go on, through its
  * first letters or words; roman has ragis too, which two letters can already narrow.
@@ -76,44 +67,40 @@ export function minSearchLength(script: TitleScript): number {
 }
 
 /**
- * Search, held back until the term is worth a round trip.
+ * Search, held back until the term is worth a round trip, with its recordings
+ * gathered under the lines that found them.
  *
  * One character matches most of a 49k-row archive, which is a slow query for a
  * result nobody wanted.
  *
- * BaniDB is asked once per term, through the cache, not once per page. If it is
- * down, roman search still has titles and ragis to offer, so that is what it
- * shows, flagged `degraded`; Punjabi has nothing else, so the failure surfaces
- * as an error.
+ * The last results stay until the new ones come, unless there were none or the
+ * language changed; `term` on each page says which term they answered, which is
+ * the term their lines are marked against.
  */
-export function useSearch(client: KpClient, base: string, term: string, script: TitleScript) {
+export function useSearchResults(client: KpClient, term: string, script: TitleScript) {
   const trimmed = term.trim();
-  const queryClient = useQueryClient();
-  const asksBaniDb = trimmed.length >= MIN_FIRST_LETTERS;
-  return useInfiniteQuery({
+  const results = useInfiniteQuery({
     queryKey: keys.shabads.search(trimmed, script),
-    initialPageParam: { stage: 'opening', from: 0, matches: null } as SearchStep<SearchMatches>,
-    queryFn: async ({ pageParam }) => {
-      const matches =
-        pageParam.matches ??
-        (asksBaniDb
-          ? await queryClient
-              .fetchQuery({
-                queryKey: keys.banidb.lines(script, trimmed),
-                queryFn: () => linesMatching(base, trimmed, script),
-                staleTime: 1000 * 60 * 10,
-              })
-              .then((found): SearchMatches => ({ ...found, degraded: false }))
-              .catch((failure: unknown): SearchMatches => {
-                if (script === 'pa') throw failure;
-                return { ...NO_MATCHES, degraded: true };
-              })
-          : NO_MATCHES);
-      return rankedSearchPage(client, trimmed, script, matches, pageParam);
-    },
-    getNextPageParam: (last) => last.next,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => ({
+      ...(await searchPage(client, trimmed, script, pageParam)),
+      term: trimmed,
+    }),
+    getNextPageParam: (last, all) => (last.hasMore ? all.length * PAGE_SIZE : undefined),
     enabled: trimmed.length >= minSearchLength(script),
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[3] === script && previous?.pages[0]?.items.length
+        ? previous
+        : undefined,
   });
+  const pages = results.data?.pages ?? [];
+  const grouped = groupByLine(
+    pages.flatMap((page) => page.items),
+    pages.flatMap((page) => page.lines),
+    pages[0]?.term ?? trimmed,
+    script
+  );
+  return { ...grouped, results };
 }
 
 /** Other recordings of what is playing. Asks nothing until the rendition is linked. */

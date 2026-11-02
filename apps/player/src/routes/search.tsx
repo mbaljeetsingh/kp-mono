@@ -7,14 +7,13 @@
  * round trip per keystroke for it would be the slower way to get the same rows.
  * Their names are roman, so Punjabi keystrokes are never held against them.
  */
-import { groupByLine, minSearchLength, useArtists, useSearch as useSearchQuery } from '@kp/api';
+import { minSearchLength, useArtists, useSearchResults } from '@kp/api';
 import { useSearch } from '@tanstack/react-router';
 import { useDebounceValue } from 'usehooks-ts';
 
 import { RagiShelf } from '~/components/RagiCard';
 import { SearchField } from '~/components/SearchField';
 import { ShabadList } from '~/components/ShabadList';
-import { BANIDB_BASE } from '~/lib/links';
 import { supabase } from '~/lib/supabase';
 import { useTitleScript } from '~/lib/title-script';
 
@@ -22,20 +21,13 @@ const RAGI_LIMIT = 8;
 
 export function SearchRoute() {
   const { q = '' } = useSearch({ from: '/search' });
-  const [term] = useDebounceValue(q.trim(), 250);
+  const [term] = useDebounceValue(q.trim(), 120);
   const [script] = useTitleScript();
   const min = minSearchLength(script);
   const ready = term.length >= min;
 
-  const results = useSearchQuery(supabase, BANIDB_BASE, term, script);
+  const { results, items, headings } = useSearchResults(supabase, term, script);
   const artists = useArtists(supabase);
-
-  const grouped = groupByLine(
-    results.data?.pages.flatMap((p) => p.items) ?? [],
-    results.data?.pages[0]?.matches.lines,
-    term,
-    script
-  );
 
   const needle = term.toLowerCase();
   const ragis =
@@ -60,30 +52,21 @@ export function SearchRoute() {
 
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-medium">Shabads</h2>
-            {results.data?.pages[0]?.matches.partial ? (
-              <p className="px-1 text-sm text-muted-foreground">
-                Many lines match. Type another letter to narrow it.
-              </p>
-            ) : null}
             {results.isRefetchError ? (
               <p className="px-1 text-sm text-muted-foreground">Could not refresh these results.</p>
-            ) : null}
-            {results.data?.pages[0]?.matches.degraded ? (
-              <p className="px-1 text-sm text-muted-foreground">
-                First-letter search is unavailable right now. Showing titles and ragis.
-              </p>
             ) : null}
             {results.isError && !results.data ? (
               <p className="px-1 text-sm text-muted-foreground">Could not search just now.</p>
             ) : (
               <ShabadList
-                items={grouped.items}
+                items={items}
                 loading={results.isLoading || results.isFetchingNextPage}
-                hasMore={results.hasNextPage}
+                // Not while the last term's rows stand in: their pages are not this query's.
+                hasMore={results.hasNextPage && !results.isPlaceholderData}
                 onLoadMore={() => void results.fetchNextPage()}
                 // Punjabi's term is GurbaniLipi keystrokes, which read as nonsense here.
                 empty={script === 'pa' ? 'Nothing matches.' : `Nothing matches “${term}”.`}
-                headings={grouped.headings}
+                headings={headings}
                 emptyHint="Most of the archive is still untagged — it may simply not be findable yet."
               />
             )}

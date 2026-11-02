@@ -38,6 +38,7 @@ declare module 'vitest' {
   export interface ProvidedContext {
     supabaseUrl: string;
     supabaseKey: string;
+    supabaseSecretKey: string;
   }
 }
 

@@ -14,7 +14,7 @@ import { defineConfig } from 'vitest/config';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 
-function localStack(): { url: string; key: string } {
+function localStack(): { url: string; key: string; secret: string } {
   let out: string;
   try {
     out = execFileSync('pnpm', ['exec', 'supabase', 'status', '-o', 'json'], {
@@ -28,11 +28,14 @@ function localStack(): { url: string; key: string } {
   const status = JSON.parse(out) as Record<string, string>;
   const url = status.API_URL;
   const key = status.PUBLISHABLE_KEY ?? status.ANON_KEY;
-  if (!url || !key) throw new Error('`supabase status` reported no API URL or publishable key.');
-  return { url, key };
+  const secret = status.SECRET_KEY ?? status.SERVICE_ROLE_KEY;
+  if (!url || !key || !secret) {
+    throw new Error('`supabase status` reported no API URL, publishable key or secret key.');
+  }
+  return { url, key, secret };
 }
 
-const { url, key } = localStack();
+const { url, key, secret } = localStack();
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) {
   throw new Error(`Refusing to run the permission matrix against ${url}: local stack only.`);
 }
@@ -44,6 +47,6 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 20_000,
     hookTimeout: 30_000,
-    provide: { supabaseUrl: url, supabaseKey: key },
+    provide: { supabaseUrl: url, supabaseKey: key, supabaseSecretKey: secret },
   },
 });

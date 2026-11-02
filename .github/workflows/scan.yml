@@ -127,6 +127,14 @@ jobs:
           BACKFILL: ${{ inputs.backfill }}
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
           SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      # A draft may publish with its timings already written, which starts no align
+      # run, so its shabad's lines are fetched here, ready for search when it does.
+      # Allowed to fail, and after the scan, for the reason align.yml gives.
+      - run: uv run python fill_lines.py
+        continue-on-error: true
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
   # ── eval: the scan measured against every published rendition ──────────
   # One job fetches the corpus, twelve transcribe and score a slice of the

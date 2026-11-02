@@ -66,6 +66,8 @@ with synced lyrics), and two accounts for testing the permission split:
 | `contributor@kirtanplayer.com` | `password` | `contributor` |
 
 The same seed makes `supabase db reset` cheap — reset, and the sample is back.
+It holds no shabad lines, which search by first letters reads: `pnpm fill:lines`
+fetches them from BaniDB.
 Artist photos are seeded as paths only (the images are not in git); tiles fall
 back to gradients until `pnpm seed:artists` fetches them.
 

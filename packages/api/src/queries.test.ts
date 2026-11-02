@@ -1,39 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { KpClient } from './client';
-import {
-  ilikePattern,
-  otherRecordings,
-  PAGE_SIZE,
-  rankedSearchPage,
-  searchShabads,
-  shabadById,
-  shabadsByIds,
-} from './queries';
-
-describe('ilikePattern', () => {
-  it('quotes the pattern so a comma cannot end the or() filter', () => {
-    // `or=(a.ilike.X,b.ilike.X)` is comma-separated in PostgREST's own grammar.
-    // Unquoted, a comma in the term ended the filter early and the request
-    // came back 400 — a search for "jag,jivan" failed outright.
-    expect(ilikePattern('jag,jivan')).toBe('"%jag,jivan%"');
-  });
-
-  it('escapes ILIKE wildcards, so an underscore means an underscore', () => {
-    // Doubled: the quoting layer unescapes one backslash on the way in, and
-    // ILIKE sees the other.
-    expect(ilikePattern('jag_jivan')).toBe('"%jag\\\\_jivan%"');
-    expect(ilikePattern('100%')).toBe('"%100\\\\%%"');
-  });
-
-  it('escapes a double quote, which would otherwise close the pattern', () => {
-    expect(ilikePattern('say "hello"')).toBe('"%say \\"hello\\"%"');
-  });
-
-  it('leaves an ordinary term alone but for the quotes', () => {
-    expect(ilikePattern('gurwinder')).toBe('"%gurwinder%"');
-  });
-});
+import { otherRecordings, searchPage, shabadById, shabadsByIds } from './queries';
 
 describe('otherRecordings', () => {
   function fakeClient(result: { data: unknown[] | null; error: unknown }) {
@@ -173,129 +141,39 @@ describe('shabadById', () => {
   });
 });
 
-describe('searchShabads', () => {
-  function fakeClient() {
-    const filters: string[] = [];
-    const chain = {
-      select: () => chain,
-      range: () => chain,
-      or: (filter: string) => (filters.push(filter), chain),
-      order: () => chain,
-      then: (resolve: (r: { data: unknown[]; error: null }) => void) =>
-        resolve({ data: [], error: null }),
-    };
-    return { client: { from: () => chain } as unknown as KpClient, filters };
-  }
-
-  it('finds roman titles, ragis and the shabads BaniDB matched', async () => {
-    const { client, filters } = fakeClient();
-    await searchShabads(client, 'jjas', 'en', [1794, 3022]);
-    expect(filters).toEqual([
-      'name.ilike."%jjas%",artist_display.ilike."%jjas%",shabad_id.in.(1794,3022)',
-    ]);
+describe('searchPage', () => {
+  const row = (id: string, verseId: number | null) => ({
+    shabad: { id, name: id, url: 'u', track_id: 't', shabad_id: 7, play_count: 0 },
+    verse_id: verseId,
+    gurmukhi: 'ਜਗਿ ਜੀਵਨੁ',
+    gurmukhi_keys: 'jig jIvnu',
+    roman: 'jag jeevan',
   });
-
-  it('keeps a roman search working with nothing from BaniDB', async () => {
-    const { client, filters } = fakeClient();
-    await searchShabads(client, 'jag jivan', 'en', []);
-    expect(filters).toEqual(['name.ilike."%jag jivan%",artist_display.ilike."%jag jivan%"']);
-  });
-
-  it('never holds Punjabi keystrokes against roman titles', async () => {
-    const { client, filters } = fakeClient();
-    await searchShabads(client, 'jjAs', 'pa', [1794]);
-    expect(filters).toEqual(['name_gurmukhi.ilike."%jjAs%",shabad_id.in.(1794)']);
-  });
-});
-
-describe('rankedSearchPage', () => {
-  const rows = (n: number, prefix: string) =>
-    Array.from({ length: n }, (_, i) => ({
-      id: `${prefix}${i}`,
-      name: 'x',
-      url: 'https://example.test/a.mp3',
-    }));
-  const lineOf = (shabadId: number, atStart: boolean) => ({
-    hit: { verseId: shabadId, shabadId },
-    atStart,
-  });
-  const matches = {
-    lines: [lineOf(1, true), lineOf(2, false)],
-    partial: false,
+  const clientAnswering = (rows: unknown[]) => {
+    const rpc = vi.fn((_name: string, _args: Record<string, unknown>) =>
+      Promise.resolve({ data: rows, error: null })
+    );
+    return { client: { rpc } as unknown as KpClient, rpc };
   };
 
-  function fakeClient(pages: unknown[][]) {
-    const calls: { in?: unknown; or: string[]; from?: number; order: unknown[][] }[] = [];
-    const client = {
-      from: () => {
-        const call: (typeof calls)[number] = { or: [], order: [] };
-        calls.push(call);
-        const result = { data: pages.shift() ?? [], error: null };
-        const chain = {
-          select: () => chain,
-          range: (from: number) => ((call.from = from), chain),
-          in: (_: string, ids: unknown) => ((call.in = ids), chain),
-          or: (filter: string) => (call.or.push(filter), chain),
-          order: (...args: unknown[]) => (call.order.push(args), chain),
-          then: (resolve: (r: typeof result) => void) => resolve(result),
-        };
-        return chain;
-      },
-    } as unknown as KpClient;
-    return { client, calls };
-  }
-
-  it('moves on to the rest in the same page once the openers run out', async () => {
-    const { client, calls } = fakeClient([rows(2, 'open'), rows(1, 'rest')]);
-    const page = await rankedSearchPage(client, 'hjb', 'pa', matches, {
-      stage: 'opening',
-      from: 0,
-    });
-    expect(page.items.map((i) => i.id)).toEqual(['open0', 'open1', 'rest0']);
-    expect(page.next).toBeUndefined();
-    expect(calls[0]?.in).toEqual([1]);
-    // Everything else, without the openers, and without losing unlinked recordings.
-    expect(calls[1]?.or).toEqual([
-      'name_gurmukhi.ilike."%hjb%",shabad_id.in.(2)',
-      'shabad_id.is.null,shabad_id.not.in.(1)',
-    ]);
-    // Most played first in both stages, with the id keeping pages stable.
-    for (const call of calls) {
-      expect(call.order[0]?.slice(0, 2)).toEqual(['play_count', { ascending: false }]);
-      expect(call.order[1]?.[0]).toBe('id');
-    }
+  it('sends initials as stored letters, and words as typed', async () => {
+    const { client, rpc } = clientAnswering([row('a', 1)]);
+    await searchPage(client, 'jjs', 'pa');
+    expect(rpc.mock.calls[0]![1]).toMatchObject({ letters: 'ਜਜਸ', words: 'jjs', script: 'pa' });
   });
 
-  it('stays with the openers while they fill a page', async () => {
-    const { client, calls } = fakeClient([rows(PAGE_SIZE, 'open')]);
-    const page = await rankedSearchPage(client, 'hjb', 'pa', matches, {
-      stage: 'opening',
-      from: 0,
-    });
-    expect(calls).toHaveLength(1);
-    expect(page.next).toMatchObject({ stage: 'opening', from: PAGE_SIZE });
+  it('sends no letters for a term with spaces, or one too short to be initials', async () => {
+    const { client, rpc } = clientAnswering([row('a', 1)]);
+    await searchPage(client, 'jag jeevan', 'en');
+    await searchPage(client, 'jj', 'en');
+    expect(rpc.mock.calls[0]![1].letters).toBe('');
+    expect(rpc.mock.calls[1]![1].letters).toBe('');
   });
 
-  it('counts the rest from where its own pages reached', async () => {
-    const { client, calls } = fakeClient([rows(PAGE_SIZE, 'rest')]);
-    const page = await rankedSearchPage(client, 'hjb', 'pa', matches, {
-      stage: 'rest',
-      from: PAGE_SIZE,
-    });
-    expect(calls[0]?.from).toBe(PAGE_SIZE);
-    expect(page.next).toMatchObject({ stage: 'rest', from: PAGE_SIZE * 2 });
-  });
-
-  it('goes straight to the rest when no line opens on the letters', async () => {
-    const { client, calls } = fakeClient([rows(1, 'rest')]);
-    await rankedSearchPage(
-      client,
-      'jag jivan',
-      'en',
-      { lines: [lineOf(2, false)], partial: false },
-      { stage: 'opening', from: 0 }
-    );
-    expect(calls).toHaveLength(1);
-    expect(calls[0]?.in).toBeUndefined();
+  it('keeps the line that found a recording, and none for a title match', async () => {
+    const { client } = clientAnswering([row('a', 21696), row('b', null)]);
+    const page = await searchPage(client, 'jjs', 'en');
+    expect(page.items.map((item) => item.id)).toEqual(['a', 'b']);
+    expect(page.lines.map((line) => line.hit.verseId)).toEqual([21696]);
   });
 });
