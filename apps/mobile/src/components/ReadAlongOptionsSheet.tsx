@@ -46,6 +46,7 @@ export function ReadAlongOptionsSheet({
         onPress={() => setOpen(true)}
         accessibilityRole="button"
         accessibilityLabel="Read-along options"
+        hitSlop={6}
         className="size-8 items-center justify-center rounded-lg active:bg-accent"
       >
         <SlidersHorizontal size={16} color={colors.mutedForeground} />

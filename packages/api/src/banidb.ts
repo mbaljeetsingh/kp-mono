@@ -5,7 +5,7 @@
  * by the player's read-along, where a listener on a live broadcast can look up
  * what they are hearing for themselves.
  */
-import { matchesLineStart, type LineHit, type TitleScript } from '@kp/core';
+import { lineTextIn, matchesLineStart, type LineHit, type TitleScript } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
 
 import { keys } from './keys';
@@ -137,19 +137,28 @@ export async function firstLetterLines(
       partial: total > verses.length,
     };
   }
-  const [opening, anywhere] = await Promise.all([
+  const [opening, anywhere] = await Promise.allSettled([
     readHits(base, term, LINE_START_SEARCH_TYPE),
     readHits(base, term, LANGUAGE_SEARCH_TYPE.pa),
   ]);
-  const opened = new Set(opening.verses.map((hit) => hit.verseId));
+  // Punjabi has nothing else to search, so one answer beats an error. Only both
+  // failing is a failure, and either answer alone can still be ranked.
+  if (opening.status === 'rejected' && anywhere.status === 'rejected') throw opening.reason;
+  const openers = opening.status === 'fulfilled' ? opening.value.verses : [];
+  const others = anywhere.status === 'fulfilled' ? anywhere.value.verses : [];
+  const opened = new Set(openers.map((hit) => hit.verseId));
+  const atStart = (hit: BaniDbHit) =>
+    opening.status === 'rejected' && matchesLineStart(lineTextIn(hit, 'pa'), term, 'pa');
+  const rest = others
+    .filter((hit) => !opened.has(hit.verseId))
+    .map((hit) => ({ hit, atStart: atStart(hit) }));
   return {
     lines: [
-      ...opening.verses.map((hit) => ({ hit, atStart: true })),
-      ...anywhere.verses
-        .filter((hit) => !opened.has(hit.verseId))
-        .map((hit) => ({ hit, atStart: false })),
+      ...openers.map((hit) => ({ hit, atStart: true })),
+      ...rest.filter((line) => line.atStart),
+      ...rest.filter((line) => !line.atStart),
     ],
-    partial: anywhere.total > anywhere.verses.length,
+    partial: anywhere.status === 'rejected' || anywhere.value.total > anywhere.value.verses.length,
   };
 }
 

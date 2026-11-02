@@ -62,6 +62,38 @@ describe('firstLetterLines', () => {
     );
     await expect(firstLetterLines('/banidb', 'jjas', 'en')).rejects.toThrow('503');
   });
+
+  const failing = (searchType: number | 'both', verses: unknown[]) =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        searchType === 'both' || url.includes(`searchtype=${searchType}`)
+          ? new Response('', { status: 503 })
+          : Response.json({ resultsInfo: { totalResults: verses.length }, verses })
+      )
+    );
+
+  it('still ranks the anywhere lines when the opening search fails', async () => {
+    failing(0, [line(1, 10, 'ਮਛੁਲੀ ਹੋਵਾ ਜਲਿ ਬਸਾ'), line(2, 20, 'ਹੋਵਾ ਜਲਿ ਬਸਾ')]);
+    const found = await firstLetterLines('/banidb', 'hjb', 'pa');
+    expect(found.lines.map((l) => [l.hit.verseId, l.atStart])).toEqual([
+      [2, true],
+      [1, false],
+    ]);
+    expect(found.partial).toBe(false);
+  });
+
+  it('keeps the opening lines when the anywhere search fails, and says it is partial', async () => {
+    failing(1, [line(2, 20, 'ਹੋਵਾ ਜਲਿ ਬਸਾ')]);
+    const found = await firstLetterLines('/banidb', 'hjb', 'pa');
+    expect(found.lines.map((l) => l.hit.verseId)).toEqual([2]);
+    expect(found.partial).toBe(true);
+  });
+
+  it('fails only when both searches fail', async () => {
+    failing('both', []);
+    await expect(firstLetterLines('/banidb', 'hjb', 'pa')).rejects.toThrow('503');
+  });
 });
 
 describe('linesMatching', () => {

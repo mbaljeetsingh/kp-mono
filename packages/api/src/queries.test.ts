@@ -225,10 +225,10 @@ describe('rankedSearchPage', () => {
   };
 
   function fakeClient(pages: unknown[][]) {
-    const calls: { in?: unknown; or: string[]; from?: number }[] = [];
+    const calls: { in?: unknown; or: string[]; from?: number; order: unknown[][] }[] = [];
     const client = {
       from: () => {
-        const call: (typeof calls)[number] = { or: [] };
+        const call: (typeof calls)[number] = { or: [], order: [] };
         calls.push(call);
         const result = { data: pages.shift() ?? [], error: null };
         const chain = {
@@ -236,7 +236,7 @@ describe('rankedSearchPage', () => {
           range: (from: number) => ((call.from = from), chain),
           in: (_: string, ids: unknown) => ((call.in = ids), chain),
           or: (filter: string) => (call.or.push(filter), chain),
-          order: () => chain,
+          order: (...args: unknown[]) => (call.order.push(args), chain),
           then: (resolve: (r: typeof result) => void) => resolve(result),
         };
         return chain;
@@ -259,6 +259,11 @@ describe('rankedSearchPage', () => {
       'name_gurmukhi.ilike."%hjb%",shabad_id.in.(2)',
       'shabad_id.is.null,shabad_id.not.in.(1)',
     ]);
+    // Most played first in both stages, with the id keeping pages stable.
+    for (const call of calls) {
+      expect(call.order[0]?.slice(0, 2)).toEqual(['play_count', { ascending: false }]);
+      expect(call.order[1]?.[0]).toBe('id');
+    }
   });
 
   it('stays with the openers while they fill a page', async () => {

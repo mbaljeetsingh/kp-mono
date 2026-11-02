@@ -54,7 +54,7 @@ export function ReadAlongOptionsMenu({ className }: { className?: string }) {
       <DropdownMenuTrigger
         aria-label="Read-along options"
         className={cn(
-          'flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground',
+          'flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground',
           className
         )}
       >
