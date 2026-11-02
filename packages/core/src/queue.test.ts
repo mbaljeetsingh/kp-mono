@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { onEnded, onNext, onPrevious, upNext, type QueueState } from './queue';
+import {
+  onEnded,
+  onNext,
+  onPrevious,
+  upNext,
+  canShuffle,
+  type QueueState,
+  shuffledQueue,
+  unshuffledQueue,
+} from './queue';
 import type { Playable } from './types';
 
 const item = (id: string): Playable => ({ id, title: id, url: `https://x/${id}` });
@@ -100,5 +109,47 @@ describe('upNext', () => {
 
   it('is empty at the end', () => {
     expect(upNext(three(2))).toEqual([]);
+  });
+});
+
+describe('shuffling', () => {
+  const list = (...ids: string[]) => ids.map((id) => ({ id, title: id, url: `https://x/${id}` }));
+  const ids = (items: { id: string }[]) => items.map((item) => item.id);
+
+  it('shuffles only what follows the cursor', () => {
+    const shuffled = shuffledQueue(list('a', 'b', 'c', 'd', 'e'), 1, () => 0);
+    expect(ids(shuffled).slice(0, 2)).toEqual(['a', 'b']);
+    expect(ids(shuffled).sort()).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(ids(shuffled)).not.toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('shuffles everything when nothing has played yet', () => {
+    expect(ids(shuffledQueue(list('a', 'b'), -1, () => 0))).toEqual(['b', 'a']);
+  });
+
+  it('needs two items still to come', () => {
+    const items = list('a', 'b', 'c');
+    expect(canShuffle({ items, index: 0 })).toBe(true);
+    expect(canShuffle({ items, index: 1 })).toBe(false);
+    expect(canShuffle({ items, index: 2 })).toBe(false);
+  });
+
+  it('keeps the cursor on the right copy of a recording queued twice', () => {
+    const [a, b] = list('a', 'b');
+    const restored = unshuffledQueue([a!, b!, a!], 2, ['a', 'b']);
+    expect(ids(restored.items)).toEqual(['a', 'a', 'b']);
+    expect(restored.index).toBe(1);
+  });
+
+  it('restores the order, with the cursor still on what is playing', () => {
+    const restored = unshuffledQueue(list('c', 'a', 'b'), 0, ['a', 'b', 'c']);
+    expect(ids(restored.items)).toEqual(['a', 'b', 'c']);
+    expect(restored.index).toBe(2);
+  });
+
+  it('keeps later additions at the end and does not bring back removals', () => {
+    const restored = unshuffledQueue(list('c', 'y', 'a', 'x'), 2, ['a', 'b', 'c']);
+    expect(ids(restored.items)).toEqual(['a', 'c', 'y', 'x']);
+    expect(restored.index).toBe(0);
   });
 });

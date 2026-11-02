@@ -20,7 +20,10 @@ import {
   mergeRecent,
   parseRecentIds,
   parseRepeatMode,
+  canShuffle,
   segmentStart,
+  shuffledQueue,
+  unshuffledQueue,
   shouldRememberResume,
   startPositionFor,
   elapsedIn,
@@ -51,6 +54,8 @@ export interface PlayerState {
   items: Playable[];
   index: number;
   repeat: RepeatMode;
+  /** The list's ids in their order before shuffling; null when it is not shuffled. */
+  shuffleOrder: readonly string[] | null;
   playing: boolean;
   /** Absolute seconds on the file's clock. Segment-relative views derive. */
   position: number;
@@ -90,6 +95,8 @@ export interface PlayerState {
   removeAt(index: number): void;
   clearQueue(): void;
   cycleRepeat(): void;
+  /** Shuffle what is still to come without touching what is playing, or put the order back. */
+  toggleShuffle(): void;
   /** The whole recent list, as an account's sync settled it. */
   setRecent(ids: readonly string[]): void;
   /** Re-announce what is playing, for a title shown in another script now. */
@@ -147,7 +154,10 @@ export function createPlayerStore({
       // refreshes, so it would pin whatever the aligner had produced at queue
       // time — forever, across re-alignments.
       const items = s.items.map(({ lineTimings, ...rest }) => rest);
-      void storage.setItem(QUEUE_KEY, JSON.stringify({ items, index: s.index }));
+      void storage.setItem(
+        QUEUE_KEY,
+        JSON.stringify({ items, index: s.index, shuffleOrder: s.shuffleOrder })
+      );
     }
 
     /** What the operating system should show while this item plays. */
@@ -241,6 +251,7 @@ export function createPlayerStore({
       items: [],
       index: -1,
       repeat: 'off',
+      shuffleOrder: null,
       playing: false,
       position: 0,
       duration: 0,
@@ -277,11 +288,13 @@ export function createPlayerStore({
 
         let items: Playable[] = [];
         let index = -1;
+        let shuffleOrder: string[] | null = null;
         try {
           const parsed = rawQueue ? JSON.parse(rawQueue) : null;
           if (Array.isArray(parsed?.items)) {
             items = parsed.items;
             index = typeof parsed.index === 'number' ? parsed.index : -1;
+            if (Array.isArray(parsed.shuffleOrder)) shuffleOrder = parsed.shuffleOrder;
           }
         } catch {
           /* a corrupt queue is an empty queue */
@@ -302,6 +315,7 @@ export function createPlayerStore({
           items,
           index,
           current,
+          shuffleOrder,
           repeat: parseRepeatMode(rawRepeat),
           position: current ? startPositionFor(current, resume[current.id]) : 0,
         });
@@ -336,7 +350,7 @@ export function createPlayerStore({
       play(item, replaceQueue = true) {
         if (!canPlay(item)) return;
         if (replaceQueue) {
-          set({ items: [item], index: 0 });
+          set({ items: [item], index: 0, shuffleOrder: null });
           start(item, 0);
           return;
         }
@@ -352,6 +366,7 @@ export function createPlayerStore({
         set({
           items: [item],
           index: 0,
+          shuffleOrder: null,
           current: item,
           position: at,
           playing: false,
@@ -367,7 +382,8 @@ export function createPlayerStore({
         // The queue becomes the shelf, which is what makes one tap on a list
         // play a shabad and line up what follows — without this the queue holds
         // a single row and playback stops dead at its end.
-        set({ items });
+        // A new list starts in its own order: shuffle belonged to the old one.
+        set({ items, shuffleOrder: null });
         start(item, index);
       },
 
@@ -387,7 +403,11 @@ export function createPlayerStore({
         // every recording, and this one should not then come round again.
         const before = s.items.slice(0, s.index).filter((it) => it.id !== item.id);
         const after = s.items.slice(s.index + 1).filter((it) => it.id !== item.id);
-        set({ items: [...before, item, ...after] });
+        set({
+          items: [...before, item, ...after],
+          // In the old recording's place, or turning shuffle off would send it to the end.
+          shuffleOrder: s.shuffleOrder?.map((id) => (id === s.current?.id ? item.id : id)) ?? null,
+        });
         start(item, before.length);
       },
 
@@ -436,7 +456,7 @@ export function createPlayerStore({
       },
 
       clearQueue() {
-        set({ items: [], index: -1 });
+        set({ items: [], index: -1, shuffleOrder: null });
         persistQueue();
       },
 
@@ -444,6 +464,22 @@ export function createPlayerStore({
         const repeat = nextRepeatMode(get().repeat);
         set({ repeat });
         void storage.setItem(REPEAT_KEY, repeat);
+      },
+
+      toggleShuffle() {
+        const s = get();
+        // A broadcast is not in any order, and it keeps the queue for afterwards.
+        if (s.current?.isLive) return;
+        if (s.shuffleOrder) {
+          set({ ...unshuffledQueue(s.items, s.index, s.shuffleOrder), shuffleOrder: null });
+        } else {
+          if (!canShuffle(s)) return;
+          set({
+            shuffleOrder: s.items.map((item) => item.id),
+            items: shuffledQueue(s.items, s.index),
+          });
+        }
+        persistQueue();
       },
 
       setRecent(ids) {

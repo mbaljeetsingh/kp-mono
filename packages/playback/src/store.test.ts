@@ -450,3 +450,97 @@ describe('setRecent', () => {
     expect(second.getState().recentIds).toEqual(['x', 'y']);
   });
 });
+
+describe('shuffle', () => {
+  const list = ['a', 'b', 'c', 'd', 'e'].map(whole);
+  const ids = (items: Playable[]) => items.map((item) => item.id);
+
+  function playing(index = 2) {
+    const store = createPlayerStore({ storage: memoryStorage() });
+    const { driver, calls } = fakeDriver();
+    store.getState().attach(driver);
+    store.getState().playList(list, index);
+    calls.length = 0;
+    return { store, calls };
+  }
+
+  it('reorders what is to come, without touching the audio or what is behind', () => {
+    const { store, calls } = playing(1);
+    store.getState().toggleShuffle();
+    const s = store.getState();
+    expect(s.current?.id).toBe('b');
+    expect(s.index).toBe(1);
+    expect(ids(s.items).slice(0, 2)).toEqual(['a', 'b']);
+    expect(ids(s.items).sort()).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(calls).toEqual([]);
+  });
+
+  it('can still be turned off once the list has shrunk', () => {
+    const { store } = playing(0);
+    store.getState().toggleShuffle();
+    while (store.getState().items.length > 1) store.getState().removeAt(1);
+    store.getState().toggleShuffle();
+    expect(store.getState().shuffleOrder).toBeNull();
+  });
+
+  it('puts the order back when turned off', () => {
+    const { store, calls } = playing();
+    store.getState().toggleShuffle();
+    store.getState().next();
+    const playingNow = store.getState().current?.id;
+    calls.length = 0;
+    store.getState().toggleShuffle();
+    const s = store.getState();
+    expect(ids(s.items)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(s.items[s.index]?.id).toBe(playingNow);
+    expect(s.shuffleOrder).toBeNull();
+    expect(calls).toEqual([]);
+  });
+
+  it('leaves a list of one, the last item and a broadcast alone', () => {
+    const atEnd = playing(4).store;
+    atEnd.getState().toggleShuffle();
+    expect(atEnd.getState().shuffleOrder).toBeNull();
+
+    const store = createPlayerStore({ storage: memoryStorage() });
+    store.getState().play(whole('a'));
+    store.getState().toggleShuffle();
+    expect(store.getState().shuffleOrder).toBeNull();
+
+    const live = { ...whole('live'), isLive: true };
+    store.getState().playList([live, whole('b')], 0);
+    store.getState().toggleShuffle();
+    expect(store.getState().shuffleOrder).toBeNull();
+  });
+
+  it('ends when a new list starts', () => {
+    const { store } = playing();
+    store.getState().toggleShuffle();
+    store.getState().playList(list, 0);
+    expect(store.getState().shuffleOrder).toBeNull();
+    expect(ids(store.getState().items)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it("keeps a swapped recording in the old one's place in the order", () => {
+    const { store } = playing();
+    store.getState().toggleShuffle();
+    store.getState().swapCurrent(whole('c2'));
+    store.getState().toggleShuffle();
+    expect(ids(store.getState().items)).toEqual(['a', 'b', 'c2', 'd', 'e']);
+  });
+
+  it('survives a restart', async () => {
+    const storage = memoryStorage();
+    const first = createPlayerStore({ storage });
+    first.getState().playList(list, 2);
+    first.getState().toggleShuffle();
+    const order = ids(first.getState().items);
+
+    const second = createPlayerStore({ storage });
+    await second.getState().hydrate();
+    expect(ids(second.getState().items)).toEqual(order);
+    second.getState().toggleShuffle();
+    expect(ids(second.getState().items)).toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(second.getState().current?.id).toBe('c');
+  });
+});

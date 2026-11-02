@@ -91,6 +91,7 @@ export const playerActions = {
   addToQueue: (...args: Parameters<PlayerState['addToQueue']>) =>
     playerStore.getState().addToQueue(...args),
   cycleRepeat: () => playerStore.getState().cycleRepeat(),
+  toggleShuffle: () => playerStore.getState().toggleShuffle(),
   swapCurrent: (...args: Parameters<PlayerState['swapCurrent']>) =>
     playerStore.getState().swapCurrent(...args),
   playAt: (index: number) => playerStore.getState().playAt(index),

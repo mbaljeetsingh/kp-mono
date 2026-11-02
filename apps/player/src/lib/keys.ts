@@ -57,6 +57,9 @@ export function usePlayerKeys() {
         case 'r':
           playerActions.cycleRepeat();
           return;
+        case 's':
+          playerActions.toggleShuffle();
+          return;
         default:
       }
     }
