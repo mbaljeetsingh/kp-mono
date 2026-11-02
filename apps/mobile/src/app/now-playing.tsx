@@ -268,30 +268,55 @@ export default function NowPlayingScreen() {
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 360 }}
       />
 
-      <View className="flex-row items-center justify-between px-2 pt-1">
-        <Pressable
-          onPress={() => router.back()}
-          accessibilityLabel="Close"
-          className="size-11 items-center justify-center"
-        >
-          <ChevronDown size={24} color={colors.foreground} />
-        </Pressable>
+      <View className="flex-row items-center px-2 pt-1">
+        {/* The two sides share the width equally, so the label stays centred
+            whether the right holds two buttons or none. */}
+        <View className="flex-1 flex-row">
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityLabel="Close"
+            className="size-11 items-center justify-center"
+          >
+            <ChevronDown size={24} color={colors.foreground} />
+          </Pressable>
+        </View>
         <Text className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Now playing
         </Text>
-        {/* Share, as the web's player has: a link that opens on this line once
-            you are a little way in. A broadcast has no rendition to link to. */}
-        {current.isLive ? (
-          <View className="size-11" />
-        ) : (
-          <Pressable
-            onPress={() => void shareRendition(current, position, titleIn(current, script))}
-            accessibilityLabel="Share"
-            className="size-11 items-center justify-center"
-          >
-            <Share2 size={20} color={colors.foreground} />
-          </Pressable>
-        )}
+        <View className="flex-1 flex-row justify-end">
+          {/* A broadcast has no rendition behind it: nothing to save or link to. */}
+          {current.isLive ? null : (
+            <>
+              {/* The heart sits up here with share: both act on the rendition as
+                  a whole, and down by the seek bar it crowded the times and
+                  the play button. */}
+              <Pressable
+                onPress={() => favorites.toggle(current.id)}
+                accessibilityLabel={
+                  favorites.has(current.id)
+                    ? `Remove ${titleIn(current, script)} from saved`
+                    : `Save ${titleIn(current, script)}`
+                }
+                className="size-11 items-center justify-center"
+              >
+                <Heart
+                  size={22}
+                  color={favorites.has(current.id) ? colors.primary : colors.foreground}
+                  fill={favorites.has(current.id) ? colors.primary : 'transparent'}
+                />
+              </Pressable>
+              {/* Share, as the web's player has: a link that opens on this line
+                  once you are a little way in. */}
+              <Pressable
+                onPress={() => void shareRendition(current, position, titleIn(current, script))}
+                accessibilityLabel="Share"
+                className="size-11 items-center justify-center"
+              >
+                <Share2 size={20} color={colors.foreground} />
+              </Pressable>
+            </>
+          )}
+        </View>
       </View>
 
       <View className="flex-row items-center gap-4 px-5 pb-4 pt-3">
@@ -513,30 +538,7 @@ export default function NowPlayingScreen() {
             the title. Nothing is drawn rather than an inert track: a greyed-out
             bar still claims there is a length to be part-way through. */}
         {current.isLive ? null : (
-          <View>
-            <SeekBar current={current} position={position} duration={duration} />
-            {/* The heart stays down here with the transport, not up beside the
-                title: saving a shabad is something you do while listening, and
-                the thumb is here. Between the two times because shuffle and
-                repeat now fill the row below, which has no slot left. A broadcast
-                is not something to save: there is no rendition behind it. */}
-            <Pressable
-              onPress={() => favorites.toggle(current.id)}
-              accessibilityLabel={
-                favorites.has(current.id)
-                  ? `Remove ${titleIn(current, script)} from saved`
-                  : `Save ${titleIn(current, script)}`
-              }
-              // Clear of the seek bar's touch area above and the play button below.
-              className="absolute -bottom-4 size-9 items-center justify-center self-center"
-            >
-              <Heart
-                size={24}
-                color={favorites.has(current.id) ? colors.primary : colors.subtleForeground}
-                fill={favorites.has(current.id) ? colors.primary : 'transparent'}
-              />
-            </Pressable>
-          </View>
+          <SeekBar current={current} position={position} duration={duration} />
         )}
 
         <View className="flex-row items-center justify-center gap-5">
