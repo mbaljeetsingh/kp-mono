@@ -1,7 +1,8 @@
 /**
  * Search BaniDB for a line — the native half of what the web app offers.
  *
- * Typing goes through ShabadInput, with the Gurmukhi keys under it in Punjabi.
+ * Typing goes through ShabadInput. The term is the player's to hold, because in
+ * Punjabi its keys are drawn outside this scrolling list, along the bottom.
  */
 import {
   lineDetails,
@@ -11,18 +12,26 @@ import {
   useMatchingLines,
   type BaniDbHit,
 } from '@kp/api';
-import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
 import { MarkedLine } from '~/components/MarkedLine';
-import { GurmukhiKeys, ShabadInput } from '~/components/ShabadInput';
+import { ShabadInput } from '~/components/ShabadInput';
 import { BANIDB_BASE } from '~/lib/links';
 import { useTitleScript } from '~/lib/title-script';
 
-export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => void }) {
+export function ShabadSearch({
+  term,
+  onChangeTerm,
+  onPressField,
+  onSelect,
+}: {
+  term: string;
+  onChangeTerm: (next: string) => void;
+  onPressField: () => void;
+  onSelect: (shabadId: number) => void;
+}) {
   const [script] = useTitleScript();
-  const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 300);
 
   const query = useMatchingLines(BANIDB_BASE, debounced, script);
@@ -32,15 +41,11 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
     <View className="gap-3">
       <ShabadInput
         value={term}
-        onChangeText={setTerm}
+        onChangeText={onChangeTerm}
+        onPress={onPressField}
         script={script}
         placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'First letters…'}
       />
-      {script === 'pa' ? (
-        <View className="rounded-lg bg-popover p-2">
-          <GurmukhiKeys value={term} onChangeText={setTerm} />
-        </View>
-      ) : null}
 
       {query.isLoading ? <Text className="text-sm text-muted-foreground">Searching…</Text> : null}
       {query.isError ? (

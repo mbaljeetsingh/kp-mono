@@ -176,6 +176,26 @@ export function GurmukhiKeys({
   );
 }
 
+/** The keys where the phone's keyboard would be, along the bottom of what holds them. */
+export function GurmukhiKeysPanel({
+  value,
+  onChangeText,
+  onHide,
+}: {
+  value: string;
+  onChangeText: (next: string) => void;
+  onHide: () => void;
+}) {
+  return (
+    <View
+      className="absolute inset-x-0 bottom-0 border-t border-border bg-popover px-2"
+      style={{ paddingTop: PANEL_TOP, paddingBottom: DEVICE_BOTTOM }}
+    >
+      <GurmukhiKeys value={value} onChangeText={onChangeText} onHide={onHide} />
+    </View>
+  );
+}
+
 /**
  * Search's keys where the phone's keyboard would be, over the play controls and
  * the tabs, and without dimming: results change as you type, and one is what you
@@ -192,12 +212,7 @@ export function DockedGurmukhiKeys() {
   if (!visible) return null;
 
   const panel = (
-    <View
-      className="absolute inset-x-0 bottom-0 border-t border-border bg-popover px-2"
-      style={{ paddingTop: PANEL_TOP, paddingBottom: DEVICE_BOTTOM }}
-    >
-      <GurmukhiKeys value={term} onChangeText={setTerm} onHide={() => setKeysOpen(false)} />
-    </View>
+    <GurmukhiKeysPanel value={term} onChangeText={setTerm} onHide={() => setKeysOpen(false)} />
   );
   return Platform.OS === 'ios' ? <FullWindowOverlay>{panel}</FullWindowOverlay> : panel;
 }

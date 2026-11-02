@@ -44,6 +44,7 @@ import { savedShabadText } from '~/lib/downloads';
 import { ReadAlongOptionsSheet } from '~/components/ReadAlongOptionsSheet';
 import { useReadAlongOptions } from '~/lib/read-along-options';
 import { SeekBar } from '~/components/SeekBar';
+import { DOCKED_KEYS_SPACE, GurmukhiKeysPanel } from '~/components/ShabadInput';
 import { ShabadSearch } from '~/components/ShabadSearch';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { useTitleScript } from '~/lib/title-script';
@@ -108,6 +109,11 @@ export default function NowPlayingScreen() {
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
 
   const [tab, setTab] = useState<'lyrics' | 'queue'>('lyrics');
+  const [lookupTerm, setLookupTerm] = useState('');
+  // Down until the field is tapped, unlike Search's: they cover the transport,
+  // and most who open this came to pause or skip.
+  const [keysOpen, setKeysOpen] = useState(false);
+  const keysUp = keysOpen && script === 'pa' && tab === 'lyrics' && !shabadId;
   const { favorites } = useSession();
 
   /**
@@ -374,7 +380,11 @@ export default function NowPlayingScreen() {
 
       <ScrollView
         ref={scroller}
-        onScrollBeginDrag={onReaderDrag}
+        onScrollBeginDrag={() => {
+          onReaderDrag();
+          // As Search: reading takes the letters away.
+          setKeysOpen(false);
+        }}
         onLayout={(e) => {
           viewportHeight.current = e.nativeEvent.layout.height;
         }}
@@ -392,8 +402,17 @@ export default function NowPlayingScreen() {
                     : 'No shabad linked to this rendition yet — search for the line you are hearing.'}
                 </Text>
                 <ShabadSearch
-                  onSelect={(chosen) => setPick({ trackId: current.id, shabadId: chosen })}
+                  term={lookupTerm}
+                  onChangeTerm={setLookupTerm}
+                  onPressField={() => setKeysOpen(true)}
+                  onSelect={(chosen) => {
+                    setPick({ trackId: current.id, shabadId: chosen });
+                    setLookupTerm('');
+                    setKeysOpen(false);
+                  }}
                 />
+                {/* So the last results can scroll clear of the keys. */}
+                {keysUp ? <View style={{ height: DOCKED_KEYS_SPACE }} /> : null}
               </View>
             ) : null}
 
@@ -586,6 +605,14 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
       </View>
+
+      {keysUp ? (
+        <GurmukhiKeysPanel
+          value={lookupTerm}
+          onChangeText={setLookupTerm}
+          onHide={() => setKeysOpen(false)}
+        />
+      ) : null}
     </Screen>
   );
 }
