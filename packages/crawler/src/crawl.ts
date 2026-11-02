@@ -31,10 +31,9 @@ const RATE_MS = 1000;
 // idle minutes on the worst path is nothing against re-running an 11-minute
 // crawl, and the whole point is to still be trying when the door reopens.
 const RETRY_WAITS_MS = [10_000, 20_000, 40_000, 80_000];
-// A root listing gets about 18 minutes, because losing one ends the whole run.
-// The first request of a run used to be refused twice and let through at ~30s,
-// every week; from 18 Oct 2026 it was still refused at 150s, three runs in a row.
-const ROOT_RETRY_WAITS_MS = [...RETRY_WAITS_MS, ...Array<number>(8).fill(120_000)];
+// Do not lengthen this to outlast a block. The first request of a run used to be
+// refused twice and let through at ~30s; from 18 Oct 2026 it stopped getting
+// through, and a run that kept trying for 18 minutes got 403 on all 13 attempts.
 const SAMPLE = process.argv.includes('--sample');
 /** Seed anyway when a whole tree came back empty — see the guard in main(). */
 const ALLOW_PARTIAL = process.argv.includes('--allow-partial');
@@ -72,7 +71,7 @@ const RETRYABLE = new Set([403, 408, 425, 429]);
 const isRetryable = (status: number) => RETRYABLE.has(status) || status >= 500;
 
 /** Rate-limited GET with retry. Cloudflare 429/403 is the failure to survive. */
-async function get(url: string, waits = RETRY_WAITS_MS, attempt = 0): Promise<string | null> {
+async function get(url: string, attempt = 0): Promise<string | null> {
   await sleep(RATE_MS);
   requestCount++;
   try {
@@ -90,11 +89,11 @@ async function get(url: string, waits = RETRY_WAITS_MS, attempt = 0): Promise<st
     const message = err instanceof Error ? err.message : String(err);
     // Logged on every attempt: when three runs failed in a row, nothing in the
     // logs said whether SGPC had refused the request or never answered it.
-    console.log(`${url} — attempt ${attempt + 1}/${waits.length + 1} failed: ${message}`);
-    const wait = waits[attempt];
+    console.log(`${url} — attempt ${attempt + 1}/${RETRY_WAITS_MS.length + 1} failed: ${message}`);
+    const wait = RETRY_WAITS_MS[attempt];
     if (wait !== undefined) {
       await sleep(wait);
-      return get(url, waits, attempt + 1);
+      return get(url, attempt + 1);
     }
     errors.push({ url, message });
     return null;
@@ -109,7 +108,7 @@ async function get(url: string, waits = RETRY_WAITS_MS, attempt = 0): Promise<st
  * complete archive with ragiwise, 84% of it, simply absent from the output.
  */
 async function getRoot(tree: SourceTree, url: string): Promise<string> {
-  const html = await get(url, ROOT_RETRY_WAITS_MS);
+  const html = await get(url);
   if (html) return html;
   throw new Error(
     `${tree}: root listing ${url} could not be fetched (${errors.at(-1)?.message}) — ` +
