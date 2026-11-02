@@ -12,3 +12,4 @@ export * from './recent';
 export * from './shabad-text';
 export * from './suggestions';
 export * from './banidb';
+export * from './first-letters';

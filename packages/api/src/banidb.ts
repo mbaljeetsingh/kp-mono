@@ -5,8 +5,11 @@
  * by the player's read-along, where a listener on a live broadcast can look up
  * what they are hearing for themselves.
  */
-import type { TitleScript } from '@kp/core';
+import type { Playable, TitleScript } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
+
+import { lineSegments, matchesLineStart, type LineSegment } from './first-letters';
+import { keys } from './keys';
 
 /**
  * The workbench's choice, for lack of a header language there. `searchtype` 0
@@ -29,17 +32,16 @@ export const SEARCH_TYPES = [
 export const LANGUAGE_SEARCH_TYPE: Record<TitleScript, number> = { en: 7, pa: 1 };
 
 /**
- * The read-along's search, which shows twelve lines in shabad order. Punjabi
- * stays with the start of a line there: searched anywhere, a few letters can fill
- * all twelve before the line that actually starts with them.
- */
-export const READ_ALONG_SEARCH_TYPE: Record<TitleScript, number> = { en: 7, pa: 0 };
-
-/**
  * Below this, initials match too much of Gurbani to be worth asking: `jj` is
  * 4,304 lines, `jja` 205.
  */
+/** First letters from the start of a line only: Gurmukhi or GurbaniLipi keys. */
+const LINE_START_SEARCH_TYPE = 0;
+
 export const MIN_FIRST_LETTERS = 3;
+
+/** Enough to recognise the line without turning a panel into a second list to read. */
+const LINE_LIST_LIMIT = 20;
 
 /**
  * As many hits as one search reads. `jja` is about 190 shabads at this size, and
@@ -59,7 +61,8 @@ export interface BaniDbHit {
   verse?: { unicode?: string; gurmukhi?: string };
   transliteration?: { english?: string };
   translation?: { en?: { bdb?: string } };
-  source?: { english?: string };
+  source?: { english?: string; sourceId?: string };
+  pageNo?: number;
   writer?: { english?: string };
   raag?: { english?: string };
 }
@@ -77,18 +80,20 @@ export async function searchBaniDb(
   return (json.verses ?? []).slice(0, 12);
 }
 
-export interface ShabadIdMatches {
-  ids: number[];
+/** One matched line, and whether the letters opened it or turned up inside it. */
+export interface LineMatch {
+  hit: BaniDbHit;
+  atStart: boolean;
+}
+
+export interface LineMatches {
+  /** Lines that open with the letters first: that is what someone usually remembers. */
+  lines: LineMatch[];
   /** BaniDB held more lines than one search reads, so a recording may be missing. */
   partial: boolean;
 }
 
-/** The shabads with a line matching these letters, for joining to the archive. */
-export async function shabadIdsMatching(
-  base: string,
-  term: string,
-  searchType: number
-): Promise<ShabadIdMatches> {
+async function readHits(base: string, term: string, searchType: number) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SHABAD_IDS_TIMEOUT_MS);
   try {
@@ -101,24 +106,133 @@ export async function shabadIdsMatching(
       verses?: BaniDbHit[];
       resultsInfo?: { totalResults?: number };
     };
-    const verses = json.verses ?? [];
-    return {
-      ids: [...new Set(verses.map((hit) => hit.shabadId))],
-      partial: (json.resultsInfo?.totalResults ?? 0) > verses.length,
-    };
+    return { verses: json.verses ?? [], total: json.resultsInfo?.totalResults ?? 0 };
   } finally {
     clearTimeout(timer);
   }
 }
 
-export function useBaniDbSearch(base: string, term: string, searchType: number) {
+/**
+ * Every line with these first letters, opening matches first.
+ *
+ * BaniDB returns hits in shabad order, so an "anywhere" search alone buries the
+ * line somebody meant under lines that merely contain the letters: `hjb` is 19
+ * lines that open with them and 86 that hold them. Punjabi asks for both. Roman
+ * has only "anywhere", so its openers are found by reading the lines; past the
+ * cap they stay unfound, which `partial` owns up to.
+ */
+export async function firstLetterLines(
+  base: string,
+  term: string,
+  script: TitleScript
+): Promise<LineMatches> {
+  if (script === 'en') {
+    const { verses, total } = await readHits(base, term, LANGUAGE_SEARCH_TYPE.en);
+    const lines = verses.map((hit) => ({
+      hit,
+      atStart: matchesLineStart(hit.transliteration?.english ?? '', term, 'en'),
+    }));
+    return {
+      lines: [...lines.filter((l) => l.atStart), ...lines.filter((l) => !l.atStart)],
+      partial: total > verses.length,
+    };
+  }
+  const [opening, anywhere] = await Promise.all([
+    readHits(base, term, LINE_START_SEARCH_TYPE),
+    readHits(base, term, LANGUAGE_SEARCH_TYPE.pa),
+  ]);
+  const opened = new Set(opening.verses.map((hit) => hit.verseId));
+  return {
+    lines: [
+      ...opening.verses.map((hit) => ({ hit, atStart: true })),
+      ...anywhere.verses
+        .filter((hit) => !opened.has(hit.verseId))
+        .map((hit) => ({ hit, atStart: false })),
+    ],
+    partial: anywhere.total > anywhere.verses.length,
+  };
+}
+
+/** A shabad's id once, keeping the order: its best line decides where it ranks. */
+export function shabadIdsOf(lines: LineMatch[]): number[] {
+  return [...new Set(lines.map((line) => line.hit.shabadId))];
+}
+
+/** What a line reads in the language being searched. */
+export function lineTextIn(hit: BaniDbHit, script: TitleScript): string {
+  return script === 'en'
+    ? (hit.transliteration?.english ?? '')
+    : (hit.verse?.unicode ?? hit.verse?.gurmukhi ?? '');
+}
+
+/**
+ * Search results in the order to show them, and the headings that go before some.
+ *
+ * Recordings found through a line in their shabad gather under that line, once,
+ * however many recordings it has: that line is why they are here, and their
+ * titles may share no letters with what was typed. The rest come first, with no
+ * heading, because their own title is the match. Groups keep the order their first
+ * recording arrived in, which is most played first. A later page joins a heading
+ * already on screen, so this runs over everything loaded rather than page by page.
+ */
+export function groupByLine(
+  items: Playable[],
+  lines: LineMatch[] | undefined,
+  term: string,
+  script: TitleScript
+): { items: Playable[]; headings: Map<string, LineSegment[]> } {
+  const bestLine = new Map<number, BaniDbHit>();
+  for (const { hit } of lines ?? []) {
+    if (!bestLine.has(hit.shabadId)) bestLine.set(hit.shabadId, hit);
+  }
+  // Decided per shabad: its recordings stay together even when only some of them
+  // are titled by the matched line, rather than one at the top and the rest below.
+  const titledByLine = new Set(
+    [...bestLine.values()]
+      .filter((hit) =>
+        items
+          .filter((item) => item.shabadId === hit.shabadId)
+          .every((item) => item.mainVerseId === hit.verseId)
+      )
+      .map((hit) => hit.shabadId)
+  );
+  const plain: Playable[] = [];
+  const groups = new Map<number, Playable[]>();
+  for (const item of items) {
+    const hit = item.shabadId == null ? undefined : bestLine.get(item.shabadId);
+    if (!hit || titledByLine.has(hit.shabadId)) plain.push(item);
+    else groups.set(hit.shabadId, [...(groups.get(hit.shabadId) ?? []), item]);
+  }
+  const headings = new Map<string, LineSegment[]>();
+  for (const [shabadId, group] of groups) {
+    headings.set(
+      group[0]!.id,
+      lineSegments(lineTextIn(bestLine.get(shabadId)!, script), term.trim(), script)
+    );
+  }
+  return { items: [...plain, ...[...groups.values()].flat()], headings };
+}
+
+/** Who wrote a line and where it is: enough to tell two like lines apart. */
+export function lineDetails(hit: BaniDbHit): string {
+  const inGranth = hit.source?.sourceId === 'G';
+  return [
+    inGranth ? null : hit.source?.english,
+    hit.writer?.english,
+    hit.pageNo == null ? null : `${inGranth ? 'Ang' : 'Page'} ${hit.pageNo}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** The read-along's and the workbench's list: the best few lines to recognise. */
+export function useFirstLetterLines(base: string, term: string, script: TitleScript) {
   const trimmed = term.trim();
   return useQuery({
-    queryKey: ['banidb', 'search', searchType, trimmed],
-    queryFn: () => searchBaniDb(base, trimmed, searchType),
-    // One or two characters match most of the corpus, which is a slow request
-    // for a result nobody wanted.
-    enabled: trimmed.length >= 2,
+    queryKey: keys.banidb.lines(script, trimmed),
+    queryFn: () => firstLetterLines(base, trimmed, script),
+    select: (found) => found.lines.slice(0, LINE_LIST_LIMIT).map((line) => line.hit),
+    enabled: trimmed.length >= MIN_FIRST_LETTERS,
     staleTime: 1000 * 60 * 10,
     retry: 1,
   });
@@ -173,45 +287,3 @@ export const GURMUKHI_KEYS: readonly string[] = [
   '',
   GURMUKHI_BACKSPACE,
 ];
-
-/**
- * The letter each key enters, for screen readers: a key's text is a Latin code
- * that only the font turns into Gurmukhi, so read aloud it would say `Type a`.
- */
-export const GURMUKHI_KEY_LETTERS: Readonly<Record<string, string>> = {
-  a: 'ੳ',
-  A: 'ਅ',
-  e: 'ੲ',
-  s: 'ਸ',
-  h: 'ਹ',
-  q: 'ਤ',
-  Q: 'ਥ',
-  d: 'ਦ',
-  D: 'ਧ',
-  n: 'ਨ',
-  k: 'ਕ',
-  K: 'ਖ',
-  g: 'ਗ',
-  G: 'ਘ',
-  '|': 'ਙ',
-  p: 'ਪ',
-  P: 'ਫ',
-  b: 'ਬ',
-  B: 'ਭ',
-  m: 'ਮ',
-  c: 'ਚ',
-  C: 'ਛ',
-  j: 'ਜ',
-  J: 'ਝ',
-  '\\': 'ਞ',
-  X: 'ਯ',
-  r: 'ਰ',
-  l: 'ਲ',
-  v: 'ਵ',
-  V: 'ੜ',
-  t: 'ਟ',
-  T: 'ਠ',
-  f: 'ਡ',
-  F: 'ਢ',
-  x: 'ਣ',
-};

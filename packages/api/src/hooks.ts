@@ -14,12 +14,7 @@ import {
 } from '@tanstack/react-query';
 import type { Playable, TitleScript } from '@kp/core';
 
-import {
-  LANGUAGE_SEARCH_TYPE,
-  MIN_FIRST_LETTERS,
-  shabadIdsMatching,
-  type ShabadIdMatches,
-} from './banidb';
+import { firstLetterLines, MIN_FIRST_LETTERS, shabadIdsOf, type LineMatches } from './banidb';
 import type { KpClient } from './client';
 import { keys } from './keys';
 import {
@@ -27,6 +22,7 @@ import {
   listShabads,
   otherRecordings,
   searchShabads,
+  shabadsWithIds,
   shabadsByArtist,
   shabadsByIds,
   PAGE_SIZE,
@@ -34,6 +30,8 @@ import {
   type ShabadSort,
 } from './queries';
 import type { Artist } from './schemas';
+
+const MAX_FILTERED_SHABADS = 240;
 
 /** Pages are addressed by row offset, which is what `.range()` wants. */
 function pageParams() {
@@ -64,22 +62,26 @@ export function useShabadsByArtist(client: KpClient, artist: string) {
   });
 }
 
+type SearchMatches = LineMatches & {
+  /** BaniDB could not be asked, so only titles and ragis were searched. */
+  degraded: boolean;
+};
+
+const NO_MATCHES: SearchMatches = { lines: [], partial: false, degraded: false };
+
+interface SearchPageParam {
+  /** Recordings of shabads with a line opening on the letters come first. */
+  stage: 'opening' | 'rest';
+  from: number;
+  matches: SearchMatches | null;
+}
+
 /**
  * How much a listener must type. Punjabi has only first letters to go on; roman
  * has titles and ragis too, which two letters can already narrow.
  */
 export function minSearchLength(script: TitleScript): number {
   return script === 'pa' ? MIN_FIRST_LETTERS : 2;
-}
-
-type SearchMatches = ShabadIdMatches & {
-  /** BaniDB could not be asked, so only titles and ragis were searched. */
-  degraded: boolean;
-};
-
-interface SearchPageParam {
-  from: number;
-  matches: SearchMatches | null;
 }
 
 /**
@@ -90,7 +92,9 @@ interface SearchPageParam {
  *
  * BaniDB is asked once per term, through the cache, not once per page. If it is
  * down, roman search still has titles and ragis to offer, so that is what it
- * shows, flagged `degraded`; Punjabi has nothing else, so the failure surfaces as an error.
+ * shows, flagged `degraded`; Punjabi has nothing else, so the failure surfaces
+ * as an error. The ranking is two queries because PostgREST cannot order by
+ * membership of a list.
  */
 export function useSearch(client: KpClient, base: string, term: string, script: TitleScript) {
   const trimmed = term.trim();
@@ -99,30 +103,59 @@ export function useSearch(client: KpClient, base: string, term: string, script: 
   const initials = trimmed.length >= MIN_FIRST_LETTERS && !/\s/.test(trimmed);
   return useInfiniteQuery({
     queryKey: keys.shabads.search(trimmed, script),
-    initialPageParam: { from: 0, matches: null } as SearchPageParam,
+    initialPageParam: { stage: 'opening', from: 0, matches: null } as SearchPageParam,
     queryFn: async ({ pageParam }) => {
       const matches =
         pageParam.matches ??
         (initials
           ? await queryClient
               .fetchQuery({
-                queryKey: keys.banidb.shabadIds(script, trimmed),
-                queryFn: () => shabadIdsMatching(base, trimmed, LANGUAGE_SEARCH_TYPE[script]),
+                queryKey: keys.banidb.lines(script, trimmed),
+                queryFn: () => firstLetterLines(base, trimmed, script),
                 staleTime: 1000 * 60 * 10,
               })
               .then((found): SearchMatches => ({ ...found, degraded: false }))
               .catch((failure: unknown): SearchMatches => {
                 if (script === 'pa') throw failure;
-                return { ids: [], partial: false, degraded: true };
+                return { ...NO_MATCHES, degraded: true };
               })
-          : { ids: [], partial: false, degraded: false });
-      const page = await searchShabads(client, trimmed, script, matches.ids, pageParam.from);
-      return { ...page, ...matches, matches };
+          : NO_MATCHES);
+      const opening = shabadIdsOf(matches.lines.filter((line) => line.atStart));
+      // The listed and the excluded share one query string, and past about 250
+      // ids it crosses the gateway's limit (`shabadsByIds`). A term this common
+      // has `partial` asking for another letter anyway.
+      const others = shabadIdsOf(matches.lines)
+        .filter((id) => !opening.includes(id))
+        .slice(0, MAX_FILTERED_SHABADS - opening.length);
+
+      const rest = (from: number) => searchShabads(client, trimmed, script, others, from, opening);
+
+      if (pageParam.stage === 'opening' && opening.length) {
+        const page = await shabadsWithIds(client, opening, pageParam.from);
+        if (page.hasMore) {
+          const next: SearchPageParam = {
+            stage: 'opening',
+            from: pageParam.from + PAGE_SIZE,
+            matches,
+          };
+          return { ...page, ...matches, matches, next };
+        }
+        const after = await rest(0);
+        const next: SearchPageParam | undefined = after.hasMore
+          ? { stage: 'rest', from: PAGE_SIZE, matches }
+          : undefined;
+        return { ...after, items: [...page.items, ...after.items], ...matches, matches, next };
+      }
+
+      const page = await rest(pageParam.from);
+      const next: SearchPageParam | undefined = page.hasMore
+        ? { stage: 'rest', from: pageParam.from + PAGE_SIZE, matches }
+        : undefined;
+      return { ...page, ...matches, matches, next };
     },
     // Every page keeps the first page's matches. Asked again, BaniDB could fail
     // or expire partway, and the offset would then count a different result set.
-    getNextPageParam: (last, all): SearchPageParam | undefined =>
-      last.hasMore ? { from: all.length * PAGE_SIZE, matches: last.matches } : undefined,
+    getNextPageParam: (last) => last.next,
     enabled: trimmed.length >= minSearchLength(script),
   });
 }

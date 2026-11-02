@@ -179,14 +179,16 @@ export function ilikePattern(term: string): string {
  * the initials because `jag jivan` is no first-letter search at all; Punjabi has
  * no roman title to match, since its keystrokes are GurbaniLipi.
  *
- * `id` breaks ties for the reason `listShabads` gives.
+ * `exceptShabadIds` are the recordings already listed ahead of these, by
+ * `shabadsWithIds`. `id` breaks ties for the reason `listShabads` gives.
  */
 export async function searchShabads(
   client: KpClient,
   term: string,
   script: TitleScript,
   shabadIds: number[],
-  from = 0
+  from = 0,
+  exceptShabadIds: number[] = []
 ): Promise<Page<Playable>> {
   const like = ilikePattern(term);
   const text =
@@ -194,8 +196,23 @@ export async function searchShabads(
       ? `name_gurmukhi.ilike.${like}`
       : `name.ilike.${like},artist_display.ilike.${like}`;
   const linked = shabadIds.length ? `,shabad_id.in.(${shabadIds.join(',')})` : '';
+  let query = shabads(client, from).or(text + linked);
+  if (exceptShabadIds.length) {
+    query = query.not('shabad_id', 'in', `(${exceptShabadIds.join(',')})`);
+  }
+  const { data, error } = await query.order('play_count', { ascending: false }).order('id');
+  if (error) throw toError(error);
+  return toPage(data);
+}
+
+/** Recordings of these shabads, for the ones search ranks ahead of the rest. */
+export async function shabadsWithIds(
+  client: KpClient,
+  shabadIds: number[],
+  from = 0
+): Promise<Page<Playable>> {
   const { data, error } = await shabads(client, from)
-    .or(text + linked)
+    .in('shabad_id', shabadIds)
     .order('play_count', { ascending: false })
     .order('id');
   if (error) throw toError(error);

@@ -11,7 +11,7 @@
  * The header language decides what is typed: roman letters, or GurbaniLipi keys
  * drawn in the GurbaniLipi font, as the read-along's search takes them.
  */
-import { minSearchLength, useArtists, useSearch } from '@kp/api';
+import { groupByLine, minSearchLength, useArtists, useSearch } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -52,7 +52,6 @@ export default function SearchScreen() {
   const [script] = useTitleScript();
   const query = useSearch(supabase, BANIDB_BASE, debounced, script);
   const artists = useArtists(supabase);
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const currentId = usePlayer((s) => s.current?.id);
   const online = useIsOnline();
   const keysAvailable = focused && online && script === 'pa';
@@ -74,6 +73,12 @@ export default function SearchScreen() {
   const trimmed = debounced.trim();
   const min = minSearchLength(script);
   const ready = trimmed.length >= min;
+  const { items, headings } = groupByLine(
+    query.data?.pages.flatMap((p) => p.items) ?? [],
+    query.data?.pages[0]?.lines,
+    trimmed,
+    script
+  );
   const needle = trimmed.toLowerCase();
   const ragis =
     ready && script === 'en'
@@ -149,6 +154,18 @@ export default function SearchScreen() {
             }
             renderItem={({ item, index }) => (
               <View className="px-2">
+                {headings.get(item.id) ? (
+                  <Text className="px-3 pb-0.5 pt-3 text-sm text-muted-foreground">
+                    {headings.get(item.id)!.map((part, i) => (
+                      <Text
+                        key={i}
+                        className={part.match ? 'font-semibold text-primary' : undefined}
+                      >
+                        {part.text}
+                      </Text>
+                    ))}
+                  </Text>
+                ) : null}
                 <ShabadRow
                   item={item}
                   isCurrent={item.id === currentId}

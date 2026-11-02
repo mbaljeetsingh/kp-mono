@@ -4,7 +4,10 @@
  * Reads `current` and `playing` once here and hands them down, so a fifty-row
  * shelf holds two store subscriptions rather than a hundred.
  */
+import type { LineSegment } from '@kp/api';
 import type { Playable } from '@kp/core';
+
+import { Fragment } from 'react';
 
 import { EmptyState } from '~/components/EmptyState';
 import { InfiniteScroll } from '~/components/InfiniteScroll';
@@ -19,9 +22,36 @@ interface Props {
   hasMore?: boolean;
   empty?: string;
   emptyHint?: string;
+  /** Line headings, by the id of the row each goes above. */
+  headings?: Map<string, LineSegment[]>;
 }
 
-export function ShabadList({ items, loading, onLoadMore, hasMore, empty, emptyHint }: Props) {
+/** The line the rows below it were found through. */
+function LineHeadingRow({ parts }: { parts: LineSegment[] }) {
+  return (
+    <p className="px-2 pb-0.5 pt-3 text-sm text-muted-foreground">
+      {parts.map((part, i) =>
+        part.match ? (
+          <mark key={i} className="bg-transparent font-semibold text-primary">
+            {part.text}
+          </mark>
+        ) : (
+          part.text
+        )
+      )}
+    </p>
+  );
+}
+
+export function ShabadList({
+  items,
+  loading,
+  onLoadMore,
+  hasMore,
+  empty,
+  emptyHint,
+  headings,
+}: Props) {
   const currentId = usePlayer((s) => s.current?.id);
   const playing = usePlayer((s) => s.playing);
 
@@ -42,13 +72,15 @@ export function ShabadList({ items, loading, onLoadMore, hasMore, empty, emptyHi
   return (
     <div className="flex flex-col gap-0.5">
       {items.map((item) => (
-        <ShabadRow
-          key={item.id}
-          item={item}
-          isCurrent={item.id === currentId}
-          playing={playing}
-          onPlay={playFrom}
-        />
+        <Fragment key={item.id}>
+          {headings?.get(item.id) ? <LineHeadingRow parts={headings.get(item.id)!} /> : null}
+          <ShabadRow
+            item={item}
+            isCurrent={item.id === currentId}
+            playing={playing}
+            onPlay={playFrom}
+          />
+        </Fragment>
       ))}
 
       {loading && items.length === 0 ? <ShabadRowSkeletons /> : null}

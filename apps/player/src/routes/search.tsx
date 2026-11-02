@@ -7,7 +7,7 @@
  * round trip per keystroke for it would be the slower way to get the same rows.
  * Their names are roman, so Punjabi keystrokes are never held against them.
  */
-import { minSearchLength, useArtists, useSearch as useSearchQuery } from '@kp/api';
+import { groupByLine, minSearchLength, useArtists, useSearch as useSearchQuery } from '@kp/api';
 import { useSearch } from '@tanstack/react-router';
 import { useDebounceValue } from 'usehooks-ts';
 
@@ -29,6 +29,13 @@ export function SearchRoute() {
 
   const results = useSearchQuery(supabase, BANIDB_BASE, term, script);
   const artists = useArtists(supabase);
+
+  const grouped = groupByLine(
+    results.data?.pages.flatMap((p) => p.items) ?? [],
+    results.data?.pages[0]?.lines,
+    term,
+    script
+  );
 
   const needle = term.toLowerCase();
   const ragis =
@@ -70,12 +77,13 @@ export function SearchRoute() {
               <p className="px-1 text-sm text-muted-foreground">Could not search just now.</p>
             ) : (
               <ShabadList
-                items={results.data?.pages.flatMap((p) => p.items) ?? []}
+                items={grouped.items}
                 loading={results.isLoading || results.isFetchingNextPage}
                 hasMore={results.hasNextPage}
                 onLoadMore={() => void results.fetchNextPage()}
                 // Punjabi's term is GurbaniLipi keystrokes, which read as nonsense here.
                 empty={script === 'pa' ? 'Nothing matches.' : `Nothing matches “${term}”.`}
+                headings={grouped.headings}
                 emptyHint="Most of the archive is still untagged — it may simply not be findable yet."
               />
             )}
