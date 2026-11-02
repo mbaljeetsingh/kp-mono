@@ -8,7 +8,7 @@
 import type { Playable, TitleScript } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
 
-import { lineSegments, matchesLineStart, type LineSegment } from './first-letters';
+import { lineSegments, matchesLineStart, phraseSegments, type LineSegment } from './first-letters';
 import { keys } from './keys';
 
 /**
@@ -37,6 +37,15 @@ export const LANGUAGE_SEARCH_TYPE: Record<TitleScript, number> = { en: 7, pa: 1 
  */
 /** First letters from the start of a line only: Gurmukhi or GurbaniLipi keys. */
 const LINE_START_SEARCH_TYPE = 0;
+
+/**
+ * Words, for a term with spaces. English gets BaniDB's omni search, which allows
+ * for spelling (`jag jeevan` finds ਜਗਿ ਜੀਵਨੁ) and reaches translations, but is
+ * undocumented, so a failure falls back as any other does. Punjabi gets its word
+ * search, which wants the exact spelling: that needs vowels, so a physical
+ * keyboard, as the on-screen keys are consonants only.
+ */
+const WORD_SEARCH_TYPE: Record<TitleScript, number> = { en: 8, pa: 2 };
 
 export const MIN_FIRST_LETTERS = 3;
 
@@ -153,6 +162,41 @@ export async function firstLetterLines(
   };
 }
 
+async function wordLines(base: string, term: string, script: TitleScript): Promise<LineMatches> {
+  const { verses, total } = await readHits(base, term, WORD_SEARCH_TYPE[script]);
+  return {
+    lines: verses.map((hit) => ({ hit, atStart: false })),
+    partial: total > verses.length,
+  };
+}
+
+/**
+ * The lines a term finds, whichever way it was typed. A single roman word that
+ * is nobody's initials (`waheguru`) gets a second try as a word, so a word needs
+ * no space to be found.
+ */
+export async function linesMatching(
+  base: string,
+  term: string,
+  script: TitleScript
+): Promise<LineMatches> {
+  if (/\s/.test(term)) return wordLines(base, term, script);
+  const found = await firstLetterLines(base, term, script);
+  return found.lines.length || script === 'pa' ? found : wordLines(base, term, script);
+}
+
+/** A line as shown in `script`, with the words the term landed on marked. */
+export function hitSegments(hit: BaniDbHit, term: string, script: TitleScript): LineSegment[] {
+  const line = lineTextIn(hit, script);
+  const trimmed = term.trim();
+  const letters = lineSegments(line, trimmed, script);
+  if (letters.some((part) => part.match)) return letters;
+  // Not first letters: read it as words, against what the term was typed in.
+  const typedInUnicode = /[\u0A00-\u0A7F]/.test(trimmed);
+  const compareTo = script === 'pa' && !typedInUnicode ? (hit.verse?.gurmukhi ?? '') : line;
+  return phraseSegments(line, compareTo, trimmed);
+}
+
 /** A shabad's id once, keeping the order: its best line decides where it ranks. */
 export function shabadIdsOf(lines: LineMatch[]): number[] {
   return [...new Set(lines.map((line) => line.hit.shabadId))];
@@ -205,10 +249,7 @@ export function groupByLine(
   }
   const headings = new Map<string, LineSegment[]>();
   for (const [shabadId, group] of groups) {
-    headings.set(
-      group[0]!.id,
-      lineSegments(lineTextIn(bestLine.get(shabadId)!, script), term.trim(), script)
-    );
+    headings.set(group[0]!.id, hitSegments(bestLine.get(shabadId)!, term, script));
   }
   return { items: [...plain, ...[...groups.values()].flat()], headings };
 }
@@ -230,7 +271,7 @@ export function useFirstLetterLines(base: string, term: string, script: TitleScr
   const trimmed = term.trim();
   return useQuery({
     queryKey: keys.banidb.lines(script, trimmed),
-    queryFn: () => firstLetterLines(base, trimmed, script),
+    queryFn: () => linesMatching(base, trimmed, script),
     select: (found) => found.lines.slice(0, LINE_LIST_LIMIT).map((line) => line.hit),
     enabled: trimmed.length >= MIN_FIRST_LETTERS,
     staleTime: 1000 * 60 * 10,

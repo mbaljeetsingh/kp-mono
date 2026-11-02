@@ -7,13 +7,12 @@
 import type { LineSegment } from '@kp/api';
 import type { Playable } from '@kp/core';
 
-import { Fragment } from 'react';
-
 import { EmptyState } from '~/components/EmptyState';
 import { InfiniteScroll } from '~/components/InfiniteScroll';
 import { ShabadRow } from '~/components/ShabadRow';
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { playerActions, usePlayer } from '~/lib/player';
+import { cn } from '~/lib/utils';
 
 interface Props {
   items: Playable[];
@@ -54,6 +53,7 @@ export function ShabadList({
 }: Props) {
   const currentId = usePlayer((s) => s.current?.id);
   const playing = usePlayer((s) => s.playing);
+  const firstGrouped = headings ? items.findIndex((item) => headings.has(item.id)) : -1;
 
   /**
    * Playing a row loads the rest of the shelf behind it, which is what makes
@@ -71,17 +71,44 @@ export function ShabadList({
 
   return (
     <div className="flex flex-col gap-0.5">
-      {items.map((item) => (
-        <Fragment key={item.id}>
-          {headings?.get(item.id) ? <LineHeadingRow parts={headings.get(item.id)!} /> : null}
-          <ShabadRow
-            item={item}
-            isCurrent={item.id === currentId}
-            playing={playing}
-            onPlay={playFrom}
-          />
-        </Fragment>
-      ))}
+      {items.map((item, index) => {
+        const heading = headings?.get(item.id);
+        const grouped = firstGrouped >= 0 && index >= firstGrouped;
+        const next = items[index + 1];
+        return (
+          <div key={item.id}>
+            {heading ? <LineHeadingRow parts={heading} /> : null}
+            {grouped ? (
+              // Lines from the heading to each row, not a card around them: rows
+              // have their own hover and playing backgrounds, which a card fights.
+              <div className="relative pl-4">
+                <span
+                  aria-hidden
+                  className={cn(
+                    // Past the row's edges: the list's gaps would otherwise break the line.
+                    'absolute -top-0.5 left-2 w-px bg-input',
+                    !next || headings?.has(next.id) ? 'bottom-1/2' : '-bottom-0.5'
+                  )}
+                />
+                <span aria-hidden className="absolute left-2 top-1/2 h-px w-2 bg-input" />
+                <ShabadRow
+                  item={item}
+                  isCurrent={item.id === currentId}
+                  playing={playing}
+                  onPlay={playFrom}
+                />
+              </div>
+            ) : (
+              <ShabadRow
+                item={item}
+                isCurrent={item.id === currentId}
+                playing={playing}
+                onPlay={playFrom}
+              />
+            )}
+          </div>
+        );
+      })}
 
       {loading && items.length === 0 ? <ShabadRowSkeletons /> : null}
 

@@ -114,3 +114,21 @@ export function lineSegments(line: string, term: string, script: TitleScript): L
     .split(/(\s+)/)
     .map((text, i) => ({ text, match: i % 2 === 0 && found.indexes.has(i / 2) }));
 }
+
+/**
+ * The line with the words a phrase search matched marked, for terms with spaces.
+ * `compareTo` is what the term was typed against: the same line in GurbaniLipi
+ * when the term is its keys. If the two split differently, nothing is marked,
+ * because the indexes would land on the wrong words.
+ */
+export function phraseSegments(line: string, compareTo: string, term: string): LineSegment[] {
+  const parts = term.toLowerCase().trim().split(/\s+/);
+  const shown = line.trim().split(/\s+/);
+  const compared = compareTo.toLowerCase().trim().split(/\s+/);
+  if (shown.length !== compared.length) return [{ text: line, match: false }];
+  const matched = compared.map((word) => parts.some((part) => word.startsWith(part)));
+  return line
+    .trim()
+    .split(/(\s+)/)
+    .map((text, i) => ({ text, match: i % 2 === 0 && matched[i / 2]! }));
+}

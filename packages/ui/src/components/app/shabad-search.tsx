@@ -16,7 +16,7 @@
 import {
   LANGUAGE_SEARCH_TYPE,
   lineDetails,
-  lineSegments,
+  hitSegments,
   lineTextIn,
   MIN_FIRST_LETTERS,
   SEARCH_TYPES,
@@ -131,14 +131,14 @@ export function ShabadSearch({
           >
             <p className="text-sm">
               {lang === 'pa' ? (
-                <Marked parts={lineSegments(lineTextIn(hit, 'pa'), term, 'pa')} />
+                <Marked parts={hitSegments(hit, term, 'pa')} />
               ) : (
                 lineTextIn(hit, 'pa')
               )}
             </p>
             <p className="text-xs text-muted-foreground">
               {lang === 'en' ? (
-                <Marked parts={lineSegments(lineTextIn(hit, 'en'), term, 'en')} />
+                <Marked parts={hitSegments(hit, term, 'en')} />
               ) : (
                 lineTextIn(hit, 'en')
               )}

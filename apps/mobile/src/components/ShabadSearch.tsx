@@ -5,7 +5,7 @@
  */
 import {
   lineDetails,
-  lineSegments,
+  hitSegments,
   lineTextIn,
   MIN_FIRST_LETTERS,
   useFirstLetterLines,
@@ -71,14 +71,14 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
           >
             <Text className="text-base text-foreground">
               {script === 'pa' ? (
-                <Marked parts={lineSegments(lineTextIn(hit, 'pa'), debounced, 'pa')} />
+                <Marked parts={hitSegments(hit, debounced, 'pa')} />
               ) : (
                 lineTextIn(hit, 'pa')
               )}
             </Text>
             <Text className="text-xs text-muted-foreground">
               {script === 'en' ? (
-                <Marked parts={lineSegments(lineTextIn(hit, 'en'), debounced, 'en')} />
+                <Marked parts={hitSegments(hit, debounced, 'en')} />
               ) : (
                 lineTextIn(hit, 'en')
               )}

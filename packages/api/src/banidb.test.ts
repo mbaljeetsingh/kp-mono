@@ -7,7 +7,9 @@ import {
   GURMUKHI_BACKSPACE,
   GURMUKHI_KEYS,
   groupByLine,
+  hitSegments,
   lineDetails,
+  linesMatching,
 } from './banidb';
 import { GURMUKHI_KEY_LETTERS, lineSegments, matchesLineStart } from './first-letters';
 
@@ -68,6 +70,70 @@ describe('firstLetterLines', () => {
       vi.fn(async () => new Response('', { status: 503 }))
     );
     await expect(firstLetterLines('/banidb', 'jjas', 'en')).rejects.toThrow('503');
+  });
+});
+
+describe('linesMatching', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const asked = (fetchMock: ReturnType<typeof vi.fn>) =>
+    fetchMock.mock.calls.map(([url]) =>
+      new URL(url as string, 'http://x').searchParams.get('searchtype')
+    );
+
+  it('sends English words to omni search and Punjabi words to word search', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ verses: [line(1, 10, 'x')] }));
+    vi.stubGlobal('fetch', fetchMock);
+    await linesMatching('/banidb', 'jag jivan', 'en');
+    await linesMatching('/banidb', 'jig jIvnu', 'pa');
+    expect(asked(fetchMock)).toEqual(['8', '2']);
+  });
+
+  it("tries a roman word as a word once it is nobody's initials", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      Response.json({ verses: url.includes('searchtype=8') ? [line(1, 10, 'x')] : [] })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const found = await linesMatching('/banidb', 'waheguru', 'en');
+    expect(asked(fetchMock)).toEqual(['7', '8']);
+    expect(found.lines).toHaveLength(1);
+  });
+
+  it('does not ask twice when the initials found something', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({ verses: [line(1, 10, 'x', 'jag jivan aisa')] })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await linesMatching('/banidb', 'jja', 'en');
+    expect(asked(fetchMock)).toEqual(['7']);
+  });
+});
+
+describe('hitSegments', () => {
+  const hit = {
+    verseId: 1,
+    shabadId: 1,
+    verse: { unicode: 'ਜਗਿ ਜੀਵਨੁ ਐਸਾ', gurmukhi: 'jig jIvnu AYsw' },
+    transliteration: { english: 'jag jeevan aaisaa' },
+  };
+  const marked = (term: string, script: 'en' | 'pa') =>
+    hitSegments(hit, term, script)
+      .filter((part) => part.match)
+      .map((part) => part.text);
+
+  it('marks roman words on the roman line', () => {
+    expect(marked('jag jeevan', 'en')).toEqual(['jag', 'jeevan']);
+  });
+
+  it('marks words typed in GurbaniLipi on the Gurmukhi line', () => {
+    expect(marked('jig jIvnu', 'pa')).toEqual(['ਜਗਿ', 'ਜੀਵਨੁ']);
+  });
+
+  it('marks words typed in Gurmukhi', () => {
+    expect(marked('ਜੀਵਨੁ ਐਸਾ', 'pa')).toEqual(['ਜੀਵਨੁ', 'ਐਸਾ']);
+  });
+
+  it('marks nothing when a translation is what matched', () => {
+    expect(marked('peace of mind', 'en')).toEqual([]);
   });
 });
 

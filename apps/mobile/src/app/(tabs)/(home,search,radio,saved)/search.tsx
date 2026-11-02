@@ -79,6 +79,7 @@ export default function SearchScreen() {
     trimmed,
     script
   );
+  const firstGrouped = items.findIndex((item) => headings.has(item.id));
   const needle = trimmed.toLowerCase();
   const ragis =
     ready && script === 'en'
@@ -152,28 +153,50 @@ export default function SearchScreen() {
                 ) : null}
               </View>
             }
-            renderItem={({ item, index }) => (
-              <View className="px-2">
-                {headings.get(item.id) ? (
-                  <Text className="px-3 pb-0.5 pt-3 text-sm text-muted-foreground">
-                    {headings.get(item.id)!.map((part, i) => (
-                      <Text
-                        key={i}
-                        className={part.match ? 'font-semibold text-primary' : undefined}
-                      >
-                        {part.text}
-                      </Text>
-                    ))}
-                  </Text>
-                ) : null}
+            renderItem={({ item, index }) => {
+              const next = items[index + 1];
+              const heading = headings.get(item.id);
+              const row = (
                 <ShabadRow
                   item={item}
                   isCurrent={item.id === currentId}
                   onPress={() => playerActions.playList(items, index)}
                   onMore={onMore}
                 />
-              </View>
-            )}
+              );
+              return (
+                <View className="px-2">
+                  {heading ? (
+                    <Text className="px-2 pb-0.5 pt-3 text-sm text-muted-foreground">
+                      {heading.map((part, i) => (
+                        <Text
+                          key={i}
+                          className={part.match ? 'font-semibold text-primary' : undefined}
+                        >
+                          {part.text}
+                        </Text>
+                      ))}
+                    </Text>
+                  ) : null}
+                  {firstGrouped >= 0 && index >= firstGrouped ? (
+                    // Lines from the heading to each row, not a card around them: rows
+                    // have their own pressed and playing backgrounds, which a card fights.
+                    <View className="relative pl-4">
+                      <View
+                        className={cn(
+                          'absolute -top-0.5 left-2 w-px bg-input',
+                          !next || headings.has(next.id) ? 'bottom-1/2' : 'bottom-0'
+                        )}
+                      />
+                      <View className="absolute left-2 top-1/2 h-px w-2 bg-input" />
+                      {row}
+                    </View>
+                  ) : (
+                    row
+                  )}
+                </View>
+              );
+            }}
             onEndReached={() => {
               if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
             }}

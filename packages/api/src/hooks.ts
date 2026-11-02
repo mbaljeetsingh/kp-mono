@@ -14,7 +14,7 @@ import {
 } from '@tanstack/react-query';
 import type { Playable, TitleScript } from '@kp/core';
 
-import { firstLetterLines, MIN_FIRST_LETTERS, shabadIdsOf, type LineMatches } from './banidb';
+import { linesMatching, MIN_FIRST_LETTERS, shabadIdsOf, type LineMatches } from './banidb';
 import type { KpClient } from './client';
 import { keys } from './keys';
 import {
@@ -99,19 +99,18 @@ export function minSearchLength(script: TitleScript): number {
 export function useSearch(client: KpClient, base: string, term: string, script: TitleScript) {
   const trimmed = term.trim();
   const queryClient = useQueryClient();
-  // A space means words, which no first-letter search can match.
-  const initials = trimmed.length >= MIN_FIRST_LETTERS && !/\s/.test(trimmed);
+  const asksBaniDb = trimmed.length >= MIN_FIRST_LETTERS;
   return useInfiniteQuery({
     queryKey: keys.shabads.search(trimmed, script),
     initialPageParam: { stage: 'opening', from: 0, matches: null } as SearchPageParam,
     queryFn: async ({ pageParam }) => {
       const matches =
         pageParam.matches ??
-        (initials
+        (asksBaniDb
           ? await queryClient
               .fetchQuery({
                 queryKey: keys.banidb.lines(script, trimmed),
-                queryFn: () => firstLetterLines(base, trimmed, script),
+                queryFn: () => linesMatching(base, trimmed, script),
                 staleTime: 1000 * 60 * 10,
               })
               .then((found): SearchMatches => ({ ...found, degraded: false }))
