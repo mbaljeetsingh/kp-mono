@@ -1,5 +1,5 @@
 import { randomShabads } from '@kp/api';
-import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
+import { clock, elapsedIn, progressPct, segmentTotal, SHUFFLE_SIZE } from '@kp/core';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Heart, Music, Pause, Play, Shuffle, SkipForward } from 'lucide-react-native';
@@ -138,7 +138,7 @@ function IdleMiniPlayer() {
   const colors = useColors();
   const online = useIsOnline();
   const shuffle = useMutation({
-    mutationFn: () => randomShabads(supabase, 30),
+    mutationFn: () => randomShabads(supabase, SHUFFLE_SIZE),
     onSuccess: (rows) => {
       // Something chosen while this loaded is what the listener wants now.
       if (rows.length && !playerStore.getState().current) playerActions.playList(rows, 0);

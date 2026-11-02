@@ -7,7 +7,6 @@
  */
 import { useShabadText } from '@kp/api';
 import {
-  canShuffle,
   artworkFor,
   clock,
   highlightVerseId,
@@ -16,6 +15,7 @@ import {
   REPEAT_LABELS,
   titleIn,
   verseSegments,
+  shuffleAction,
 } from '@kp/core';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -50,6 +50,7 @@ import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
+import { useShuffle } from '~/lib/shuffle';
 import { shareRendition } from '~/lib/share';
 import { skipToNext } from '~/lib/skip';
 import { useColors } from '~/lib/theme';
@@ -70,8 +71,12 @@ export default function NowPlayingScreen() {
   const duration = usePlayer((s) => s.duration);
   const repeat = usePlayer((s) => s.repeat);
   const shuffled = usePlayer((s) => s.shuffleOrder !== null);
-  // Once on it can always go off, however far the list has shrunk since.
-  const shuffleOff = usePlayer((s) => s.shuffleOrder === null && !canShuffle(s));
+  const { shuffle, pending: shufflePending } = useShuffle();
+  const online = useIsOnline();
+  // Offline a fetch could only wait. Reordering what is queued still works.
+  const shuffleDisabled = usePlayer(
+    (s) => shufflePending || (!online && shuffleAction(s) === 'fetch')
+  );
 
   /**
    * A shabad the listener looked up themselves. A broadcast is never tagged and
@@ -103,7 +108,6 @@ export default function NowPlayingScreen() {
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
 
   const [tab, setTab] = useState<'lyrics' | 'queue'>('lyrics');
-  const online = useIsOnline();
   const { favorites } = useSession();
 
   /**
@@ -509,18 +513,24 @@ export default function NowPlayingScreen() {
         )}
 
         <View className="flex-row items-center justify-center gap-5">
-          <Pressable
-            onPress={playerActions.toggleShuffle}
-            disabled={current.isLive || shuffleOff}
-            accessibilityLabel="Shuffle"
-            accessibilityState={{
-              selected: shuffled,
-              disabled: current.isLive || shuffleOff,
-            }}
-            className="size-12 items-center justify-center"
-          >
-            <Shuffle size={22} color={shuffled ? colors.primary : colors.subtleForeground} />
-          </Pressable>
+          {/* An empty space on a broadcast, which has no order: play stays centred. */}
+          {current.isLive ? (
+            <View className="size-12" />
+          ) : (
+            <Pressable
+              onPress={shuffle}
+              disabled={shuffleDisabled}
+              accessibilityLabel="Shuffle"
+              accessibilityState={{ selected: shuffled, disabled: shuffleDisabled }}
+              className="size-12 items-center justify-center"
+            >
+              {shufflePending ? (
+                <ActivityIndicator color={colors.subtleForeground} />
+              ) : (
+                <Shuffle size={22} color={shuffled ? colors.primary : colors.subtleForeground} />
+              )}
+            </Pressable>
+          )}
 
           <Pressable
             onPress={playerActions.previous}

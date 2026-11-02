@@ -475,6 +475,20 @@ describe('shuffle', () => {
     expect(calls).toEqual([]);
   });
 
+  it('adds random shabads behind the list, without touching the audio', () => {
+    const { store, calls } = playing(4);
+    const before = ids(store.getState().items);
+    store.getState().addRandomToQueue([
+      { ...store.getState().items[0]!, id: 'z' },
+      { ...store.getState().items[4]!, id: 'e' },
+    ]);
+    const s = store.getState();
+    expect(s.current?.id).toBe('e');
+    expect(s.index).toBe(4);
+    expect(ids(s.items)).toEqual([...before, 'z']);
+    expect(calls).toEqual([]);
+  });
+
   it('can still be turned off once the list has shrunk', () => {
     const { store } = playing(0);
     store.getState().toggleShuffle();

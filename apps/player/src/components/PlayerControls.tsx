@@ -4,7 +4,7 @@
  * Shared because there is more than one of them now, and three states of a
  * repeat control typed out twice is three states that drift.
  */
-import { canShuffle, REPEAT_LABELS } from '@kp/core';
+import { REPEAT_LABELS } from '@kp/core';
 import { Button } from '@kp/ui/button';
 import {
   LoaderCircle,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { playerActions, usePlayer } from '~/lib/player';
+import { useShuffle } from '~/lib/shuffle';
 import { skipToNext } from '~/lib/skip';
 import { cn } from '~/lib/utils';
 
@@ -39,8 +40,7 @@ export function PlayerControls({
   const repeat = usePlayer((s) => s.repeat);
   const isLive = usePlayer((s) => s.current?.isLive === true);
   const shuffled = usePlayer((s) => s.shuffleOrder !== null);
-  // Once on it can always go off, however far the list has shrunk since.
-  const shuffleOff = usePlayer((s) => s.shuffleOrder === null && !canShuffle(s));
+  const { shuffle, pending: shufflePending } = useShuffle();
   // Audio streams from sgpc.net, so a tap can be followed by seconds of silence.
   const starting = usePlayer((s) => s.starting !== null && s.starting === s.current?.id);
 
@@ -53,14 +53,19 @@ export function PlayerControls({
         <Button
           variant="ghost"
           size={big ? 'icon-lg' : 'icon'}
-          disabled={isLive || shuffleOff}
+          disabled={shufflePending}
           aria-label="Shuffle"
           aria-pressed={shuffled}
           title={shuffled ? 'Shuffle on' : 'Shuffle off'}
-          onClick={playerActions.toggleShuffle}
+          onClick={shuffle}
           // Muted when off, here and on repeat: in the dark theme primary is too close
           // to the foreground for its colour alone to say which state this is in.
-          className={cn('rounded-full', shuffled ? 'text-primary' : 'text-muted-foreground')}
+          // Invisible rather than gone on a broadcast, which has no order: play stays centred.
+          className={cn(
+            'rounded-full',
+            shuffled ? 'text-primary' : 'text-muted-foreground',
+            isLive && 'invisible'
+          )}
         >
           <Shuffle />
         </Button>
