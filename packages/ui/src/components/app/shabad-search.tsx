@@ -4,7 +4,7 @@
  * Shared by the workbench, where it links a shabad to a rendition, and by the
  * player's read-along, where a listener on a live broadcast can look up what
  * they are hearing. The player has a header language to follow, passed as
- * `searchType`; the workbench has none, so it keeps its own toggle.
+ * `script`; the workbench has none, so it keeps its own toggle.
  *
  * Typing is GurbaniLipi. The field keeps raw keystrokes and renders them in the
  * GurbaniLipi font, so `mdmA` shows as ਮਦਮਅ while the query still holds the
@@ -13,12 +13,22 @@
  * never jumps, and paste, backspace and selection behave like a normal input
  * because it is one.
  */
-import { LANGUAGE_SEARCH_TYPE, SEARCH_TYPES, useBaniDbSearch, type BaniDbHit } from '@kp/api';
+import {
+  LANGUAGE_SEARCH_TYPE,
+  lineDetails,
+  hitSegments,
+  lineTextIn,
+  MIN_FIRST_LETTERS,
+  SEARCH_TYPES,
+  useMatchingLines,
+  type BaniDbHit,
+} from '@kp/api';
 import * as React from 'react';
 import { useLocalStorage } from 'usehooks-ts';
 
 import { Button } from '../ui/button';
 import { ShabadInput } from './shabad-input';
+import { MarkedLine } from './marked-line';
 import { cn } from '../../lib/utils';
 
 /**
@@ -33,26 +43,26 @@ export function ShabadSearch({
   base,
   onSelect,
   placeholder = 'Type the first letters…',
-  searchType,
+  script,
   className,
 }: {
   base: string;
-  /** Fixes the search, and takes the toggle away. */
-  searchType?: number;
+  /** Fixes the search's language, and takes the toggle away. */
+  script?: 'en' | 'pa';
   onSelect: (pick: ShabadPick) => void;
   placeholder?: string;
   className?: string;
 }) {
   const [chosen, setChosen] = useLocalStorage<number>('kp:shabad-lang', 0);
-  const lang = searchType ?? chosen;
+  const lang = script ?? (chosen === LANGUAGE_SEARCH_TYPE.en ? 'en' : 'pa');
   const [term, setTerm] = React.useState('');
 
-  const query = useBaniDbSearch(base, term, lang);
+  const query = useMatchingLines(base, term, lang);
   const hits = query.data ?? [];
 
   // English search is a different alphabet, so it drops the font and reads as
   // roman.
-  const gurbaniLipi = lang !== LANGUAGE_SEARCH_TYPE.en;
+  const gurbaniLipi = lang === 'pa';
 
   return (
     <div className={cn('flex flex-col gap-2', className)}>
@@ -64,14 +74,14 @@ export function ShabadSearch({
         ariaLabel="Search BaniDB"
       />
 
-      {searchType === undefined ? (
+      {script === undefined ? (
         <div className="flex gap-1">
           {SEARCH_TYPES.map((type) => (
             <Button
               key={type.key}
-              variant={lang === type.key ? 'secondary' : 'ghost'}
+              variant={chosen === type.key ? 'secondary' : 'ghost'}
               size="xs"
-              aria-pressed={lang === type.key}
+              aria-pressed={chosen === type.key}
               onClick={() => setChosen(type.key)}
             >
               {type.label}
@@ -88,7 +98,10 @@ export function ShabadSearch({
         <p className="px-1 py-2 text-sm text-muted-foreground">Could not reach BaniDB.</p>
       ) : null}
 
-      {!query.isLoading && !query.isError && term.trim().length >= 2 && !hits.length ? (
+      {!query.isLoading &&
+      !query.isError &&
+      term.trim().length >= MIN_FIRST_LETTERS &&
+      !hits.length ? (
         <p className="px-1 py-2 text-sm text-muted-foreground">Nothing matches.</p>
       ) : null}
 
@@ -103,12 +116,22 @@ export function ShabadSearch({
             onClick={() => onSelect(hit)}
             className="rounded-lg px-2 py-2 text-left hover:bg-accent/50"
           >
-            <p className="text-sm">{hit.verse?.unicode ?? hit.verse?.gurmukhi}</p>
-            <p className="text-xs text-muted-foreground">{hit.transliteration?.english}</p>
-            {hit.writer?.english || hit.raag?.english ? (
-              <p className="text-[11px] text-muted-foreground/70">
-                {[hit.writer?.english, hit.raag?.english].filter(Boolean).join(' · ')}
-              </p>
+            <p className="text-sm">
+              {lang === 'pa' ? (
+                <MarkedLine parts={hitSegments(hit, term, 'pa')} />
+              ) : (
+                lineTextIn(hit, 'pa')
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {lang === 'en' ? (
+                <MarkedLine parts={hitSegments(hit, term, 'en')} />
+              ) : (
+                lineTextIn(hit, 'en')
+              )}
+            </p>
+            {lineDetails(hit) ? (
+              <p className="text-[11px] text-muted-foreground/70">{lineDetails(hit)}</p>
             ) : null}
           </button>
         ))}

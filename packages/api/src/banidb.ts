@@ -5,8 +5,10 @@
  * by the player's read-along, where a listener on a live broadcast can look up
  * what they are hearing for themselves.
  */
-import type { TitleScript } from '@kp/core';
+import { lineTextIn, matchesLineStart, type LineHit, type TitleScript } from '@kp/core';
 import { useQuery } from '@tanstack/react-query';
+
+import { keys } from './keys';
 
 /**
  * The workbench's choice, for lack of a header language there. `searchtype` 0
@@ -28,12 +30,17 @@ export const SEARCH_TYPES = [
  */
 export const LANGUAGE_SEARCH_TYPE: Record<TitleScript, number> = { en: 7, pa: 1 };
 
+/** First letters from the start of a line only: Gurmukhi or GurbaniLipi keys. */
+const LINE_START_SEARCH_TYPE = 0;
+
 /**
- * The read-along's search, which shows twelve lines in shabad order. Punjabi
- * stays with the start of a line there: searched anywhere, a few letters can fill
- * all twelve before the line that actually starts with them.
+ * Words, for a term with spaces. English gets BaniDB's omni search, which allows
+ * for spelling (`jag jeevan` finds ਜਗਿ ਜੀਵਨੁ) and reaches translations, but is
+ * undocumented, so a failure falls back as any other does. Punjabi gets its word
+ * search, which wants the exact spelling: that needs vowels, so a physical
+ * keyboard, as the on-screen keys are consonants only.
  */
-export const READ_ALONG_SEARCH_TYPE: Record<TitleScript, number> = { en: 7, pa: 0 };
+const WORD_SEARCH_TYPE: Record<TitleScript, number> = { en: 8, pa: 2 };
 
 /**
  * Below this, initials match too much of Gurbani to be worth asking: `jj` is
@@ -41,9 +48,12 @@ export const READ_ALONG_SEARCH_TYPE: Record<TitleScript, number> = { en: 7, pa: 
  */
 export const MIN_FIRST_LETTERS = 3;
 
+/** Enough to recognise the line without turning a panel into a second list to read. */
+const LINE_LIST_LIMIT = 20;
+
 /**
- * As many hits as one search reads. `jja` is about 190 shabads at this size, and
- * the ids travel in a query string, whose limit `shabadsByIds` gives as about 250.
+ * As many lines as one search reads. `jja` is about 190 shabads at this size, and
+ * their ids travel in a query string, whose limit `shabadsByIds` gives as about 250.
  */
 const MAX_SHABAD_HITS = 200;
 
@@ -51,16 +61,9 @@ const MAX_SHABAD_HITS = 200;
  * Long enough for BaniDB's slower answers (two to three seconds for 200 hits),
  * short enough that its stalls do not hold up the titles and ragis waiting on it.
  */
-const SHABAD_IDS_TIMEOUT_MS = 6000;
+const LINE_SEARCH_TIMEOUT_MS = 6000;
 
-export interface BaniDbHit {
-  shabadId: number;
-  verseId: number;
-  verse?: { unicode?: string; gurmukhi?: string };
-  transliteration?: { english?: string };
-  translation?: { en?: { bdb?: string } };
-  source?: { english?: string };
-  writer?: { english?: string };
+export interface BaniDbHit extends LineHit {
   raag?: { english?: string };
 }
 
@@ -77,20 +80,22 @@ export async function searchBaniDb(
   return (json.verses ?? []).slice(0, 12);
 }
 
-export interface ShabadIdMatches {
-  ids: number[];
+/** One matched line, and whether the letters opened it or turned up inside it. */
+export interface LineMatch {
+  hit: BaniDbHit;
+  atStart: boolean;
+}
+
+export interface LineMatches {
+  /** Lines that open with the letters first: that is what someone usually remembers. */
+  lines: LineMatch[];
   /** BaniDB held more lines than one search reads, so a recording may be missing. */
   partial: boolean;
 }
 
-/** The shabads with a line matching these letters, for joining to the archive. */
-export async function shabadIdsMatching(
-  base: string,
-  term: string,
-  searchType: number
-): Promise<ShabadIdMatches> {
+async function readHits(base: string, term: string, searchType: number) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), SHABAD_IDS_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), LINE_SEARCH_TIMEOUT_MS);
   try {
     const res = await fetch(
       `${base}/search/${encodeURIComponent(term)}?searchtype=${searchType}&results=${MAX_SHABAD_HITS}`,
@@ -101,24 +106,98 @@ export async function shabadIdsMatching(
       verses?: BaniDbHit[];
       resultsInfo?: { totalResults?: number };
     };
-    const verses = json.verses ?? [];
-    return {
-      ids: [...new Set(verses.map((hit) => hit.shabadId))],
-      partial: (json.resultsInfo?.totalResults ?? 0) > verses.length,
-    };
+    return { verses: json.verses ?? [], total: json.resultsInfo?.totalResults ?? 0 };
   } finally {
     clearTimeout(timer);
   }
 }
 
-export function useBaniDbSearch(base: string, term: string, searchType: number) {
+/**
+ * Every line with these first letters, opening matches first.
+ *
+ * BaniDB returns hits in shabad order, so an "anywhere" search alone buries the
+ * line somebody meant under lines that merely contain the letters: `hjb` is 19
+ * lines that open with them and 86 that hold them. Punjabi asks for both. Roman
+ * has only "anywhere", so its openers are found by reading the lines; past the
+ * cap they stay unfound, which `partial` owns up to.
+ */
+export async function firstLetterLines(
+  base: string,
+  term: string,
+  script: TitleScript
+): Promise<LineMatches> {
+  if (script === 'en') {
+    const { verses, total } = await readHits(base, term, LANGUAGE_SEARCH_TYPE.en);
+    const lines = verses.map((hit) => ({
+      hit,
+      atStart: matchesLineStart(hit.transliteration?.english ?? '', term, 'en'),
+    }));
+    return {
+      lines: [...lines.filter((l) => l.atStart), ...lines.filter((l) => !l.atStart)],
+      partial: total > verses.length,
+    };
+  }
+  const [opening, anywhere] = await Promise.allSettled([
+    readHits(base, term, LINE_START_SEARCH_TYPE),
+    readHits(base, term, LANGUAGE_SEARCH_TYPE.pa),
+  ]);
+  // Punjabi has nothing else to search, so one answer beats an error. Only both
+  // failing is a failure, and either answer alone can still be ranked.
+  if (opening.status === 'rejected' && anywhere.status === 'rejected') throw opening.reason;
+  const openers = opening.status === 'fulfilled' ? opening.value.verses : [];
+  const others = anywhere.status === 'fulfilled' ? anywhere.value.verses : [];
+  const opened = new Set(openers.map((hit) => hit.verseId));
+  const atStart = (hit: BaniDbHit) =>
+    opening.status === 'rejected' && matchesLineStart(lineTextIn(hit, 'pa'), term, 'pa');
+  const rest = others
+    .filter((hit) => !opened.has(hit.verseId))
+    .map((hit) => ({ hit, atStart: atStart(hit) }));
+  return {
+    lines: [
+      ...openers.map((hit) => ({ hit, atStart: true })),
+      ...rest.filter((line) => line.atStart),
+      ...rest.filter((line) => !line.atStart),
+    ],
+    partial: anywhere.status === 'rejected' || anywhere.value.total > anywhere.value.verses.length,
+  };
+}
+
+async function wordLines(base: string, term: string, script: TitleScript): Promise<LineMatches> {
+  const { verses, total } = await readHits(base, term, WORD_SEARCH_TYPE[script]);
+  return {
+    lines: verses.map((hit) => ({ hit, atStart: false })),
+    partial: total > verses.length,
+  };
+}
+
+/**
+ * The lines a term finds, whichever way it was typed. A single roman word that
+ * is nobody's initials (`waheguru`) gets a second try as a word, so a word needs
+ * no space to be found.
+ */
+export async function linesMatching(
+  base: string,
+  term: string,
+  script: TitleScript
+): Promise<LineMatches> {
+  if (/\s/.test(term)) return wordLines(base, term, script);
+  const found = await firstLetterLines(base, term, script);
+  return found.lines.length || script === 'pa' ? found : wordLines(base, term, script);
+}
+
+/** A shabad's id once, keeping the order: its best line decides where it ranks. */
+export function shabadIdsOf(lines: LineMatch[]): number[] {
+  return [...new Set(lines.map((line) => line.hit.shabadId))];
+}
+
+/** The read-along's and the workbench's list: the best few lines to recognise. */
+export function useMatchingLines(base: string, term: string, script: TitleScript) {
   const trimmed = term.trim();
   return useQuery({
-    queryKey: ['banidb', 'search', searchType, trimmed],
-    queryFn: () => searchBaniDb(base, trimmed, searchType),
-    // One or two characters match most of the corpus, which is a slow request
-    // for a result nobody wanted.
-    enabled: trimmed.length >= 2,
+    queryKey: keys.banidb.lines(script, trimmed),
+    queryFn: () => linesMatching(base, trimmed, script),
+    select: (found) => found.lines.slice(0, LINE_LIST_LIMIT).map((line) => line.hit),
+    enabled: trimmed.length >= MIN_FIRST_LETTERS,
     staleTime: 1000 * 60 * 10,
     retry: 1,
   });
@@ -173,45 +252,3 @@ export const GURMUKHI_KEYS: readonly string[] = [
   '',
   GURMUKHI_BACKSPACE,
 ];
-
-/**
- * The letter each key enters, for screen readers: a key's text is a Latin code
- * that only the font turns into Gurmukhi, so read aloud it would say `Type a`.
- */
-export const GURMUKHI_KEY_LETTERS: Readonly<Record<string, string>> = {
-  a: 'ੳ',
-  A: 'ਅ',
-  e: 'ੲ',
-  s: 'ਸ',
-  h: 'ਹ',
-  q: 'ਤ',
-  Q: 'ਥ',
-  d: 'ਦ',
-  D: 'ਧ',
-  n: 'ਨ',
-  k: 'ਕ',
-  K: 'ਖ',
-  g: 'ਗ',
-  G: 'ਘ',
-  '|': 'ਙ',
-  p: 'ਪ',
-  P: 'ਫ',
-  b: 'ਬ',
-  B: 'ਭ',
-  m: 'ਮ',
-  c: 'ਚ',
-  C: 'ਛ',
-  j: 'ਜ',
-  J: 'ਝ',
-  '\\': 'ਞ',
-  X: 'ਯ',
-  r: 'ਰ',
-  l: 'ਲ',
-  v: 'ਵ',
-  V: 'ੜ',
-  t: 'ਟ',
-  T: 'ਠ',
-  f: 'ਡ',
-  F: 'ਢ',
-  x: 'ਣ',
-};

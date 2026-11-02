@@ -11,7 +11,7 @@
  * The header language decides what is typed: roman letters, or GurbaniLipi keys
  * drawn in the GurbaniLipi font, as the read-along's search takes them.
  */
-import { minSearchLength, useArtists, useSearch } from '@kp/api';
+import { groupByLine, minSearchLength, useArtists, useSearch } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -19,6 +19,7 @@ import { FlatList, Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
 import { AppHeader } from '~/components/AppHeader';
+import { MarkedLine } from '~/components/MarkedLine';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { RagiShelf } from '~/components/RagiShelf';
 import { Screen } from '~/components/Screen';
@@ -52,7 +53,6 @@ export default function SearchScreen() {
   const [script] = useTitleScript();
   const query = useSearch(supabase, BANIDB_BASE, debounced, script);
   const artists = useArtists(supabase);
-  const items = query.data?.pages.flatMap((p) => p.items) ?? [];
   const currentId = usePlayer((s) => s.current?.id);
   const online = useIsOnline();
   const keysAvailable = focused && online && script === 'pa';
@@ -74,6 +74,13 @@ export default function SearchScreen() {
   const trimmed = debounced.trim();
   const min = minSearchLength(script);
   const ready = trimmed.length >= min;
+  const { items, headings } = groupByLine(
+    query.data?.pages.flatMap((p) => p.items) ?? [],
+    query.data?.pages[0]?.matches.lines,
+    trimmed,
+    script
+  );
+  const firstGrouped = items.findIndex((item) => headings.has(item.id));
   const needle = trimmed.toLowerCase();
   const ragis =
     ready && script === 'en'
@@ -130,7 +137,7 @@ export default function SearchScreen() {
                   </>
                 ) : null}
                 <Text className="px-5 pt-2 text-sm font-medium text-foreground">Shabads</Text>
-                {query.data?.pages[0]?.partial ? (
+                {query.data?.pages[0]?.matches.partial ? (
                   <Text className="px-5 text-sm text-muted-foreground">
                     Many lines match. Type another letter to narrow it.
                   </Text>
@@ -140,23 +147,50 @@ export default function SearchScreen() {
                     Could not refresh these results.
                   </Text>
                 ) : null}
-                {query.data?.pages[0]?.degraded ? (
+                {query.data?.pages[0]?.matches.degraded ? (
                   <Text className="px-5 text-sm text-muted-foreground">
                     First-letter search is unavailable right now. Showing titles and ragis.
                   </Text>
                 ) : null}
               </View>
             }
-            renderItem={({ item, index }) => (
-              <View className="px-2">
+            renderItem={({ item, index }) => {
+              const next = items[index + 1];
+              const heading = headings.get(item.id);
+              const row = (
                 <ShabadRow
                   item={item}
                   isCurrent={item.id === currentId}
                   onPress={() => playerActions.playList(items, index)}
                   onMore={onMore}
                 />
-              </View>
-            )}
+              );
+              return (
+                <View className="px-2">
+                  {heading ? (
+                    <Text className="px-2 pb-0.5 pt-3 text-sm text-muted-foreground">
+                      <MarkedLine parts={heading} />
+                    </Text>
+                  ) : null}
+                  {firstGrouped >= 0 && index >= firstGrouped ? (
+                    // Lines from the heading to each row, not a card around them: rows
+                    // have their own pressed and playing backgrounds, which a card fights.
+                    <View className="relative pl-4">
+                      <View
+                        className={cn(
+                          'absolute -top-0.5 left-2 w-px bg-input',
+                          !next || headings.has(next.id) ? 'bottom-1/2' : 'bottom-0'
+                        )}
+                      />
+                      <View className="absolute left-2 top-1/2 h-px w-2 bg-input" />
+                      {row}
+                    </View>
+                  ) : (
+                    row
+                  )}
+                </View>
+              );
+            }}
             onEndReached={() => {
               if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
             }}

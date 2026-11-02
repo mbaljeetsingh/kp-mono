@@ -16,3 +16,4 @@ export * from './recent';
 export * from './mp3';
 export * from './share';
 export * from './skeleton';
+export * from './line-match';

@@ -29,7 +29,6 @@ import { LanguageSelector } from '~/components/LanguageSelector';
 import { NewPlaylistDialog } from '~/components/NewPlaylistDialog';
 import { PlayerBar } from '~/components/PlayerBar';
 import { SearchField } from '~/components/SearchField';
-import { ShuffleButton } from '~/components/ShuffleButton';
 import { ThemeToggle } from '@kp/ui/app/theme-toggle';
 import { CONTRIBUTE_URL, GITHUB_URL, PRIVACY_URL } from '~/lib/links';
 import { usePlayerKeys } from '~/lib/keys';
@@ -175,7 +174,6 @@ export function RootLayout() {
               >
                 <Search className="size-4" />
               </Link>
-              <ShuffleButton />
               <LanguageSelector />
               <AccountButton />
               <ThemeToggle />
@@ -183,11 +181,10 @@ export function RootLayout() {
           </div>
           <div className="sticky top-0 z-10 hidden items-center justify-center gap-2 border-b border-border bg-background/95 px-6 py-3 backdrop-blur sm:flex">
             <SearchField exitOnClear className="max-w-xl flex-1" />
-            <ShuffleButton />
             {/* Up here rather than at the foot of the sidebar, where it was
                 squeezed between the account and the theme: it changes every
                 title in this column, and the phone header puts it in the same
-                place, after search and shuffle. */}
+                place, after search. */}
             <LanguageSelector />
           </div>
           <div className="mx-auto max-w-4xl px-4 py-4 sm:py-6">

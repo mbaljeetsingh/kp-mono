@@ -3,8 +3,8 @@
  *
  * Every other way in needs the listener to name something first. This is the
  * one for arriving with nothing in mind — which for kirtan is not the unusual
- * case — so it sits beside the search box, exactly where somebody stalls with
- * nothing to type.
+ * case — so the player offers it for as long as nothing is loaded. Once something
+ * is, the player's own shuffle reorders that list instead.
  */
 import { randomShabads } from '@kp/api';
 import { Button } from '@kp/ui/button';

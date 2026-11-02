@@ -3,7 +3,7 @@
  *
  * Everything here comes from published shabads, never raw files — a 70-minute
  * set is not listenable until somebody has marked where each shabad begins and
- * ends. Search and shuffle live in the header, so Home is only shelves.
+ * ends. Search lives in the header, so Home is only shelves.
  */
 import { shelfShabads, useArtists, useRecentShabads, type ShabadSort } from '@kp/api';
 import { DEFAULT_STATION, RECENT_SHELF_FETCH, stationPlayable } from '@kp/core';

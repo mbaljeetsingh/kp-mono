@@ -92,3 +92,48 @@ export function onPrevious(state: QueueState, elapsedInSegment: number): Advance
 export function upNext(state: QueueState): Playable[] {
   return state.items.slice(state.index + 1);
 }
+
+/**
+ * What follows the cursor in a random order. What is behind it stays there, so
+ * Previous still goes back to what was just heard.
+ */
+export function shuffledQueue(
+  items: Playable[],
+  index: number,
+  random: () => number = Math.random
+): Playable[] {
+  const rest = upNext({ items, index, repeat: 'off' });
+  for (let i = rest.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [rest[i], rest[j]] = [rest[j]!, rest[i]!];
+  }
+  return [...items.slice(0, index + 1), ...rest];
+}
+
+/**
+ * Back to the order the list had before shuffling, with the cursor still on what
+ * is playing. Anything added since is not in `order`, so it stays at the end, in
+ * the order it was added; anything removed since simply does not come back. The
+ * cursor follows its position rather than its item: a recording queued twice is
+ * the same object both times, and looking it up would land on the earlier copy.
+ */
+export function unshuffledQueue(
+  items: Playable[],
+  index: number,
+  order: readonly string[]
+): { items: Playable[]; index: number } {
+  const ranks = new Map<string, number>();
+  order.forEach((id, at) => {
+    if (!ranks.has(id)) ranks.set(id, at);
+  });
+  const restored = items
+    .map((item, at) => ({ item, at, rank: ranks.get(item.id) ?? order.length }))
+    .sort((a, b) => a.rank - b.rank);
+  const cursor = restored.findIndex(({ at }) => at === index);
+  return { items: restored.map(({ item }) => item), index: cursor < 0 ? index : cursor };
+}
+
+/** Shuffling needs at least two items still to come, or it changes nothing. */
+export function canShuffle(state: Pick<QueueState, 'items' | 'index'>): boolean {
+  return state.items.length - state.index - 1 > 1;
+}

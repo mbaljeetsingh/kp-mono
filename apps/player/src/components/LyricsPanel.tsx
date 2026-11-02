@@ -8,7 +8,7 @@
  * one mean anything.
  */
 import { highlightVerseId, isAligned, verseSegments, type ReadAlongTextSize } from '@kp/core';
-import { READ_ALONG_SEARCH_TYPE, useShabadText } from '@kp/api';
+import { useShabadText } from '@kp/api';
 import { ShabadSearch } from '@kp/ui/app/shabad-search';
 import { Button } from '@kp/ui/button';
 import { X } from 'lucide-react';
@@ -139,7 +139,7 @@ export function LyricsPanel({ className }: { className?: string }) {
         </p>
         <ShabadSearch
           base={BANIDB_BASE}
-          searchType={READ_ALONG_SEARCH_TYPE[script]}
+          script={script}
           placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : undefined}
           onSelect={(chosen) =>
             current && setPick({ trackId: current.id, shabadId: chosen.shabadId })

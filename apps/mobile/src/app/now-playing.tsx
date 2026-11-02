@@ -7,6 +7,7 @@
  */
 import { useShabadText } from '@kp/api';
 import {
+  canShuffle,
   artworkFor,
   clock,
   highlightVerseId,
@@ -27,6 +28,7 @@ import {
   Play,
   Repeat,
   Repeat1,
+  Shuffle,
   SkipBack,
   SkipForward,
 } from 'lucide-react-native';
@@ -67,6 +69,9 @@ export default function NowPlayingScreen() {
   const position = usePlayer((s) => s.position);
   const duration = usePlayer((s) => s.duration);
   const repeat = usePlayer((s) => s.repeat);
+  const shuffled = usePlayer((s) => s.shuffleOrder !== null);
+  // Once on it can always go off, however far the list has shrunk since.
+  const shuffleOff = usePlayer((s) => s.shuffleOrder === null && !canShuffle(s));
 
   /**
    * A shabad the listener looked up themselves. A broadcast is never tagged and
@@ -327,8 +332,8 @@ export default function NowPlayingScreen() {
         </View>
       </View>
 
-      <View className="mx-5 mb-2 flex-row items-center gap-2">
-        <View className="flex-1 flex-row rounded-xl bg-card p-[3px]">
+      <View className="mx-5 mb-2">
+        <View className="flex-row rounded-xl bg-card p-[3px]">
           {(['lyrics', 'queue'] as const).map((value) => (
             <Pressable
               key={value}
@@ -351,14 +356,16 @@ export default function NowPlayingScreen() {
             </Pressable>
           ))}
         </View>
-        {/* Kept in the row on Up next, unseen, so the tabs do not change width
-            under the finger that just tapped one. */}
-        <View
-          className={tab === 'lyrics' ? undefined : 'opacity-0'}
-          pointerEvents={tab === 'lyrics' ? 'auto' : 'none'}
-        >
-          <ReadAlongOptionsSheet options={readAlong} onChange={setReadAlong} />
-        </View>
+        {/* Over the selected tab it belongs to, not beside the tabs, where it
+            read as a setting for both. */}
+        {tab === 'lyrics' ? (
+          <View
+            pointerEvents="box-none"
+            className="absolute inset-y-0 left-0 w-1/2 items-end justify-center pr-1"
+          >
+            <ReadAlongOptionsSheet options={readAlong} onChange={setReadAlong} />
+          </View>
+        ) : null}
       </View>
 
       <ScrollView
@@ -475,18 +482,13 @@ export default function NowPlayingScreen() {
             the title. Nothing is drawn rather than an inert track: a greyed-out
             bar still claims there is a length to be part-way through. */}
         {current.isLive ? null : (
-          <SeekBar current={current} position={position} duration={duration} />
-        )}
-
-        {/* The heart belongs down here with the transport, not up beside the
-            title: saving a shabad is something you do while listening to it,
-            and the title sits at the top of a full-height screen while the
-            thumb is here. Inset absolutely rather than given a slot in the
-            row, so the transport stays centred where it has always been.
-            A broadcast is not something to save — there is no rendition
-            behind it. */}
-        <View className="relative flex-row items-center justify-center gap-5">
-          {current.isLive ? null : (
+          <View>
+            <SeekBar current={current} position={position} duration={duration} />
+            {/* The heart stays down here with the transport, not up beside the
+                title: saving a shabad is something you do while listening, and
+                the thumb is here. Between the two times because shuffle and
+                repeat now fill the row below, which has no slot left. A broadcast
+                is not something to save: there is no rendition behind it. */}
             <Pressable
               onPress={() => favorites.toggle(current.id)}
               accessibilityLabel={
@@ -494,21 +496,31 @@ export default function NowPlayingScreen() {
                   ? `Remove ${titleIn(current, script)} from saved`
                   : `Save ${titleIn(current, script)}`
               }
-              className="absolute bottom-0 left-0 top-0 w-14 items-center justify-center"
+              // Clear of the seek bar's touch area above and the play button below.
+              className="absolute -bottom-4 size-9 items-center justify-center self-center"
             >
               <Heart
-                size={26}
+                size={24}
                 color={favorites.has(current.id) ? colors.primary : colors.subtleForeground}
                 fill={favorites.has(current.id) ? colors.primary : 'transparent'}
               />
             </Pressable>
-          )}
+          </View>
+        )}
 
-          {/* Repeat hangs off the right with nothing to answer it on the left,
-              so the middle of this row is not the play button — it sits half a
-              button to the left of it, under a seek bar that is centred. An
-              empty slot the size of repeat puts it back in the middle. */}
-          <View className="w-12" />
+        <View className="flex-row items-center justify-center gap-5">
+          <Pressable
+            onPress={playerActions.toggleShuffle}
+            disabled={current.isLive || shuffleOff}
+            accessibilityLabel="Shuffle"
+            accessibilityState={{
+              selected: shuffled,
+              disabled: current.isLive || shuffleOff,
+            }}
+            className="size-12 items-center justify-center"
+          >
+            <Shuffle size={22} color={shuffled ? colors.primary : colors.subtleForeground} />
+          </Pressable>
 
           <Pressable
             onPress={playerActions.previous}

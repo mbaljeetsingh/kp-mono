@@ -3,11 +3,19 @@
  *
  * Typing goes through ShabadInput, with the Gurmukhi keys under it in Punjabi.
  */
-import { READ_ALONG_SEARCH_TYPE, useBaniDbSearch, type BaniDbHit } from '@kp/api';
+import {
+  lineDetails,
+  hitSegments,
+  lineTextIn,
+  MIN_FIRST_LETTERS,
+  useMatchingLines,
+  type BaniDbHit,
+} from '@kp/api';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useDebounceValue } from 'usehooks-ts';
 
+import { MarkedLine } from '~/components/MarkedLine';
 import { GurmukhiKeys, ShabadInput } from '~/components/ShabadInput';
 import { BANIDB_BASE } from '~/lib/links';
 import { useTitleScript } from '~/lib/title-script';
@@ -17,7 +25,7 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
   const [term, setTerm] = useState('');
   const [debounced] = useDebounceValue(term, 300);
 
-  const query = useBaniDbSearch(BANIDB_BASE, debounced, READ_ALONG_SEARCH_TYPE[script]);
+  const query = useMatchingLines(BANIDB_BASE, debounced, script);
   const hits = query.data ?? [];
 
   return (
@@ -38,7 +46,10 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
       {query.isError ? (
         <Text className="text-sm text-muted-foreground">Could not reach BaniDB.</Text>
       ) : null}
-      {!query.isLoading && !query.isError && debounced.trim().length >= 2 && !hits.length ? (
+      {!query.isLoading &&
+      !query.isError &&
+      debounced.trim().length >= MIN_FIRST_LETTERS &&
+      !hits.length ? (
         <Text className="text-sm text-muted-foreground">Nothing matches.</Text>
       ) : null}
 
@@ -50,9 +61,22 @@ export function ShabadSearch({ onSelect }: { onSelect: (shabadId: number) => voi
             className="rounded-lg px-2 py-2 active:bg-accent"
           >
             <Text className="text-base text-foreground">
-              {hit.verse?.unicode ?? hit.verse?.gurmukhi}
+              {script === 'pa' ? (
+                <MarkedLine parts={hitSegments(hit, debounced, 'pa')} />
+              ) : (
+                lineTextIn(hit, 'pa')
+              )}
             </Text>
-            <Text className="text-xs text-muted-foreground">{hit.transliteration?.english}</Text>
+            <Text className="text-xs text-muted-foreground">
+              {script === 'en' ? (
+                <MarkedLine parts={hitSegments(hit, debounced, 'en')} />
+              ) : (
+                lineTextIn(hit, 'en')
+              )}
+            </Text>
+            {lineDetails(hit) ? (
+              <Text className="text-xs text-subtle-foreground">{lineDetails(hit)}</Text>
+            ) : null}
           </Pressable>
         ))}
       </View>

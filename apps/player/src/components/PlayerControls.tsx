@@ -4,9 +4,18 @@
  * Shared because there is more than one of them now, and three states of a
  * repeat control typed out twice is three states that drift.
  */
-import { REPEAT_LABELS } from '@kp/core';
+import { canShuffle, REPEAT_LABELS } from '@kp/core';
 import { Button } from '@kp/ui/button';
-import { LoaderCircle, Pause, Play, Repeat, Repeat1, SkipBack, SkipForward } from 'lucide-react';
+import {
+  LoaderCircle,
+  Pause,
+  Play,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react';
 
 import { playerActions, usePlayer } from '~/lib/player';
 import { skipToNext } from '~/lib/skip';
@@ -29,6 +38,9 @@ export function PlayerControls({
   const playing = usePlayer((s) => s.playing);
   const repeat = usePlayer((s) => s.repeat);
   const isLive = usePlayer((s) => s.current?.isLive === true);
+  const shuffled = usePlayer((s) => s.shuffleOrder !== null);
+  // Once on it can always go off, however far the list has shrunk since.
+  const shuffleOff = usePlayer((s) => s.shuffleOrder === null && !canShuffle(s));
   // Audio streams from sgpc.net, so a tap can be followed by seconds of silence.
   const starting = usePlayer((s) => s.starting !== null && s.starting === s.current?.id);
 
@@ -37,15 +49,21 @@ export function PlayerControls({
 
   return (
     <div className="flex items-center gap-1">
-      {/* Repeat hangs off the right with nothing to answer it on the left, so
-          the middle of this row is not the play button — it sits half a button
-          to the left of it, under a seek bar that is centred and beside a
-          sheet that is centred, which is exactly where it reads as a mistake.
-          An empty slot the size of repeat puts the play button back in the
-          middle. Empty rather than something useful: what belongs there is a
-          fourth control this player does not have. */}
       {compact ? null : (
-        <div aria-hidden="true" className={cn('shrink-0', big ? 'size-10' : 'size-9')} />
+        <Button
+          variant="ghost"
+          size={big ? 'icon-lg' : 'icon'}
+          disabled={isLive || shuffleOff}
+          aria-label="Shuffle"
+          aria-pressed={shuffled}
+          title={shuffled ? 'Shuffle on' : 'Shuffle off'}
+          onClick={playerActions.toggleShuffle}
+          // Muted when off, here and on repeat: in the dark theme primary is too close
+          // to the foreground for its colour alone to say which state this is in.
+          className={cn('rounded-full', shuffled ? 'text-primary' : 'text-muted-foreground')}
+        >
+          <Shuffle />
+        </Button>
       )}
 
       {compact ? null : (
@@ -94,7 +112,10 @@ export function PlayerControls({
           aria-label={REPEAT_LABELS[repeat]}
           title={REPEAT_LABELS[repeat]}
           onClick={playerActions.cycleRepeat}
-          className={cn('rounded-full', repeat !== 'off' && 'text-primary')}
+          className={cn(
+            'rounded-full',
+            repeat === 'off' ? 'text-muted-foreground' : 'text-primary'
+          )}
         >
           <RepeatIcon />
         </Button>

@@ -1,37 +1,58 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  GURMUKHI_BACKSPACE,
-  GURMUKHI_KEY_LETTERS,
-  GURMUKHI_KEYS,
-  shabadIdsMatching,
-} from './banidb';
+import { GURMUKHI_KEY_LETTERS } from '@kp/core';
 
-describe('shabadIdsMatching', () => {
+import { firstLetterLines, GURMUKHI_BACKSPACE, GURMUKHI_KEYS, linesMatching } from './banidb';
+
+const line = (verseId: number, shabadId: number, unicode: string, english = '') => ({
+  verseId,
+  shabadId,
+  verse: { unicode },
+  transliteration: { english },
+});
+
+describe('firstLetterLines', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it('gives each shabad once, however many of its lines matched', async () => {
-    const fetchMock = vi.fn(async () =>
-      Response.json({
-        resultsInfo: { totalResults: 3 },
-        verses: [{ shabadId: 7 }, { shabadId: 7 }, { shabadId: 9 }],
-      })
+  it('puts Punjabi lines opening on the letters first, each line once', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        Response.json(
+          url.includes('searchtype=0')
+            ? { resultsInfo: { totalResults: 1 }, verses: [line(9, 90, 'open')] }
+            : {
+                resultsInfo: { totalResults: 2 },
+                verses: [line(1, 10, 'inside'), line(9, 90, 'open')],
+              }
+        )
+      )
     );
-    vi.stubGlobal('fetch', fetchMock);
-    await expect(shabadIdsMatching('/banidb', 'jjas', 7)).resolves.toEqual({
-      ids: [7, 9],
-      partial: false,
-    });
+    const found = await firstLetterLines('/banidb', 'hjb', 'pa');
+    expect(found.lines.map((l) => [l.hit.verseId, l.atStart])).toEqual([
+      [9, true],
+      [1, false],
+    ]);
+    expect(found.partial).toBe(false);
   });
 
-  it('says when BaniDB held more lines than it sent', async () => {
+  it('finds roman openers by reading the lines', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        Response.json({ resultsInfo: { totalResults: 4304 }, verses: [{ shabadId: 7 }] })
+        Response.json({
+          resultsInfo: { totalResults: 3 },
+          verses: [
+            line(1, 10, '', 'kat jag jivan aisa'),
+            line(2, 20, '', 'jag jivan aisa supane ||'),
+          ],
+        })
       )
     );
-    await expect(shabadIdsMatching('/banidb', 'jj', 7)).resolves.toMatchObject({ partial: true });
+    const found = await firstLetterLines('/banidb', 'jja', 'en');
+    expect(found.lines.map((l) => l.hit.verseId)).toEqual([2, 1]);
+    // Three held, two sent.
+    expect(found.partial).toBe(true);
   });
 
   it('throws what BaniDB refused, so a caller can fall back', async () => {
@@ -39,7 +60,74 @@ describe('shabadIdsMatching', () => {
       'fetch',
       vi.fn(async () => new Response('', { status: 503 }))
     );
-    await expect(shabadIdsMatching('/banidb', 'jjas', 7)).rejects.toThrow('503');
+    await expect(firstLetterLines('/banidb', 'jjas', 'en')).rejects.toThrow('503');
+  });
+
+  const failing = (searchType: number | 'both', verses: unknown[]) =>
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        searchType === 'both' || url.includes(`searchtype=${searchType}`)
+          ? new Response('', { status: 503 })
+          : Response.json({ resultsInfo: { totalResults: verses.length }, verses })
+      )
+    );
+
+  it('still ranks the anywhere lines when the opening search fails', async () => {
+    failing(0, [line(1, 10, 'ਮਛੁਲੀ ਹੋਵਾ ਜਲਿ ਬਸਾ'), line(2, 20, 'ਹੋਵਾ ਜਲਿ ਬਸਾ')]);
+    const found = await firstLetterLines('/banidb', 'hjb', 'pa');
+    expect(found.lines.map((l) => [l.hit.verseId, l.atStart])).toEqual([
+      [2, true],
+      [1, false],
+    ]);
+    expect(found.partial).toBe(false);
+  });
+
+  it('keeps the opening lines when the anywhere search fails, and says it is partial', async () => {
+    failing(1, [line(2, 20, 'ਹੋਵਾ ਜਲਿ ਬਸਾ')]);
+    const found = await firstLetterLines('/banidb', 'hjb', 'pa');
+    expect(found.lines.map((l) => l.hit.verseId)).toEqual([2]);
+    expect(found.partial).toBe(true);
+  });
+
+  it('fails only when both searches fail', async () => {
+    failing('both', []);
+    await expect(firstLetterLines('/banidb', 'hjb', 'pa')).rejects.toThrow('503');
+  });
+});
+
+describe('linesMatching', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const asked = (fetchMock: ReturnType<typeof vi.fn>) =>
+    fetchMock.mock.calls.map(([url]) =>
+      new URL(url as string, 'http://x').searchParams.get('searchtype')
+    );
+
+  it('sends English words to omni search and Punjabi words to word search', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ verses: [line(1, 10, 'x')] }));
+    vi.stubGlobal('fetch', fetchMock);
+    await linesMatching('/banidb', 'jag jivan', 'en');
+    await linesMatching('/banidb', 'jig jIvnu', 'pa');
+    expect(asked(fetchMock)).toEqual(['8', '2']);
+  });
+
+  it("tries a roman word as a word once it is nobody's initials", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      Response.json({ verses: url.includes('searchtype=8') ? [line(1, 10, 'x')] : [] })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const found = await linesMatching('/banidb', 'waheguru', 'en');
+    expect(asked(fetchMock)).toEqual(['7', '8']);
+    expect(found.lines).toHaveLength(1);
+  });
+
+  it('does not ask twice when the initials found something', async () => {
+    const fetchMock = vi.fn(async () =>
+      Response.json({ verses: [line(1, 10, 'x', 'jag jivan aisa')] })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await linesMatching('/banidb', 'jja', 'en');
+    expect(asked(fetchMock)).toEqual(['7']);
   });
 });
 

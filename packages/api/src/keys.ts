@@ -17,7 +17,7 @@ export const keys = {
       ['shabads', 'others', shabadId, exceptId] as const,
   },
   banidb: {
-    shabadIds: (script: string, term: string) => ['banidb', 'shabad-ids', script, term] as const,
+    lines: (script: string, term: string) => ['banidb', 'lines', script, term] as const,
   },
   artists: {
     all: ['artists'] as const,
