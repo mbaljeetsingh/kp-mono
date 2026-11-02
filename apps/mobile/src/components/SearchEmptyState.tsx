@@ -7,7 +7,8 @@
  * that cannot be reached, and it gets the room back when they close.
  */
 import { History, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
@@ -17,6 +18,7 @@ import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { usePlayer } from '~/lib/player';
 import { useRecentSearches } from '~/lib/recent-searches';
 import { useSearchKeys } from '~/lib/search-keys';
+import { useSession } from '~/lib/session';
 import { useColors } from '~/lib/theme';
 import { useTitleScript } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
@@ -34,9 +36,21 @@ export function SearchEmptyState({
   const setKeysOpen = useSearchKeys((s) => s.setKeysOpen);
   const recentReady = usePlayer((s) => s.recentReady);
   const recent = useRecentShelf();
+  const { recentSettled } = useSession();
   // Playing a popular row makes this listener a returning one. Swapping the list
   // out from under the row they just tapped would lose their place in it.
   const [keepPopular, setKeepPopular] = useState(false);
+  // For that visit: this tab stays mounted while the listener is elsewhere.
+  useFocusEffect(useCallback(() => () => setKeepPopular(false), []));
+  const popular = (
+    <Shelf
+      title="Popular"
+      sort="popular"
+      onMore={onMore}
+      limit={ROWS}
+      onPlay={() => setKeepPopular(true)}
+    />
+  );
 
   return (
     <ScrollView
@@ -49,21 +63,19 @@ export function SearchEmptyState({
       contentContainerClassName="gap-6 pb-6 pt-2"
     >
       <RecentSearches onSearch={onSearch} />
-      {!recentReady || recent.isLoading ? (
+      {keepPopular ? (
+        popular
+      ) : recent.data?.length ? (
+        <RecentShelf onMore={onMore} limit={ROWS} />
+      ) : !recentReady || recent.isLoading || !recentSettled ? (
         // Not Popular: it would flash up before a returning listener's own list.
         <View className="px-2">
           <ShabadRowSkeletons />
         </View>
-      ) : recent.data?.length && !keepPopular ? (
-        <RecentShelf onMore={onMore} limit={ROWS} />
+      ) : recent.isError ? (
+        <Text className="px-5 text-sm text-muted-foreground">Could not load what you played.</Text>
       ) : (
-        <Shelf
-          title="Popular"
-          sort="popular"
-          onMore={onMore}
-          limit={ROWS}
-          onPlay={() => setKeepPopular(true)}
-        />
+        popular
       )}
       <RagisShelf />
     </ScrollView>

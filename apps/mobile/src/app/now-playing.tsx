@@ -51,12 +51,14 @@ import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
-import { useShuffle } from '~/lib/shuffle';
+import { usePlayerShuffle } from '~/lib/shuffle';
 import { shareRendition } from '~/lib/share';
 import { skipToNext } from '~/lib/skip';
 import { useColors } from '~/lib/theme';
 
 /** BaniDB, direct on native: there is no browser origin to be blocked by CORS. */
+
+const NO_LOOKUP = { term: '', keysOpen: false };
 
 export default function NowPlayingScreen() {
   const colors = useColors();
@@ -72,7 +74,7 @@ export default function NowPlayingScreen() {
   const duration = usePlayer((s) => s.duration);
   const repeat = usePlayer((s) => s.repeat);
   const shuffled = usePlayer((s) => s.shuffleOrder !== null);
-  const { shuffle, pending: shufflePending } = useShuffle();
+  const { shuffle, pending: shufflePending } = usePlayerShuffle();
   const online = useIsOnline();
   // Offline a fetch could only wait. Reordering what is queued still works.
   const shuffleDisabled = usePlayer(
@@ -109,11 +111,18 @@ export default function NowPlayingScreen() {
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
 
   const [tab, setTab] = useState<'lyrics' | 'queue'>('lyrics');
-  const [lookupTerm, setLookupTerm] = useState('');
-  // Down until the field is tapped, unlike Search's: they cover the transport,
-  // and most who open this came to pause or skip.
-  const [keysOpen, setKeysOpen] = useState(false);
-  const keysUp = keysOpen && script === 'pa' && tab === 'lyrics' && !shabadId;
+  // Paired with the track, as `pick` is: a search is for the line playing now. The
+  // keys start down, unlike Search's: they cover the transport, and most who open
+  // this came to pause or skip.
+  const [lookupFor, setLookupFor] = useState<{
+    trackId?: string;
+    term: string;
+    keysOpen: boolean;
+  }>(NO_LOOKUP);
+  const lookup = lookupFor.trackId === current?.id ? lookupFor : NO_LOOKUP;
+  const updateLookup = (next: Partial<typeof lookup>) =>
+    setLookupFor({ ...lookup, ...next, trackId: current?.id });
+  const keysUp = lookup.keysOpen && script === 'pa' && tab === 'lyrics' && !shabadId;
   const { favorites } = useSession();
 
   /**
@@ -383,7 +392,7 @@ export default function NowPlayingScreen() {
         onScrollBeginDrag={() => {
           onReaderDrag();
           // As Search: reading takes the letters away.
-          setKeysOpen(false);
+          if (lookup.keysOpen) updateLookup({ keysOpen: false });
         }}
         onLayout={(e) => {
           viewportHeight.current = e.nativeEvent.layout.height;
@@ -402,13 +411,12 @@ export default function NowPlayingScreen() {
                     : 'No shabad linked to this rendition yet — search for the line you are hearing.'}
                 </Text>
                 <ShabadSearch
-                  term={lookupTerm}
-                  onChangeTerm={setLookupTerm}
-                  onPressField={() => setKeysOpen(true)}
+                  term={lookup.term}
+                  onChangeTerm={(term) => updateLookup({ term })}
+                  onPressField={() => updateLookup({ keysOpen: true })}
                   onSelect={(chosen) => {
                     setPick({ trackId: current.id, shabadId: chosen });
-                    setLookupTerm('');
-                    setKeysOpen(false);
+                    updateLookup(NO_LOOKUP);
                   }}
                 />
                 {/* So the last results can scroll clear of the keys. */}
@@ -608,9 +616,9 @@ export default function NowPlayingScreen() {
 
       {keysUp ? (
         <GurmukhiKeysPanel
-          value={lookupTerm}
-          onChangeText={setLookupTerm}
-          onHide={() => setKeysOpen(false)}
+          value={lookup.term}
+          onChangeText={(term) => updateLookup({ term })}
+          onHide={() => updateLookup({ keysOpen: false })}
         />
       ) : null}
     </Screen>

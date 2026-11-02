@@ -147,15 +147,17 @@ export const SHUFFLE_SIZE = 30;
 /**
  * What shuffle does when pressed. With too little left to reorder it fetches
  * random shabads instead: pressing it there means "keep the kirtan going", and
- * a greyed-out button gave someone playing a single shabad nothing to do.
+ * a greyed-out button gave someone playing a single shabad nothing to do. With
+ * nothing loaded it fetches them and plays the first.
  */
 export function shuffleAction(
   state: Pick<QueueState, 'items' | 'index'> & {
     current: Playable | null;
     shuffleOrder: readonly string[] | null;
   }
-): 'none' | 'toggle' | 'fetch' {
-  if (!state.current || state.current.isLive) return 'none';
+): 'none' | 'start' | 'toggle' | 'fetch' {
+  if (!state.current) return 'start';
+  if (state.current.isLive) return 'none';
   return state.shuffleOrder || canShuffle(state) ? 'toggle' : 'fetch';
 }
 

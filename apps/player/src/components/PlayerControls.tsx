@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 import { playerActions, usePlayer } from '~/lib/player';
-import { useShuffle } from '~/lib/shuffle';
+import { usePlayerShuffle } from '~/lib/shuffle';
 import { skipToNext } from '~/lib/skip';
 import { cn } from '~/lib/utils';
 
@@ -40,7 +40,7 @@ export function PlayerControls({
   const repeat = usePlayer((s) => s.repeat);
   const isLive = usePlayer((s) => s.current?.isLive === true);
   const shuffled = usePlayer((s) => s.shuffleOrder !== null);
-  const { shuffle, pending: shufflePending } = useShuffle();
+  const { shuffle, pending: shufflePending } = usePlayerShuffle();
   // Audio streams from sgpc.net, so a tap can be followed by seconds of silence.
   const starting = usePlayer((s) => s.starting !== null && s.starting === s.current?.id);
 

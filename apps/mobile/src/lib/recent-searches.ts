@@ -6,14 +6,20 @@
  * the list with fragments on the way to the word somebody meant.
  */
 import { minSearchLength } from '@kp/api';
-import { parseRecentSearches, withoutRecentSearch, withRecentSearch } from '@kp/core';
-import { useEffect, useRef } from 'react';
+import {
+  parseRecentSearches,
+  recentSearchesLeftBehind,
+  withoutRecentSearch,
+  withRecentSearch,
+} from '@kp/core';
+import { useEffect } from 'react';
 import { useMMKVString } from 'react-native-mmkv';
 
 import { mmkv } from './storage';
 import { useTitleScript } from './title-script';
 
 const KEY = 'kp:recent-searches';
+const OWNER_KEY = 'kp:recent-searches-owner';
 
 export function useRecentSearches() {
   const [script] = useTitleScript();
@@ -33,11 +39,13 @@ export function useRecentSearches() {
 }
 
 /** Signing out hands the phone to whoever is next, so they do not inherit these. */
-export function useClearRecentSearchesOnSignOut(userId: string | null) {
-  const previous = useRef(userId);
+export function useClearRecentSearchesOnSignOut(userId: string | null, loading: boolean) {
+  const [owner, setOwner] = useMMKVString(OWNER_KEY, mmkv);
 
   useEffect(() => {
-    if (previous.current && !userId) mmkv.remove(KEY);
-    previous.current = userId;
-  }, [userId]);
+    // Signed out is what a session looks like before it has been read.
+    if (loading) return;
+    if (recentSearchesLeftBehind(owner ?? null, userId)) mmkv.remove(KEY);
+    if ((owner ?? null) !== userId) setOwner(userId ?? undefined);
+  }, [owner, userId, loading, setOwner]);
 }

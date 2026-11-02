@@ -158,10 +158,13 @@ describe('shuffling', () => {
       expect(shuffleAction(state(2, ['a', 'b', 'c']))).toBe('toggle');
     });
 
-    it('does nothing with nothing loaded, or on a broadcast', () => {
+    it('starts with nothing loaded', () => {
       expect(shuffleAction({ items: [], index: -1, shuffleOrder: null, current: null })).toBe(
-        'none'
+        'start'
       );
+    });
+
+    it('does nothing on a broadcast', () => {
       expect(shuffleAction({ ...state(2), current: { ...items[2]!, isLive: true } })).toBe('none');
     });
   });

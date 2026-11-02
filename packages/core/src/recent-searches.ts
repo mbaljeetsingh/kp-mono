@@ -22,6 +22,16 @@ function terms(value: unknown): readonly string[] {
     .slice(0, RECENT_SEARCH_LIMIT);
 }
 
+/**
+ * Whether the list belongs to someone who is no longer signed in here. Decided on
+ * the session as it stands rather than on seeing a sign-out, which a session
+ * ending while the app was closed would never show. No owner is a guest's list,
+ * which goes with them when they sign in.
+ */
+export function recentSearchesLeftBehind(owner: string | null, userId: string | null): boolean {
+  return owner !== null && owner !== userId;
+}
+
 /** Whatever was stored, as a list. Anything unreadable reads as no history. */
 export function parseRecentSearches(raw: string | null | undefined): RecentSearches {
   if (!raw) return NONE;

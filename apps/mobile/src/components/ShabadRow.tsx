@@ -21,7 +21,8 @@ import { useColors } from '~/lib/theme';
  * against each other, so the bars are squeezed where only the eye sees it, which
  * is what parts them without moving the layout.
  */
-const LOADING_TEXT = 'scale-y-75 self-start overflow-hidden rounded bg-accent text-transparent';
+const LOADING_BAR = 'scale-y-75 overflow-hidden rounded bg-accent text-transparent';
+const LOADING_TEXT = `${LOADING_BAR} self-start`;
 
 const LOADING_ICON = 'size-[18px] rounded-md bg-accent';
 
@@ -94,7 +95,7 @@ export function ShabadRow({
           loads, so showing 0:00 would be a lie. */}
       {length > 0 ? (
         <Text
-          className={`text-xs tabular-nums ${loading ? 'scale-y-75 overflow-hidden rounded bg-accent text-transparent' : 'text-subtle-foreground'}`}
+          className={`text-xs tabular-nums ${loading ? LOADING_BAR : 'text-subtle-foreground'}`}
         >
           {clock(length)}
         </Text>

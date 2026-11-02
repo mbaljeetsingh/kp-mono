@@ -19,6 +19,8 @@ interface SessionValue {
   userId: string | null;
   loading: boolean;
   favorites: Favorites;
+  /** Whether an account's recent list has reached the device, or never will. */
+  recentSettled: boolean;
   /** Sign-in dialog. `prompt()` opens it; anything gated calls that instead of failing. */
   promptOpen: boolean;
   prompt: () => void;
@@ -51,8 +53,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth(supabase);
   const userId = session?.user.id ?? null;
   const favorites = useFavorites(supabase, userId);
-  useRecentSync(supabase, userId, playerStore, webFavoritesStorage);
-  useClearRecentSearchesOnSignOut(userId);
+  const recentSynced = useRecentSync(supabase, userId, playerStore, webFavoritesStorage);
+  const recentSettled = !loading && recentSynced;
+  useClearRecentSearchesOnSignOut(userId, loading);
 
   const [promptOpen, setPromptOpen] = useState(false);
   const [pendingPick, setPendingPick] = useState<{ id: string; name: string } | null>(null);
@@ -98,6 +101,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       userId,
       loading,
       favorites,
+      recentSettled,
       promptOpen,
       prompt,
       closePrompt,
@@ -112,6 +116,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       userId,
       loading,
       favorites,
+      recentSettled,
       promptOpen,
       prompt,
       closePrompt,

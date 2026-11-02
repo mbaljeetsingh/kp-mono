@@ -8,7 +8,7 @@
 import { useEffect } from 'react';
 
 import { playerActions, playerStore } from '~/lib/player';
-import { useShuffle } from '~/lib/shuffle';
+import { usePlayerShuffle } from '~/lib/shuffle';
 import { skipToNext } from '~/lib/skip';
 
 /** Seconds per arrow press. The same nudge the scrubber makes. */
@@ -21,7 +21,7 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 export function usePlayerKeys() {
-  const { shuffle } = useShuffle();
+  const { shuffle } = usePlayerShuffle();
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

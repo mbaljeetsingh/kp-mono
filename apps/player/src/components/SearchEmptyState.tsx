@@ -11,6 +11,7 @@ import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { RagisShelf, RecentShelf, Shelf, useRecentShelf } from '~/components/Shelves';
 import { usePlayer } from '~/lib/player';
 import { useRecentSearches } from '~/lib/recent-searches';
+import { useSession } from '~/lib/session';
 import { useTitleScript } from '~/lib/title-script';
 import { cn } from '~/lib/utils';
 
@@ -19,20 +20,28 @@ const ROWS = 5;
 export function SearchEmptyState({ onSearch }: { onSearch: (term: string) => void }) {
   const recentReady = usePlayer((s) => s.recentReady);
   const recent = useRecentShelf();
+  const { recentSettled } = useSession();
   // Playing a popular row makes this listener a returning one. Swapping the list
   // out from under the row they just tapped would lose their place in it.
   const [keepPopular, setKeepPopular] = useState(false);
+  const popular = (
+    <Shelf title="Popular" sort="popular" limit={ROWS} onPlay={() => setKeepPopular(true)} />
+  );
 
   return (
     <>
       <RecentSearches onSearch={onSearch} />
-      {!recentReady || recent.isLoading ? (
+      {keepPopular ? (
+        popular
+      ) : recent.data?.length ? (
+        <RecentShelf limit={ROWS} />
+      ) : !recentReady || recent.isLoading || !recentSettled ? (
         // Not Popular: it would flash up before a returning listener's own list.
         <ShabadRowSkeletons />
-      ) : recent.data?.length && !keepPopular ? (
-        <RecentShelf limit={ROWS} />
+      ) : recent.isError ? (
+        <p className="px-1 text-sm text-muted-foreground">Could not load what you played.</p>
       ) : (
-        <Shelf title="Popular" sort="popular" limit={ROWS} onPlay={() => setKeepPopular(true)} />
+        popular
       )}
       <RagisShelf />
     </>
@@ -45,8 +54,9 @@ function RecentSearches({ onSearch }: { onSearch: (term: string) => void }) {
   if (!terms.length) return null;
 
   return (
-    // One row that scrolls sideways, as the phone's, so the shelves stay where they are.
-    <ul aria-label="Recent searches" className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
+    // One row that scrolls sideways, as the phone's, so the shelves stay where they
+    // are. Its bar stays, thin: a mouse has no other sign there is more.
+    <ul aria-label="Recent searches" className="flex gap-2 overflow-x-auto [scrollbar-width:thin]">
       {terms.map((term) => (
         <li key={term} className="flex shrink-0 items-center rounded-full bg-accent pl-3 pr-1">
           <button

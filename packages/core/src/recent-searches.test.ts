@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   parseRecentSearches,
+  recentSearchesLeftBehind,
   RECENT_SEARCH_LIMIT,
   withoutRecentSearch,
   withRecentSearch,
@@ -14,6 +15,19 @@ describe('stored terms', () => {
     expect(parseRecentSearches(JSON.stringify({ en: ['   ', 'japji'], pa: [] })).en).toEqual([
       'japji',
     ]);
+  });
+});
+
+describe('recentSearchesLeftBehind', () => {
+  it("keeps a guest list, and the same listener's", () => {
+    expect(recentSearchesLeftBehind(null, null)).toBe(false);
+    expect(recentSearchesLeftBehind(null, 'a')).toBe(false);
+    expect(recentSearchesLeftBehind('a', 'a')).toBe(false);
+  });
+
+  it('drops it once its owner has gone, however that happened', () => {
+    expect(recentSearchesLeftBehind('a', null)).toBe(true);
+    expect(recentSearchesLeftBehind('a', 'b')).toBe(true);
   });
 });
 
