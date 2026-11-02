@@ -92,11 +92,12 @@ function RecentSearches({ onSearch }: { onSearch: (term: string) => void }) {
             className="h-full flex-row items-center gap-1.5 active:opacity-60"
           >
             <History size={14} color={colors.mutedForeground} />
+            {/* The nudge: GurbaniLipi's letters sit 2pt above the middle of their line. */}
             <Text
               numberOfLines={1}
               className={cn(
                 'text-sm text-foreground',
-                script === 'pa' && 'font-gurmukhi text-base leading-6'
+                script === 'pa' && 'translate-y-0.5 font-gurmukhi text-base leading-6'
               )}
             >
               {term}

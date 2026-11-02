@@ -180,7 +180,7 @@ export function RootLayout() {
             </div>
           </div>
           <div className="sticky top-0 z-10 hidden items-center justify-center gap-2 border-b border-border bg-background/95 px-6 py-3 backdrop-blur sm:flex">
-            <SearchField exitOnClear className="max-w-xl flex-1" />
+            <SearchField className="max-w-xl flex-1" />
             {/* Up here rather than at the foot of the sidebar, where it was
                 squeezed between the account and the theme: it changes every
                 title in this column, and the phone header puts it in the same

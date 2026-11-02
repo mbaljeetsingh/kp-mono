@@ -14,6 +14,7 @@ export function ShabadInput({
   value,
   onChange,
   onSubmit,
+  onClick,
   gurbaniLipi,
   placeholder,
   ariaLabel,
@@ -25,6 +26,7 @@ export function ShabadInput({
   onChange: (next: string) => void;
   /** Enter, or the search key on a phone. */
   onSubmit?: () => void;
+  onClick?: () => void;
   /** The term is GurbaniLipi keys, drawn in that font and with its keyboard to hand. */
   gurbaniLipi: boolean;
   placeholder: string;
@@ -42,6 +44,7 @@ export function ShabadInput({
         value={value}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
+        onClick={onClick}
         onKeyDown={(e) => {
           // Enter also accepts an input method's candidate, which submits nothing.
           // Safari can report that keydown as not composing, hence the keyCode too.

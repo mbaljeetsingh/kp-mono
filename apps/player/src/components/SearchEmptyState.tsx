@@ -45,16 +45,23 @@ function RecentSearches({ onSearch }: { onSearch: (term: string) => void }) {
   if (!terms.length) return null;
 
   return (
-    <ul aria-label="Recent searches" className="flex flex-wrap gap-2">
+    // One row that scrolls sideways, as the phone's, so the shelves stay where they are.
+    <ul aria-label="Recent searches" className="flex gap-2 overflow-x-auto [scrollbar-width:none]">
       {terms.map((term) => (
-        <li key={term} className="flex items-center rounded-full bg-accent pl-3 pr-1">
+        <li key={term} className="flex shrink-0 items-center rounded-full bg-accent pl-3 pr-1">
           <button
             type="button"
             onClick={() => onSearch(term)}
             className="flex h-8 min-w-0 items-center gap-1.5 hover:text-primary"
           >
             <History aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className={cn('truncate text-sm', script === 'pa' && 'font-gurmukhi text-base')}>
+            {/* The nudge: GurbaniLipi's letters sit 2px above the middle of their line. */}
+            <span
+              className={cn(
+                'truncate text-sm',
+                script === 'pa' && 'translate-y-0.5 font-gurmukhi text-base'
+              )}
+            >
               {term}
             </span>
           </button>
