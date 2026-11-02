@@ -21,6 +21,7 @@ import {
   parseRecentIds,
   parseRepeatMode,
   canShuffle,
+  newToQueue,
   segmentStart,
   shuffledQueue,
   unshuffledQueue,
@@ -92,6 +93,8 @@ export interface PlayerState {
   previous(): void;
   seek(seconds: number): void;
   addToQueue(item: Playable): void;
+  /** Random shabads behind what is queued, leaving what is playing alone. */
+  addRandomToQueue(rows: readonly Playable[]): void;
   removeAt(index: number): void;
   clearQueue(): void;
   cycleRepeat(): void;
@@ -443,6 +446,12 @@ export function createPlayerStore({
 
       addToQueue(item) {
         set({ items: [...get().items, item] });
+        persistQueue();
+      },
+
+      addRandomToQueue(rows) {
+        const items = get().items;
+        set({ items: [...items, ...newToQueue(items, rows)] });
         persistQueue();
       },
 

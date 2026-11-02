@@ -14,12 +14,21 @@ import { ArtTile } from '~/components/ArtTile';
 import { artistPhotoUrl } from '~/lib/supabase';
 import { cn } from '~/lib/utils';
 
-export function RagiCard({ artist, className }: { artist: Artist; className?: string }) {
+export function RagiCard({
+  artist,
+  className,
+  onPick,
+}: {
+  artist: Artist;
+  className?: string;
+  onPick?: () => void;
+}) {
   const name = artist.display_name ?? artist.name;
   return (
     <Link
       to="/ragis/$name"
       params={{ name: artist.name }}
+      onClick={onPick}
       className={cn(
         'flex flex-col items-center gap-2 rounded-xl p-3 text-center hover:bg-accent/50',
         className
@@ -44,7 +53,15 @@ export function RagiCard({ artist, className }: { artist: Artist; className?: st
  * on a card nobody can see. The arrows sit in the header rather than at the
  * row's edges, where the page's gutter would cut them off.
  */
-export function RagiShelf({ artists, action }: { artists: Artist[]; action?: ReactNode }) {
+export function RagiShelf({
+  artists,
+  action,
+  onPick,
+}: {
+  artists: Artist[];
+  action?: ReactNode;
+  onPick?: () => void;
+}) {
   return (
     <Carousel opts={{ align: 'start', slidesToScroll: 'auto' }}>
       <section className="flex flex-col gap-2">
@@ -57,7 +74,7 @@ export function RagiShelf({ artists, action }: { artists: Artist[]; action?: Rea
         <CarouselContent className="-mx-3 ml-0">
           {artists.map((a) => (
             <CarouselItem key={a.name} className="basis-auto pl-0">
-              <RagiCard artist={a} className="w-32" />
+              <RagiCard artist={a} className="w-32" onPick={onPick} />
             </CarouselItem>
           ))}
         </CarouselContent>

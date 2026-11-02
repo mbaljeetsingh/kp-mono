@@ -7,48 +7,33 @@
  * /search; typing on it replaces the entry, so Back leaves search in one step
  * instead of one keystroke at a time.
  *
- * The header's box has no page of its own, so emptying it (the clear button,
- * Escape, or deleting the last character) goes back to wherever the search
- * began — an empty results page there reads as something broken. The phone's
- * box is its page, so it stays put and waits for a new term.
+ * An empty /search is a page of its own (SearchEmptyState), so emptying the box
+ * stays on it. Clicking the header's box opens it: a desktop has no other way to
+ * reach that page, whose recent searches are of most use before anything is typed.
  *
  * The header language decides what is typed: roman letters, or GurbaniLipi keys
  * drawn in the GurbaniLipi font, as the read-along's search takes them.
  */
 import { ShabadInput } from '@kp/ui/app/shabad-input';
-import {
-  useCanGoBack,
-  useLocation,
-  useNavigate,
-  useRouter,
-  useSearch,
-} from '@tanstack/react-router';
+import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 
+import { useRecentSearches } from '~/lib/recent-searches';
 import { useTitleScript } from '~/lib/title-script';
 
 interface Props {
   autoFocus?: boolean;
-  /** Leave /search when the box is emptied. */
-  exitOnClear?: boolean;
   className?: string;
 }
 
-export function SearchField({ autoFocus, exitOnClear, className }: Props) {
+export function SearchField({ autoFocus, className }: Props) {
   const q = useSearch({ strict: false, select: (s) => s.q ?? '' });
   const onSearchPage = useLocation({ select: (l) => l.pathname === '/search' });
   const navigate = useNavigate();
-  const router = useRouter();
-  const canGoBack = useCanGoBack();
   const [script] = useTitleScript();
   const punjabi = script === 'pa';
+  const { save } = useRecentSearches();
 
   function onChange(value: string) {
-    if (!value && exitOnClear && onSearchPage) {
-      // A shared /search link has no in-app page behind it; Home stands in.
-      if (canGoBack) router.history.back();
-      else void navigate({ to: '/', replace: true });
-      return;
-    }
     void navigate({ to: '/search', search: { q: value }, replace: onSearchPage });
   }
 
@@ -56,6 +41,11 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
     <ShabadInput
       value={q}
       onChange={onChange}
+      onSubmit={() => save(q)}
+      // A click, not focus: coming back to this browser tab refocuses the box.
+      onClick={() => {
+        if (!onSearchPage) void navigate({ to: '/search' });
+      }}
       gurbaniLipi={punjabi}
       autoFocus={autoFocus}
       placeholder={punjabi ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'Shabad first letters or ragi…'}

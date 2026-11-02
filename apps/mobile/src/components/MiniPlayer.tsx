@@ -1,6 +1,5 @@
-import { randomShabads } from '@kp/api';
+import { useShuffle } from '@kp/api';
 import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
-import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Heart, Music, Pause, Play, Shuffle, SkipForward } from 'lucide-react-native';
 import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
@@ -137,13 +136,8 @@ export function MiniPlayer() {
 function IdleMiniPlayer() {
   const colors = useColors();
   const online = useIsOnline();
-  const shuffle = useMutation({
-    mutationFn: () => randomShabads(supabase, 30),
-    onSuccess: (rows) => {
-      // Something chosen while this loaded is what the listener wants now.
-      if (rows.length && !playerStore.getState().current) playerActions.playList(rows, 0);
-    },
-  });
+  // Said in this bar, not in an alert.
+  const { shuffle, pending, failed } = useShuffle(supabase, playerStore);
 
   return (
     <View className={Platform.OS === 'ios' ? 'flex-1 justify-center' : 'h-14 justify-center'}>
@@ -158,7 +152,7 @@ function IdleMiniPlayer() {
           <Text numberOfLines={1} className="text-xs text-muted-foreground">
             {!online
               ? 'You are offline'
-              : shuffle.isError
+              : failed
                 ? 'Could not shuffle. Try again.'
                 : 'Select something to play'}
           </Text>
@@ -166,13 +160,13 @@ function IdleMiniPlayer() {
         {/* Offline it could only wait, so it is not offered. */}
         {online ? (
           <PressableScale
-            onPress={() => shuffle.mutate()}
-            disabled={shuffle.isPending}
+            onPress={shuffle}
+            disabled={pending}
             accessibilityLabel="Shuffle the archive"
             scaleTo={0.9}
             className="size-10 items-center justify-center"
           >
-            {shuffle.isPending ? (
+            {pending ? (
               <ActivityIndicator color={colors.foreground} />
             ) : (
               <Shuffle size={20} color={colors.foreground} />

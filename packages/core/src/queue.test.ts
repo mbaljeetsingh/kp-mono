@@ -6,6 +6,8 @@ import {
   onPrevious,
   upNext,
   canShuffle,
+  newToQueue,
+  shuffleAction,
   type QueueState,
   shuffledQueue,
   unshuffledQueue,
@@ -132,6 +134,43 @@ describe('shuffling', () => {
     expect(canShuffle({ items, index: 0 })).toBe(true);
     expect(canShuffle({ items, index: 1 })).toBe(false);
     expect(canShuffle({ items, index: 2 })).toBe(false);
+  });
+
+  describe('shuffleAction', () => {
+    const items = list('a', 'b', 'c');
+    const state = (index: number, shuffleOrder: string[] | null = null) => ({
+      items,
+      index,
+      shuffleOrder,
+      current: items[index] ?? null,
+    });
+
+    it('reorders while two or more are to come', () => {
+      expect(shuffleAction(state(0))).toBe('toggle');
+    });
+
+    it('fetches when too little is left to reorder', () => {
+      expect(shuffleAction(state(1))).toBe('fetch');
+      expect(shuffleAction(state(2))).toBe('fetch');
+    });
+
+    it('can still turn off once the list has shrunk', () => {
+      expect(shuffleAction(state(2, ['a', 'b', 'c']))).toBe('toggle');
+    });
+
+    it('starts with nothing loaded', () => {
+      expect(shuffleAction({ items: [], index: -1, shuffleOrder: null, current: null })).toBe(
+        'start'
+      );
+    });
+
+    it('does nothing on a broadcast', () => {
+      expect(shuffleAction({ ...state(2), current: { ...items[2]!, isLive: true } })).toBe('none');
+    });
+  });
+
+  it('adds only what the queue does not already hold', () => {
+    expect(ids(newToQueue(list('a', 'b'), list('b', 'c')))).toEqual(['c']);
   });
 
   it('keeps the cursor on the right copy of a recording queued twice', () => {

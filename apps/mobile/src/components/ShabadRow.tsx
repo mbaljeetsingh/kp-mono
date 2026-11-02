@@ -21,7 +21,10 @@ import { useColors } from '~/lib/theme';
  * against each other, so the bars are squeezed where only the eye sees it, which
  * is what parts them without moving the layout.
  */
-const LOADING_TEXT = 'scale-y-75 self-start overflow-hidden rounded bg-accent text-transparent';
+const LOADING_BAR = 'scale-y-75 overflow-hidden rounded bg-accent text-transparent';
+const LOADING_TEXT = `${LOADING_BAR} self-start`;
+
+const LOADING_ICON = 'size-[18px] rounded-md bg-accent';
 
 function clock(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -91,7 +94,11 @@ export function ShabadRow({
       {/* Zero means untagged — a whole file whose length nobody knows until it
           loads, so showing 0:00 would be a lie. */}
       {length > 0 ? (
-        <Text className="text-xs tabular-nums text-subtle-foreground">{clock(length)}</Text>
+        <Text
+          className={`text-xs tabular-nums ${loading ? LOADING_BAR : 'text-subtle-foreground'}`}
+        >
+          {clock(length)}
+        </Text>
       ) : null}
 
       {/* Saving without the ⋯ sheet, as the web's rows do. */}
@@ -99,13 +106,17 @@ export function ShabadRow({
         onPress={() => favorites.toggle(item.id)}
         accessibilityLabel={saved ? `Remove ${title} from saved` : `Save ${title}`}
         hitSlop={6}
-        className={`size-8 items-center justify-center ${loading ? 'opacity-0' : ''}`}
+        className="size-8 items-center justify-center"
       >
-        <Heart
-          size={16}
-          color={saved ? colors.primary : colors.subtleForeground}
-          fill={saved ? colors.primary : 'transparent'}
-        />
+        {loading ? (
+          <View className={LOADING_ICON} />
+        ) : (
+          <Heart
+            size={16}
+            color={saved ? colors.primary : colors.subtleForeground}
+            fill={saved ? colors.primary : 'transparent'}
+          />
+        )}
       </Pressable>
 
       {onMore ? (
@@ -115,7 +126,11 @@ export function ShabadRow({
           hitSlop={8}
           className="size-8 items-center justify-center"
         >
-          <MoreHorizontal size={18} color={colors.subtleForeground} />
+          {loading ? (
+            <View className={LOADING_ICON} />
+          ) : (
+            <MoreHorizontal size={18} color={colors.subtleForeground} />
+          )}
         </Pressable>
       ) : null}
     </PressableScale>

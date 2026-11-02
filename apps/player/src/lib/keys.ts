@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 
 import { playerActions, playerStore } from '~/lib/player';
+import { usePlayerShuffle } from '~/lib/shuffle';
 import { skipToNext } from '~/lib/skip';
 
 /** Seconds per arrow press. The same nudge the scrubber makes. */
@@ -20,6 +21,8 @@ function isTyping(target: EventTarget | null): boolean {
 }
 
 export function usePlayerKeys() {
+  const { shuffle } = usePlayerShuffle();
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -58,7 +61,7 @@ export function usePlayerKeys() {
           playerActions.cycleRepeat();
           return;
         case 's':
-          playerActions.toggleShuffle();
+          shuffle();
           return;
         default:
       }
@@ -66,5 +69,5 @@ export function usePlayerKeys() {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [shuffle]);
 }

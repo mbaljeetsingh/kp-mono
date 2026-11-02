@@ -137,3 +137,32 @@ export function unshuffledQueue(
 export function canShuffle(state: Pick<QueueState, 'items' | 'index'>): boolean {
   return state.items.length - state.index - 1 > 1;
 }
+
+/**
+ * How many random shabads shuffle fetches: enough to listen through without
+ * thinking about it again, few enough that the queue stays readable.
+ */
+export const SHUFFLE_SIZE = 30;
+
+/**
+ * What shuffle does when pressed. With too little left to reorder it fetches
+ * random shabads instead: pressing it there means "keep the kirtan going", and
+ * a greyed-out button gave someone playing a single shabad nothing to do. With
+ * nothing loaded it fetches them and plays the first.
+ */
+export function shuffleAction(
+  state: Pick<QueueState, 'items' | 'index'> & {
+    current: Playable | null;
+    shuffleOrder: readonly string[] | null;
+  }
+): 'none' | 'start' | 'toggle' | 'fetch' {
+  if (!state.current) return 'start';
+  if (state.current.isLive) return 'none';
+  return state.shuffleOrder || canShuffle(state) ? 'toggle' : 'fetch';
+}
+
+/** The fetched rows the queue does not already hold, in their order. */
+export function newToQueue(items: readonly Playable[], rows: readonly Playable[]): Playable[] {
+  const held = new Set(items.map((item) => item.id));
+  return rows.filter((row) => !held.has(row.id));
+}

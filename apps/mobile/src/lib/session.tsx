@@ -11,6 +11,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 import { playerStore } from '~/lib/player';
+import { useClearRecentSearchesOnSignOut } from '~/lib/recent-searches';
 import { storage } from '~/lib/storage';
 import { supabase } from '~/lib/supabase';
 
@@ -19,6 +20,8 @@ interface SessionValue {
   userId: string | null;
   loading: boolean;
   favorites: Favorites;
+  /** Whether an account's recent list has reached the device, or never will. */
+  recentSettled: boolean;
 }
 
 const Ctx = createContext<SessionValue | null>(null);
@@ -27,7 +30,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth(supabase);
   const userId = session?.user.id ?? null;
   const favorites = useFavorites(supabase, userId, storage);
-  useRecentSync(supabase, userId, playerStore, storage);
+  const recentSynced = useRecentSync(supabase, userId, playerStore, storage);
+  const recentSettled = !loading && recentSynced;
+  useClearRecentSearchesOnSignOut(userId, loading);
 
   /*
    * No sign-in prompt flag here, unlike the web's provider. Sign-in on a phone
@@ -37,8 +42,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    * only ever be set.
    */
   const value = useMemo(
-    () => ({ session, userId, loading, favorites }),
-    [session, userId, loading, favorites]
+    () => ({ session, userId, loading, favorites, recentSettled }),
+    [session, userId, loading, favorites, recentSettled]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

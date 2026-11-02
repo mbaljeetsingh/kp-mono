@@ -12,7 +12,7 @@
  * first. Stored ids have no times to compare, and this is the one fact needed.
  */
 import { chunk, mergeRecent, playedSince, RECENT_LIMIT } from '@kp/core';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { toError, type KpClient } from './client';
 import type { FavoritesStorage } from './favorites';
@@ -65,13 +65,15 @@ async function sendAll(client: KpClient, userId: string, ids: readonly string[])
   if (error) throw toError(error);
 }
 
+/** Returns whether the device's list is as good as it will get for this session. */
 export function useRecentSync(
   client: KpClient,
   userId: string | null,
   store: RecentStore,
   storage: FavoritesStorage
-) {
+): boolean {
   const previous = useRef<string | null>(null);
+  const [settledFor, setSettledFor] = useState<string | null>(null);
 
   useEffect(() => {
     const signedOutFrom = previous.current;
@@ -117,11 +119,13 @@ export function useRecentSync(
           const fresh = playedSince(local, store.getState().recentIds);
           store.getState().setRecent(mergeRecent(fresh, merged));
           synced = true;
+          setSettledFor(id);
         })
         .catch(() => {
           // Nothing lost: the device keeps its list, and with the marker gone the
           // next launch sends it. The table not being there yet lands here too.
           void storage.setItem(SYNCED_KEY, '');
+          if (live) setSettledFor(id);
         });
     }
 
@@ -153,4 +157,6 @@ export function useRecentSync(
       unsubscribe();
     };
   }, [client, userId, store, storage]);
+
+  return !userId || settledFor === userId;
 }

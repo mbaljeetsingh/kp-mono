@@ -7,7 +7,6 @@
  */
 import { useShabadText } from '@kp/api';
 import {
-  canShuffle,
   artworkFor,
   clock,
   highlightVerseId,
@@ -16,6 +15,7 @@ import {
   REPEAT_LABELS,
   titleIn,
   verseSegments,
+  shuffleAction,
 } from '@kp/core';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -44,17 +44,21 @@ import { savedShabadText } from '~/lib/downloads';
 import { ReadAlongOptionsSheet } from '~/components/ReadAlongOptionsSheet';
 import { useReadAlongOptions } from '~/lib/read-along-options';
 import { SeekBar } from '~/components/SeekBar';
+import { DOCKED_KEYS_SPACE, GurmukhiKeysPanel } from '~/components/ShabadInput';
 import { ShabadSearch } from '~/components/ShabadSearch';
 import { ShabadTitle } from '~/components/ShabadTitle';
 import { useTitleScript } from '~/lib/title-script';
 import { useSession } from '~/lib/session';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
+import { usePlayerShuffle } from '~/lib/shuffle';
 import { shareRendition } from '~/lib/share';
 import { skipToNext } from '~/lib/skip';
 import { useColors } from '~/lib/theme';
 
 /** BaniDB, direct on native: there is no browser origin to be blocked by CORS. */
+
+const NO_LOOKUP = { term: '', keysOpen: false };
 
 export default function NowPlayingScreen() {
   const colors = useColors();
@@ -70,8 +74,12 @@ export default function NowPlayingScreen() {
   const duration = usePlayer((s) => s.duration);
   const repeat = usePlayer((s) => s.repeat);
   const shuffled = usePlayer((s) => s.shuffleOrder !== null);
-  // Once on it can always go off, however far the list has shrunk since.
-  const shuffleOff = usePlayer((s) => s.shuffleOrder === null && !canShuffle(s));
+  const { shuffle, pending: shufflePending } = usePlayerShuffle();
+  const online = useIsOnline();
+  // Offline a fetch could only wait. Reordering what is queued still works.
+  const shuffleDisabled = usePlayer(
+    (s) => shufflePending || (!online && shuffleAction(s) === 'fetch')
+  );
 
   /**
    * A shabad the listener looked up themselves. A broadcast is never tagged and
@@ -103,7 +111,18 @@ export default function NowPlayingScreen() {
   const lit = current?.shabadId ? highlightVerseId(current, position) : null;
 
   const [tab, setTab] = useState<'lyrics' | 'queue'>('lyrics');
-  const online = useIsOnline();
+  // Paired with the track, as `pick` is: a search is for the line playing now. The
+  // keys start down, unlike Search's: they cover the transport, and most who open
+  // this came to pause or skip.
+  const [lookupFor, setLookupFor] = useState<{
+    trackId?: string;
+    term: string;
+    keysOpen: boolean;
+  }>(NO_LOOKUP);
+  const lookup = lookupFor.trackId === current?.id ? lookupFor : NO_LOOKUP;
+  const updateLookup = (next: Partial<typeof lookup>) =>
+    setLookupFor({ ...lookup, ...next, trackId: current?.id });
+  const keysUp = lookup.keysOpen && script === 'pa' && tab === 'lyrics' && !shabadId;
   const { favorites } = useSession();
 
   /**
@@ -370,7 +389,11 @@ export default function NowPlayingScreen() {
 
       <ScrollView
         ref={scroller}
-        onScrollBeginDrag={onReaderDrag}
+        onScrollBeginDrag={() => {
+          onReaderDrag();
+          // As Search: reading takes the letters away.
+          if (lookup.keysOpen) updateLookup({ keysOpen: false });
+        }}
         onLayout={(e) => {
           viewportHeight.current = e.nativeEvent.layout.height;
         }}
@@ -388,8 +411,16 @@ export default function NowPlayingScreen() {
                     : 'No shabad linked to this rendition yet — search for the line you are hearing.'}
                 </Text>
                 <ShabadSearch
-                  onSelect={(chosen) => setPick({ trackId: current.id, shabadId: chosen })}
+                  term={lookup.term}
+                  onChangeTerm={(term) => updateLookup({ term })}
+                  onPressField={() => updateLookup({ keysOpen: true })}
+                  onSelect={(chosen) => {
+                    setPick({ trackId: current.id, shabadId: chosen });
+                    updateLookup(NO_LOOKUP);
+                  }}
                 />
+                {/* So the last results can scroll clear of the keys. */}
+                {keysUp ? <View style={{ height: DOCKED_KEYS_SPACE }} /> : null}
               </View>
             ) : null}
 
@@ -509,18 +540,24 @@ export default function NowPlayingScreen() {
         )}
 
         <View className="flex-row items-center justify-center gap-5">
-          <Pressable
-            onPress={playerActions.toggleShuffle}
-            disabled={current.isLive || shuffleOff}
-            accessibilityLabel="Shuffle"
-            accessibilityState={{
-              selected: shuffled,
-              disabled: current.isLive || shuffleOff,
-            }}
-            className="size-12 items-center justify-center"
-          >
-            <Shuffle size={22} color={shuffled ? colors.primary : colors.subtleForeground} />
-          </Pressable>
+          {/* An empty space on a broadcast, which has no order: play stays centred. */}
+          {current.isLive ? (
+            <View className="size-12" />
+          ) : (
+            <Pressable
+              onPress={shuffle}
+              disabled={shuffleDisabled}
+              accessibilityLabel="Shuffle"
+              accessibilityState={{ selected: shuffled, disabled: shuffleDisabled }}
+              className="size-12 items-center justify-center"
+            >
+              {shufflePending ? (
+                <ActivityIndicator color={colors.subtleForeground} />
+              ) : (
+                <Shuffle size={22} color={shuffled ? colors.primary : colors.subtleForeground} />
+              )}
+            </Pressable>
+          )}
 
           <Pressable
             onPress={playerActions.previous}
@@ -576,6 +613,14 @@ export default function NowPlayingScreen() {
           </Pressable>
         </View>
       </View>
+
+      {keysUp ? (
+        <GurmukhiKeysPanel
+          value={lookup.term}
+          onChangeText={(term) => updateLookup({ term })}
+          onHide={() => updateLookup({ keysOpen: false })}
+        />
+      ) : null}
     </Screen>
   );
 }

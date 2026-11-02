@@ -6,35 +6,23 @@
  * Shelves rather than one endless list: short enough that the next one is
  * still in reach, with the whole archive a "See all" away.
  */
-import { shelfShabads, useArtists, useRecentShabads, type ShabadSort } from '@kp/api';
-import { DEFAULT_STATION, RECENT_SHELF_FETCH, stationPlayable } from '@kp/core';
-import { useQuery } from '@tanstack/react-query';
-import { useRouter, type Href } from 'expo-router';
+import { DEFAULT_STATION, stationPlayable } from '@kp/core';
 import { Play, Radio } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { AppHeader } from '~/components/AppHeader';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { Screen } from '~/components/Screen';
-import { RagiShelf } from '~/components/RagiShelf';
-import { ShabadRow } from '~/components/ShabadRow';
-import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
+import { RagisShelf, RecentShelf, Shelf } from '~/components/Shelves';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
-import { playerActions, usePlayer } from '~/lib/player';
+import { playerActions } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
-import { useSession } from '~/lib/session';
-import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
-
-/** As the web's shelves. */
-const SHELF_LIMIT = 8;
-const RAGI_LIMIT = 12;
 
 export default function HomeScreen() {
   const colors = useColors();
   const { onMore, sheet } = useShabadActions();
-  const artists = useArtists(supabase);
   const miniPlayerSpace = useMiniPlayerSpace();
   const online = useIsOnline();
 
@@ -86,100 +74,9 @@ export default function HomeScreen() {
         <Shelf title="Recently added" sort="newest" onMore={onMore} />
         <Shelf title="Popular" sort="popular" onMore={onMore} />
 
-        {artists.data?.length ? (
-          <View className="gap-2">
-            <ShelfHeader title="Ragis" href="/ragis" />
-            <RagiShelf artists={artists.data.slice(0, RAGI_LIMIT)} />
-          </View>
-        ) : null}
+        <RagisShelf />
       </ScrollView>
       {sheet}
     </Screen>
-  );
-}
-
-function ShelfHeader({ title, href }: { title: string; href: Href }) {
-  const router = useRouter();
-  return (
-    <View className="flex-row items-baseline justify-between px-5">
-      <Text className="font-display text-[22px] leading-7 text-foreground">{title}</Text>
-      <Pressable onPress={() => router.navigate(href)} hitSlop={8}>
-        <Text className="text-[13px] text-muted-foreground">See all</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-/**
- * The way back in, as on the web's Home: first because it is the one list about
- * this listener, and nothing at all before they have played anything.
- *
- * What is playing stays on it, lit like any other shelf's row. It used to be left
- * out, so replaying a shabad from here looked like playing it removed it, and
- * the only entry there was took the whole shelf with it.
- */
-function RecentShelf({ onMore }: { onMore: ReturnType<typeof useShabadActions>['onMore'] }) {
-  const { userId } = useSession();
-  const ids = usePlayer((s) => s.recentIds);
-  const currentId = usePlayer((s) => s.current?.id);
-  const query = useRecentShabads(supabase, userId, ids.slice(0, RECENT_SHELF_FETCH));
-  const items = (query.data ?? []).slice(0, SHELF_LIMIT);
-  if (!items.length) return null;
-
-  return (
-    <View className="gap-1">
-      <ShelfHeader title="Recently played" href="/recent" />
-      <View className="px-2">
-        {items.map((item, index) => (
-          <ShabadRow
-            key={item.id}
-            item={item}
-            isCurrent={item.id === currentId}
-            onPress={() => playerActions.playList(items, index)}
-            onMore={onMore}
-          />
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function Shelf({
-  title,
-  sort,
-  onMore,
-}: {
-  title: string;
-  sort: ShabadSort;
-  onMore: ReturnType<typeof useShabadActions>['onMore'];
-}) {
-  const currentId = usePlayer((s) => s.current?.id);
-  const query = useQuery({
-    queryKey: ['shabads', sort, SHELF_LIMIT],
-    queryFn: () => shelfShabads(supabase, SHELF_LIMIT, sort),
-  });
-  const items = query.data ?? [];
-
-  return (
-    <View className="gap-1">
-      <ShelfHeader title={title} href={sort === 'popular' ? '/shabads?sort=popular' : '/shabads'} />
-      <View className="px-2">
-        {items.map((item, index) => (
-          <ShabadRow
-            key={item.id}
-            item={item}
-            isCurrent={item.id === currentId}
-            // Playing a row loads the rest of the shelf behind it — otherwise
-            // the queue holds one row and playback stops dead at its end.
-            onPress={() => playerActions.playList(items, index)}
-            onMore={onMore}
-          />
-        ))}
-        {query.isLoading ? <ShabadRowSkeletons /> : null}
-        {!query.isLoading && !items.length ? (
-          <Text className="px-3 py-4 text-sm text-muted-foreground">Nothing published yet.</Text>
-        ) : null}
-      </View>
-    </View>
   );
 }
