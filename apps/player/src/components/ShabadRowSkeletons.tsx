@@ -16,7 +16,11 @@ import { cn } from '~/lib/utils';
 // sees it, which is what parts them without moving the layout.
 const GREYED_OUT =
   '[&_[style]]:!bg-none [&_[style]]:bg-muted [&_button]:invisible [&_span]:invisible ' +
-  '[&_p]:w-fit [&_p]:max-w-full [&_p]:scale-y-75 [&_p]:rounded [&_p]:bg-muted [&_p]:text-transparent';
+  '[&_p]:w-fit [&_p]:max-w-full [&_p]:scale-y-75 [&_p]:rounded [&_p]:bg-muted [&_p]:text-transparent ' +
+  // The row's time and its heart and menu, the buttons directly in the row (the
+  // play overlay is deeper). The heart waits for a hover, hence the !important.
+  '[&_.tabular-nums]:visible [&_.tabular-nums]:scale-y-75 [&_.tabular-nums]:rounded [&_.tabular-nums]:bg-muted [&_.tabular-nums]:text-transparent ' +
+  '[&>div>button]:visible [&>div>button]:scale-[0.6] [&>div>button]:rounded-md [&>div>button]:!bg-muted [&>div>button]:!opacity-100 [&>div>button_svg]:invisible';
 
 export function ShabadRowSkeletons() {
   const [show, setShow] = useState(false);

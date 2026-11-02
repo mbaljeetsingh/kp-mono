@@ -38,6 +38,7 @@ export function ShabadRowSkeletons() {
           item={PLACEHOLDER_PLAYABLE}
           isCurrent={false}
           onPress={ignorePress}
+          onMore={ignorePress}
           loading
         />
       ))}
