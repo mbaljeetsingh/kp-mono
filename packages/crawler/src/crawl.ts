@@ -27,7 +27,14 @@ const TREES = {
 
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), '../out');
 const RATE_MS = 1000;
-const MAX_ATTEMPTS = 4;
+// A WAF cool-down is slower than a rate limit, so the wait is generous. Four
+// idle minutes on the worst path is nothing against re-running an 11-minute
+// crawl, and the whole point is to still be trying when the door reopens.
+const RETRY_WAITS_MS = [10_000, 20_000, 40_000, 80_000];
+// A root listing gets about 18 minutes, because losing one ends the whole run.
+// The first request of a run used to be refused twice and let through at ~30s,
+// every week; from 18 Oct 2026 it was still refused at 150s, three runs in a row.
+const ROOT_RETRY_WAITS_MS = [...RETRY_WAITS_MS, ...Array<number>(8).fill(120_000)];
 const SAMPLE = process.argv.includes('--sample');
 /** Seed anyway when a whole tree came back empty — see the guard in main(). */
 const ALLOW_PARTIAL = process.argv.includes('--allow-partial');
@@ -65,7 +72,7 @@ const RETRYABLE = new Set([403, 408, 425, 429]);
 const isRetryable = (status: number) => RETRYABLE.has(status) || status >= 500;
 
 /** Rate-limited GET with retry. Cloudflare 429/403 is the failure to survive. */
-async function get(url: string, attempt = 0): Promise<string | null> {
+async function get(url: string, waits = RETRY_WAITS_MS, attempt = 0): Promise<string | null> {
   await sleep(RATE_MS);
   requestCount++;
   try {
@@ -80,17 +87,34 @@ async function get(url: string, attempt = 0): Promise<string | null> {
     }
     return await res.text();
   } catch (err) {
-    if (attempt < MAX_ATTEMPTS) {
-      // A WAF cool-down is slower than a rate limit, so the wait is generous:
-      // 10s, 20s, 40s, 80s. Four idle minutes on the worst path is nothing
-      // against re-running an 11-minute crawl, and the whole point is to still
-      // be trying when the door reopens.
-      await sleep(10_000 * 2 ** attempt);
-      return get(url, attempt + 1);
+    const message = err instanceof Error ? err.message : String(err);
+    // Logged on every attempt: when three runs failed in a row, nothing in the
+    // logs said whether SGPC had refused the request or never answered it.
+    console.log(`${url} — attempt ${attempt + 1}/${waits.length + 1} failed: ${message}`);
+    const wait = waits[attempt];
+    if (wait !== undefined) {
+      await sleep(wait);
+      return get(url, waits, attempt + 1);
     }
-    errors.push({ url, message: err instanceof Error ? err.message : String(err) });
+    errors.push({ url, message });
     return null;
   }
+}
+
+/**
+ * Not `return tracks` on failure. A root listing that never arrived is the
+ * difference between "this tree is empty" and "we never saw this tree", and
+ * returning an empty array silently — before even the artist-count log — made
+ * those indistinguishable. That is how a run once reported 7,960 tracks as a
+ * complete archive with ragiwise, 84% of it, simply absent from the output.
+ */
+async function getRoot(tree: SourceTree, url: string): Promise<string> {
+  const html = await get(url, ROOT_RETRY_WAITS_MS);
+  if (html) return html;
+  throw new Error(
+    `${tree}: root listing ${url} could not be fetched (${errors.at(-1)?.message}) — ` +
+      'refusing to report the tree as empty.'
+  );
 }
 
 interface TrackInput {
@@ -175,18 +199,7 @@ function makeTrack({
 /** Themed trees: one level of `?dir=<Artist>` directories holding audio. */
 async function crawlArtistTree(tree: SourceTree, baseUrl: string, now: string) {
   const tracks: ReturnType<typeof makeTrack>[] = [];
-  const indexHtml = await get(baseUrl);
-  // Not `return tracks`. A root listing that never arrived is the difference
-  // between "this tree is empty" and "we never saw this tree", and returning
-  // an empty array silently — before even the artist-count log — made those
-  // indistinguishable. That is how a run once reported 7,960 tracks as a
-  // complete archive with ragiwise, 84% of it, simply absent from the output.
-  if (!indexHtml) {
-    throw new Error(
-      `${tree}: root listing ${baseUrl} could not be fetched after ` +
-        `${MAX_ATTEMPTS + 1} attempts — refusing to report the tree as empty.`
-    );
-  }
+  const indexHtml = await getRoot(tree, baseUrl);
 
   let artists = parseListing(indexHtml, baseUrl).dirs;
   if (SAMPLE) artists = artists.slice(0, 3);
@@ -229,15 +242,7 @@ async function crawlArtistTree(tree: SourceTree, baseUrl: string, now: string) {
  */
 async function crawlDayTree(now: string) {
   const tracks: ReturnType<typeof makeTrack>[] = [];
-  const rootHtml = await get(TREES.daywise);
-  // Same reasoning as crawlArtistTree: an unfetched root is a failure, not an
-  // empty tree.
-  if (!rootHtml) {
-    throw new Error(
-      `daywise: root listing ${TREES.daywise} could not be fetched after ` +
-        `${MAX_ATTEMPTS + 1} attempts — refusing to report the tree as empty.`
-    );
-  }
+  const rootHtml = await getRoot('daywise', TREES.daywise);
 
   let years = parseListing(rootHtml, TREES.daywise).dirs.filter((d) => /^\d{4}$/.test(d));
   if (SAMPLE) years = years.slice(-2);
