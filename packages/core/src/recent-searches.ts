@@ -18,7 +18,7 @@ const NONE: RecentSearches = { en: [], pa: [] };
 function terms(value: unknown): readonly string[] {
   if (!Array.isArray(value)) return [];
   return value
-    .filter((term): term is string => typeof term === 'string' && term.length > 0)
+    .filter((term): term is string => typeof term === 'string' && term.trim().length > 0)
     .slice(0, RECENT_SEARCH_LIMIT);
 }
 

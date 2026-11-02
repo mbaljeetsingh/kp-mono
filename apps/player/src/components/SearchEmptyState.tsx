@@ -61,6 +61,7 @@ function RecentSearches({ onSearch }: { onSearch: (term: string) => void }) {
           <Button
             variant="ghost"
             size="icon-sm"
+            // A Punjabi term is GurbaniLipi keys: a screen reader would spell out nonsense.
             aria-label={script === 'pa' ? 'Remove this search' : `Remove ${term}`}
             onClick={() => remove(term)}
             className="size-6 rounded-full text-muted-foreground"

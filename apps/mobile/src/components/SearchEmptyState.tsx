@@ -105,6 +105,7 @@ function RecentSearches({ onSearch }: { onSearch: (term: string) => void }) {
           <Pressable
             onPress={() => remove(term)}
             accessibilityRole="button"
+            // A Punjabi term is GurbaniLipi keys: a screen reader would spell out nonsense.
             accessibilityLabel={script === 'pa' ? 'Remove this search' : `Remove ${term}`}
             hitSlop={4}
             className="size-7 items-center justify-center active:opacity-60"

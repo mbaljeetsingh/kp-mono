@@ -9,6 +9,14 @@ import {
 
 const none = { en: [], pa: [] };
 
+describe('stored terms', () => {
+  it('drops a term that is only whitespace, which would draw a blank chip', () => {
+    expect(parseRecentSearches(JSON.stringify({ en: ['   ', 'japji'], pa: [] })).en).toEqual([
+      'japji',
+    ]);
+  });
+});
+
 describe('withRecentSearch', () => {
   it('puts the term first and keeps the languages apart', () => {
     const next = withRecentSearch({ en: ['waheguru'], pa: ['hjm'] }, 'japji', 'en');

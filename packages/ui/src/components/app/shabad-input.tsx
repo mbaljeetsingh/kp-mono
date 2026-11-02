@@ -43,7 +43,9 @@ export function ShabadInput({
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onSubmit?.();
+          // Enter also accepts an input method's candidate, which submits nothing.
+          // Safari can report that keydown as not composing, hence the keyCode too.
+          if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) onSubmit?.();
         }}
         placeholder={placeholder}
         aria-label={ariaLabel}
