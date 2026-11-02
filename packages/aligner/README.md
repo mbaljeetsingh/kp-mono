@@ -172,6 +172,16 @@ SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py           # l
 SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_names.py --apply   # and change it
 ```
 
+`shabad_lines` holds the lines of linked shabads, which is what the player's search
+reads. `align.yml` fills in new shabads ahead of each run; nothing refreshes the rest
+on its own, so run it with `--refresh` to bring BaniDB's corrections into search. A
+database restored from the sample seed has none until this runs.
+
+```bash
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_lines.py             # shabads with no lines yet
+SB_URL=<project>/rest/v1 SB_KEY=<service key> python fill_lines.py --refresh   # all of them
+```
+
 A rendition with a shabad linked is titled from its anchor line
 (`main_verse_id`): `name` in roman, `name_gurmukhi` in Unicode Gurmukhi, both
 without verse bars, numbers or the rahao marker. Nobody types either — the

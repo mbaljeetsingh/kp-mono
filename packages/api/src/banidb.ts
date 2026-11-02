@@ -36,7 +36,7 @@ const LINE_START_SEARCH_TYPE = 0;
 /**
  * Words, for a term with spaces. English gets BaniDB's omni search, which allows
  * for spelling (`jag jeevan` finds ਜਗਿ ਜੀਵਨੁ) and reaches translations, but is
- * undocumented, so a failure falls back as any other does. Punjabi gets its word
+ * undocumented. Punjabi gets its word
  * search, which wants the exact spelling: that needs vowels, so a physical
  * keyboard, as the on-screen keys are consonants only.
  */
@@ -48,19 +48,15 @@ const WORD_SEARCH_TYPE: Record<TitleScript, number> = { en: 8, pa: 2 };
  */
 export const MIN_FIRST_LETTERS = 3;
 
-/** Enough to recognise the line without turning a panel into a second list to read. */
+/**
+ * Enough to recognise the line without turning a panel into a second list to read,
+ * and all a lookup asks for: at about 2.7 KB a line, with no compression, 200 lines
+ * was 550 KB to show 20. Roman pays for it on a term with many lines, since BaniDB
+ * answers in shabad order: one more letter narrows it.
+ */
 const LINE_LIST_LIMIT = 20;
 
-/**
- * As many lines as one search reads. `jja` is about 190 shabads at this size, and
- * their ids travel in a query string, whose limit `shabadsByIds` gives as about 250.
- */
-const MAX_SHABAD_HITS = 200;
-
-/**
- * Long enough for BaniDB's slower answers (two to three seconds for 200 hits),
- * short enough that its stalls do not hold up the titles and ragis waiting on it.
- */
+/** Long enough for BaniDB's slower answers, short enough not to leave a panel hanging on a stall. */
 const LINE_SEARCH_TIMEOUT_MS = 6000;
 
 export interface BaniDbHit extends LineHit {
@@ -89,8 +85,6 @@ export interface LineMatch {
 export interface LineMatches {
   /** Lines that open with the letters first: that is what someone usually remembers. */
   lines: LineMatch[];
-  /** BaniDB held more lines than one search reads, so a recording may be missing. */
-  partial: boolean;
 }
 
 async function readHits(base: string, term: string, searchType: number) {
@@ -98,15 +92,12 @@ async function readHits(base: string, term: string, searchType: number) {
   const timer = setTimeout(() => controller.abort(), LINE_SEARCH_TIMEOUT_MS);
   try {
     const res = await fetch(
-      `${base}/search/${encodeURIComponent(term)}?searchtype=${searchType}&results=${MAX_SHABAD_HITS}`,
+      `${base}/search/${encodeURIComponent(term)}?searchtype=${searchType}&results=${LINE_LIST_LIMIT}`,
       { signal: controller.signal }
     );
     if (!res.ok) throw new Error(`BaniDB returned ${res.status}`);
-    const json = (await res.json()) as {
-      verses?: BaniDbHit[];
-      resultsInfo?: { totalResults?: number };
-    };
-    return { verses: json.verses ?? [], total: json.resultsInfo?.totalResults ?? 0 };
+    const json = (await res.json()) as { verses?: BaniDbHit[] };
+    return json.verses ?? [];
   } finally {
     clearTimeout(timer);
   }
@@ -119,7 +110,7 @@ async function readHits(base: string, term: string, searchType: number) {
  * line somebody meant under lines that merely contain the letters: `hjb` is 19
  * lines that open with them and 86 that hold them. Punjabi asks for both. Roman
  * has only "anywhere", so its openers are found by reading the lines; past the
- * cap they stay unfound, which `partial` owns up to.
+ * cap they stay unfound.
  */
 export async function firstLetterLines(
   base: string,
@@ -127,14 +118,13 @@ export async function firstLetterLines(
   script: TitleScript
 ): Promise<LineMatches> {
   if (script === 'en') {
-    const { verses, total } = await readHits(base, term, LANGUAGE_SEARCH_TYPE.en);
+    const verses = await readHits(base, term, LANGUAGE_SEARCH_TYPE.en);
     const lines = verses.map((hit) => ({
       hit,
       atStart: matchesLineStart(hit.transliteration?.english ?? '', term, 'en'),
     }));
     return {
       lines: [...lines.filter((l) => l.atStart), ...lines.filter((l) => !l.atStart)],
-      partial: total > verses.length,
     };
   }
   const [opening, anywhere] = await Promise.allSettled([
@@ -144,8 +134,8 @@ export async function firstLetterLines(
   // Punjabi has nothing else to search, so one answer beats an error. Only both
   // failing is a failure, and either answer alone can still be ranked.
   if (opening.status === 'rejected' && anywhere.status === 'rejected') throw opening.reason;
-  const openers = opening.status === 'fulfilled' ? opening.value.verses : [];
-  const others = anywhere.status === 'fulfilled' ? anywhere.value.verses : [];
+  const openers = opening.status === 'fulfilled' ? opening.value : [];
+  const others = anywhere.status === 'fulfilled' ? anywhere.value : [];
   const opened = new Set(openers.map((hit) => hit.verseId));
   const atStart = (hit: BaniDbHit) =>
     opening.status === 'rejected' && matchesLineStart(lineTextIn(hit, 'pa'), term, 'pa');
@@ -158,16 +148,12 @@ export async function firstLetterLines(
       ...rest.filter((line) => line.atStart),
       ...rest.filter((line) => !line.atStart),
     ],
-    partial: anywhere.status === 'rejected' || anywhere.value.total > anywhere.value.verses.length,
   };
 }
 
 async function wordLines(base: string, term: string, script: TitleScript): Promise<LineMatches> {
-  const { verses, total } = await readHits(base, term, WORD_SEARCH_TYPE[script]);
-  return {
-    lines: verses.map((hit) => ({ hit, atStart: false })),
-    partial: total > verses.length,
-  };
+  const verses = await readHits(base, term, WORD_SEARCH_TYPE[script]);
+  return { lines: verses.map((hit) => ({ hit, atStart: false })) };
 }
 
 /**
@@ -183,11 +169,6 @@ export async function linesMatching(
   if (/\s/.test(term)) return wordLines(base, term, script);
   const found = await firstLetterLines(base, term, script);
   return found.lines.length || script === 'pa' ? found : wordLines(base, term, script);
-}
-
-/** A shabad's id once, keeping the order: its best line decides where it ranks. */
-export function shabadIdsOf(lines: LineMatch[]): number[] {
-  return [...new Set(lines.map((line) => line.hit.shabadId))];
 }
 
 /** The read-along's and the workbench's list: the best few lines to recognise. */

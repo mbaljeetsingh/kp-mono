@@ -11,7 +11,7 @@
  * The header language decides what is typed: roman letters, or GurbaniLipi keys
  * drawn in the GurbaniLipi font, as the read-along's search takes them.
  */
-import { groupByLine, minSearchLength, useArtists, useSearch } from '@kp/api';
+import { minSearchLength, useArtists, useSearchResults } from '@kp/api';
 import type { Playable } from '@kp/core';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -31,7 +31,6 @@ import { useSearchKeys } from '~/lib/search-keys';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, usePlayer } from '~/lib/player';
-import { BANIDB_BASE } from '~/lib/links';
 import { supabase } from '~/lib/supabase';
 import { useColors } from '~/lib/theme';
 import { useTitleScript } from '~/lib/title-script';
@@ -49,9 +48,9 @@ export default function SearchScreen() {
   const setKeysOpen = useSearchKeys((s) => s.setKeysOpen);
   const setKeysAvailable = useSearchKeys((s) => s.setKeysAvailable);
   const [focused, setFocused] = useState(false);
-  const [debounced] = useDebounceValue(term, 250);
+  const [debounced] = useDebounceValue(term, 120);
   const [script] = useTitleScript();
-  const query = useSearch(supabase, BANIDB_BASE, debounced, script);
+  const { results: query, items, headings } = useSearchResults(supabase, debounced, script);
   const artists = useArtists(supabase);
   const currentId = usePlayer((s) => s.current?.id);
   const online = useIsOnline();
@@ -74,12 +73,6 @@ export default function SearchScreen() {
   const trimmed = debounced.trim();
   const min = minSearchLength(script);
   const ready = trimmed.length >= min;
-  const { items, headings } = groupByLine(
-    query.data?.pages.flatMap((p) => p.items) ?? [],
-    query.data?.pages[0]?.matches.lines,
-    trimmed,
-    script
-  );
   const firstGrouped = items.findIndex((item) => headings.has(item.id));
   const needle = trimmed.toLowerCase();
   const ragis =
@@ -137,19 +130,9 @@ export default function SearchScreen() {
                   </>
                 ) : null}
                 <Text className="px-5 pt-2 text-sm font-medium text-foreground">Shabads</Text>
-                {query.data?.pages[0]?.matches.partial ? (
-                  <Text className="px-5 text-sm text-muted-foreground">
-                    Many lines match. Type another letter to narrow it.
-                  </Text>
-                ) : null}
                 {query.isRefetchError ? (
                   <Text className="px-5 text-sm text-muted-foreground">
                     Could not refresh these results.
-                  </Text>
-                ) : null}
-                {query.data?.pages[0]?.matches.degraded ? (
-                  <Text className="px-5 text-sm text-muted-foreground">
-                    First-letter search is unavailable right now. Showing titles and ragis.
                   </Text>
                 ) : null}
               </View>
@@ -192,7 +175,8 @@ export default function SearchScreen() {
               );
             }}
             onEndReached={() => {
-              if (query.hasNextPage && !query.isFetchingNextPage) void query.fetchNextPage();
+              if (query.hasNextPage && !query.isPlaceholderData && !query.isFetchingNextPage)
+                void query.fetchNextPage();
             }}
             onEndReachedThreshold={0.6}
             ListFooterComponent={

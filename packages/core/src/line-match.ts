@@ -72,6 +72,16 @@ function needleOf(term: string, script: TitleScript): string[] {
   return toCarriers([...term].map((c) => GURMUKHI_KEY_LETTERS[c] ?? c).join(''));
 }
 
+/**
+ * A typed term as `shabad_lines` holds its first letters, or nothing when it has
+ * spaces and so cannot be initials. packages/aligner/fill_lines.py writes the
+ * other side of this.
+ */
+export function searchLetters(term: string, script: TitleScript): string {
+  const trimmed = term.trim();
+  return /\s/.test(trimmed) ? '' : needleOf(trimmed, script).join('');
+}
+
 /** The words of a line the term's letters landed on, and where they begin. */
 function findMatch(line: string, term: string, script: TitleScript) {
   const words = line

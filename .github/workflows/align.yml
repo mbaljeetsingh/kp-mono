@@ -97,6 +97,13 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - run: uv venv && uv pip install -e .
+      # Ahead of aligning, and allowed to fail: a shabad's lines are what search
+      # finds it by, cheap to fetch, and worth nothing to hold the timings up over.
+      - run: uv run python fill_lines.py
+        continue-on-error: true
+        env:
+          SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
+          SB_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
       - run: uv run python write_timings.py --limit 20 --deadline-min 60
         env:
           SB_URL: ${{ secrets.SUPABASE_URL }}/rest/v1
