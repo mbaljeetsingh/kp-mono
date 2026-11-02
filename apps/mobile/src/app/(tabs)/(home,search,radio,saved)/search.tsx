@@ -10,6 +10,10 @@
  *
  * The header language decides what is typed: roman letters, or GurbaniLipi keys
  * drawn in the GurbaniLipi font, as the read-along's search takes them.
+ *
+ * Nothing typed yet is a page of its own (SearchEmptyState). That is decided on
+ * the box as it stands, not the debounced term, so the shelves leave with the
+ * first keystroke and come back the moment the box is cleared.
  */
 import { minSearchLength, useArtists, useSearchResults } from '@kp/api';
 import type { Playable } from '@kp/core';
@@ -23,10 +27,12 @@ import { MarkedLine } from '~/components/MarkedLine';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { RagiShelf } from '~/components/RagiShelf';
 import { Screen } from '~/components/Screen';
+import { SearchEmptyState } from '~/components/SearchEmptyState';
 import { DOCKED_KEYS_SPACE, ShabadInput } from '~/components/ShabadInput';
 import { ShabadRow } from '~/components/ShabadRow';
 import { ShabadRowSkeletons } from '~/components/ShabadRowSkeletons';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
+import { useRecentSearches } from '~/lib/recent-searches';
 import { useSearchKeys } from '~/lib/search-keys';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
@@ -54,6 +60,7 @@ export default function SearchScreen() {
   const artists = useArtists(supabase);
   const currentId = usePlayer((s) => s.current?.id);
   const online = useIsOnline();
+  const { save } = useRecentSearches();
   const keysAvailable = focused && online && script === 'pa';
 
   useFocusEffect(
@@ -70,6 +77,7 @@ export default function SearchScreen() {
 
   if (!online) return <OfflineNotice />;
 
+  const typed = term.trim();
   const trimmed = debounced.trim();
   const min = minSearchLength(script);
   const ready = trimmed.length >= min;
@@ -97,6 +105,7 @@ export default function SearchScreen() {
           autoFocus
           placeholder={script === 'pa' ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'Shabad first letters or ragi…'}
           onPress={() => setKeysOpen(true)}
+          onSubmit={() => save(term)}
         />
       </View>
 
@@ -105,11 +114,13 @@ export default function SearchScreen() {
       <View className="flex-1" onTouchStart={() => setKeysOpen(false)}>
         {/* Said rather than left blank: a search box that does nothing for one
           character reads as broken. */}
-        {!ready ? (
+        {!typed ? (
+          <SearchEmptyState onMore={onMore} onSearch={setTerm} />
+        ) : typed.length < min ? (
           <Text className="px-5 py-2 text-sm text-muted-foreground">
             Type at least {min} characters.
           </Text>
-        ) : (
+        ) : !ready ? null : (
           <FlatList
             data={items}
             keyExtractor={(item: Playable) => item.id}
@@ -126,7 +137,7 @@ export default function SearchScreen() {
                 {ragis.length ? (
                   <>
                     <Text className="px-5 text-sm font-medium text-foreground">Ragis</Text>
-                    <RagiShelf artists={ragis} />
+                    <RagiShelf artists={ragis} onPick={() => save(trimmed)} />
                   </>
                 ) : null}
                 <Text className="px-5 pt-2 text-sm font-medium text-foreground">Shabads</Text>
@@ -144,7 +155,10 @@ export default function SearchScreen() {
                 <ShabadRow
                   item={item}
                   isCurrent={item.id === currentId}
-                  onPress={() => playerActions.playList(items, index)}
+                  onPress={() => {
+                    playerActions.playList(items, index);
+                    save(trimmed);
+                  }}
                   onMore={onMore}
                 />
               );

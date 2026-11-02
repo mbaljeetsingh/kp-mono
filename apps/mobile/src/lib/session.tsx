@@ -11,6 +11,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 
 import { playerStore } from '~/lib/player';
+import { useClearRecentSearchesOnSignOut } from '~/lib/recent-searches';
 import { storage } from '~/lib/storage';
 import { supabase } from '~/lib/supabase';
 
@@ -28,6 +29,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const userId = session?.user.id ?? null;
   const favorites = useFavorites(supabase, userId, storage);
   useRecentSync(supabase, userId, playerStore, storage);
+  useClearRecentSearchesOnSignOut(userId);
 
   /*
    * No sign-in prompt flag here, unlike the web's provider. Sign-in on a phone

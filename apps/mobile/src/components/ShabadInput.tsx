@@ -46,6 +46,7 @@ export function ShabadInput({
   placeholder,
   autoFocus,
   onPress,
+  onSubmit,
 }: {
   value: string;
   onChangeText: (next: string) => void;
@@ -53,6 +54,8 @@ export function ShabadInput({
   placeholder: string;
   autoFocus?: boolean;
   onPress?: () => void;
+  /** The phone keyboard's search key. */
+  onSubmit?: () => void;
 }) {
   const colors = useColors();
   const punjabi = script === 'pa';
@@ -73,6 +76,7 @@ export function ShabadInput({
         // letter of every new query.
         autoCapitalize="none"
         returnKeyType="search"
+        onSubmitEditing={onSubmit}
         showSoftInputOnFocus={!punjabi}
         // Paste and AutoFill belong to the phone's keyboard, and it is not up.
         contextMenuHidden={punjabi}

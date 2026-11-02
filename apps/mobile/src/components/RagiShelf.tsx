@@ -9,7 +9,7 @@ import { Pressable, ScrollView, Text } from 'react-native';
 import { ArtTile } from '~/components/ArtTile';
 import { artistPhotoUrl } from '~/lib/supabase';
 
-export function RagiShelf({ artists }: { artists: Artist[] }) {
+export function RagiShelf({ artists, onPick }: { artists: Artist[]; onPick?: () => void }) {
   const router = useRouter();
 
   return (
@@ -22,7 +22,10 @@ export function RagiShelf({ artists }: { artists: Artist[] }) {
       {artists.map((a) => (
         <Pressable
           key={a.name}
-          onPress={() => router.push({ pathname: '/ragi/[name]', params: { name: a.name } })}
+          onPress={() => {
+            onPick?.();
+            router.push({ pathname: '/ragi/[name]', params: { name: a.name } });
+          }}
           className="w-24 items-center gap-2 active:opacity-70"
         >
           <ArtTile

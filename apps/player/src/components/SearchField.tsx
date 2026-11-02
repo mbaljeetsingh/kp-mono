@@ -24,6 +24,7 @@ import {
   useSearch,
 } from '@tanstack/react-router';
 
+import { useRecentSearches } from '~/lib/recent-searches';
 import { useTitleScript } from '~/lib/title-script';
 
 interface Props {
@@ -41,6 +42,7 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
   const canGoBack = useCanGoBack();
   const [script] = useTitleScript();
   const punjabi = script === 'pa';
+  const { save } = useRecentSearches();
 
   function onChange(value: string) {
     if (!value && exitOnClear && onSearchPage) {
@@ -56,6 +58,7 @@ export function SearchField({ autoFocus, exitOnClear, className }: Props) {
     <ShabadInput
       value={q}
       onChange={onChange}
+      onSubmit={() => save(q)}
       gurbaniLipi={punjabi}
       autoFocus={autoFocus}
       placeholder={punjabi ? 'ਪਹਿਲੇ ਅੱਖਰ ਲਿਖੋ…' : 'Shabad first letters or ragi…'}

@@ -13,6 +13,7 @@ import { cn } from '../../lib/utils';
 export function ShabadInput({
   value,
   onChange,
+  onSubmit,
   gurbaniLipi,
   placeholder,
   ariaLabel,
@@ -22,6 +23,8 @@ export function ShabadInput({
 }: {
   value: string;
   onChange: (next: string) => void;
+  /** Enter, or the search key on a phone. */
+  onSubmit?: () => void;
   /** The term is GurbaniLipi keys, drawn in that font and with its keyboard to hand. */
   gurbaniLipi: boolean;
   placeholder: string;
@@ -39,6 +42,9 @@ export function ShabadInput({
         value={value}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') onSubmit?.();
+        }}
         placeholder={placeholder}
         aria-label={ariaLabel}
         className={cn(

@@ -11,6 +11,7 @@ import type { Session } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 import { playerStore } from '~/lib/player';
+import { useClearRecentSearchesOnSignOut } from '~/lib/recent-searches';
 import { supabase } from '~/lib/supabase';
 
 interface SessionValue {
@@ -51,6 +52,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const userId = session?.user.id ?? null;
   const favorites = useFavorites(supabase, userId);
   useRecentSync(supabase, userId, playerStore, webFavoritesStorage);
+  useClearRecentSearchesOnSignOut(userId);
 
   const [promptOpen, setPromptOpen] = useState(false);
   const [pendingPick, setPendingPick] = useState<{ id: string; name: string } | null>(null);

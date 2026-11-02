@@ -25,6 +25,8 @@ interface Props {
   emptyHint?: string;
   /** Line headings, by the id of the row each goes above. */
   headings?: Map<string, LineSegment[]>;
+  /** A row was played, for a page that cares which list it came from. */
+  onPlay?: (item: Playable) => void;
 }
 
 /** The line the rows below it were found through. */
@@ -44,6 +46,7 @@ export function ShabadList({
   empty,
   emptyHint,
   headings,
+  onPlay,
 }: Props) {
   const currentId = usePlayer((s) => s.current?.id);
   const playing = usePlayer((s) => s.playing);
@@ -57,6 +60,7 @@ export function ShabadList({
   function playFrom(item: Playable) {
     const index = items.findIndex((i) => i.id === item.id);
     playerActions.playList(items, index < 0 ? 0 : index);
+    onPlay?.(item);
   }
 
   if (!loading && items.length === 0) {

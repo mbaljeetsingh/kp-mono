@@ -5,30 +5,14 @@
  * set is not listenable until somebody has marked where each shabad begins and
  * ends. Search lives in the header, so Home is only shelves.
  */
-import { shelfShabads, useArtists, useRecentShabads, type ShabadSort } from '@kp/api';
-import { DEFAULT_STATION, RECENT_SHELF_FETCH, stationPlayable } from '@kp/core';
-import { useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { DEFAULT_STATION, stationPlayable } from '@kp/core';
 import { Play, Radio } from 'lucide-react';
-import type { ReactNode } from 'react';
 
 import { LiveBadge } from '~/components/LiveBadge';
-import { RagiShelf } from '~/components/RagiCard';
-import { ShabadList } from '~/components/ShabadList';
-import { playerActions, usePlayer } from '~/lib/player';
-import { useSession } from '~/lib/session';
-import { supabase } from '~/lib/supabase';
-
-/**
- * Shelves, not the archive — see `shelfShabads`. Short enough that the one
- * below is still in reach; the whole list is a "See all" away.
- */
-const SHELF_LIMIT = 8;
-const RAGI_LIMIT = 12;
+import { RagisShelf, RecentShelf, Shelf } from '~/components/Shelves';
+import { playerActions } from '~/lib/player';
 
 export function HomeRoute() {
-  const artists = useArtists(supabase);
-
   return (
     <div className="flex flex-col gap-8">
       {/* Unseen, but a screen reader still needs the page to have a heading. */}
@@ -60,69 +44,7 @@ export function HomeRoute() {
       <RecentShelf />
       <Shelf title="Recently added" sort="newest" />
       <Shelf title="Popular" sort="popular" />
-
-      {artists.data?.length ? (
-        <RagiShelf
-          artists={artists.data.slice(0, RAGI_LIMIT)}
-          action={<Link to="/ragis">See all</Link>}
-        />
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * The way back in. Above the archive's shelves because it is the one list that
- * is about this listener; nothing at all for somebody who has not played yet.
- * What is playing stays on it, lit by the row: left out, replaying a shabad from
- * here looked like playing it removed it.
- */
-function RecentShelf() {
-  const { userId } = useSession();
-  const ids = usePlayer((s) => s.recentIds);
-  const query = useRecentShabads(supabase, userId, ids.slice(0, RECENT_SHELF_FETCH));
-  const items = (query.data ?? []).slice(0, SHELF_LIMIT);
-  if (!items.length) return null;
-
-  return (
-    <section className="flex flex-col gap-2">
-      <ShelfHeader title="Recently played" link={<Link to="/recent">See all</Link>} />
-      <ShabadList items={items} empty="" />
-    </section>
-  );
-}
-
-function Shelf({ title, sort }: { title: string; sort: ShabadSort }) {
-  const query = useQuery({
-    queryKey: ['shabads', sort, SHELF_LIMIT],
-    queryFn: () => shelfShabads(supabase, SHELF_LIMIT, sort),
-  });
-
-  return (
-    <section className="flex flex-col gap-2">
-      <ShelfHeader
-        title={title}
-        link={
-          <Link to="/shabads" search={sort === 'popular' ? { sort } : {}}>
-            See all
-          </Link>
-        }
-      />
-      <ShabadList
-        items={query.data ?? []}
-        loading={query.isLoading}
-        empty="Nothing published yet."
-        emptyHint="The archive grows in the tagging workbench."
-      />
-    </section>
-  );
-}
-
-function ShelfHeader({ title, link }: { title: string; link: ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between">
-      <h2 className="text-sm font-medium">{title}</h2>
-      <span className="text-xs text-muted-foreground hover:text-foreground">{link}</span>
+      <RagisShelf />
     </div>
   );
 }

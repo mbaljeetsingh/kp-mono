@@ -13,6 +13,7 @@ export * from './shabad-name';
 export * from './title-script';
 export * from './read-along';
 export * from './recent';
+export * from './recent-searches';
 export * from './mp3';
 export * from './share';
 export * from './skeleton';

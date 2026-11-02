@@ -6,14 +6,20 @@
  * filtered on the device — the directory is one small cached list, and a
  * round trip per keystroke for it would be the slower way to get the same rows.
  * Their names are roman, so Punjabi keystrokes are never held against them.
+ *
+ * Nothing typed yet is a page of its own (SearchEmptyState). That is decided on
+ * the box as it stands, not the debounced term, so the shelves leave with the
+ * first keystroke and come back the moment the box is cleared.
  */
 import { minSearchLength, useArtists, useSearchResults } from '@kp/api';
-import { useSearch } from '@tanstack/react-router';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useDebounceValue } from 'usehooks-ts';
 
 import { RagiShelf } from '~/components/RagiCard';
+import { SearchEmptyState } from '~/components/SearchEmptyState';
 import { SearchField } from '~/components/SearchField';
 import { ShabadList } from '~/components/ShabadList';
+import { useRecentSearches } from '~/lib/recent-searches';
 import { supabase } from '~/lib/supabase';
 import { useTitleScript } from '~/lib/title-script';
 
@@ -21,7 +27,10 @@ const RAGI_LIMIT = 8;
 
 export function SearchRoute() {
   const { q = '' } = useSearch({ from: '/search' });
-  const [term] = useDebounceValue(q.trim(), 120);
+  const typed = q.trim();
+  const [term] = useDebounceValue(typed, 120);
+  const navigate = useNavigate();
+  const { save } = useRecentSearches();
   const [script] = useTitleScript();
   const min = minSearchLength(script);
   const ready = term.length >= min;
@@ -44,11 +53,15 @@ export function SearchRoute() {
 
       {/* Said rather than left blank: a search box that does nothing for one
           character reads as broken. */}
-      {!ready ? (
+      {!typed ? (
+        <SearchEmptyState
+          onSearch={(next) => void navigate({ to: '/search', search: { q: next }, replace: true })}
+        />
+      ) : typed.length < min ? (
         <p className="px-1 text-sm text-muted-foreground">Type at least {min} characters.</p>
-      ) : (
+      ) : !ready ? null : (
         <>
-          {ragis.length ? <RagiShelf artists={ragis} /> : null}
+          {ragis.length ? <RagiShelf artists={ragis} onPick={() => save(term)} /> : null}
 
           <section className="flex flex-col gap-2">
             <h2 className="text-sm font-medium">Shabads</h2>
@@ -60,6 +73,7 @@ export function SearchRoute() {
             ) : (
               <ShabadList
                 items={items}
+                onPlay={() => save(term)}
                 loading={results.isLoading || results.isFetchingNextPage}
                 // Not while the last term's rows stand in: their pages are not this query's.
                 hasMore={results.hasNextPage && !results.isPlaceholderData}
