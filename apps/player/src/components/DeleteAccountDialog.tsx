@@ -21,6 +21,9 @@ import { toast } from 'sonner';
 
 import { supabase } from '~/lib/supabase';
 
+/** Long past a slow answer; short enough that nobody reaches for reload first. */
+const GIVE_UP_AFTER_MS = 20_000;
+
 export function DeleteAccountDialog({
   email,
   open,
@@ -42,11 +45,25 @@ export function DeleteAccountDialog({
   async function confirm() {
     setPending(true);
     setError(null);
-    // Caught as well as checked: `change` refuses to close while pending, so a
-    // rejection that skipped the reset would leave the dialog impossible to shut.
-    const result = await deleteOwnAccount(supabase).catch((cause: unknown) => ({
-      error: cause instanceof Error ? cause.message : 'Something went wrong.',
-    }));
+    // Caught, and given up on after a while, as well as checked: `change`
+    // refuses to close while pending, so a rejection or a request that never
+    // answers would leave the dialog impossible to shut. Giving up cancels
+    // nothing, so the message says the deletion may still land.
+    const result = await Promise.race([
+      deleteOwnAccount(supabase).catch((cause: unknown) => ({
+        error: cause instanceof Error ? cause.message : 'Something went wrong.',
+      })),
+      new Promise<{ error: string }>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              error:
+                'The server has not answered. It may still go through; reload in a minute to see.',
+            }),
+          GIVE_UP_AFTER_MS
+        )
+      ),
+    ]);
     setPending(false);
     if (result.error) {
       setError(result.error);
