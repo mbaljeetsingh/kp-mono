@@ -7,7 +7,7 @@
  * and a bare button pinned to the bottom of the sidebar, where a long queue
  * pushed them off the screen entirely.
  */
-import { LogOut } from 'lucide-react';
+import { LogOut, Trash2 } from 'lucide-react';
 
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -23,10 +23,17 @@ import {
 export function AccountMenu({
   email,
   onSignOut,
+  onDeleteAccount,
   variant = 'avatar',
 }: {
   email: string;
   onSignOut: () => void;
+  /**
+   * Opens the app's own confirmation; the menu only offers the way in. Left
+   * out by the workbench: a contributor tidying a queue is the last person who
+   * should find "delete everything" one slip below Sign out.
+   */
+  onDeleteAccount?: () => void;
   /**
    * `row` carries the address beside the initial, for a sidebar that has the
    * width for it: a bare circle says only that somebody is signed in, and
@@ -75,6 +82,17 @@ export function AccountMenu({
           <LogOut />
           Sign out
         </DropdownMenuItem>
+        {/* Last, and ruled off from Sign out, so the one thing that cannot be
+            undone is never the item next to the one people use every week. */}
+        {onDeleteAccount ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onDeleteAccount}>
+              <Trash2 />
+              Delete account…
+            </DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
