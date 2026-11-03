@@ -8,7 +8,7 @@
  */
 import { deleteOwnAccount, signOut } from '@kp/api';
 import { useRouter } from 'expo-router';
-import { ExternalLink, UserRound, X } from 'lucide-react-native';
+import { ExternalLink, Trash2, UserRound, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Alert, Linking, Modal, Pressable, Text, View } from 'react-native';
 
@@ -111,25 +111,13 @@ export function AccountButton() {
             </View>
 
             {userId ? (
-              <>
-                <Row
-                  label="Sign out"
-                  onPress={() => {
-                    close();
-                    void signOut(supabase);
-                  }}
-                />
-                <Row
-                  label="Delete account"
-                  onPress={() => {
-                    close();
-                    // After the sheet has gone: iOS drops an alert presented
-                    // while a modal is still animating away, and this one is
-                    // the delete both stores require to work.
-                    setTimeout(confirmDeleteAccount, ALERT_AFTER_MODAL_MS);
-                  }}
-                />
-              </>
+              <Row
+                label="Sign out"
+                onPress={() => {
+                  close();
+                  void signOut(supabase);
+                }}
+              />
             ) : (
               <Row
                 label="Sign in"
@@ -146,6 +134,36 @@ export function AccountButton() {
             <Row label="Contribute shabads" onPress={() => visit(CONTRIBUTE_URL)} external />
             <Row label="Source code" onPress={() => visit(GITHUB_URL)} external />
             <Row label="Privacy" onPress={() => visit(PRIVACY_URL)} external />
+
+            {/*
+              Last and in red, ruled off from everything else. It sat straight
+              under Sign out, looking just like it, so a thumb that missed the
+              row people use every week landed on the one that cannot be undone.
+            */}
+            {userId ? (
+              <>
+                <View className="mx-4 my-2 h-px bg-border" />
+                <Pressable
+                  onPress={() => {
+                    close();
+                    // After the sheet has gone: iOS drops an alert presented
+                    // while a modal is still animating away, and this one is
+                    // the delete both stores require to work.
+                    setTimeout(confirmDeleteAccount, ALERT_AFTER_MODAL_MS);
+                  }}
+                  accessibilityRole="button"
+                  className="flex-row items-center gap-3 px-4 py-3 active:bg-accent"
+                >
+                  <Trash2 size={16} color={colors.destructive} />
+                  <View className="flex-1">
+                    <Text className="text-destructive">Delete account</Text>
+                    <Text className="text-sm text-subtle-foreground">
+                      Removes your favorites and playlists
+                    </Text>
+                  </View>
+                </Pressable>
+              </>
+            ) : null}
           </Pressable>
         </Pressable>
       </Modal>
