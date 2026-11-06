@@ -19,12 +19,12 @@
  * else in the app.
  */
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useEffect, useState } from 'react';
-import { Keyboard, Platform, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MiniPlayer } from '~/components/MiniPlayer';
+import { FloatingMiniPlayer, MiniPlayer } from '~/components/MiniPlayer';
 import { DockedGurmukhiKeys } from '~/components/ShabadInput';
+import { HAS_TAB_ACCESSORY } from '~/lib/mini-player-space';
 import { useColors } from '~/lib/theme';
 
 /*
@@ -50,18 +50,6 @@ const ANDROID_TAB_BAR_HEIGHT = 80;
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  // The Android card is measured from the foot of the window, so with the
-  // keyboard up it would ride above it and cover what is being searched.
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
-
-  useEffect(() => {
-    const shown = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
-    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
-    return () => {
-      shown.remove();
-      hidden.remove();
-    };
-  }, []);
 
   return (
     <View style={{ flex: 1 }}>
@@ -87,6 +75,14 @@ export default function TabLayout() {
          * rediscovering this.
          */
         minimizeBehavior="onScrollDown"
+        /*
+         * Before iOS 26 the bar is UIKit's older one, which goes fully clear
+         * whenever it thinks the content is scrolled to its edge. It cannot see
+         * our lists, so it stayed clear for good and the rows showed straight
+         * through the tab labels (a TestFlight tester on iOS 18). Held to its
+         * blurred standard look instead. iOS 26's glass bar is left alone.
+         */
+        disableTransparentOnScrollEdge={Platform.OS === 'ios' && !HAS_TAB_ACCESSORY}
         // Material hides the unselected labels from a fourth tab on, which left
         // Android with bare icons where iOS names every tab.
         labelVisibilityMode="labeled"
@@ -106,8 +102,10 @@ export default function TabLayout() {
         {/*
          * Outside every screen, so navigating never interrupts playback. Always
          * there: with nothing loaded it offers a shuffle instead of a transport.
+         * iOS 26 only — before that the slot does not exist, and each tab's
+         * stack floats the player instead ((home,search,radio,saved)/_layout).
          */}
-        {Platform.OS === 'ios' ? (
+        {HAS_TAB_ACCESSORY ? (
           <NativeTabs.BottomAccessory>
             <MiniPlayer />
           </NativeTabs.BottomAccessory>
@@ -122,20 +120,8 @@ export default function TabLayout() {
        * painting-over problem the file's header describes is an iOS one), and
        * it is still outside every screen, so navigating never stops playback.
        */}
-      {Platform.OS === 'android' && !keyboardOpen ? (
-        <View
-          pointerEvents="box-none"
-          style={{
-            position: 'absolute',
-            left: 8,
-            right: 8,
-            bottom: insets.bottom + ANDROID_TAB_BAR_HEIGHT + 8,
-          }}
-        >
-          <View className="overflow-hidden rounded-2xl border border-border bg-card">
-            <MiniPlayer />
-          </View>
-        </View>
+      {Platform.OS === 'android' ? (
+        <FloatingMiniPlayer bottom={insets.bottom + ANDROID_TAB_BAR_HEIGHT + 8} />
       ) : null}
       <DockedGurmukhiKeys />
     </View>
