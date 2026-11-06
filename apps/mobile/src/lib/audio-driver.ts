@@ -171,6 +171,11 @@ export function createNativeAudioDriver(
         void player.seekTo(startAt).finally(() => settle(id));
       } else if (player) {
         settling = { id, startAt, seeking: false, play: false };
+        // Paused first: on iOS, expo-audio resumes a source swapped in while
+        // the old one played, once it is ready, and no later pause cancels
+        // that. A station whose connection was given up on came on anyway.
+        // Whether it plays is `settle`'s call, through `settling.play`.
+        player.pause();
         player.replace({ uri: url });
       } else {
         settling = { id, startAt, seeking: false, play: false };
