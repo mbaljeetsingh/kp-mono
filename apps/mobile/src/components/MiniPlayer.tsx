@@ -2,11 +2,13 @@ import { useShuffle } from '@kp/api';
 import { clock, elapsedIn, progressPct, segmentTotal } from '@kp/core';
 import { useRouter } from 'expo-router';
 import { Heart, Music, Pause, Play, Shuffle, SkipForward } from 'lucide-react-native';
-import { ActivityIndicator, Platform, Pressable, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Keyboard, Pressable, Text, View } from 'react-native';
 
 import { PlayableArt } from '~/components/ArtTile';
 import { PressableScale } from '~/components/PressableScale';
 import { ShabadTitle } from '~/components/ShabadTitle';
+import { HAS_TAB_ACCESSORY } from '~/lib/mini-player-space';
 import { useIsOnline } from '~/lib/network';
 import { playerActions, playerStore, usePlayer } from '~/lib/player';
 import { useSession } from '~/lib/session';
@@ -43,8 +45,8 @@ export function MiniPlayer() {
     // The capsule iOS draws does not grow to fit. Content taller than it ran off
     // its foot, sitting the art low with a corner clipped, so this fills the capsule
     // and centres in it, and the progress line lies over the gap beneath the art.
-    // Android's card has no height of its own to fill.
-    <View className={Platform.OS === 'ios' ? 'flex-1 justify-center' : 'h-14 justify-center'}>
+    // The floating card (Android, iOS before 26) has no height of its own to fill.
+    <View className={HAS_TAB_ACCESSORY ? 'flex-1 justify-center' : 'h-14 justify-center'}>
       <View className="flex-row items-center gap-3 pl-2 pr-3">
         <Pressable
           onPress={() => router.push('/now-playing')}
@@ -140,7 +142,7 @@ function IdleMiniPlayer() {
   const { shuffle, pending, failed } = useShuffle(supabase, playerStore);
 
   return (
-    <View className={Platform.OS === 'ios' ? 'flex-1 justify-center' : 'h-14 justify-center'}>
+    <View className={HAS_TAB_ACCESSORY ? 'flex-1 justify-center' : 'h-14 justify-center'}>
       <View className="flex-row items-center gap-3 pl-2 pr-3">
         <View className="size-9 items-center justify-center rounded-lg bg-muted">
           <Music size={18} color={colors.mutedForeground} />
@@ -173,6 +175,37 @@ function IdleMiniPlayer() {
             )}
           </PressableScale>
         ) : null}
+      </View>
+    </View>
+  );
+}
+
+/**
+ * The mini player where the tab bar has no accessory slot for it: Android, and
+ * iOS before 26. A card floating `bottom` points above the foot of the window,
+ * just clear of the tab bar.
+ *
+ * Hidden while the keyboard is up: measured from the foot of the window, it
+ * would ride above the keyboard and cover what is being searched.
+ */
+export function FloatingMiniPlayer({ bottom }: { bottom: number }) {
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
+
+  if (keyboardOpen) return null;
+
+  return (
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 8, right: 8, bottom }}>
+      <View className="overflow-hidden rounded-2xl border border-border bg-card">
+        <MiniPlayer />
       </View>
     </View>
   );
