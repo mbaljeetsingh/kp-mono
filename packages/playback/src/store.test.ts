@@ -264,10 +264,20 @@ describe('starting', () => {
   });
 
   it('gives up when tapped again while connecting', () => {
-    store.getState().play(whole('a'));
-    store.getState().toggle();
-    expect(store.getState().starting).toBeNull();
-    expect(fake.calls.at(-1)).toBe('pause');
+    vi.useFakeTimers();
+    try {
+      store.getState().play(whole('a'));
+      store.getState().toggle();
+      expect(store.getState().starting).toBeNull();
+      // And nothing starts it again once the starting timeout has run out.
+      store.getState().onStatus({ position: 0, duration: 0, playing: false });
+      vi.advanceTimersByTime(15_000);
+      expect(fake.calls).toEqual(['load https://x/a.mp3@0', 'play', 'pause']);
+      expect(store.getState().starting).toBeNull();
+      expect(store.getState().playing).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('reconnects a paused broadcast rather than resuming its old buffer', () => {
