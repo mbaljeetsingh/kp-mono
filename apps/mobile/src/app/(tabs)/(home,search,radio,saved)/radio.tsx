@@ -5,13 +5,7 @@
  * bandwidth — the archive hotlinks sgpc.net, which is the organisation that
  * recorded it, and this is a different arrangement that should be visible.
  */
-import {
-  CHANNELS,
-  DEFAULT_STATION,
-  OTHER_GURDWARAS,
-  stationPlayable,
-  type Station,
-} from '@kp/core';
+import { CHANNELS, DEFAULT_STATION, OTHER_GURDWARAS, type Station } from '@kp/core';
 import { Pause, Play, Radio } from 'lucide-react-native';
 import { FlatList, Linking, Pressable, Text, View } from 'react-native';
 
@@ -19,22 +13,17 @@ import { AppHeader } from '~/components/AppHeader';
 import { OfflineNotice } from '~/components/OfflineNotice';
 import { Screen } from '~/components/Screen';
 import { useIsOnline } from '~/lib/network';
-import { playerActions, usePlayer } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { useColors } from '~/lib/theme';
+import { useStation } from '~/lib/use-station';
 
 function StationCard({ station }: { station: Station }) {
   const colors = useColors();
-  const playable = stationPlayable(station);
-  const currentId = usePlayer((s) => s.current?.id);
-  const playing = usePlayer((s) => s.playing);
-  const starting = usePlayer((s) => s.starting);
-
-  const isCurrent = currentId === playable.id;
+  const { isCurrent, onAir, connecting, onPress } = useStation(station);
 
   return (
     <Pressable
-      onPress={() => (isCurrent ? playerActions.toggle() : playerActions.play(playable))}
+      onPress={onPress}
       className="mx-3 mb-2 flex-row items-center gap-3 rounded-2xl bg-card px-3 py-3 active:bg-accent"
     >
       <View
@@ -56,23 +45,18 @@ function StationCard({ station }: { station: Station }) {
           </Text>
         ) : null}
       </View>
-      {/* "Connecting…" is set only by an explicit attempt — inferring it from
-          "selected but not playing" is equally true of a station somebody
-          deliberately stopped. */}
-      {starting === playable.id ? (
-        <Text className="text-xs text-subtle-foreground">Connecting…</Text>
-      ) : null}
+      {connecting ? <Text className="text-xs text-subtle-foreground">Connecting…</Text> : null}
       {/* The whole card is the target; this is the affordance that says the
           card plays, and the one place the station's state is drawn — a pause
           glyph while it is the one on air. */}
       <View
         className={
-          isCurrent && playing
+          onAir
             ? 'size-10 items-center justify-center rounded-full bg-primary'
             : 'size-10 items-center justify-center rounded-full bg-secondary'
         }
       >
-        {isCurrent && playing ? (
+        {onAir ? (
           <Pause size={18} color={colors.primaryForeground} fill={colors.primaryForeground} />
         ) : (
           <Play size={18} color={colors.foreground} fill={colors.foreground} />

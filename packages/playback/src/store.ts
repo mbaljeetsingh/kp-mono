@@ -423,8 +423,22 @@ export function createPlayerStore({
           set({ playing: false, starting: null });
           return;
         }
+        // Tapped while it is still connecting: the listener is giving up on the
+        // attempt, and resuming again would only restart the wait.
+        if (s.starting === s.current.id) {
+          driver?.pause();
+          set({ starting: null });
+          return;
+        }
         // Asked to resume something it no longer has any way of fetching.
         if (!canPlay(s.current)) return;
+        // A broadcast resumes where it is now, not where it was paused: playing
+        // the old source picks up minutes behind, or not at all once the server
+        // has dropped the connection.
+        if (s.current.isLive) {
+          start(s.current, s.index);
+          return;
+        }
         // A restored or cued file may still be settling, so this can wait too.
         markStarting(s.current.id);
         driver?.play();

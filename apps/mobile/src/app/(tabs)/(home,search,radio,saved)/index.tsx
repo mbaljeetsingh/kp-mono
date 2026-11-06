@@ -6,8 +6,8 @@
  * Shelves rather than one endless list: short enough that the next one is
  * still in reach, with the whole archive a "See all" away.
  */
-import { DEFAULT_STATION, stationPlayable } from '@kp/core';
-import { Play, Radio } from 'lucide-react-native';
+import { DEFAULT_STATION } from '@kp/core';
+import { Pause, Play, Radio } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { AppHeader } from '~/components/AppHeader';
@@ -16,15 +16,16 @@ import { Screen } from '~/components/Screen';
 import { RagisShelf, RecentShelf, Shelf } from '~/components/Shelves';
 import { useShabadActions } from '~/lib/use-shabad-actions';
 import { useIsOnline } from '~/lib/network';
-import { playerActions } from '~/lib/player';
 import { useMiniPlayerSpace } from '~/lib/mini-player-space';
 import { useColors } from '~/lib/theme';
+import { useStation } from '~/lib/use-station';
 
 export default function HomeScreen() {
   const colors = useColors();
   const { onMore, sheet } = useShabadActions();
   const miniPlayerSpace = useMiniPlayerSpace();
   const online = useIsOnline();
+  const live = useStation(DEFAULT_STATION);
 
   if (!online) return <OfflineNotice />;
 
@@ -43,7 +44,7 @@ export default function HomeScreen() {
                 right now, so it gets the raised card and the accent. */}
           <View className="overflow-hidden rounded-2xl bg-card">
             <Pressable
-              onPress={() => playerActions.play(stationPlayable(DEFAULT_STATION))}
+              onPress={live.onPress}
               className="flex-row items-center gap-3 p-3 active:bg-accent"
             >
               <View className="size-14 items-center justify-center rounded-xl bg-primary-soft">
@@ -60,11 +61,23 @@ export default function HomeScreen() {
                   {DEFAULT_STATION.name}
                 </Text>
                 <Text numberOfLines={1} className="text-[13px] text-muted-foreground">
-                  {DEFAULT_STATION.place}
+                  {live.connecting ? 'Connecting…' : DEFAULT_STATION.place}
                 </Text>
               </View>
               <View className="size-11 items-center justify-center rounded-full bg-primary">
-                <Play size={20} color={colors.primaryForeground} fill={colors.primaryForeground} />
+                {live.onAir ? (
+                  <Pause
+                    size={20}
+                    color={colors.primaryForeground}
+                    fill={colors.primaryForeground}
+                  />
+                ) : (
+                  <Play
+                    size={20}
+                    color={colors.primaryForeground}
+                    fill={colors.primaryForeground}
+                  />
+                )}
               </View>
             </Pressable>
           </View>
