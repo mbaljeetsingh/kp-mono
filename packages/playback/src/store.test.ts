@@ -263,6 +263,25 @@ describe('starting', () => {
     expect(store.getState().starting).toBeNull();
   });
 
+  it('gives up when tapped again while connecting', () => {
+    store.getState().play(whole('a'));
+    store.getState().toggle();
+    expect(store.getState().starting).toBeNull();
+    expect(fake.calls.at(-1)).toBe('pause');
+  });
+
+  it('reconnects a paused broadcast rather than resuming its old buffer', () => {
+    const live = { ...whole('live'), isLive: true };
+    store.getState().play(live);
+    store.getState().onStatus({ position: 1, duration: 0, playing: true });
+    store.getState().toggle();
+    store.getState().onStatus({ position: 1, duration: 0, playing: false });
+    fake.calls.length = 0;
+    store.getState().toggle();
+    expect(fake.calls).toEqual(['load https://x/live.mp3@0', 'play']);
+    expect(store.getState().starting).toBe('live');
+  });
+
   it('stops when the item being started is cued instead', () => {
     store.getState().play(whole('a'));
     store.getState().cue(whole('a'), 5);

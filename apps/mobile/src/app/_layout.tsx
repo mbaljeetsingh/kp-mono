@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 
 import gurbaniLipi from '../../assets/fonts/Gurb_rg.ttf';
 import { LockScreenArtwork } from '~/components/LockScreenArtwork';
+import { SplashHandoff } from '~/components/SplashHandoff';
 import { SessionProvider } from '~/lib/session';
 import { useColors } from '~/lib/theme';
 
@@ -94,6 +95,8 @@ export default function RootLayout() {
           <Stack.Screen name="now-playing" options={{ presentation: 'modal' }} />
           <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
         </Stack>
+        {/* Over everything, for its second: the native splash, carried on. */}
+        <SplashHandoff />
       </SessionProvider>
     </QueryClientProvider>
   );
